@@ -1,15 +1,17 @@
 import Image from "next/image";
 
-export default function Logo() {
+interface LogoProps {
+  className?: string;
+}
+
+export default function Logo({ className }: LogoProps) {
   return (
-    <div className="mb-6 flex items-start">
-      <Image
-        src="/logo.png"
-        alt="Helsingbuss Logo"
-        width={300}   // större
-        height={90}
-        priority
-      />
-    </div>
+    <Image
+      src="/logo.png"
+      alt="Helsingbuss"
+      width={350}
+      height={50}
+      className={className}
+    />
   );
 }
