@@ -1,75 +1,48 @@
+// src/components/OffertLayout.tsx
 import Image from "next/image";
 
 interface OffertLayoutProps {
   children: React.ReactNode;
   title: string;
-  welcomeText?: string;
-  status?: string; // ✅ vi använder detta till badge
+  welcomeText: string;
+  status?: string; // ✅ Lägg till status här
 }
 
-export default function OffertLayout({ children, title, welcomeText, status }: OffertLayoutProps) {
-  // ✅ välj färg beroende på status
-  const getStatusStyles = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "inkommen":
-        return "bg-blue-100 text-blue-800";
-      case "besvarad":
-        return "bg-yellow-100 text-yellow-800";
-      case "godkänd":
-        return "bg-green-100 text-green-800";
-      case "makulerad":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
+export default function OffertLayout({
+  children,
+  title,
+  welcomeText,
+  status,
+}: OffertLayoutProps) {
   return (
     <div className="min-h-screen flex flex-col bg-[#f5f4f0]">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 bg-[#194C66] h-[60px] flex items-center px-6 shadow z-50">
+      <header className="bg-[#194C66] text-white p-4 flex justify-between items-center fixed top-0 w-full z-50">
         <Image src="/vit_logo.png" alt="Helsingbuss" width={222} height={40} />
+        <span className="text-sm">{status}</span> {/* ✅ Status syns nu */}
       </header>
 
       {/* Content */}
-      <main className="flex-1 pt-[60px]">
+      <main className="flex-1 pt-[80px] px-6">
         {/* Omslagsbild */}
-        <div className="relative w-full h-[300px]">
+        <div className="w-full h-[400px] relative mb-6">
           <Image
             src="/innebild.png"
-            alt="Offert"
+            alt="Omslag"
             fill
-            className="object-cover"
-            priority
+            className="object-cover rounded-lg"
           />
         </div>
 
-        {/* Content box */}
-        <div className="max-w-5xl mx-auto px-6 py-10">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-bold">{title}</h1>
-            {status && (
-              <span
-                className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusStyles(
-                  status
-                )}`}
-              >
-                {status}
-              </span>
-            )}
-          </div>
+        <h1 className="text-2xl font-bold mb-2">{title}</h1>
+        <p className="mb-6 text-gray-700">{welcomeText}</p>
 
-          {welcomeText && (
-            <p className="text-lg text-gray-700 mb-8">{welcomeText}</p>
-          )}
-
-          {children}
-        </div>
+        {children}
       </main>
 
       {/* Footer */}
-      <footer className="bg-[#194C66] text-white text-center py-4">
-        © {new Date().getFullYear()} Helsingbuss AB. Alla rättigheter förbehållna.
+      <footer className="bg-gray-100 text-center py-4 text-sm text-gray-600">
+        © Helsingbuss • Kundtjänst: info@helsingbuss.se • +46 (0)10-405 38 38
       </footer>
     </div>
   );
