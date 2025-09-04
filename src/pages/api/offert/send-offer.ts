@@ -1,4 +1,4 @@
-// src/pages/api/send-offer.ts
+// src/pages/api/offert/send-offer.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { sendOfferMail } from "@/lib/sendMail";
 

@@ -8,6 +8,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  console.log("📩 Incoming request body:", req.body);
+
   try {
     const {
       customer_name,
@@ -37,8 +39,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       notes,
     } = req.body;
 
+    console.log("🔍 Parsed data:", {
+      customer_name,
+      customer_email,
+      customer_phone,
+      passengers,
+      departure_place,
+      destination,
+      departure_date,
+      departure_time,
+      options,
+      return_departure,
+      return_destination,
+      return_date,
+      return_time,
+      stopover_places,
+      plans_description,
+      final_destination,
+      end_date,
+      end_time,
+      customer_type,
+      company,
+      association,
+      org_number,
+      invoice_ref,
+      contact_person,
+      notes,
+    });
+
     // Skapa offertnummer
     const offerNumber = `HB${Date.now().toString().slice(-5)}`;
+
+    console.log("📝 Genererat offertnummer:", offerNumber);
 
     // Lägg in i Supabase
     const { data, error } = await supabase
@@ -78,8 +110,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .single();
 
     if (error) {
+      console.error("❌ Supabase insert error:", error);
       return res.status(500).json({ error: error.message });
     }
+
+    console.log("✅ Supabase insert success:", data);
 
     // Skicka bekräftelsemail till kund
     await sendOfferMail(customer_email, offerNumber, "inkommen");
@@ -94,6 +129,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       offer: data,
     });
   } catch (err: any) {
+    console.error("🔥 API error:", err);
     return res.status(500).json({ error: err.message || "Något gick fel" });
   }
 }
