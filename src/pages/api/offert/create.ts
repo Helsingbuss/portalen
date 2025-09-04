@@ -3,6 +3,17 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { supabase } from "@/lib/supabaseClient";
 import { sendOfferMail } from "@/lib/sendMail";
 
+// Hjälpfunktion för att normalisera datumformatet
+function normalizeDate(dateString: string | undefined) {
+  if (!dateString) return null;
+  const parts = dateString.split(".");
+  if (parts.length === 3) {
+    const [day, month, year] = parts;
+    return `${year}-${month}-${day}`; // YYYY-MM-DD
+  }
+  return dateString; // returnera som den är om redan ISO-format
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -11,8 +22,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   console.log("📩 Incoming request body:", req.body);
 
   try {
-    const {
+    let {
       customer_name,
+      first_name,
+      last_name,
       customer_email,
       customer_phone,
       passengers,
@@ -39,6 +52,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       notes,
     } = req.body;
 
+    // ✅ Om fälten är separata → slå ihop till fullständigt namn
+    if (!customer_name && (first_name || last_name)) {
+      customer_name = `${first_name || ""} ${last_name || ""}`.trim();
+    }
+
+    // ✅ Validera att viktiga fält finns
+    if (!customer_email || !customer_phone) {
+      console.error("❌ Missing required fields:", { customer_email, customer_phone });
+      return res.status(400).json({ error: "E-post och telefonnummer är obligatoriska" });
+    }
+
+    // ✅ Normalisera datum
+    const normDepartureDate = normalizeDate(departure_date);
+    const normReturnDate = normalizeDate(return_date);
+    const normEndDate = normalizeDate(end_date);
+
     console.log("🔍 Parsed data:", {
       customer_name,
       customer_email,
@@ -46,17 +75,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       passengers,
       departure_place,
       destination,
-      departure_date,
+      departure_date: normDepartureDate,
       departure_time,
       options,
       return_departure,
       return_destination,
-      return_date,
+      return_date: normReturnDate,
       return_time,
       stopover_places,
       plans_description,
       final_destination,
-      end_date,
+      end_date: normEndDate,
       end_time,
       customer_type,
       company,
@@ -69,10 +98,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Skapa offertnummer
     const offerNumber = `HB${Date.now().toString().slice(-5)}`;
-
     console.log("📝 Genererat offertnummer:", offerNumber);
 
-    // Lägg in i Supabase
+    // ✅ Lägg in i Supabase
     const { data, error } = await supabase
       .from("offers")
       .insert([
@@ -84,17 +112,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           passengers,
           departure_place,
           destination,
-          departure_date,
+          departure_date: normDepartureDate,
           departure_time,
           options,
           return_departure,
           return_destination,
-          return_date,
+          return_date: normReturnDate,
           return_time,
           stopover_places,
           plans_description,
           final_destination,
-          end_date,
+          end_date: normEndDate,
           end_time,
           customer_type,
           company,
@@ -122,7 +150,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Skicka adminnotis till offert@helsingbuss.se
     await sendOfferMail("offert@helsingbuss.se", offerNumber, "inkommen");
 
-    // Returnera JSON
+    // ✅ Returnera JSON
     return res.status(200).json({
       success: true,
       offerId: offerNumber,
