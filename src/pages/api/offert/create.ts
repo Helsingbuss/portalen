@@ -14,6 +14,14 @@ function normalizeDate(dateString: string | undefined) {
   return dateString; // returnera som den är om redan ISO-format
 }
 
+// Hjälpfunktion för options → text[]
+function normalizeOptions(input: any): string[] {
+  if (!input) return [];
+  if (Array.isArray(input)) return input.filter(Boolean);
+  if (typeof input === "string" && input.trim() !== "") return [input.trim()];
+  return [];
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -52,7 +60,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       notes,
     } = req.body;
 
-    // ✅ Om fälten är separata → slå ihop till fullständigt namn
+    // ✅ Slå ihop förnamn/efternamn om customer_name saknas
     if (!customer_name && (first_name || last_name)) {
       customer_name = `${first_name || ""} ${last_name || ""}`.trim();
     }
@@ -72,12 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const normPassengers = passengers ? Number(passengers) : null;
 
     // ✅ Hantera options → alltid array
-    const normOptions =
-      !options || options.length === 0
-        ? []
-        : Array.isArray(options)
-        ? options
-        : [options]; // Om det är en sträng, gör om till array
+    const normOptions = normalizeOptions(options);
 
     console.log("🔍 Parsed data:", {
       customer_name,
@@ -125,7 +128,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           destination,
           departure_date: normDepartureDate,
           departure_time,
-          options: normOptions,
+          options: normOptions, // <---- alltid array
           return_departure,
           return_destination,
           return_date: normReturnDate,
