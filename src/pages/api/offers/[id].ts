@@ -1,8 +1,14 @@
 // src/pages/api/offers/[id].ts
-import type { NextApiRequest, NextApiResponse } from "next";
-import { supabase } from "@/lib/supabaseClient";
+import type {
+  NextApiRequest as NextApiRequestT,
+  NextApiResponse as NextApiResponseT,
+} from "next";
+import { supabase as sbClient } from "@/lib/supabaseClient";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequestT,
+  res: NextApiResponseT
+) {
   const { id } = req.query as { id?: string };
 
   if (!id) {
@@ -10,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await sbClient
       .from("offers")
       .select("*")
       .eq("id", id)

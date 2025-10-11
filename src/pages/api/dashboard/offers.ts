@@ -3,7 +3,7 @@ import type {
   NextApiRequest as NextApiRequestT,
   NextApiResponse as NextApiResponseT,
 } from "next";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase as sbClient } from "@/lib/supabaseClient";
 
 type Row = {
   id: string;
@@ -23,27 +23,27 @@ function fmtDate(d?: string | null) {
   return d;
 }
 
-export default async function handler(req: NextApiRequestT, res: NextApiResponseT) {
+export default async function handler(
+  req: NextApiRequestT,
+  res: NextApiResponseT
+) {
   try {
     // 1) Hämta 30 senaste dagar och räkna inkomna / besvarade per dag
     const since = new Date();
     since.setDate(since.getDate() - 30);
     const sinceISO = since.toISOString().slice(0, 10);
 
-    const { data: rows, error } = await supabase
+    const { data: rows, error } = await sbClient
       .from("offers")
       .select(
-        "id,offer_number,departure_date,departure_time,departure_place,destination,passengers,status"
+        "id,offer_number,departure_date,departure_time,departure_place,destination,passengers,status,offer_date"
       )
       .gte("offer_date", sinceISO)
       .order("offer_date", { ascending: true });
 
     if (error) throw error;
 
-    const byDay: Record<
-      string,
-      { inkommen: number; besvarad: number }
-    > = {};
+    const byDay: Record<string, { inkommen: number; besvarad: number }> = {};
 
     const unanswered: Row[] = [];
     for (const r of rows ?? []) {
@@ -87,31 +87,5 @@ export default async function handler(req: NextApiRequestT, res: NextApiResponse
   } catch (e: any) {
     console.error("API /dashboard/offers error:", e);
     return res.status(500).json({ error: e.message ?? "Serverfel" });
-  }
-}
-// src/pages/api/offers/[id].ts
-import type { NextApiRequest, NextApiResponse } from "next";
-import { supabase } from "@/lib/supabaseClient";
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { id } = req.query as { id?: string };
-
-  if (!id) {
-    return res.status(400).json({ error: "Missing id" });
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from("offers")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
-    return res.status(200).json({ offer: data });
-  } catch (e: any) {
-    return res.status(500).json({ error: e?.message || "Unknown error" });
   }
 }
