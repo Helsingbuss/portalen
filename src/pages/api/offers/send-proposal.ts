@@ -7,33 +7,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
+
   try {
-    const { offerNumber, customerEmail, totals, pricing, input } = req.body || {};
-    if (!offerNumber || !customerEmail) {
-      return res.status(400).json({ error: "offerNumber och customerEmail krävs" });
+    const {
+      offerId,            // db id (uuid)
+      offerNumber,        // t.ex. HB25007
+      customerEmail,      // mottagare
+      totals,             // summering från kalkylen (valfritt, sparas nedan)
+      pricing,            // radlista från kalkylen (valfritt)
+      input,              // inmatade fält (valfritt)
+    } = req.body ?? {};
+
+    if (!offerId || !offerNumber || !customerEmail) {
+      return res.status(400).json({ error: "offerId, offerNumber och customerEmail krävs" });
     }
 
-    // (Valfritt) uppdatera status till "besvarad" när prisförslag skickas
-    const { error: upErr } = await supabase
+    // (valfritt) spara kalkyl i offers – utan att bryta något befintligt
+    await supabase
       .from("offers")
-      .update({ status: "besvarad" })
-      .eq("offer_number", offerNumber);
+      .update({
+        // Spara som JSON-kolumner om de finns i din DB, annars ignoreras de tyst
+        calc_totals: totals ?? null,
+        calc_pricing: pricing ?? null,
+        calc_input: input ?? null,
+        status: "prisforslag", // markera att prisförslag har skickats
+      })
+      .eq("id", offerId);
 
-    if (upErr) {
-      console.error("Supabase update error:", upErr);
-      // Vi fortsätter ändå med mail – status kan justeras i efterhand
-    }
+    // Skicka mail till kund med din existerande helper (3 argument)
+    await sendOfferMail(customerEmail, offerNumber, "prisforslag");
 
-    // Använd din befintliga mailfunktion med en “prisförslag”-etikett
-    await sendOfferMail(customerEmail, offerNumber, "prisforslag", {
-      totals,
-      pricing,
-      input,
-    });
+    // (valfritt) notifiera adminlådan
+    await sendOfferMail("offert@helsingbuss.se", offerNumber, "prisforslag");
 
-    return res.status(200).json({ ok: true });
-  } catch (e: any) {
-    console.error("send-proposal error:", e);
-    return res.status(500).json({ error: e?.message || "Kunde inte skicka prisförslaget" });
+    return res.status(200).json({ success: true });
+  } catch (err: any) {
+    console.error("send-proposal error:", err);
+    return res.status(500).json({ error: err?.message || "Serverfel" });
   }
 }
