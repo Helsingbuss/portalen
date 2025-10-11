@@ -10,35 +10,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const {
-      offerId,            // db id (uuid)
-      offerNumber,        // t.ex. HB25007
-      customerEmail,      // mottagare
-      totals,             // summering från kalkylen (valfritt, sparas nedan)
-      pricing,            // radlista från kalkylen (valfritt)
-      input,              // inmatade fält (valfritt)
+      offerId,         // UUID i tabellen offers
+      offerNumber,     // t.ex. HB25007
+      customerEmail,   // mottagare
+      totals,          // (valfritt) summering från kalkylen
+      pricing,         // (valfritt) radrader
+      input,           // (valfritt) inmatade fält
     } = req.body ?? {};
 
     if (!offerId || !offerNumber || !customerEmail) {
       return res.status(400).json({ error: "offerId, offerNumber och customerEmail krävs" });
     }
 
-    // (valfritt) spara kalkyl i offers – utan att bryta något befintligt
+    // Spara kalkyl och markera offerten som besvarad
     await supabase
       .from("offers")
       .update({
-        // Spara som JSON-kolumner om de finns i din DB, annars ignoreras de tyst
         calc_totals: totals ?? null,
         calc_pricing: pricing ?? null,
         calc_input: input ?? null,
-        status: "prisforslag", // markera att prisförslag har skickats
+        status: "besvarad",
       })
       .eq("id", offerId);
 
-    // Skicka mail till kund med din existerande helper (3 argument)
-    await sendOfferMail(customerEmail, offerNumber, "prisforslag");
+    // Skicka mail till kund med din befintliga helper (3 argument, giltig status)
+    await sendOfferMail(customerEmail, offerNumber, "besvarad");
 
-    // (valfritt) notifiera adminlådan
-    await sendOfferMail("offert@helsingbuss.se", offerNumber, "prisforslag");
+    // (valfritt) notifiera admin
+    await sendOfferMail("offert@helsingbuss.se", offerNumber, "besvarad");
 
     return res.status(200).json({ success: true });
   } catch (err: any) {
