@@ -1,5 +1,8 @@
 // src/pages/api/offert/create.ts
-import type { NextApiRequest, NextApiResponse } from "next";
+import type {
+  NextApiRequest as NextApiRequestT,
+  NextApiResponse as NextApiResponseT,
+} from "next";
 import { supabase } from "@/lib/supabaseClient";
 import { sendOfferMail } from "@/lib/sendMail";
 
@@ -28,7 +31,7 @@ function formatOfferNumber(yearYY: string, serial: number) {
   return `HB${yearYY}${pad}`;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequestT, res: NextApiResponseT) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }

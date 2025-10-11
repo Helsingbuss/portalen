@@ -1,7 +1,10 @@
 // src/pages/api/dashboard/unanswered.ts
 console.log("[stats] URL?", !!process.env.NEXT_PUBLIC_SUPABASE_URL,
             "KEYLEN", (process.env.NEXT_PUBLIC_SUPABASE_KEY || "").length);
-import type { NextApiRequest, NextApiResponse } from "next";
+import type {
+  NextApiRequest as NextApiRequestT,
+  NextApiResponse as NextApiResponseT,
+} from "next";
 import { supabase } from "@/lib/supabaseClient";
 
 type Row = {
@@ -15,7 +18,7 @@ type Row = {
   departure_time: string | null;
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequestT, res: NextApiResponseT) {
   try {
     const { data, error } = await supabase
       .from("offers")

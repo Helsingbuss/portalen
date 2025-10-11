@@ -1,5 +1,8 @@
 // src/pages/api/dashboard/offers.ts
-import type { NextApiRequest, NextApiResponse } from "next";
+import type {
+  NextApiRequest as NextApiRequestT,
+  NextApiResponse as NextApiResponseT,
+} from "next";
 import { supabase } from "@/lib/supabaseClient";
 
 type Row = {
@@ -20,7 +23,7 @@ function fmtDate(d?: string | null) {
   return d;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequestT, res: NextApiResponseT) {
   try {
     // 1) Hämta 30 senaste dagar och räkna inkomna / besvarade per dag
     const since = new Date();
