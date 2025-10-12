@@ -1,217 +1,233 @@
 // src/components/offers/OfferCalculator.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+/** Props som krävs för att kunna skicka */
 type Props = {
-  offerNumber?: string | null;  // t.ex. HB25007
-  customerEmail?: string | null;
+  offerId: string;          // t.ex. "4b6acc7f-..." (UUID i offers.id)
+  offerNumber: string;      // t.ex. "HB25007"
+  customerEmail: string;    // kundens e-post
 };
 
-type Pricing = {
-  kmPrice: number;        // kr/km (exkl moms)
-  dayHour: number;        // kr/timme dag (exkl moms)
-  eveHour: number;        // kr/timme kväll (exkl moms)
-  wkndHour: number;       // kr/timme helg (exkl moms)
-  serviceFee: number;     // kr (exkl moms)
-  includeService: boolean;
-  vatRate: number;        // 0.06 eller 0.0
-};
+function sek(n: number) {
+  return n.toLocaleString("sv-SE", { style: "currency", currency: "SEK" });
+}
 
-const LOCAL_KEY = "hb_pricing_defaults_v1";
+export default function OfferCalculator({
+  offerId,
+  offerNumber,
+  customerEmail,
+}: Props) {
+  // Standardpriser (exkl. moms)
+  const [kmPrice, setKmPrice] = useState<number>(9.9);
+  const [hourDay, setHourDay] = useState<number>(300);
+  const [hourEve, setHourEve] = useState<number>(345);
+  const [hourWknd, setHourWknd] = useState<number>(395);
+  const [serviceFee, setServiceFee] = useState<number>(1800);
+  const [includeServiceFee, setIncludeServiceFee] = useState<boolean>(true);
 
-const DEFAULTS: Pricing = {
-  kmPrice: 10.9,
-  dayHour: 300,
-  eveHour: 345,
-  wkndHour: 395,
-  serviceFee: 1800,
-  includeService: true,
-  vatRate: 0.06, // Sverige 6% default
-};
-
-export default function OfferCalculator({ offerNumber, customerEmail }: Props) {
-  const [pricing, setPricing] = useState<Pricing>(DEFAULTS);
+  // Inmatningar
   const [km, setKm] = useState<number>(0);
-  const [hDay, setHDay] = useState<number>(0);
-  const [hEve, setHEve] = useState<number>(0);
-  const [hWknd, setHWknd] = useState<number>(0);
-  const [sending, setSending] = useState(false);
+  const [hDay, setHday] = useState<number>(0);
+  const [hEve, setHeve] = useState<number>(0);
+  const [hWknd, setHwknd] = useState<number>(0);
+  const [vatRate, setVatRate] = useState<number>(0.06); // 6% default (Sverige)
   const [note, setNote] = useState<string>("");
 
-  // Ladda sparade standardvärden
+  // Liten sanity-check (visar diskret i konsolen så du kan verifiera)
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LOCAL_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<Pricing>;
-        setPricing((p) => ({ ...p, ...parsed }));
-      }
-    } catch {}
-  }, []);
+    // eslint-disable-next-line no-console
+    console.log("[OfferCalculator] props", { offerId, offerNumber, customerEmail });
+  }, [offerId, offerNumber, customerEmail]);
 
-  // Beräkningar
-  const subtotalEx = useMemo(() => {
+  // Beräkning
+  const exVat = useMemo(() => {
     const base =
-      km * pricing.kmPrice +
-      hDay * pricing.dayHour +
-      hEve * pricing.eveHour +
-      hWknd * pricing.wkndHour;
-    const svc = pricing.includeService ? pricing.serviceFee : 0;
-    return Math.max(0, base + svc);
-  }, [km, hDay, hEve, hWknd, pricing]);
+      km * kmPrice +
+      hDay * hourDay +
+      hEve * hourEve +
+      hWknd * hourWknd;
+    return base + (includeServiceFee ? serviceFee : 0);
+  }, [km, kmPrice, hDay, hourDay, hEve, hourEve, hWknd, hourWknd, includeServiceFee, serviceFee]);
 
-  const vatAmount = useMemo(
-    () => Math.round(subtotalEx * pricing.vatRate * 100) / 100,
-    [subtotalEx, pricing.vatRate]
-  );
-  const totalInc = useMemo(
-    () => Math.round((subtotalEx + vatAmount) * 100) / 100,
-    [subtotalEx, vatAmount]
-  );
+  const vat = useMemo(() => Math.round(exVat * vatRate * 100) / 100, [exVat, vatRate]);
+  const total = useMemo(() => exVat + vat, [exVat, vat]);
 
-  function updatePricing<K extends keyof Pricing>(key: K, val: number | boolean) {
-    setPricing((p) => ({ ...p, [key]: val } as Pricing));
-  }
+  const canSend = Boolean(offerId && offerNumber && customerEmail);
 
-  function saveAsDefault() {
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(pricing));
+  async function saveDraft() {
+    if (!offerId) return;
+    const input = {
+      pricing: { kmPrice, hourDay, hourEve, hourWknd, serviceFee, includeServiceFee, vatRate },
+      input: { km, hDay, hEve, hWknd, note },
+    };
+    const breakdown = {
+      grandExVat: exVat,
+      grandVat: vat,
+      grandTotal: total,
+      serviceFeeExVat: includeServiceFee ? serviceFee : 0,
+      legs: [
+        // enkelt upplägg: en summerad sträcka (du kan byta till två legs om du vill)
+        { subtotExVat: exVat, vat, total },
+      ],
+    };
+
+    const res = await fetch(`/api/offers/${offerId}/quote`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "draft", input, breakdown }),
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      alert(`Misslyckades spara utkast: ${j?.error || res.status}`);
+      return;
+    }
+    // eslint-disable-next-line no-alert
+    alert("Utkast sparat ✅");
   }
 
   async function sendProposal() {
-    if (!offerNumber || !customerEmail) return;
-    try {
-      setSending(true);
-      const payload = {
-        offerNumber,
-        customerEmail,
-        pricing,
-        input: { km, hDay, hEve, hWknd, note },
-        totals: {
-          subtotalEx,
-          vat: vatAmount,
-          totalInc,
-        },
-      };
-      const res = await fetch("/api/offers/send-proposal", {
+    if (!canSend) {
+      // eslint-disable-next-line no-alert
+      alert("offerId, offerNumber och customerEmail krävs");
+      return;
+    }
+
+    const input = {
+      pricing: { kmPrice, hourDay, hourEve, hourWknd, serviceFee, includeServiceFee, vatRate },
+      input: { km, hDay, hEve, hWknd, note },
+    };
+    const breakdown = {
+      grandExVat: exVat,
+      grandVat: vat,
+      grandTotal: total,
+      serviceFeeExVat: includeServiceFee ? serviceFee : 0,
+      legs: [{ subtotExVat: exVat, vat, total }],
+    };
+
+    // 1) Uppdatera offerten med kalkylen + markera skickad
+    {
+      const res = await fetch(`/api/offers/${offerId}/quote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ mode: "send", input, breakdown }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "Misslyckades att skicka");
-      alert("Prisförslaget skickades till kunden 🎉");
-    } catch (e: any) {
-      alert(e?.message || "Kunde inte skicka prisförslaget");
-    } finally {
-      setSending(false);
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        alert(`Kunde inte uppdatera offert: ${j?.error || res.status}`);
+        return;
+      }
     }
+
+    // 2) Skicka mail (API som tar emot fria payloads)
+    {
+      const res = await fetch(`/api/offers/send-proposal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          offerId,
+          offerNumber,
+          customerEmail,
+          totals: { exVat, vat, total },
+          pricing: { kmPrice, hourDay, hourEve, hourWknd, serviceFee, includeServiceFee, vatRate },
+          input: { km, hDay, hEve, hWknd, note },
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        alert(`Kunde inte skicka mail: ${j?.error || res.status}`);
+        return;
+      }
+    }
+
+    // eslint-disable-next-line no-alert
+    alert("Prisförslag skickat ✅");
   }
 
   return (
     <div className="space-y-4">
-      {/* Rad: Standardpriser */}
+      {/* Översta raden: prisinställningar */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-        <FieldNumber
-          label="Kilometerpris (kr/km)"
-          value={pricing.kmPrice}
-          onChange={(v) => updatePricing("kmPrice", v)}
-        />
-        <FieldNumber
-          label="Timpris dag (kr/tim)"
-          value={pricing.dayHour}
-          onChange={(v) => updatePricing("dayHour", v)}
-        />
-        <FieldNumber
-          label="Timpris kväll (kr/tim)"
-          value={pricing.eveHour}
-          onChange={(v) => updatePricing("eveHour", v)}
-        />
-        <FieldNumber
-          label="Timpris helg (kr/tim)"
-          value={pricing.wkndHour}
-          onChange={(v) => updatePricing("wkndHour", v)}
-        />
-        <FieldNumber
-          label="Serviceavgift (kr)"
-          value={pricing.serviceFee}
-          onChange={(v) => updatePricing("serviceFee", v)}
-        />
+        <LabeledInput label="Kilometerpris (kr/km)" value={kmPrice} onChange={setKmPrice} />
+        <LabeledInput label="Timpris dag (kr/tim)" value={hourDay} onChange={setHourDay} />
+        <LabeledInput label="Timpris kväll (kr/tim)" value={hourEve} onChange={setHourEve} />
+        <LabeledInput label="Timpris helg (kr/tim)" value={hourWknd} onChange={setHourWknd} />
+        <LabeledInput label="Serviceavgift (kr)" value={serviceFee} onChange={setServiceFee} />
       </div>
 
-      <div className="flex items-center gap-4">
-        <label className="inline-flex items-center gap-2 text-[#194C66]">
+      <div className="flex items-center gap-3 text-sm text-[#194C66]">
+        <label className="inline-flex items-center gap-2">
           <input
             type="checkbox"
-            checked={pricing.includeService}
-            onChange={(e) => updatePricing("includeService", e.target.checked)}
+            checked={includeServiceFee}
+            onChange={(e) => setIncludeServiceFee(e.target.checked)}
           />
           Ta med serviceavgift (förvalt på)
         </label>
-
-        <div className="flex items-center gap-2">
-          <span className="text-[#194C66]/80 text-sm">Moms:</span>
+        <div className="ml-4">
+          Moms:
           <select
-            className="border rounded px-2 py-1 text-sm"
-            value={pricing.vatRate}
-            onChange={(e) => updatePricing("vatRate", Number(e.target.value))}
+            className="ml-2 border rounded px-2 py-1"
+            value={vatRate}
+            onChange={(e) => setVatRate(parseFloat(e.target.value))}
           >
             <option value={0.06}>6% (Sverige)</option>
-            <option value={0}>0% (Utomlands)</option>
+            <option value={0.0}>0% (Utomlands)</option>
           </select>
         </div>
-
-        <button
-          type="button"
-          onClick={saveAsDefault}
-          className="ml-auto h-9 px-3 rounded bg-[#194C66] text-white text-sm"
-          title="Spara som standard så ligger dina priser kvar nästa gång"
-        >
-          Spara som standard
-        </button>
       </div>
 
-      {/* Rad: Mängder */}
+      {/* Inmatning: km + timmar + notering */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <FieldNumber label="Kilometer" value={km} onChange={setKm} />
-        <FieldNumber label="Timmar dag" value={hDay} onChange={setHDay} />
-        <FieldNumber label="Timmar kväll" value={hEve} onChange={setHEve} />
-        <FieldNumber label="Timmar helg" value={hWknd} onChange={setHWknd} />
+        <LabeledInput label="Kilometer" value={km} onChange={setKm} />
+        <LabeledInput label="Timmar dag" value={hDay} onChange={setHday} />
+        <LabeledInput label="Timmar kväll" value={hEve} onChange={setHeve} />
+        <LabeledInput label="Timmar helg" value={hWknd} onChange={setHwknd} />
       </div>
 
       <div>
-        <label className="block text-sm text-[#194C66]/70 mb-1">Intern anteckning (valfritt)</label>
+        <label className="block text-sm text-[#194C66]/80 mb-1">
+          Intern anteckning (valfritt)
+        </label>
         <textarea
-          className="w-full border rounded px-3 py-2 text-sm"
-          rows={2}
-          placeholder="T.ex. 'Önskar toalett ombord' eller annan notering för prisförslaget"
           value={note}
           onChange={(e) => setNote(e.target.value)}
+          className="w-full border rounded px-2 py-2"
+          placeholder="T.ex. ”Önskar toalett ombord” eller annan notering för prisförslaget"
         />
       </div>
 
       {/* Summering */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <SummaryItem label="Pris exkl. moms" value={subtotalEx} />
-        <SummaryItem label="Moms" value={vatAmount} />
-        <SummaryItem label="Totalsumma" value={totalInc} strong />
+        <KPI label="Pris exkl. moms" value={exVat} />
+        <KPI label="Moms" value={vat} />
+        <KPI label="Totalsumma" value={total} />
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-end gap-3">
+      <div className="mt-3 flex flex-wrap gap-3">
         <button
-          type="button"
-          className="h-10 px-4 rounded bg-[#194C66] text-white text-sm disabled:opacity-50"
-          onClick={sendProposal}
-          disabled={!offerNumber || !customerEmail || sending}
-          title={!offerNumber || !customerEmail ? "Saknar offertnummer eller kundens e-post" : ""}
+          onClick={saveDraft}
+          className="px-4 py-2 rounded-[25px] bg-[#E5EEF3] text-[#194C66] text-sm font-medium"
         >
-          {sending ? "Skickar…" : "Skicka prisförslag"}
+          Spara som standard
+        </button>
+
+        <button
+          onClick={sendProposal}
+          disabled={!canSend}
+          className={`px-4 py-2 rounded-[25px] text-sm font-medium ${
+            canSend ? "bg-[#194C66] text-white" : "bg-gray-300 text-gray-600 cursor-not-allowed"
+          }`}
+          title={canSend ? "" : "Offert-ID, nummer och e-post måste finnas"}
+        >
+          Skicka…
         </button>
       </div>
     </div>
   );
 }
 
-function FieldNumber({
+function LabeledInput({
   label,
   value,
   onChange,
@@ -221,26 +237,24 @@ function FieldNumber({
   onChange: (v: number) => void;
 }) {
   return (
-    <label className="block">
-      <span className="block text-sm text-[#194C66]/70 mb-1">{label}</span>
+    <label className="text-sm text-[#194C66]/80">
+      <span className="block mb-1">{label}</span>
       <input
         type="number"
-        step="0.01"
+        step="1"
         value={Number.isFinite(value) ? value : 0}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full border rounded px-3 py-2 text-sm"
+        onChange={(e) => onChange(Number(e.target.value) || 0)}
+        className="w-full border rounded px-2 py-1"
       />
     </label>
   );
 }
 
-function SummaryItem({ label, value, strong = false }: { label: string; value: number; strong?: boolean }) {
+function KPI({ label, value }: { label: string; value: number }) {
   return (
-    <div className="bg-[#f8fafc] rounded-lg p-3">
-      <div className="text-xs text-[#194C66]/70 mb-1">{label}</div>
-      <div className={`text-[#194C66] ${strong ? "font-semibold text-lg" : ""}`}>
-        {value.toLocaleString("sv-SE", { style: "currency", currency: "SEK" })}
-      </div>
+    <div className="bg-[#f9fafb] rounded-lg p-3">
+      <div className="text-xs text-[#194C66]/70">{label}</div>
+      <div className="text-lg font-semibold text-[#194C66]">{sek(value)}</div>
     </div>
   );
 }

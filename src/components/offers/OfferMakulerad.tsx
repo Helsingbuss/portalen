@@ -1,153 +1,159 @@
 // src/components/offers/OfferMakulerad.tsx
-import StatusBadge from "@/components/StatusBadge";
 import Image from "next/image";
-import { Bus } from "lucide-react";
+import StatusBadge from "@/components/StatusBadge";
 
 type Trip = {
   title: string;
-  date: string;
-  time: string;
-  from: string;
-  to: string;
+  date?: string | null;
+  time?: string | null;
+  from?: string | null;
+  to?: string | null;
+  pax?: number | null;
+  extra?: string | null;
 };
 
 export default function OfferMakulerad({ offer }: any) {
-  const roundTrip = offer?.round_trip || false;
-  const withinSweden = offer?.within_sweden ?? true;
+  const roundTrip = Boolean(offer?.round_trip);
+  const withinSweden = (offer?.trip_type || "sverige") !== "utrikes";
 
   const trips: Trip[] = [
     {
       title: roundTrip ? "Utresa" : "Bussresa",
-      date: offer?.departure_date || "2025-02-10",
-      time: offer?.departure_time || "08:00",
-      from: offer?.departure_place || "Startplats",
-      to: offer?.destination || "Slutplats",
+      date: offer?.departure_date,
+      time: offer?.departure_time,
+      from: offer?.departure_place,
+      to: offer?.destination,
+      pax: offer?.passengers,
+      extra: offer?.notes,
     },
     ...(roundTrip
       ? [
           {
             title: "Återresa",
-            date: offer?.return_date || "2025-02-12",
-            time: offer?.return_time || "18:00",
-            from: offer?.destination || "Slutplats",
-            to: offer?.departure_place || "Startplats",
+            date: offer?.return_date,
+            time: offer?.return_time,
+            from: offer?.destination,
+            to: offer?.departure_place,
+            pax: offer?.passengers,
+            extra: offer?.notes,
           },
         ]
       : []),
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f5f4f0]">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 bg-[#194C66] h-[60px] flex items-center px-6 shadow z-50">
-        <Image
-          src="/vit_logo.png"
-          alt="Helsingbuss"
-          width={222}
-          height={40}
-          priority
-        />
-      </header>
-
-      <main className="flex-1 pt-[60px]">
-        {/* Omslagsbild */}
-        <div className="max-w-5xl mx-auto px-6 mt-6">
-          <div className="relative w-full h-[280px] rounded-lg overflow-hidden shadow">
+    <div className="min-h-screen bg-[#f5f4f0] py-6">
+      <div className="mx-auto w-full max-w-4xl bg-white rounded-lg shadow px-6 py-6">
+        {/* Header-rad: logga + status */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-center">
             <Image
-              src="/innebild.png"
-              alt="Omslagsbild"
-              fill
-              className="object-cover"
+              src="/mork_logo.png"
+              alt="Helsingbuss"
+              width={360}
+              height={64}
               priority
             />
           </div>
+          <div className="pt-1 text-right">
+            <StatusBadge status="makulerad" />
+          </div>
         </div>
 
-        <div className="max-w-5xl mx-auto px-6 py-10 space-y-8">
-          {/* Titel */}
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold text-[#0f172a] mb-4">
-            Offert ({offer?.offer_number})
-          </h1>
-          <StatusBadge status="makulerad" />
-          </div>
+        {/* Titel */}
+        <h1 className="mt-2 text-2xl font-semibold text-[#0f172a]">
+          Offertförfrågan är makulerad – vi hoppas få köra för dig vid ett annat tillfälle.
+        </h1>
 
-          <h2 className="text-lg font-semibold text-center text-[#194C66]">
-            Tyvärr har er offert markerats som makulerad och är därmed inte längre giltig.
-          </h2>
+        {/* Förklarande text */}
+        <div className="mt-4 text-[15px] leading-relaxed text-[#0f172a]/80">
+          Den här offerten är inte längre giltig. Nedan ser du de tidigare
+          uppgifterna (överstrukna).
+        </div>
 
-          {/* Offert- & kundinformation */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Offertinformation */}
-            <div className="bg-white p-6 rounded-xl shadow">
-              <h2 className="font-semibold text-lg mb-4">Offertinformation</h2>
-              <p><strong>Offertnummer:</strong> {offer?.offer_number}</p>
-              <p><strong>Offertdatum:</strong> {offer?.offer_date}</p>
-              <p><strong>Er referens:</strong> {offer?.customer_reference}</p>
-              <p><strong>Vår referens:</strong> {offer?.internal_reference}</p>
-              <p><strong>Fakturareferens:</strong> {offer?.invoice_reference || "-"}</p>
+        {/* Övre kort – Offertinfo & Kundinfo (överstruket) */}
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="border rounded-lg p-4 line-through opacity-60">
+            <div className="flex items-baseline gap-2">
+              <span className="text-sm text-[#0f172a]/70 font-semibold">Offertnummer</span>
+              <span className="text-[#0f172a]">{offer?.offer_number || "—"}</span>
             </div>
-
-            {/* Kundinformation */}
-            <div className="bg-white p-6 rounded-xl shadow">
-              <h2 className="font-semibold text-lg mb-4">Kundinformation</h2>
-              <p><strong>Kundnummer:</strong> {offer?.customer_id}</p>
-              <p><strong>Kund:</strong> {offer?.contact_person}</p>
-              <p><strong>Telefon:</strong> {offer?.contact_phone}</p>
-              <p><strong>Adress:</strong> Testadress 21B, 123 45 Teststad</p>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className="text-sm text-[#0f172a]/70 font-semibold">Offertdatum</span>
+              <span className="text-[#0f172a]">{offer?.offer_date || "—"}</span>
+            </div>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className="text-sm text-[#0f172a]/70 font-semibold">Er referens</span>
+              <span className="text-[#0f172a]">{offer?.customer_reference || "—"}</span>
+            </div>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className="text-sm text-[#0f172a]/70 font-semibold">Vår referens</span>
+              <span className="text-[#0f172a]">{offer?.internal_reference || "—"}</span>
             </div>
           </div>
 
-          {/* Reseinformation */}
-          <div className="bg-white p-6 rounded-xl shadow">
-            <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
-              <Bus className="w-5 h-5 text-[#194C66]" />
-              Din reseinformation –{" "}
-              {withinSweden ? "Bussresa inom Sverige" : "Bussresa utomlands"}
-            </h2>
+          <div className="border rounded-lg p-4 line-through opacity-60">
+            <div className="grid grid-cols-[80px_1fr] gap-x-2 text-sm">
+              <div className="text-[#0f172a]/70 font-semibold">Namn</div>
+              <div className="text-[#0f172a]">{offer?.contact_person || "—"}</div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {trips.map((trip, idx) => (
-                <div key={idx} className="border rounded-lg p-4 bg-gray-50">
-                  <h3 className="font-semibold">{trip.title}</h3>
-                  <p>
-                    <strong>Avresa:</strong> {trip.date} kl {trip.time}
-                  </p>
-                  <p><strong>Från:</strong> {trip.from}</p>
-                  <p><strong>Till:</strong> {trip.to}</p>
-                  <p><strong>Antal passagerare:</strong> {offer?.passengers || "-"}</p>
+              <div className="text-[#0f172a]/70 font-semibold">Adress</div>
+              <div className="text-[#0f172a]">{offer?.customer_address || "—"}</div>
+
+              <div className="text-[#0f172a]/70 font-semibold">Telefon</div>
+              <div className="text-[#0f172a]">{offer?.contact_phone || "—"}</div>
+
+              <div className="text-[#0f172a]/70 font-semibold">E-post</div>
+              <div className="text-[#0f172a] break-all">{offer?.contact_email || "—"}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Reseinformation – två rutor, överstruket */}
+        <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {trips.map((t, i) => (
+            <div key={i}>
+              <div className="flex items-center gap-2 text-[#0f172a] mb-2">
+                <Image src="/maps_pin.png" alt="Pin" width={18} height={18} />
+                <span className="font-semibold">
+                  {withinSweden ? "Bussresa inom Sverige" : "Bussresa utomlands"}
+                </span>
+                <span className="text-xs text-[#0f172a]/50 ml-2">
+                  (tidigare uppgifter)
+                </span>
+              </div>
+
+              <div className="border rounded-lg p-3 text-[14px] text-[#0f172a] leading-[1.5] line-through opacity-60">
+                <div>
+                  <span className="font-semibold">Avgång:</span> {t.date || "—"} kl {t.time || "—"}
                 </div>
-              ))}
+                <div>
+                  <span className="font-semibold">Från:</span> {t.from || "—"}
+                </div>
+                <div>
+                  <span className="font-semibold">Till:</span> {t.to || "—"}
+                </div>
+                <div>
+                  <span className="font-semibold">Antal passagerare:</span> {t.pax ?? "—"}
+                </div>
+                {t.extra ? (
+                  <div className="mt-1">
+                    <span className="font-semibold">Övrig information:</span>{" "}
+                    <span className="whitespace-pre-wrap">{t.extra}</span>
+                  </div>
+                ) : null}
+              </div>
             </div>
-
-            {/* Övrig information */}
-            <div className="mt-6 border rounded-lg p-4 bg-gray-50">
-              <h3 className="font-semibold">Övrig information</h3>
-              <p>{offer?.notes || "Ingen information angiven."}</p>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="text-center space-y-6 mt-10">
-            <div className="flex flex-col items-center">
-              <Image src="/print_icon.png" alt="Skriv ut" width={40} height={40} />
-              <p className="mt-2 text-sm text-gray-700">Visa i utskriftsformat</p>
-            </div>
-
-            <p className="text-sm text-gray-600 leading-relaxed">
-              Genom att acceptera denna offert bekräftar ni samtidigt att ni
-              tagit del av våra resevillkor, som ni hittar här. Observera att vi
-              reserverar oss för att det aktuella datumet kan vara fullbokat.
-              Slutlig kapacitet kontrolleras vid bokningstillfället och bekräftas
-              först genom en skriftlig bokningsbekräftelse från oss. Vill du boka
-              resan eller har du frågor och synpunkter? Då är du alltid välkommen
-              att kontakta oss – vi hjälper dig gärna. Våra ordinarie öppettider
-              är vardagar kl. 08:00–17:00. För akuta bokningar med kortare varsel
-              än två arbetsdagar ber vi dig ringa vårt journummer: 010-777 21 58.
-            </p>
-          </div>
+          ))}
         </div>
-      </main>
+
+        {/* Info-rad / footer */}
+        <div className="mt-7 text-[13px] text-[#0f172a]/70 leading-relaxed">
+          Har du ny förfrågan, frågor eller vill boka vid ett annat datum?
+          Kontakta oss så hjälper vi gärna till: <strong>010-405 38 38</strong> (vardagar 08:00–17:00) eller
+          jour <strong>010-777 21 58</strong>.
+        </div>
+      </div>
     </div>
   );
 }

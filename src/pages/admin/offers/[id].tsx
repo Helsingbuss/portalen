@@ -47,6 +47,17 @@ export default function AdminOfferDetail() {
 
   const titleSuffix = offer?.offer_number ? ` (${offer.offer_number})` : "";
 
+  // Säkra värden till kalkylatorn (kräver offerId, offerNumber, customerEmail)
+  const calculatorProps =
+    offer
+      ? {
+          offerId: offer.id,
+          offerNumber: offer.offer_number ?? "",
+          // fallback om e-post saknas – skicka tom sträng (komponenten kontrollerar detta)
+          customerEmail: offer.contact_email ?? "",
+        }
+      : null;
+
   return (
     <>
       <AdminMenu />
@@ -143,12 +154,19 @@ export default function AdminOfferDetail() {
 
                 {/* Kalkyl – aktiv modul */}
                 <section className="bg-white border rounded-lg p-4">
-  <div className="text-[#194C66] font-semibold mb-3">Kalkyl</div>
-  <OfferCalculator
-    offerNumber={offer.offer_number}
-    customerEmail={offer.contact_email}
-  />
-</section>
+                  <div className="text-[#194C66] font-semibold mb-3">Kalkyl</div>
+                  {calculatorProps ? (
+                    <OfferCalculator
+                      offerId={calculatorProps.offerId}
+                      offerNumber={calculatorProps.offerNumber}
+                      customerEmail={calculatorProps.customerEmail}
+                    />
+                  ) : (
+                    <div className="text-[#194C66]/70">
+                      Väntar på offertdata…
+                    </div>
+                  )}
+                </section>
               </div>
             )}
           </div>
