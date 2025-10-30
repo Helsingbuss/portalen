@@ -7,6 +7,7 @@ import fs from "fs";
 // ⬇️ Next.js ska inte försöka parsa multipart
 export const config = { api: { bodyParser: false } };
 
+
 const BUCKET = "driver-avatars";
 
 // Hjälp: promisify formidable
