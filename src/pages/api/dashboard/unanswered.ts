@@ -1,11 +1,6 @@
-// src/pages/api/dashboard/unanswered.ts
-console.log("[stats] URL?", !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-            "KEYLEN", (process.env.NEXT_PUBLIC_SUPABASE_KEY || "").length);
-import type {
-  NextApiRequest as NextApiRequestT,
-  NextApiResponse as NextApiResponseT,
-} from "next";
-import { supabase } from "@/lib/supabaseClient";
+﻿// src/pages/api/dashboard/unanswered.ts
+import type { NextApiRequest, NextApiResponse } from "next";
+import { supabase } from "@/lib/supabaseAdmin";
 
 type Row = {
   id: string;
@@ -18,13 +13,11 @@ type Row = {
   departure_time: string | null;
 };
 
-export default async function handler(req: NextApiRequestT, res: NextApiResponseT) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const { data, error } = await supabase
       .from("offers")
-      .select(
-        "id, offer_number, departure_place, destination, passengers, round_trip, departure_date, departure_time, status"
-      )
+      .select("id, offer_number, departure_place, destination, passengers, round_trip, departure_date, departure_time, status, offer_date")
       .eq("status", "inkommen")
       .order("offer_date", { ascending: false })
       .limit(10);
@@ -45,6 +38,8 @@ export default async function handler(req: NextApiRequestT, res: NextApiResponse
     return res.status(200).json({ rows });
   } catch (e: any) {
     console.error("unanswered api error:", e?.message || e);
-    return res.status(500).json({ error: "Kunde inte hämta obesvarade" });
+    return res.status(500).json({ error: "Kunde inte hÃ¤mta obesvarade" });
   }
 }
+
+

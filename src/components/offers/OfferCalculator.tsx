@@ -12,6 +12,8 @@ function sek(n: number) {
   return n.toLocaleString("sv-SE", { style: "currency", currency: "SEK" });
 }
 
+type LegInput = { km: number; hDay: number; hEve: number; hWknd: number };
+
 export default function OfferCalculator({
   offerId,
   offerNumber,
@@ -24,51 +26,76 @@ export default function OfferCalculator({
   const [hourWknd, setHourWknd] = useState<number>(395);
   const [serviceFee, setServiceFee] = useState<number>(1800);
   const [includeServiceFee, setIncludeServiceFee] = useState<boolean>(true);
+  const [serviceFeeMode, setServiceFeeMode] = useState<"once" | "perLeg">("once"); // NYTT
 
-  // Inmatningar
-  const [km, setKm] = useState<number>(0);
-  const [hDay, setHday] = useState<number>(0);
-  const [hEve, setHeve] = useState<number>(0);
-  const [hWknd, setHwknd] = useState<number>(0);
-  const [vatRate, setVatRate] = useState<number>(0.06); // 6% default (Sverige)
+  // Mervärdesskatt + intern notering
+  const [vatRate, setVatRate] = useState<number>(0.06);
   const [note, setNote] = useState<string>("");
 
-  // Liten sanity-check (visar diskret i konsolen så du kan verifiera)
+  // Ben (utresa + ev. retur)
+  const [includeReturn, setIncludeReturn] = useState<boolean>(false); // NYTT
+  const [leg1, setLeg1] = useState<LegInput>({ km: 0, hDay: 0, hEve: 0, hWknd: 0 });
+  const [leg2, setLeg2] = useState<LegInput>({ km: 0, hDay: 0, hEve: 0, hWknd: 0 });
+
+  // Liten sanity-check
   useEffect(() => {
     // eslint-disable-next-line no-console
     console.log("[OfferCalculator] props", { offerId, offerNumber, customerEmail });
   }, [offerId, offerNumber, customerEmail]);
 
-  // Beräkning
-  const exVat = useMemo(() => {
+  // Kostnadsfunktion per ben
+  const legCost = (L: LegInput) => {
     const base =
-      km * kmPrice +
-      hDay * hourDay +
-      hEve * hourEve +
-      hWknd * hourWknd;
-    return base + (includeServiceFee ? serviceFee : 0);
-  }, [km, kmPrice, hDay, hourDay, hEve, hourEve, hWknd, hourWknd, includeServiceFee, serviceFee]);
+      L.km * kmPrice +
+      L.hDay * hourDay +
+      L.hEve * hourEve +
+      L.hWknd * hourWknd;
+    const fee = includeServiceFee && serviceFeeMode === "perLeg" ? serviceFee : 0;
+    return base + fee;
+  };
 
+  // Beräkningar
+  const exLeg1 = useMemo(() => legCost(leg1), [leg1, kmPrice, hourDay, hourEve, hourWknd, includeServiceFee, serviceFeeMode, serviceFee]);
+  const exLeg2 = useMemo(() => (includeReturn ? legCost(leg2) : 0), [includeReturn, leg2, kmPrice, hourDay, hourEve, hourWknd, includeServiceFee, serviceFeeMode, serviceFee]);
+
+  const extraOnceFee = includeServiceFee && serviceFeeMode === "once" ? serviceFee : 0;
+
+  const exVat = useMemo(() => exLeg1 + exLeg2 + extraOnceFee, [exLeg1, exLeg2, extraOnceFee]);
   const vat = useMemo(() => Math.round(exVat * vatRate * 100) / 100, [exVat, vatRate]);
   const total = useMemo(() => exVat + vat, [exVat, vat]);
 
   const canSend = Boolean(offerId && offerNumber && customerEmail);
 
+  function copyLeg1ToLeg2() {
+    setLeg2(leg1);
+    setIncludeReturn(true);
+  }
+
   async function saveDraft() {
     if (!offerId) return;
+
     const input = {
-      pricing: { kmPrice, hourDay, hourEve, hourWknd, serviceFee, includeServiceFee, vatRate },
-      input: { km, hDay, hEve, hWknd, note },
+      pricing: { kmPrice, hourDay, hourEve, hourWknd, serviceFee, includeServiceFee, serviceFeeMode, vatRate },
+      leg1,
+      leg2: includeReturn ? leg2 : null,
+      note,
     };
+
+    const legs = [
+      { subtotExVat: exLeg1, vat: Math.round(exLeg1 * vatRate * 100) / 100, total: exLeg1 + Math.round(exLeg1 * vatRate * 100) / 100 },
+    ] as { subtotExVat: number; vat: number; total: number }[];
+
+    if (includeReturn) {
+      const v2 = Math.round(exLeg2 * vatRate * 100) / 100;
+      legs.push({ subtotExVat: exLeg2, vat: v2, total: exLeg2 + v2 });
+    }
+
     const breakdown = {
       grandExVat: exVat,
       grandVat: vat,
       grandTotal: total,
-      serviceFeeExVat: includeServiceFee ? serviceFee : 0,
-      legs: [
-        // enkelt upplägg: en summerad sträcka (du kan byta till två legs om du vill)
-        { subtotExVat: exVat, vat, total },
-      ],
+      serviceFeeExVat: includeServiceFee ? serviceFee : 0, // info
+      legs,
     };
 
     const res = await fetch(`/api/offers/${offerId}/quote`, {
@@ -81,27 +108,37 @@ export default function OfferCalculator({
       alert(`Misslyckades spara utkast: ${j?.error || res.status}`);
       return;
     }
-    // eslint-disable-next-line no-alert
     alert("Utkast sparat ✅");
   }
 
   async function sendProposal() {
     if (!canSend) {
-      // eslint-disable-next-line no-alert
       alert("offerId, offerNumber och customerEmail krävs");
       return;
     }
 
     const input = {
-      pricing: { kmPrice, hourDay, hourEve, hourWknd, serviceFee, includeServiceFee, vatRate },
-      input: { km, hDay, hEve, hWknd, note },
+      pricing: { kmPrice, hourDay, hourEve, hourWknd, serviceFee, includeServiceFee, serviceFeeMode, vatRate },
+      leg1,
+      leg2: includeReturn ? leg2 : null,
+      note,
     };
+
+    const legs = [
+      { subtotExVat: exLeg1, vat: Math.round(exLeg1 * vatRate * 100) / 100, total: exLeg1 + Math.round(exLeg1 * vatRate * 100) / 100 },
+    ] as { subtotExVat: number; vat: number; total: number }[];
+
+    if (includeReturn) {
+      const v2 = Math.round(exLeg2 * vatRate * 100) / 100;
+      legs.push({ subtotExVat: exLeg2, vat: v2, total: exLeg2 + v2 });
+    }
+
     const breakdown = {
       grandExVat: exVat,
       grandVat: vat,
       grandTotal: total,
       serviceFeeExVat: includeServiceFee ? serviceFee : 0,
-      legs: [{ subtotExVat: exVat, vat, total }],
+      legs,
     };
 
     // 1) Uppdatera offerten med kalkylen + markera skickad
@@ -118,7 +155,7 @@ export default function OfferCalculator({
       }
     }
 
-    // 2) Skicka mail (API som tar emot fria payloads)
+    // 2) Skicka mail
     {
       const res = await fetch(`/api/offers/send-proposal`, {
         method: "POST",
@@ -128,8 +165,8 @@ export default function OfferCalculator({
           offerNumber,
           customerEmail,
           totals: { exVat, vat, total },
-          pricing: { kmPrice, hourDay, hourEve, hourWknd, serviceFee, includeServiceFee, vatRate },
-          input: { km, hDay, hEve, hWknd, note },
+          pricing: { kmPrice, hourDay, hourEve, hourWknd, serviceFee, includeServiceFee, serviceFeeMode, vatRate },
+          input: { leg1, leg2: includeReturn ? leg2 : null, note },
         }),
       });
       if (!res.ok) {
@@ -139,7 +176,6 @@ export default function OfferCalculator({
       }
     }
 
-    // eslint-disable-next-line no-alert
     alert("Prisförslag skickat ✅");
   }
 
@@ -147,22 +183,36 @@ export default function OfferCalculator({
     <div className="space-y-4">
       {/* Översta raden: prisinställningar */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-        <LabeledInput label="Kilometerpris (kr/km)" value={kmPrice} onChange={setKmPrice} />
-        <LabeledInput label="Timpris dag (kr/tim)" value={hourDay} onChange={setHourDay} />
-        <LabeledInput label="Timpris kväll (kr/tim)" value={hourEve} onChange={setHourEve} />
-        <LabeledInput label="Timpris helg (kr/tim)" value={hourWknd} onChange={setHourWknd} />
-        <LabeledInput label="Serviceavgift (kr)" value={serviceFee} onChange={setServiceFee} />
+        <LabeledNumber label="Kilometerpris (kr/km)" value={kmPrice} onChange={setKmPrice} />
+        <LabeledNumber label="Timpris dag (kr/tim)" value={hourDay} onChange={setHourDay} />
+        <LabeledNumber label="Timpris kväll (kr/tim)" value={hourEve} onChange={setHourEve} />
+        <LabeledNumber label="Timpris helg (kr/tim)" value={hourWknd} onChange={setHourWknd} />
+        <LabeledNumber label="Serviceavgift (kr)" value={serviceFee} onChange={setServiceFee} />
       </div>
 
-      <div className="flex items-center gap-3 text-sm text-[#194C66]">
+      <div className="flex flex-wrap items-center gap-3 text-sm text-[#194C66]">
         <label className="inline-flex items-center gap-2">
           <input
             type="checkbox"
             checked={includeServiceFee}
             onChange={(e) => setIncludeServiceFee(e.target.checked)}
           />
-          Ta med serviceavgift (förvalt på)
+          Ta med serviceavgift
         </label>
+
+        <label className="inline-flex items-center gap-2">
+          Läge:
+          <select
+            className="border rounded px-2 py-1"
+            value={serviceFeeMode}
+            onChange={(e) => setServiceFeeMode(e.target.value as "once" | "perLeg")}
+            disabled={!includeServiceFee}
+          >
+            <option value="once">En gång</option>
+            <option value="perLeg">Per ben</option>
+          </select>
+        </label>
+
         <div className="ml-4">
           Moms:
           <select
@@ -174,15 +224,50 @@ export default function OfferCalculator({
             <option value={0.0}>0% (Utomlands)</option>
           </select>
         </div>
+
+        <label className="inline-flex items-center gap-2 ml-6">
+          <input
+            type="checkbox"
+            checked={includeReturn}
+            onChange={(e) => setIncludeReturn(e.target.checked)}
+          />
+          Inkludera retur i prisförslag
+        </label>
+        <button
+          type="button"
+          onClick={copyLeg1ToLeg2}
+          className="px-3 py-1 rounded border text-sm"
+          title="Kopiera tider/km från utresan till returen"
+        >
+          Kopiera utresa → retur
+        </button>
       </div>
 
-      {/* Inmatning: km + timmar + notering */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <LabeledInput label="Kilometer" value={km} onChange={setKm} />
-        <LabeledInput label="Timmar dag" value={hDay} onChange={setHday} />
-        <LabeledInput label="Timmar kväll" value={hEve} onChange={setHeve} />
-        <LabeledInput label="Timmar helg" value={hWknd} onChange={setHwknd} />
+      {/* Inmatning per ben */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <LegCard
+          title="Utresa"
+          value={leg1}
+          onChange={setLeg1}
+          exVat={exLeg1}
+          vat={Math.round(exLeg1 * vatRate * 100) / 100}
+        />
+        {includeReturn && (
+          <LegCard
+            title="Retur"
+            value={leg2}
+            onChange={setLeg2}
+            exVat={exLeg2}
+            vat={Math.round(exLeg2 * vatRate * 100) / 100}
+          />
+        )}
       </div>
+
+      {includeServiceFee && serviceFeeMode === "once" && (
+        <div className="text-sm text-[#194C66]/80">
+          Serviceavgift en gång: <strong className="text-[#194C66]">{sek(serviceFee)}</strong> (läggs på totalsumman)
+        </div>
+      )}
 
       <div>
         <label className="block text-sm text-[#194C66]/80 mb-1">
@@ -227,7 +312,7 @@ export default function OfferCalculator({
   );
 }
 
-function LabeledInput({
+function LabeledNumber({
   label,
   value,
   onChange,
@@ -255,6 +340,37 @@ function KPI({ label, value }: { label: string; value: number }) {
     <div className="bg-[#f9fafb] rounded-lg p-3">
       <div className="text-xs text-[#194C66]/70">{label}</div>
       <div className="text-lg font-semibold text-[#194C66]">{sek(value)}</div>
+    </div>
+  );
+}
+
+function LegCard({
+  title,
+  value,
+  onChange,
+  exVat,
+  vat,
+}: {
+  title: string;
+  value: LegInput;
+  onChange: (v: LegInput) => void;
+  exVat: number;
+  vat: number;
+}) {
+  return (
+    <div className="border rounded-lg p-3">
+      <div className="text-[#194C66] font-semibold mb-2">{title}</div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <LabeledNumber label="Kilometer" value={value.km} onChange={(v) => onChange({ ...value, km: v })} />
+        <LabeledNumber label="Timmar dag" value={value.hDay} onChange={(v) => onChange({ ...value, hDay: v })} />
+        <LabeledNumber label="Timmar kväll" value={value.hEve} onChange={(v) => onChange({ ...value, hEve: v })} />
+        <LabeledNumber label="Timmar helg" value={value.hWknd} onChange={(v) => onChange({ ...value, hWknd: v })} />
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-3">
+        <KPI label="Ben exkl. moms" value={exVat} />
+        <KPI label="Moms (ben)" value={vat} />
+        <KPI label="Ben totalt" value={exVat + vat} />
+      </div>
     </div>
   );
 }

@@ -1,32 +1,117 @@
 // src/pages/api/offers/[id].ts
-import type {
-  NextApiRequest as NextApiRequestT,
-  NextApiResponse as NextApiResponseT,
-} from "next";
-import { supabase as sbClient } from "@/lib/supabaseClient";
+import type { NextApiRequest, NextApiResponse } from "next";
+import * as admin from "@/lib/supabaseAdmin";
 
-export default async function handler(
-  req: NextApiRequestT,
-  res: NextApiResponseT
-) {
-  const { id } = req.query as { id?: string };
+// funkar oavsett hur supabase exporteras i din lib
+const db =
+  // named export
+  (admin as any).supabase ??
+  (admin as any).supabaseAdmin ??
+  // default export
+  (admin as any).default;
 
-  if (!id) {
-    return res.status(400).json({ error: "Missing id" });
+/** Enkel UUID-koll */
+const isUUID = (s: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    s || ""
+  );
+
+/** Normalisera DB-rad -> objekt som sidorna förväntar sig */
+function normalize(row: any) {
+  if (!row) return null;
+  return {
+    id: row.id ?? null,
+
+    // ID/nummer & status
+    offer_number: row.offer_number ?? null,
+    status: row.status ?? null,
+
+    // Kontakt
+    customer_reference: row.customer_reference ?? row.reference ?? null,
+    contact_email: row.contact_email ?? row.customer_email ?? row.email ?? null,
+    contact_phone: row.contact_phone ?? row.customer_phone ?? row.phone ?? null,
+
+    // Utresa
+    departure_place: row.departure_place ?? row.from ?? row.departure_location ?? null,
+    destination: row.destination ?? row.to ?? row.destination_location ?? null,
+    departure_date: row.departure_date ?? row.date ?? null,
+    departure_time: row.departure_time ?? row.time ?? null,
+
+    // Retur (om din DB har dessa)
+    return_departure: row.return_departure ?? null,
+    return_destination: row.return_destination ?? null,
+    return_date: row.return_date ?? null,
+    return_time: row.return_time ?? null,
+
+    // Övrigt
+    passengers:
+      typeof row.passengers === "number"
+        ? row.passengers
+        : row.passengers
+        ? Number(row.passengers)
+        : null,
+    notes: row.notes ?? row.message ?? row.other_info ?? null,
+  };
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "GET") {
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
-  try {
-    const { data, error } = await sbClient
-      .from("offers")
-      .select("*")
-      .eq("id", id)
-      .single();
+  const raw = (req.query.id as string) || "";
+  const id = decodeURIComponent(raw).trim();
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
+  try {
+    let row: any = null;
+
+    if (isUUID(id)) {
+      // 1) Hämta på UUID
+      const { data, error } = await db
+        .from("offers")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw error;
+      row = data;
+    } else {
+      // 2) Exakt match på offer_number
+      const exact = await db
+        .from("offers")
+        .select("*")
+        .eq("offer_number", id)
+        .maybeSingle();
+
+      if (exact.error) throw exact.error;
+      row = exact.data;
+
+      // 3) Fallback: prova utan mellanslag, case-insensitive och ta senaste
+      if (!row) {
+        const clean = id.replace(/\s+/g, "");
+        const ilike = await db
+          .from("offers")
+          .select("*")
+          .ilike("offer_number", `${clean}%`)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (ilike.error && ilike.error.code !== "PGRST116") {
+          // PGRST116 = no rows found (inte ett "fel")
+          throw ilike.error;
+        }
+        row = ilike.data ?? null;
+      }
     }
-    return res.status(200).json({ offer: data });
+
+    const offer = normalize(row);
+    if (!offer) {
+      return res.status(404).json({ ok: false, error: "Offer not found" });
+    }
+
+    return res.status(200).json({ ok: true, offer });
   } catch (e: any) {
-    return res.status(500).json({ error: e?.message || "Unknown error" });
+    console.error("[api/offers/[id]]", { id, error: e?.message || e });
+    return res.status(500).json({ ok: false, error: "Server error" });
   }
 }

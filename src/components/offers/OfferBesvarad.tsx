@@ -17,10 +17,21 @@ function money(n?: number | null) {
 }
 
 export default function OfferBesvarad({ offer }: any) {
-  const roundTrip = Boolean(offer?.round_trip);
+  // Härled tur/retur även om round_trip saknas i DB
+  const roundTrip = Boolean(
+    offer?.round_trip ??
+      offer?.return_date ??
+      offer?.return_time ??
+      offer?.return_departure ??
+      offer?.return_destination
+  );
+
   const withinSweden = (offer?.trip_type || "sverige") !== "utrikes";
 
-  // trips som innan
+  const email: string | undefined =
+    offer?.contact_email || offer?.customer_email || undefined;
+
+  // trips
   const trips = [
     {
       title: roundTrip ? "Utresa" : "Bussresa",
@@ -58,40 +69,108 @@ export default function OfferBesvarad({ offer }: any) {
     sum: offer?.total_amount ?? breakdown?.grandTotal ?? null,
   };
 
-  // --- NYTT: acceptera-logik ---
-  const [accepting, setAccepting] = useState(false);
+  // --- actions state ---
+  const [busy, setBusy] = useState<"accept" | "decline" | "change" | null>(null);
+
+  async function postWithFallback(pathWithId: string, fallbackPath: string, body: any) {
+    // 1) försök med id-endpointen om id finns
+    if (offer?.id) {
+      const r = await fetch(pathWithId, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (r.ok) return r;
+      // om 404/405 – prova fallback
+    }
+    // 2) fallback som bara kräver offerNumber + email
+    return fetch(fallbackPath, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
 
   async function onAcceptOffer() {
-    if (!offer?.id || !offer?.offer_number || !offer?.contact_email) {
-      alert("Saknas uppgifter för att kunna acceptera (id/nummer/e-post).");
+    if (!offer?.offer_number || !email) {
+      alert("Saknas uppgifter för att kunna acceptera (nummer/e-post).");
       return;
     }
     try {
-      setAccepting(true);
-      const res = await fetch(`/api/offers/${offer.id}/accept`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerEmail: offer.contact_email,
-          offerNumber: offer.offer_number,
-        }),
-      });
-
+      setBusy("accept");
+      const res = await postWithFallback(
+        `/api/offers/${offer.id}/accept`,
+        `/api/offers/accept`,
+        { customerEmail: email, offerNumber: offer.offer_number }
+      );
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error || `HTTP ${res.status}`);
+        throw new Error(j?.error || `Kunde inte acceptera (HTTP ${res.status})`);
       }
-
-      // Visa bokningsvy (godkänd)
+      // Visa bokningsvy
       window.location.href = `/offert/${offer.offer_number}?view=godkand`;
     } catch (e: any) {
       alert(e?.message || "Tekniskt fel vid godkännande.");
     } finally {
-      setAccepting(false);
+      setBusy(null);
     }
   }
-  // --- SLUT NYTT ---
 
+  async function onDeclineOffer() {
+    if (!offer?.offer_number || !email) {
+      alert("Saknas uppgifter för att avböja (nummer/e-post).");
+      return;
+    }
+    try {
+      setBusy("decline");
+      const res = await postWithFallback(
+        `/api/offers/${offer.id}/decline`,
+        `/api/offers/decline`,
+        { customerEmail: email, offerNumber: offer.offer_number }
+      );
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error || `Kunde inte avböja (HTTP ${res.status})`);
+      }
+      // Visa makulerad vy
+      window.location.href = `/offert/${offer.offer_number}?view=avbojd`;
+    } catch (e: any) {
+      alert(e?.message || "Tekniskt fel vid avböj.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function onRequestChange() {
+    if (!offer?.offer_number || !email) {
+      alert("Saknas uppgifter för ändringsförfrågan (nummer/e-post).");
+      return;
+    }
+    try {
+      setBusy("change");
+      const res = await postWithFallback(
+        `/api/offers/${offer.id}/change-request`,
+        `/api/offers/change-request`,
+        {
+          customerEmail: email,
+          offerNumber: offer.offer_number,
+          message:
+            "Kunden önskar ändringar i offerten. Kontakta kunden för detaljer.",
+        }
+      );
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error || `Kunde inte skicka ändringsförfrågan (HTTP ${res.status})`);
+      }
+      alert("Tack! Vi återkommer med uppdaterad offert.");
+    } catch (e: any) {
+      alert(e?.message || "Tekniskt fel vid ändringsförfrågan.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // --- UI ---
   return (
     <div className="min-h-screen bg-[#f5f4f0] py-6">
       <div className="mx-auto w-full max-w-4xl bg-white rounded-lg shadow px-6 py-6">
@@ -119,7 +198,7 @@ export default function OfferBesvarad({ offer }: any) {
             </div>
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-sm text-[#0f172a]/70 font-semibold">Er referens</span>
-              <span className="text-[#0f172a]">{offer?.customer_reference || "—"}</span>
+              <span className="text-[#0f172a]">{offer?.customer_reference || offer?.contact_person || "—"}</span>
             </div>
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-sm text-[#0f172a]/70 font-semibold">Vår referens</span>
@@ -148,7 +227,7 @@ export default function OfferBesvarad({ offer }: any) {
           <div className="border rounded-lg p-4">
             <div className="grid grid-cols-[80px_1fr] gap-x-2 text-sm">
               <div className="text-[#0f172a]/70 font-semibold">Namn</div>
-              <div className="text-[#0f172a]">{offer?.contact_person || "—"}</div>
+              <div className="text-[#0f172a]">{offer?.contact_person || offer?.customer_reference || "—"}</div>
 
               <div className="text-[#0f172a]/70 font-semibold">Adress</div>
               <div className="text-[#0f172a]">{offer?.customer_address || "—"}</div>
@@ -157,7 +236,7 @@ export default function OfferBesvarad({ offer }: any) {
               <div className="text-[#0f172a]">{offer?.contact_phone || "—"}</div>
 
               <div className="text-[#0f172a]/70 font-semibold">E-post</div>
-              <div className="text-[#0f172a] break-all">{offer?.contact_email || "—"}</div>
+              <div className="text-[#0f172a] break-all">{email || "—"}</div>
             </div>
           </div>
         </div>
@@ -203,7 +282,7 @@ export default function OfferBesvarad({ offer }: any) {
                     <span className="font-semibold">Antal passagerare:</span> {trip.pax ?? "—"}
                   </div>
 
-                  {/* Pris-kolumn höger – per sträcka */}
+                  {/* Pris per sträcka */}
                   <div className="grid grid-cols-[1fr_auto] gap-x-4 mt-2">
                     <div className="text-[#0f172a]/70">Pris exkl. moms</div>
                     <div>{money(leg?.subtotExVat)}</div>
@@ -231,16 +310,26 @@ export default function OfferBesvarad({ offer }: any) {
           <div className="flex flex-col md:flex-row justify-center gap-4">
             <button
               onClick={onAcceptOffer}
-              disabled={accepting}
+              disabled={busy !== null}
               className="bg-[#194C66] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#163b4d] disabled:opacity-60"
             >
-              {accepting ? "Accepterar…" : "Acceptera offert"}
+              {busy === "accept" ? "Accepterar…" : "Acceptera offert"}
             </button>
-            <button className="bg-[#223] text-white/90 px-6 py-3 rounded-lg font-medium">
-              Ändra din offert
+
+            <button
+              onClick={onRequestChange}
+              disabled={busy !== null}
+              className="bg-[#223] text-white/90 px-6 py-3 rounded-lg font-medium disabled:opacity-60"
+            >
+              {busy === "change" ? "Skickar…" : "Ändra din offert"}
             </button>
-            <button className="bg-[#333] text-white/90 px-6 py-3 rounded-lg font-medium">
-              Avböj
+
+            <button
+              onClick={onDeclineOffer}
+              disabled={busy !== null}
+              className="bg-[#333] text-white/90 px-6 py-3 rounded-lg font-medium disabled:opacity-60"
+            >
+              {busy === "decline" ? "Avböjer…" : "Avböj"}
             </button>
           </div>
         </div>

@@ -1,12 +1,8 @@
-// src/pages/api/dashboard/stats.ts
-import type {
-  NextApiRequest as NextApiRequestT,
-  NextApiResponse as NextApiResponseT,
-} from "next";
+﻿// src/pages/api/dashboard/stats.ts
+import type { NextApiRequest as NextApiRequestT, NextApiResponse as NextApiResponseT } from "next";
+import { supabase } from "@/lib/supabaseAdmin";
 
-import { supabase } from "@/lib/supabaseClient";
-
-/** Rad från offers (vi använder offer_date om den finns, annars created_at). */
+/** Rad frÃ¥n offers (vi anvÃ¤nder offer_date om den finns, annars created_at). */
 type OfferRow = {
   created_at: string;
   offer_date: string | null;
@@ -30,10 +26,10 @@ function endOfDay(d: Date) {
   return t;
 }
 
-/** ISO-vecka (år + veckonummer) */
+/** ISO-vecka (Ã¥r + veckonummer) */
 function isoWeek(d: Date) {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const dayNum = (date.getUTCDay() || 7) - 1; // 0..6 (mån=0)
+  const dayNum = (date.getUTCDay() || 7) - 1; // 0..6 (mÃ¥n=0)
   date.setUTCDate(date.getUTCDate() - dayNum + 3); // torsdag i veckan
   const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
   const fdNum = (firstThursday.getUTCDay() || 7) - 1;
@@ -49,7 +45,7 @@ function buildWeekAxis(from: Date, to: Date) {
   const labels: string[] = [];
   const cursor = startOfDay(new Date(from));
 
-  // backa till måndag för snygg start
+  // backa till mÃ¥ndag fÃ¶r snygg start
   const wd = cursor.getDay() || 7;
   if (wd !== 1) cursor.setDate(cursor.getDate() - (wd - 1));
 
@@ -74,7 +70,7 @@ export default async function handler(req: NextApiRequestT, res: NextApiResponse
     const from = startOfDay(isYMD(fromParam) ? new Date(fromParam) : defaultFrom);
     const to = endOfDay(isYMD(toParam) ? new Date(toParam) : today);
 
-    // Hämta offers (vi filtrerar primärt på created_at för index, men kommer räkna på offer_date om den finns)
+    // HÃ¤mta offers (filtrera pÃ¥ created_at fÃ¶r index, men räkna pÃ¥ offer_date om den finns)
     const { data, error } = await supabase
       .from("offers")
       .select("created_at, offer_date, status")
@@ -83,20 +79,18 @@ export default async function handler(req: NextApiRequestT, res: NextApiResponse
 
     if (error) {
       console.error("stats api error:", error);
-      return res.status(500).json({ error: "Kunde inte hämta stats" });
+      return res.status(500).json({ error: "Kunde inte hÃ¤mta stats" });
     }
     const offers: OfferRow[] = data ?? [];
 
     const { keys: weekKeys, labels: weeks } = buildWeekAxis(from, to);
 
-    // Serierna (4 st)
     const offer_answered = Array(weekKeys.length).fill(0);
     const offer_unanswered = Array(weekKeys.length).fill(0);
-    const booking_in = Array(weekKeys.length).fill(0);  // placeholder tills vi kopplar bokningar
-    const booking_done = Array(weekKeys.length).fill(0); // placeholder tills vi kopplar bokningar
+    const booking_in = Array(weekKeys.length).fill(0);  // placeholder
+    const booking_done = Array(weekKeys.length).fill(0); // placeholder
 
     for (const row of offers) {
-      // använd offer_date om den finns (YYYY-MM-DD), annars created_at
       const baseDate = row.offer_date ? new Date(row.offer_date) : new Date(row.created_at);
       if (baseDate < from || baseDate > to) continue;
 
@@ -114,7 +108,7 @@ export default async function handler(req: NextApiRequestT, res: NextApiResponse
     }
 
     return res.status(200).json({
-      range: `${ymd(from)} – ${ymd(to)}`,
+      range: `${ymd(from)} â€“ ${ymd(to)}`,
       series: { weeks, offer_answered, offer_unanswered, booking_in, booking_done },
       totals: {
         offer_answered: offer_answered.reduce((a, b) => a + b, 0),
@@ -125,6 +119,8 @@ export default async function handler(req: NextApiRequestT, res: NextApiResponse
     });
   } catch (e: any) {
     console.error("stats api error:", e?.message || e);
-    return res.status(500).json({ error: "Kunde inte hämta stats" });
+    return res.status(500).json({ error: "Kunde inte hÃ¤mta stats" });
   }
 }
+
+

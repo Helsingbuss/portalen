@@ -1,6 +1,6 @@
-// src/pages/api/create-offer.ts
+﻿// src/pages/api/create-offer.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseAdmin";
 import { sendOfferMail } from "@/lib/sendMail";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // 1. Hämta senaste offertnummer
+    // 1. HÃ¤mta senaste offertnummer
     const { data: lastOffer } = await supabase
       .from("offers")
       .select("offer_number")
@@ -36,7 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .limit(1)
       .single();
 
-    let nextNumber = 7; // Startar på 7 (HB25007)
+    let nextNumber = 7; // Startar pÃ¥ 7 (HB25007)
     if (lastOffer && lastOffer.offer_number) {
       const lastNum = parseInt(lastOffer.offer_number.replace("HB25", ""), 10);
       nextNumber = lastNum + 1;
@@ -65,7 +65,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (error) throw error;
 
-    // 3. Skicka bekräftelsemail
+    // 3. Skicka bekrÃ¤ftelsemail
     await sendOfferMail(customer_email, offer_number, "inkommen");
 
     return res.status(200).json({
@@ -78,3 +78,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: error.message });
   }
 }
+
+

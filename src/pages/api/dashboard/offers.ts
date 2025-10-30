@@ -1,9 +1,9 @@
-// src/pages/api/dashboard/offers.ts
+﻿// src/pages/api/dashboard/offers.ts
 import type {
   NextApiRequest as NextApiRequestT,
   NextApiResponse as NextApiResponseT,
 } from "next";
-import { supabase as sbClient } from "@/lib/supabaseClient";
+import { supabase as sbClient } from "@/lib/supabaseAdmin";
 
 type Row = {
   id: string;
@@ -14,13 +14,18 @@ type Row = {
   destination: string | null;
   passengers: number | null;
   status: string | null;
-  type?: string | null;
+
+  // fÃ¶r typbestÃ¤mning
+  return_departure?: string | null;
+  return_destination?: string | null;
+  return_date?: string | null;
+  return_time?: string | null;
+  round_trip?: boolean | null;
 };
 
 function fmtDate(d?: string | null) {
   if (!d) return null;
-  // förutsätter YYYY-MM-DD i DB
-  return d;
+  return d; // antar YYYY-MM-DD i DB
 }
 
 export default async function handler(
@@ -28,7 +33,6 @@ export default async function handler(
   res: NextApiResponseT
 ) {
   try {
-    // 1) Hämta 30 senaste dagar och räkna inkomna / besvarade per dag
     const since = new Date();
     since.setDate(since.getDate() - 30);
     const sinceISO = since.toISOString().slice(0, 10);
@@ -36,7 +40,23 @@ export default async function handler(
     const { data: rows, error } = await sbClient
       .from("offers")
       .select(
-        "id,offer_number,departure_date,departure_time,departure_place,destination,passengers,status,offer_date"
+        [
+          "id",
+          "offer_number",
+          "departure_date",
+          "departure_time",
+          "departure_place",
+          "destination",
+          "passengers",
+          "status",
+          "offer_date",
+          // nytt fÃ¶r typ
+          "return_departure",
+          "return_destination",
+          "return_date",
+          "return_time",
+          "round_trip",
+        ].join(",")
       )
       .gte("offer_date", sinceISO)
       .order("offer_date", { ascending: true });
@@ -44,19 +64,30 @@ export default async function handler(
     if (error) throw error;
 
     const byDay: Record<string, { inkommen: number; besvarad: number }> = {};
-
     const unanswered: Row[] = [];
+
     for (const r of rows ?? []) {
-      const day = (r as any).offer_date?.slice(0, 10) ?? "okänd";
+      const rr = r as any as Row;
+      const day = (rr as any).offer_date?.slice(0, 10) ?? "okÃ¤nd";
       if (!byDay[day]) byDay[day] = { inkommen: 0, besvarad: 0 };
       byDay[day].inkommen += 1;
-      if ((r as any).status === "besvarad") byDay[day].besvarad += 1;
+      if ((rr as any).status === "besvarad") byDay[day].besvarad += 1;
 
       // obesvarade
-      if ((r as any).status !== "besvarad") {
+      if ((rr as any).status !== "besvarad") {
+        const hasReturn =
+          Boolean(
+            rr.return_departure ||
+              rr.return_destination ||
+              rr.return_date ||
+              rr.return_time
+          ) || rr.round_trip === true;
+
         unanswered.push({
-          ...(r as any),
-          type: "Enkelresa", // placeholder – byt om du har kolumn
+          ...rr,
+          // detta anvÃ¤nds i tabellens "Typ"-kolumn
+          // @ts-ignore â€“ vi adderar fÃ¤ltet i payloaden
+          type: hasReturn ? "Tur & retur" : "Enkelresa",
         });
       }
     }
@@ -77,7 +108,8 @@ export default async function handler(
         from: r.departure_place,
         to: r.destination,
         pax: r.passengers,
-        type: r.type ?? "—",
+        // @ts-ignore â€“ â€œtypeâ€ fÃ¤ltet vi satte ovan
+        type: (r as any).type ?? "â€”",
         departure_date: fmtDate(r.departure_date),
         departure_time: r.departure_time,
       })),
@@ -89,3 +121,5 @@ export default async function handler(
     return res.status(500).json({ error: e.message ?? "Serverfel" });
   }
 }
+
+

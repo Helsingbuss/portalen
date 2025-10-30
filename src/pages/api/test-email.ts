@@ -1,4 +1,4 @@
-// src/pages/api/test-email.ts
+﻿// src/pages/api/test-email.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Resend } from "resend";
 
@@ -11,10 +11,10 @@ export default async function handler(
   try {
     const { error } = await resend.emails.send({
       from: process.env.RESEND_FROM || "onboarding@resend.dev",
-      to: "offert@helsingbuss.se", // <-- ändra till din egen mailadress för test
-      subject: "🚍 Testmail från Helsingbuss Portal",
-      html: `<p>Hej! 🎉<br/>Detta är ett testmail från ditt system.<br/><br/>
-      Länken till offertsystemet:<br/>
+      to: "offert@helsingbuss.se", // <-- Ã¤ndra till din egen mailadress fÃ¶r test
+      subject: "ðŸš Testmail frÃ¥n Helsingbuss Portal",
+      html: `<p>Hej! ðŸŽ‰<br/>Detta Ã¤r ett testmail frÃ¥n ditt system.<br/><br/>
+      LÃ¤nken till offertsystemet:<br/>
       <a href="${process.env.NEXT_PUBLIC_BASE_URL}/offert/HB25007">
         Visa offert HB25007
       </a></p>`,
@@ -29,3 +29,5 @@ export default async function handler(
     return res.status(500).json({ error: err.message });
   }
 }
+
+

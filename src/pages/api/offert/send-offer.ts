@@ -1,4 +1,4 @@
-// src/pages/api/offert/send-offer.ts
+﻿// src/pages/api/offert/send-offer.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { sendOfferMail } from "@/lib/sendMail";
 
@@ -21,3 +21,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(500).json({ success: false, error });
   }
 }
+
+

@@ -1,6 +1,6 @@
-// src/pages/api/offers/send-proposal.ts
+﻿// src/pages/api/offers/send-proposal.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseAdmin";
 import { sendOfferMail } from "@/lib/sendMail";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -13,13 +13,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       offerId,         // UUID i tabellen offers
       offerNumber,     // t.ex. HB25007
       customerEmail,   // mottagare
-      totals,          // (valfritt) summering från kalkylen
+      totals,          // (valfritt) summering frÃ¥n kalkylen
       pricing,         // (valfritt) radrader
-      input,           // (valfritt) inmatade fält
+      input,           // (valfritt) inmatade fÃ¤lt
     } = req.body ?? {};
 
     if (!offerId || !offerNumber || !customerEmail) {
-      return res.status(400).json({ error: "offerId, offerNumber och customerEmail krävs" });
+      return res.status(400).json({ error: "offerId, offerNumber och customerEmail krÃ¤vs" });
     }
 
     // Spara kalkyl och markera offerten som besvarad
@@ -45,3 +45,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: err?.message || "Serverfel" });
   }
 }
+
+
