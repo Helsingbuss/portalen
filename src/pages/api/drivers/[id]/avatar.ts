@@ -24,7 +24,7 @@ function extFromMime(mime?: string | null) {
   return "bin";
 }
 
-// Promisify: parse multipart/form-data
+// Promisify: parse multipart/form-data (typad så TS inte klagar i strict-läge)
 function parseForm(
   req: NextApiRequest
 ): Promise<{
@@ -33,7 +33,16 @@ function parseForm(
 }> {
   const form = formidable({ multiples: false, keepExtensions: true });
   return new Promise((resolve, reject) => {
-    form.parse(req, (err, flds, fls) => (err ? reject(err) : resolve({ fields: flds as any, files: fls as any })));
+    form.parse(
+      req,
+      (err: any, flds: any, fls: any) => {
+        if (err) return reject(err);
+        resolve({
+          fields: flds as Record<string, string | string[]>,
+          files: fls as Record<string, File | File[]>,
+        });
+      }
+    );
   });
 }
 
@@ -48,7 +57,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const { files } = await parseForm(req);
 
-    // Tillåt flera fältnamn från formulär/klient
     const cand = files.avatar || files.photo || files.file;
     const avatar: File | undefined = Array.isArray(cand) ? cand[0] : cand;
     if (!avatar) return res.status(400).json({ error: "Saknar fil (avatar/photo/file)" });
@@ -70,7 +78,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { data: pub } = supabaseAdmin.storage.from("drivers").getPublicUrl(storagePath);
     const publicUrl = pub?.publicUrl ?? null;
 
-    // (valfritt) spara i tabellen om kolumnen finns
     try {
       await supabaseAdmin
         .from("drivers")

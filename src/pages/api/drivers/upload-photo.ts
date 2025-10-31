@@ -29,7 +29,16 @@ function parseForm(
 ): Promise<{ fields: Record<string, string | string[]>; files: Record<string, File | File[]> }> {
   const form = formidable({ multiples: false, keepExtensions: true });
   return new Promise((resolve, reject) => {
-    form.parse(req, (err, flds, fls) => (err ? reject(err) : resolve({ fields: flds as any, files: fls as any })));
+    form.parse(
+      req,
+      (err: any, flds: any, fls: any) => {
+        if (err) return reject(err);
+        resolve({
+          fields: flds as Record<string, string | string[]>,
+          files: fls as Record<string, File | File[]>,
+        });
+      }
+    );
   });
 }
 
