@@ -65,7 +65,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!filepath) return res.status(400).json({ error: "Uppladdad fil saknar filepath" });
 
     const buf = await fs.readFile(filepath);
-    const mime = avatar.mimetype || "application/octet-stream";
+    const mime = (avatar as any).mimetype || "application/octet-stream"; // <-- cast för TS
     const ext = extFromMime(mime);
     const storagePath = `avatars/${id}.${ext}`;
 

@@ -61,7 +61,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const storagePath = `driver_${driverId}/${Date.now()}_${safeName}`;
 
     const up = await supabaseAdmin.storage.from("driver-docs").upload(storagePath, buf, {
-      contentType: (doc as any).mimetype || "application/octet-stream",
+      contentType: (doc as any).mimetype || "application/octet-stream", // <-- cast för TS
       upsert: false,
     });
     if (up.error) throw up.error;

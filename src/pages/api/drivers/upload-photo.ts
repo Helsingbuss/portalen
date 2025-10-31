@@ -61,7 +61,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!filepath) return res.status(400).json({ error: "Uppladdad fil saknar filepath" });
 
     const fileBuf = await fs.readFile(filepath);
-    const mime = photo.mimetype || "application/octet-stream";
+    const mime = (photo as any).mimetype || "application/octet-stream"; // <-- cast för TS
     const ext = extFromMime(mime);
     const filePath = `profiles/${driverId}.${ext}`;
 
