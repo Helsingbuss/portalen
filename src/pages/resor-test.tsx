@@ -1,6 +1,5 @@
-// src/pages/resor-test.tsx
 import Head from "next/head";
-import TripCard from "@/components/trips/TripGrid"; // <-- default är TripCard i ditt repo
+import { TripGrid, type TripCardProps } from "@/components/trips/TripGrid";
 
 type TripKind = "flerdagar" | "dagsresa" | "shopping";
 
@@ -17,6 +16,7 @@ type DemoTrip = {
   country?: string;
   priceFrom?: number;
   nextDate?: string | null;
+  href?: string;
 };
 
 const DEMO: DemoTrip[] = [
@@ -31,6 +31,7 @@ const DEMO: DemoTrip[] = [
     location: "Sverige",
     priceFrom: 245,
     nextDate: null,
+    href: "/trip/t1",
   },
   {
     id: "t2",
@@ -43,6 +44,7 @@ const DEMO: DemoTrip[] = [
     location: "Danmark",
     priceFrom: 498,
     nextDate: "2026-12-12",
+    href: "/trip/t2",
   },
   {
     id: "t3",
@@ -55,26 +57,29 @@ const DEMO: DemoTrip[] = [
     location: "Tjeckien",
     priceFrom: 3298,
     nextDate: "2026-05-09",
+    href: "/trip/t3",
   },
 ];
 
-function mapToCardProps(t: DemoTrip): any {
+function mapToCardProps(t: DemoTrip): TripCardProps {
   return {
     id: t.id,
     title: t.title,
     subtitle: t.subtitle ?? t.headline ?? "",
     image: t.image,
-    ribbon: t.banner?.text,
-    badge: t.tripKind,
-    city: t.city,
-    country: t.country ?? t.location,
-    price_from: t.priceFrom,
+    ribbon: t.banner?.text ?? null,
+    badge: t.tripKind ?? null,
+    city: t.city ?? null,
+    country: t.country ?? t.location ?? null,
+    price_from: t.priceFrom ?? null,
     next_date: t.nextDate ?? null,
+    href: t.href,
   };
 }
 
 export default function ResorTestPage() {
   const items = DEMO.map(mapToCardProps);
+
   return (
     <>
       <Head>
@@ -83,13 +88,7 @@ export default function ResorTestPage() {
       <div className="min-h-screen bg-[#f5f4f0] lg:pl-64">
         <div className="mx-auto max-w-6xl p-6">
           <h1 className="text-xl font-semibold text-[#194C66] mb-4">Resor (demo)</h1>
-
-          {/* Enkel grid: byt 3 → 4/5 om du vill */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {items.map((p: any) => (
-              <TripCard key={p.id} {...p} />
-            ))}
-          </div>
+          <TripGrid items={items} columns={3} />
         </div>
       </div>
     </>
