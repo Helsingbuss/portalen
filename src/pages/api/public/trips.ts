@@ -1,3 +1,4 @@
+// src/pages/api/public/trips.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 
@@ -11,12 +12,12 @@ type TripOut = {
   title: string;
   subtitle?: string | null;
   image?: string | null;
-  badge?: string | null; // t.ex. "dagsresa", "shopping", "flerdagars"
+  badge?: string | null;
   city?: string | null;
   country?: string | null;
   price_from?: number | null;
-  ribbon?: string | null; // kampanjbanderoll
-  next_date?: string | null; // YYYY-MM-DD
+  ribbon?: string | null;
+  next_date?: string | null;
 };
 
 export default async function handler(
@@ -27,78 +28,84 @@ export default async function handler(
     const limit = Math.max(1, Math.min(50, Number(req.query.limit ?? 6)));
     const todayISO = new Date().toISOString().slice(0, 10);
 
-    // 1) Hämta resor. Vi gör "snäll" select(*) så att vi inte kraschar om kolumn saknas.
-    let trips: any[] = [];
-    {
-      const { data, error } = await supabase
-        .from("trips")
-        .select("*")
-        .limit(200);
-      if (error) {
-        console.error("/api/public/trips select trips error:", error);
-        return bail(res, "Kunde inte hämta resor.");
-      }
-      // om published-kolumn finns, filtrera på true – annars visa alla
-      trips = (data || []).filter((t: any) =>
-        typeof t.published === "boolean" ? t.published : true
-      );
+    // 1) Hämta resor "snällt"
+    const { data: tripsData, error: tripsErr } = await supabase
+      .from("trips")
+      .select("*")
+      .limit(200);
+
+    if (tripsErr) {
+      return bail(res, "Kunde inte hämta resor.");
     }
 
-    if (!trips.length) {
-      return ok(res, []);
-    }
+    const trips = (tripsData || []).filter((t: any) =>
+      typeof t.published === "boolean" ? t.published : true
+    );
+    if (!trips.length) return ok(res, []);
 
-    // 2) Försök plocka nästkommande avgång per trip via trip_departures (om tabellen finns)
+    // 2) Nästa avgång – stöd både "date" och "departure_date"
     const idList = trips.map((t: any) => t.id).filter(Boolean);
     const nextDates = new Map<string, string>();
+
     if (idList.length) {
-      const { data: deps, error: depErr } = await supabase
-        .from("trip_departures")
-        .select("trip_id,date")
-        .in("trip_id", idList)
-        .gte("date", todayISO)
-        .order("date", { ascending: true });
-      if (!depErr && deps) {
-        for (const row of deps as any[]) {
-          const k = String(row.trip_id);
-          const v = String(row.date);
-          if (!nextDates.has(k)) nextDates.set(k, v); // första (tidigaste) vinner
-        }
-      } else {
-        // om tabellen saknas – skippa datum
-        if (depErr && String(depErr.code) !== "42P01") {
-          console.warn("trip_departures error:", depErr);
+      // Försök med kolumn "date"
+      let depRows: any[] | null = null;
+
+      const trySelect = async (col: "date" | "departure_date") => {
+        const { data, error } = await supabase
+          .from("trip_departures")
+          .select(`trip_id, ${col}`)
+          .in("trip_id", idList)
+          .gte(col, todayISO)
+          .order(col, { ascending: true });
+        return { data, error };
+      };
+
+      // 2a: försök "date"
+      let { data: d1, error: e1 } = await trySelect("date");
+      if (!e1) depRows = d1 as any[];
+
+      // 2b: fallback "departure_date" (42703 = undefined column)
+      if (e1 && String(e1.code) === "42703") {
+        const { data: d2, error: e2 } = await trySelect("departure_date");
+        if (!e2) depRows = d2 as any[];
+      }
+
+      if (depRows && depRows.length) {
+        for (const r of depRows) {
+          const tripId = String(r.trip_id);
+          const v: string | undefined =
+            r.date ?? r.departure_date ?? undefined;
+        if (v && !nextDates.has(tripId)) nextDates.set(tripId, String(v));
         }
       }
+      // Om tabell saknas helt (42P01) gör vi inget – inga datum, men inget fel.
     }
 
-    // 3) Mappa till publikt format
-    const out: TripOut[] = trips.map((t: any) => {
-      return {
-        id: String(t.id),
-        title: t.title ?? t.name ?? "Resa",
-        subtitle: t.subtitle ?? null,
-        image: t.hero_image ?? t.image_url ?? null,
-        badge: t.badge ?? t.category ?? null, // ex. "dagsresa"
-        city: t.city ?? null,
-        country: t.country ?? null,
-        price_from: numberOrNull(t.price_from ?? t.price ?? null),
-        ribbon: t.ribbon ?? t.promo_text ?? null, // kampanjbanderoll
-        next_date: nextDates.get(String(t.id)) ?? null,
-      };
-    });
+    // 3) Mappa till publik struktur
+    const out: TripOut[] = trips.map((t: any) => ({
+      id: String(t.id),
+      title: t.title ?? t.name ?? "Resa",
+      subtitle: t.subtitle ?? null,
+      image: t.hero_image ?? t.image_url ?? null,
+      badge: t.badge ?? t.category ?? null,
+      city: t.city ?? null,
+      country: t.country ?? null,
+      price_from: numberOrNull(t.price_from ?? t.price ?? null),
+      ribbon: t.ribbon ?? t.promo_text ?? null,
+      next_date: nextDates.get(String(t.id)) ?? null,
+    }));
 
-    // 4) Sortera på närmast datum om vi har det, annars oförändrat
+    // 4) Sortera på datum om tillgängligt
     out.sort((a, b) => {
       const da = a.next_date ? Date.parse(a.next_date) : Number.MAX_SAFE_INTEGER;
       const db = b.next_date ? Date.parse(b.next_date) : Number.MAX_SAFE_INTEGER;
       return da - db;
     });
 
-    // 5) Begränsa och skicka
+    // 5) Returnera begränsat antal + CORS/Cache
     const limited = out.slice(0, limit);
 
-    // CORS & cache – viktigt för WP
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
     res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=300");
