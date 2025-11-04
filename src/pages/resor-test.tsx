@@ -38,7 +38,7 @@ const DEMO: DemoTrip[] = [
     title: "Julmarknad i Köpenhamn",
     subtitle: "Magisk dagsresa med glögg och gran",
     image:
-      "https://images.unsplash.com/photo-1543055750-09c162766b9b?q=80&w=1680&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80",
     banner: { text: "Gör ett klipp!" },
     tripKind: "dagsresa",
     location: "Danmark",
@@ -51,7 +51,7 @@ const DEMO: DemoTrip[] = [
     title: "Weekend i Prag",
     subtitle: "Kultur, mat och vackra vyer",
     image:
-      "https://images.unsplash.com/photo-1528909514045-2fa4ac7a08ba?q=80&w=1680&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=1600&q=80",
     banner: { text: "Res 10 för 9!" },
     tripKind: "flerdagar",
     location: "Tjeckien",
