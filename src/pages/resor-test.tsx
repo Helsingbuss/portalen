@@ -1,59 +1,104 @@
-import AdminMenu from "@/components/AdminMenu";
-import Header from "@/components/Header";
-import TripGrid, { TripCardProps } from "@/components/trips/TripCards";
+// src/pages/resor-test.tsx
+import Head from "next/head";
+import TripGrid from "@/components/trips/TripGrid";
 
-const demo: TripCardProps[] = [
+// Tillåten kategori (badge) som visas på kortet
+type TripKind = "flerdagar" | "dagsresa" | "shopping";
+
+// Enkel demodatatyp för denna testsida
+type DemoTrip = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  headline?: string;
+  image: string;
+  // banderoll uppe på bilden (valfri)
+  banner?: { text: string };
+  // kategori/badge – MÅSTE vara en av TripKind
+  tripKind?: TripKind;
+  location?: string; // t.ex. "Sverige", "Danmark"
+  city?: string;
+  country?: string;
+  priceFrom?: number;
+  nextDate?: string | null;
+};
+
+// Demo-data (kan bytas mot API senare)
+const DEMO: DemoTrip[] = [
   {
-    id: "ex1",
-    image: "https://images.unsplash.com/photo-1501117716987-c8e4f3b4fb54?q=80&w=1680&auto=format&fit=crop",
-    banner: { text: "Boka tidigt och spara upp 25% per person" },
-    tripKind: "Shoppingressa, Sverige",
-    location: "Shoppingressa, Sverige",
+    id: "t1",
     title: "Gekås Ullared",
     headline: "Häng med till Gekås Ullared",
-    excerpt: "Följ med på en riktig fyndjakt till Gekås Ullared – Sveriges mest älskade shoppingparadis.",
-    highlight: "Bussresa",
-    priceFrom: 295,
-    ctaHref: "#",
+    image:
+      "https://images.unsplash.com/photo-1501117716987-c8e4f3b4fb54?q=80&w=1680&auto=format&fit=crop",
+    banner: { text: "Boka tidigt – spara upp till 25%" },
+    tripKind: "shopping", // ✅ korrekt värde (tidigare felstavning gav build-fel)
+    location: "Sverige",
+    priceFrom: 245,
+    nextDate: null,
   },
   {
-    id: "ex2",
-    image: "https://images.unsplash.com/photo-1549633372-57e7e5d4e4cd?q=80&w=1680&auto=format&fit=crop",
-    ribbon: { text: "Gör ett klipp!", angle: -12 },
-    tripKind: "shopping",
-    location: "Weekend",
-    title: "Billiga weekendresor",
-    headline: "Fynda till cityresan",
-    excerpt: "Riktigt bra erbjudanden just nu – välj mellan populära storstäder.",
-    highlight: "Paketresa",
-    priceFrom: 2298,
-    ctaHref: "#",
-  },
-  {
-    id: "ex3",
-    image: "https://images.unsplash.com/photo-1485738422979-f5c462d49f74?q=80&w=1680&auto=format&fit=crop",
-    ribbon: { text: "Res 10 för 9!", angle: -10 },
+    id: "t2",
+    title: "Julmarknad i Köpenhamn",
+    subtitle: "Magisk dagsresa med glögg och gran",
+    image:
+      "https://images.unsplash.com/photo-1543055750-09c162766b9b?q=80&w=1680&auto=format&fit=crop",
+    banner: { text: "Gör ett klipp på flygresan!" },
     tripKind: "dagsresa",
-    location: "Familjepaket",
-    title: "Res med bästa gänget!",
-    excerpt: "Perfekt för kompisgänget eller stora familjen – prisvärt och enkelt.",
-    highlight: "Grupperbjudande",
-    priceFrom: 0,
-    ctaHref: "#",
+    location: "Danmark",
+    priceFrom: 498,
+    nextDate: "2026-12-12",
+  },
+  {
+    id: "t3",
+    title: "Weekend i Prag",
+    subtitle: "Kultur, mat och vackra vyer",
+    image:
+      "https://images.unsplash.com/photo-1528909514045-2fa4ac7a08ba?q=80&w=1680&auto=format&fit=crop",
+    banner: { text: "Res 10 för 9!" },
+    tripKind: "flerdagar",
+    location: "Tjeckien",
+    priceFrom: 3298,
+    nextDate: "2026-05-09",
   },
 ];
 
+// Mappning från vår enkla demoschema -> TripGrid/TripCard-props.
+// Vi castar till `any` för att undvika typkrockar om dina komponenttyper skulle
+// skilja sig – körbart och ofarligt för testsidan.
+function mapToCardProps(t: DemoTrip): any {
+  return {
+    id: t.id,
+    title: t.title,
+    subtitle: t.subtitle ?? t.headline ?? "",
+    image: t.image,
+    ribbon: t.banner?.text, // textbanderoll uppe på bilden
+    badge: t.tripKind, // "shopping" | "dagsresa" | "flerdagar"
+    city: t.city,
+    country: t.country ?? t.location,
+    price_from: t.priceFrom,
+    next_date: t.nextDate ?? null,
+  };
+}
+
 export default function ResorTestPage() {
+  const items = DEMO.map(mapToCardProps);
+
   return (
     <>
-      <AdminMenu />
+      <Head>
+        <title>Resor – Test</title>
+      </Head>
+
       <div className="min-h-screen bg-[#f5f4f0] lg:pl-64">
-        <Header />
-        <main className="p-6 space-y-6">
-          <h1 className="text-xl font-semibold text-[#194C66]">Exempel – Trip Cards</h1>
-          {/* Byt mellan 3 / 4 / 5 här för antal per rad */}
-          <TripGrid items={demo} cols={3} />
-        </main>
+        <div className="mx-auto max-w-6xl p-6">
+          <h1 className="text-xl font-semibold text-[#194C66] mb-4">
+            Resor (demo)
+          </h1>
+
+          {/* Grid med 3 kolumner – ändra till 4/5 om du vill prova */}
+          <TripGrid items={items as any} columns={3} />
+        </div>
       </div>
     </>
   );
