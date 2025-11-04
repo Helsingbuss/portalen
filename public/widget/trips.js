@@ -1,148 +1,146 @@
-// public/widget/trips.js
+// /public/widget/trips.js
 (function () {
   function $(sel) { return document.querySelector(sel); }
-  function create(tag, attrs = {}, children = []) {
-    const el = document.createElement(tag);
-    Object.entries(attrs).forEach(([k, v]) => {
-      if (k === "style" && typeof v === "object") Object.assign(el.style, v);
-      else if (k === "class") el.className = v;
-      else el.setAttribute(k, v);
-    });
-    (Array.isArray(children) ? children : [children]).forEach(c => {
-      if (c == null) return;
-      el.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
-    });
-    return el;
-  }
 
-  function renderTrips(root, items, cols, linkBase) {
-    root.innerHTML = "";
-    Object.assign(root.style, {
+  function css(el, styles) { Object.assign(el.style, styles || {}); return el; }
+
+  function renderTrips(el, items, cols, linkbase) {
+    el.innerHTML = "";
+    css(el, {
       display: "grid",
-      gap: "16px",
       gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))`,
-      alignItems: "stretch"
+      gap: "16px",
+      alignItems: "stretch",
     });
 
-    items.forEach(t => {
-      const card = create("a", {
-        href: `${linkBase}${encodeURIComponent(t.id)}`,
-        style: {
-          display: "flex",
-          flexDirection: "column",
-          textDecoration: "none",
-          color: "inherit",
-          background: "#fff",
-          borderRadius: "16px",
-          overflow: "hidden",
-          boxShadow: "0 2px 12px rgba(0,0,0,.06)"
-        }
+    items.forEach((t) => {
+      const card = document.createElement("a");
+      card.href = (linkbase || "/trip/") + t.id;
+      card.target = "_self";
+      card.rel = "noopener";
+      card.style.textDecoration = "none";
+      card.style.color = "inherit";
+
+      const wrap = document.createElement("div");
+      css(wrap, {
+        background: "#fff",
+        borderRadius: "12px",
+        boxShadow: "0 1px 6px rgba(0,0,0,.08)",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
       });
 
-      // Bildwrap (för ribban)
-      const imgWrap = create("div", { style: { position: "relative" } });
-      const img = create("img", {
-        src: t.image || "https://login.helsingbuss.se/placeholder.jpg",
-        alt: t.title || "",
-        style: { width: "100%", height: "190px", objectFit: "cover", display: "block" }
-      });
+      // bild
+      if (t.image) {
+        const fig = document.createElement("div");
+        css(fig, { position: "relative" });
+        const img = document.createElement("img");
+        img.src = t.image;
+        img.alt = t.title || "";
+        css(img, { width: "100%", height: "200px", objectFit: "cover", display: "block" });
+        fig.appendChild(img);
 
-      // Röd banderoll (kampanj)
-      if (t.ribbon) {
-        const ribbon = create("div", {
-          style: {
+        // banderoll (röd sned)
+        if (t.ribbon && t.ribbon.text) {
+          const rb = document.createElement("div");
+          rb.textContent = t.ribbon.text;
+          css(rb, {
             position: "absolute",
             top: "16px",
-            left: "-16px",
-            background: "#ef4444",
-            color: "#fff",
-            padding: "10px 18px",
-            fontWeight: "700",
+            left: "-40px",
             transform: "rotate(-10deg)",
-            boxShadow: "0 6px 12px rgba(0,0,0,.15)",
-            borderRadius: "6px"
-          }
-        }, t.ribbon);
-        imgWrap.appendChild(ribbon);
+            background: "#EF4444",
+            color: "#fff",
+            padding: "8px 28px",
+            fontWeight: "700",
+            borderRadius: "6px",
+            boxShadow: "0 2px 8px rgba(0,0,0,.15)",
+            letterSpacing: ".3px",
+          });
+          fig.appendChild(rb);
+        }
+        wrap.appendChild(fig);
       }
 
-      imgWrap.appendChild(img);
-      card.appendChild(imgWrap);
+      const body = document.createElement("div");
+      css(body, { padding: "14px 14px 16px 14px" });
 
-      // Innehåll
-      const body = create("div", { style: { padding: "14px 14px 16px 14px" } }, [
-        // Badge (typ av resa)
-        t.badge ? create("div", {
-          style: {
-            display: "inline-block",
-            background: "#fff7ed",
-            color: "#c2410c",
-            border: "1px solid #fed7aa",
-            borderRadius: "10px",
-            fontSize: "12px",
-            padding: "2px 8px",
-            marginBottom: "8px"
-          }
-        }, t.badge) : null,
+      if (t.badge) {
+        const badge = document.createElement("div");
+        badge.textContent = t.badge;
+        css(badge, {
+          display: "inline-block",
+          background: "#F1F5F9",
+          color: "#0F172A",
+          fontSize: "12px",
+          borderRadius: "999px",
+          padding: "3px 10px",
+          marginBottom: "6px",
+          fontWeight: "600",
+        });
+        body.appendChild(badge);
+      }
 
-        create("div", { style: { fontSize: "18px", fontWeight: 700, color: "#0f172a" } }, t.title || "—"),
+      const h = document.createElement("div");
+      h.textContent = t.title || "";
+      css(h, { fontSize: "18px", fontWeight: "700", color: "#194C66" });
+      body.appendChild(h);
 
-        (t.city || t.country) ? create("div", {
-          style: { fontSize: "13px", marginTop: "4px", color: "#334155" }
-        }, [t.city ? t.city : "", (t.city && t.country) ? ", " : "", t.country ? t.country : ""]) : null,
+      if (t.subtitle) {
+        const sub = document.createElement("div");
+        sub.textContent = t.subtitle;
+        css(sub, { marginTop: "6px", color: "#0f172a99" });
+        body.appendChild(sub);
+      }
 
-        t.subtitle ? create("div", {
-          style: { fontSize: "14px", marginTop: "6px", color: "#334155" }
-        }, t.subtitle) : null,
+      if (t.city || t.country) {
+        const loc = document.createElement("div");
+        loc.textContent = [t.city, t.country].filter(Boolean).join(", ");
+        css(loc, { marginTop: "6px", fontSize: "13px", color: "#0f172a99" });
+        body.appendChild(loc);
+      }
 
-        // Pris-pill
-        (t.price_from != null) ? create("div", {
-          style: {
-            marginTop: "12px",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            background: "#fee2e2",
-            color: "#991b1b",
-            borderRadius: "999px",
-            padding: "6px 12px",
-            fontWeight: 700
-          }
-        }, [create("span", {}, "fr."), ` ${Number(t.price_from).toLocaleString("sv-SE")}:-`]) : null
-      ]);
+      if (t.price_from != null) {
+        const price = document.createElement("div");
+        price.textContent = "fr. " + Number(t.price_from).toLocaleString("sv-SE") + ":-";
+        css(price, { marginTop: "10px", fontWeight: "700", color: "#A83248" });
+        body.appendChild(price);
+      }
 
-      card.appendChild(body);
-      root.appendChild(card);
+      wrap.appendChild(body);
+      card.appendChild(wrap);
+      el.appendChild(card);
     });
   }
 
-  function boot() {
-    const root = document.getElementById("hb-trips");
-    if (!root) return;
+  async function boot() {
+    const el = document.getElementById("hb-trips");
+    if (!el) return;
 
-    const api = (root.getAttribute("data-api") || "").replace(/\/$/, "");
-    const linkBase = (root.getAttribute("data-link-base") || "https://login.helsingbuss.se/trip/").replace(/\/?$/, "/");
-    const cols = parseInt(root.getAttribute("data-columns") || "3", 10) || 3;
-    const limit = parseInt(root.getAttribute("data-limit") || "6", 10) || 6;
+    const api = (el.getAttribute("data-api") || "").replace(/\/$/, "");
+    const limit = Number(el.getAttribute("data-limit") || "6") || 6;
+    const cols = Number(el.getAttribute("data-columns") || "3") || 3;
+    const linkbase = (el.getAttribute("data-link-base") || "/trip/").replace(/\/\/+$/, "/");
 
-    if (!api) {
-      root.innerHTML = '<div style="color:#b91c1c">Saknar data-api på #hb-trips</div>';
-      return;
+    const url = `${api}/api/public/trips?limit=${encodeURIComponent(limit)}&_=${Date.now()}`;
+
+    try {
+      const r = await fetch(url, { method: "GET", mode: "cors", credentials: "omit" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = await r.json();
+
+      if (!j || !Array.isArray(j.trips)) throw new Error("Felaktigt format från API.");
+      if (j.trips.length === 0) {
+        el.innerHTML = '<div style="color:#666">Inga resor att visa ännu.</div>';
+        return;
+      }
+      renderTrips(el, j.trips, cols, linkbase);
+    } catch (e) {
+      console.error("HB Widget: kunde inte hämta resor:", e);
+      el.innerHTML = '<div style="color:#B00020">Kunde inte hämta resor.</div>';
     }
-
-    fetch(`${api}/api/public/trips?limit=${limit}`, { credentials: "omit" })
-      .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-      .then(j => {
-        if (!j || !Array.isArray(j.trips)) throw new Error("bad payload");
-        if (!j.trips.length) {
-          root.innerHTML = '<div style="color:#334155">Inga resor att visa ännu.</div>';
-          return;
-        }
-        renderTrips(root, j.trips, cols, linkBase);
-      })
-      .catch(() => {
-        root.innerHTML = '<div style="color:#b91c1c">Kunde inte hämta resor.</div>';
-      });
   }
 
   if (document.readyState === "loading") {
