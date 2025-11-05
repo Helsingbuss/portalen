@@ -28,15 +28,21 @@ type PublicTrip = {
   next_date: string | null;
 };
 
-type Handler = (req: NextApiRequest, res: NextApiResponse) => Promise<void>;
+// Allow handlers that return void or Promise<void>
+type Handler = (req: NextApiRequest, res: NextApiResponse) => void | Promise<void>;
 
 function withCors(handler: Handler): Handler {
-  // ❗️ Typa parametarna i den retur-funktion som tidigare saknade typer
   return async (req: NextApiRequest, res: NextApiResponse) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-    if (req.method === "OPTIONS") return res.status(200).end();
+
+    if (req.method === "OPTIONS") {
+      // Do NOT return a value: keep the return type as void
+      res.status(200).end();
+      return;
+    }
+
     await handler(req, res);
   };
 }
@@ -46,14 +52,14 @@ function getEnv(name: string) {
 }
 
 function getSupabase(): SupabaseClient {
-  // Stöd både server- och NEXT_PUBLIC-variabler samt ditt SERVICE_KEY-namn
+  // Support both server and NEXT_PUBLIC names, plus your SERVICE key name
   const url =
     getEnv("SUPABASE_URL") ||
     getEnv("NEXT_PUBLIC_SUPABASE_URL");
 
   const key =
     getEnv("SUPABASE_SERVICE_ROLE_KEY") ||
-    getEnv("SUPABASE_SERVICE_KEY") ||        // ditt befintliga namn i Vercel
+    getEnv("SUPABASE_SERVICE_KEY") ||
     getEnv("SUPABASE_ANON_KEY") ||
     getEnv("NEXT_PUBLIC_SUPABASE_KEY");
 
@@ -78,7 +84,7 @@ export default withCors(async function handler(req: NextApiRequest, res: NextApi
 
     let data: TripRow[] | null = null;
 
-    // Försök med start_date först, fall back om kolumnen saknas
+    // Try with start_date, fall back if the column doesn't exist
     const trySelect = async (cols: string) =>
       supabase
         .from("trips")
