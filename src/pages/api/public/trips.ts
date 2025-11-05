@@ -29,27 +29,38 @@ type TripRow = {
 
 type DepRow = { trip_id: string; departure_date: string };
 
-type ApiTripsResponse = { trips: Array<{
-  id: string;
-  title: string;
-  subtitle: string | null;
-  image: string | null;
-  badge: string | null;
-  city: string | null;
-  country: string | null;
-  price_from: number | null;
-  ribbon: string | null;
-  next_date: string | null;
-}> } | { error: string; details?: string };
+type ApiTripsResponse =
+  | {
+      trips: Array<{
+        id: string;
+        title: string;
+        subtitle: string | null;
+        image: string | null;
+        badge: string | null;
+        city: string | null;
+        country: string | null;
+        price_from: number | null;
+        ribbon: string | null;
+        next_date: string | null;
+      }>;
+    }
+  | { error: string; details?: string };
 
 export default withCors<ApiTripsResponse>(async (req, res) => {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
   const limit = Math.max(1, Math.min(24, parseInt(String(req.query.limit ?? "6"), 10) || 6));
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  const supabase = createClient(url, key, { auth: { persistSession: false } });
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const svc = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || (!svc && !anon)) {
+    console.error("Trips API: Missing Supabase envs", { hasUrl: !!url, hasSvc: !!svc, hasAnon: !!anon });
+    return res.status(500).json({ error: "Servern saknar Supabase-inställningar." });
+  }
+
+  const supabase = createClient(url, svc || anon!, { auth: { persistSession: false } });
 
   const { data: trips, error: tripsErr } = await supabase
     .from("trips")
@@ -59,12 +70,13 @@ export default withCors<ApiTripsResponse>(async (req, res) => {
     .limit(limit);
 
   if (tripsErr) {
+    console.error("Trips API: trips error", tripsErr);
     return res.status(500).json({ error: "Kunde inte hämta resor (trips)", details: tripsErr.message });
   }
 
   const rows = (trips || []) as (TripRow & { published?: boolean })[];
 
-  let depMap = new Map<string, string>();
+  const depMap = new Map<string, string>();
   if (rows.length) {
     const ids = rows.map(r => r.id);
 
@@ -86,11 +98,14 @@ export default withCors<ApiTripsResponse>(async (req, res) => {
           trip_id: d.trip_id,
           departure_date: d.date as string,
         })) as DepRow[];
-        depErr = null;
+      } else {
+        console.error("Trips API: departures error", depErr, alt.error);
       }
+    } else if (depErr) {
+      console.error("Trips API: departures error", depErr);
     }
 
-    if (!depErr && deps?.length) {
+    if (deps?.length) {
       const seen = new Set<string>();
       (deps as DepRow[]).forEach(d => {
         if (!seen.has(d.trip_id)) {
