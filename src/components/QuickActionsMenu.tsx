@@ -1,4 +1,4 @@
-import {
+﻿import {
   UserIcon,
   ClipboardDocumentListIcon,
   UsersIcon,
@@ -21,7 +21,7 @@ export default function QuickActionsMenu() {
 
       <button className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left text-sm">
         <UsersIcon className="h-5 w-5 text-gray-600" />
-        Skapa körorder
+        Skapa kÃ¶rorder
       </button>
 
       <button className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left text-sm">
@@ -31,8 +31,9 @@ export default function QuickActionsMenu() {
 
       <button className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left text-sm">
         <BuildingOfficeIcon className="h-5 w-5 text-gray-600" />
-        Lägg upp resor
+        LÃ¤gg upp resor
       </button>
     </div>
   );
 }
+

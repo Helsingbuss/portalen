@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
 import Link from "next/link";
@@ -12,7 +12,7 @@ type BookingRow = {
   created_at: string | null;
   out: { from: string | null; to: string | null; date: string | null; time: string | null } | null;
   ret: { from: string | null; to: string | null; date: string | null; time: string | null } | null;
-  passengers?: number | null; // <-- NYTT (om API skickar, annars "—")
+  passengers?: number | null; // <-- NYTT (om API skickar, annars "â€”")
 };
 
 const RED_HOURS = 48;
@@ -20,21 +20,21 @@ const ORANGE_HOURS = 168;
 
 function clsStatusPill(s?: string | null) {
   const v = (s || "").toLowerCase();
-  if (v === "klar" || v === "genomförd" || v === "genomford") return "bg-green-100 text-green-800";
+  if (v === "klar" || v === "genomfÃ¶rd" || v === "genomford") return "bg-green-100 text-green-800";
   if (v === "bokad") return "bg-blue-100 text-blue-800";
-  if (v === "inställd" || v === "installt" || v === "avbokad") return "bg-red-100 text-red-800";
+  if (v === "instÃ¤lld" || v === "installt" || v === "avbokad") return "bg-red-100 text-red-800";
   return "bg-gray-100 text-gray-700";
 }
 
 function prioForRow(r: BookingRow) {
   const d = r.out?.date || null;
-  if (!d) return { label: "—", cls: "bg-gray-200 text-gray-700", title: "Saknar avresedatum" };
+  if (!d) return { label: "â€”", cls: "bg-gray-200 text-gray-700", title: "Saknar avresedatum" };
   const t = r.out?.time || "00:00";
   const target = new Date(`${d}T${t.length === 5 ? t : "00:00"}`);
   const diffH = (target.getTime() - Date.now()) / 36e5;
-  if (diffH < RED_HOURS) return { label: "Röd", cls: "bg-red-100 text-red-800", title: "< 48h kvar" };
-  if (diffH < ORANGE_HOURS) return { label: "Orange", cls: "bg-amber-100 text-amber-800", title: "48h–7 dygn kvar" };
-  return { label: "Grön", cls: "bg-green-100 text-green-800", title: "> 7 dygn kvar" };
+  if (diffH < RED_HOURS) return { label: "RÃ¶d", cls: "bg-red-100 text-red-800", title: "< 48h kvar" };
+  if (diffH < ORANGE_HOURS) return { label: "Orange", cls: "bg-amber-100 text-amber-800", title: "48hâ€“7 dygn kvar" };
+  return { label: "GrÃ¶n", cls: "bg-green-100 text-green-800", title: "> 7 dygn kvar" };
 }
 
 export default function AdminBookingsIndex() {
@@ -93,13 +93,13 @@ export default function AdminBookingsIndex() {
           {/* Filter */}
           <div className="bg-white rounded-xl shadow p-4 flex flex-col gap-3 md:grid md:grid-cols-4 md:items-end md:gap-4">
             <div className="md:col-span-2">
-              <label className="block text-sm text-[#194C66]/80 mb-1">Sök</label>
+              <label className="block text-sm text-[#194C66]/80 mb-1">SÃ¶k</label>
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && (setPage(1), load())}
                 className="w-full border rounded px-3 py-2"
-                placeholder="Bokningsnr, kund, e-post, ort…"
+                placeholder="Bokningsnr, kund, e-post, ortâ€¦"
               />
             </div>
             <div>
@@ -111,13 +111,13 @@ export default function AdminBookingsIndex() {
               >
                 <option value="">Alla</option>
                 <option value="bokad">Bokade</option>
-                <option value="klar">Genomförda</option>
-                <option value="inställd">Inställda/avbokade</option>
+                <option value="klar">GenomfÃ¶rda</option>
+                <option value="instÃ¤lld">InstÃ¤llda/avbokade</option>
               </select>
             </div>
             <div className="flex gap-2">
               <button onClick={() => { setPage(1); load(); }} className="px-4 py-2 rounded-[25px] bg-[#194C66] text-white text-sm">
-                Sök
+                SÃ¶k
               </button>
             </div>
           </div>
@@ -125,13 +125,13 @@ export default function AdminBookingsIndex() {
           {/* Prio-legend */}
           <div className="text-xs text-[#194C66]/70">
             <span className="inline-flex items-center gap-1 mr-3">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" /> Grön = &gt; 7 dygn
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" /> GrÃ¶n = &gt; 7 dygn
             </span>
             <span className="inline-flex items-center gap-1 mr-3">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" /> Orange = 48h–7 dygn
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" /> Orange = 48hâ€“7 dygn
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" /> Röd = &lt; 48h
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" /> RÃ¶d = &lt; 48h
             </span>
           </div>
 
@@ -150,7 +150,7 @@ export default function AdminBookingsIndex() {
                   <th className="text-left px-3 py-2">Returdatum</th>
                   <th className="text-left px-3 py-2">Status</th>
                   <th className="text-left px-3 py-2">Prio</th>
-                  <th className="text-right px-3 py-2">Åtgärd</th>
+                  <th className="text-right px-3 py-2">Ã…tgÃ¤rd</th>
                 </tr>
               </thead>
               <tbody>
@@ -158,25 +158,25 @@ export default function AdminBookingsIndex() {
                   const pr = prioForRow(r);
                   return (
                     <tr key={r.id} className="border-b">
-                      <td className="px-3 py-2">{r.booking_number ?? "—"}</td>
-                      <td className="px-3 py-2">{r.customer_reference ?? "—"}</td>
-                      <td className="px-3 py-2">{r.contact_email ?? "—"}</td>
-                      <td className="px-3 py-2">{r.passengers ?? "—"}</td> {/* NYTT */}
+                      <td className="px-3 py-2">{r.booking_number ?? "â€”"}</td>
+                      <td className="px-3 py-2">{r.customer_reference ?? "â€”"}</td>
+                      <td className="px-3 py-2">{r.contact_email ?? "â€”"}</td>
+                      <td className="px-3 py-2">{r.passengers ?? "â€”"}</td> {/* NYTT */}
                       <td className="px-3 py-2">
-                        {r.out ? `${r.out.from ?? "—"} → ${r.out.to ?? "—"}` : "—"}
+                        {r.out ? `${r.out.from ?? "â€”"} â†’ ${r.out.to ?? "â€”"}` : "â€”"}
                       </td>
                       <td className="px-3 py-2">
-                        {r.out ? `${r.out.date ?? "—"} ${r.out.time ?? ""}` : "—"}
+                        {r.out ? `${r.out.date ?? "â€”"} ${r.out.time ?? ""}` : "â€”"}
                       </td>
                       <td className="px-3 py-2">
-                        {r.ret ? `${r.ret.from ?? "—"} → ${r.ret.to ?? "—"}` : "—"}
+                        {r.ret ? `${r.ret.from ?? "â€”"} â†’ ${r.ret.to ?? "â€”"}` : "â€”"}
                       </td>
                       <td className="px-3 py-2">
-                        {r.ret ? `${r.ret.date ?? "—"} ${r.ret.time ?? ""}` : "—"}
+                        {r.ret ? `${r.ret.date ?? "â€”"} ${r.ret.time ?? ""}` : "â€”"}
                       </td>
                       <td className="px-3 py-2">
                         <span className={`px-2 py-1 rounded-full text-xs ${clsStatusPill(r.status)}`}>
-                          {r.status ?? "—"}
+                          {r.status ?? "â€”"}
                         </span>
                       </td>
                       <td className="px-3 py-2">
@@ -186,7 +186,7 @@ export default function AdminBookingsIndex() {
                       </td>
                       <td className="px-3 py-2 text-right">
                         <Link className="text-[#194C66] underline" href={`/admin/bookings/${r.id}`}>
-                          Öppna
+                          Ã–ppna
                         </Link>
                       </td>
                     </tr>
@@ -203,7 +203,7 @@ export default function AdminBookingsIndex() {
             </table>
           </div>
 
-          {/* Footer: Visa-väljare + Pagination */}
+          {/* Footer: Visa-vÃ¤ljare + Pagination */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div className="flex items-center gap-2 text-sm">
               <span className="text-[#194C66]/70">Visa:</span>
@@ -230,14 +230,14 @@ export default function AdminBookingsIndex() {
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   className="px-3 py-1 border rounded disabled:opacity-50"
                 >
-                  Föregående
+                  FÃ¶regÃ¥ende
                 </button>
                 <button
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   className="px-3 py-1 border rounded disabled:opacity-50"
                 >
-                  Nästa
+                  NÃ¤sta
                 </button>
               </div>
             </div>
@@ -247,3 +247,4 @@ export default function AdminBookingsIndex() {
     </>
   );
 }
+

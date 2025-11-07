@@ -22,3 +22,4 @@ if (!keyToUse) {
 export const supabase = createClient(url, keyToUse, { auth: { persistSession: false } });
 export const supabaseAdmin = supabase; // vissa filer importerar detta namnet
 export default supabase;               // andra använder default-import
+

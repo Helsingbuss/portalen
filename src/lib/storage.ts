@@ -1,4 +1,4 @@
-// src/lib/storage.ts
+﻿// src/lib/storage.ts
 import { supabase } from "@/lib/supabaseClient";
 
 /** Ladda upp profilbild till drivers-bucket (privat). Returnerar filens path i bucketen. */
@@ -14,7 +14,7 @@ export async function uploadDriverAvatar(driverId: string, file: File) {
   return path; // spara i DB: drivers.profile_image_path
 }
 
-/** Hämta en signerad (tidsbegränsad) URL för privat bild */
+/** HÃ¤mta en signerad (tidsbegrÃ¤nsad) URL fÃ¶r privat bild */
 export async function getDriverAvatarSignedUrl(path: string, expiresSec = 3600) {
   const { data, error } = await supabase
     .storage
@@ -25,7 +25,7 @@ export async function getDriverAvatarSignedUrl(path: string, expiresSec = 3600) 
   return data.signedUrl;
 }
 
-/** Ladda upp valfritt dokument för chaufför */
+/** Ladda upp valfritt dokument fÃ¶r chauffÃ¶r */
 export async function uploadDriverDocument(driverId: string, file: File) {
   const safeName = file.name.replace(/\s+/g, "_").toLowerCase();
   const path = `documents/${driverId}/${Date.now()}_${safeName}`;
@@ -37,3 +37,4 @@ export async function uploadDriverDocument(driverId: string, file: File) {
   if (error) throw error;
   return path; // valfritt: spara i en docs-tabell om du vill lista dem
 }
+

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 
 export type PickedBooking = {
   id: string;
@@ -24,7 +24,7 @@ type Opt = { id: string; label: string; booking_number?: string | null };
 
 export default function BookingChooser({
   onPick,
-  placeholder = "Sök bokning…",
+  placeholder = "SÃ¶k bokningâ€¦",
 }: {
   onPick: (b: PickedBooking) => void;
   placeholder?: string;
@@ -35,7 +35,7 @@ export default function BookingChooser({
   const [busy, setBusy] = useState(false);
   const boxRef = useRef<HTMLDivElement | null>(null);
 
-  // stäng dropdown om man klickar utanför
+  // stÃ¤ng dropdown om man klickar utanfÃ¶r
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!boxRef.current) return;
@@ -45,7 +45,7 @@ export default function BookingChooser({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  // debounce-sökning
+  // debounce-sÃ¶kning
   useEffect(() => {
     const t = setTimeout(async () => {
       const term = q.trim();
@@ -82,7 +82,7 @@ export default function BookingChooser({
         setOpen(false);
       }
     } catch {
-      // tyst – låt användaren försöka igen
+      // tyst â€“ lÃ¥t anvÃ¤ndaren fÃ¶rsÃ¶ka igen
     }
   }
 
@@ -97,7 +97,7 @@ export default function BookingChooser({
       />
       {busy && (
         <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[#194C66]/60 text-xs">
-          Söker…
+          SÃ¶kerâ€¦
         </div>
       )}
       {open && opts.length > 0 && (
@@ -117,3 +117,4 @@ export default function BookingChooser({
     </div>
   );
 }
+

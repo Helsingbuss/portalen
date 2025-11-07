@@ -1,4 +1,4 @@
-// src/components/AdminMenu.tsx
+﻿// src/components/AdminMenu.tsx
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -16,20 +16,20 @@ export default function AdminMenu() {
   const [open, setOpen] = useState<string | null>(null);
   const toggleMenu = (menu: string) => setOpen(open === menu ? null : menu);
 
-  // gemensam klass för snyggare underlänkar
+  // gemensam klass fÃ¶r snyggare underlÃ¤nkar
   const subLink =
     "block px-3 py-2 rounded-md leading-[1.45] hover:bg-[#e5eef3] hover:text-[#194C66] transition";
 
   return (
     <aside className="fixed top-[60px] left-0 w-64 h-[calc(100vh-60px)] bg-white shadow-md flex flex-col">
       <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-        {/* Översikt (utan pil) */}
+        {/* Ã–versikt (utan pil) */}
         <Link
           href="/start"
           className="flex items-center gap-3 p-3 rounded-lg transition bg-[#194C66] text-white shadow"
         >
           <HomeIcon className="h-5 w-5" />
-          Översikt
+          Ã–versikt
         </Link>
 
         {/* Offert & Bokning */}
@@ -42,11 +42,11 @@ export default function AdminMenu() {
               <DocumentDuplicateIcon className="h-5 w-5" />
               Offert & Bokning
             </span>
-            <span aria-hidden>{open === "booking" ? "▲" : "▼"}</span>
+            <span aria-hidden>{open === "booking" ? "â–²" : "â–¼"}</span>
           </button>
           {open === "booking" && (
             <ul className="ml-8 mt-2 space-y-1 text-sm text-gray-700">
-              {/* KOPPLAD: ny tvåstegssida för manuell offert */}
+              {/* KOPPLAD: ny tvÃ¥stegssida fÃ¶r manuell offert */}
               <li>
                 <Link href="/admin/offers/new" className={subLink}>
                   Skapa ny offert
@@ -58,12 +58,12 @@ export default function AdminMenu() {
               </li>
               <li>
                 <Link href="/admin/orders/new" className={subLink}>
-                  Skapa körorder
+                  Skapa kÃ¶rorder
                 </Link>
               </li>
               <li>
                 <Link href="/admin/orders"  className={subLink}>
-                  Alla körorder
+                  Alla kÃ¶rorder
                 </Link>
               </li>
               <li>
@@ -78,7 +78,7 @@ export default function AdminMenu() {
               </li>
               <li>
                 <Link href="/admin/orders?scope=upcoming" className={subLink}>
-                  Kommande körningar
+                  Kommande kÃ¶rningar
                 </Link>
               </li>
             </ul>
@@ -95,13 +95,13 @@ export default function AdminMenu() {
               <TicketIcon className="h-5 w-5" />
               Resor & Biljetter
             </span>
-            <span aria-hidden>{open === "trips" ? "▲" : "▼"}</span>
+            <span aria-hidden>{open === "trips" ? "â–²" : "â–¼"}</span>
           </button>
           {open === "trips" && (
             <ul className="ml-8 mt-2 space-y-1 text-sm text-gray-700">
               <li>
                 <Link href="/admin/trips/new" className={subLink}>
-                  Lägg upp resa
+                  LÃ¤gg upp resa
                 </Link>
               </li>
               <li>
@@ -116,7 +116,7 @@ export default function AdminMenu() {
               </li>
               <li>
                 <Link href="/admin/trips" className={subLink}>
-                  Lista över resor
+                  Lista Ã¶ver resor
                 </Link>
               </li>
             </ul>
@@ -133,32 +133,32 @@ export default function AdminMenu() {
               <UserGroupIcon className="h-5 w-5" />
               Personal
             </span>
-            <span aria-hidden>{open === "staff" ? "▲" : "▼"}</span>
+            <span aria-hidden>{open === "staff" ? "â–²" : "â–¼"}</span>
           </button>
           {open === "staff" && (
             <ul className="ml-8 mt-2 space-y-1 text-sm text-gray-700">
               <li>
                 <Link href="/admin/drivers/new" className={subLink}>
-                  Lägg till chaufför
+                  LÃ¤gg till chauffÃ¶r
                 </Link>
               </li>
               <li>
                 <Link href="/admin/employees/new" className={subLink}>
-                  Lägg till personal
+                  LÃ¤gg till personal
                 </Link>
               </li>
               <li>
                 <Link href="/admin/drivers"className={subLink}>
-                Chaufförlista</Link>
+                ChauffÃ¶rlista</Link>
               </li>
               <li>
                 <Link href="/admin/employees" className={subLink}>
-                  Lista på anställda
+                  Lista pÃ¥ anstÃ¤llda
                 </Link>
               </li>
               <li>
                 <Link href="/admin/schedule" className={subLink}>
-                  Schemaläggning
+                  SchemalÃ¤ggning
                 </Link>
               </li>
             </ul>
@@ -175,18 +175,18 @@ export default function AdminMenu() {
               <TruckIcon className="h-5 w-5" />
               Fordonsflotta
             </span>
-            <span aria-hidden>{open === "fleet" ? "▲" : "▼"}</span>
+            <span aria-hidden>{open === "fleet" ? "â–²" : "â–¼"}</span>
           </button>
           {open === "fleet" && (
             <ul className="ml-8 mt-2 space-y-1 text-sm text-gray-700">
               <li>
                 <Link href="#" className={subLink}>
-                  Lägg till fordon
+                  LÃ¤gg till fordon
                 </Link>
               </li>
               <li>
                 <Link href="#" className={subLink}>
-                  Fordonsöversikt
+                  FordonsÃ¶versikt
                 </Link>
               </li>
               <li>
@@ -196,7 +196,7 @@ export default function AdminMenu() {
               </li>
               <li>
                 <Link href="#" className={subLink}>
-                  Dokument & tillstånd
+                  Dokument & tillstÃ¥nd
                 </Link>
               </li>
             </ul>
@@ -213,13 +213,13 @@ export default function AdminMenu() {
               <BanknotesIcon className="h-5 w-5" />
               Ekonomi
             </span>
-            <span aria-hidden>{open === "economy" ? "▲" : "▼"}</span>
+            <span aria-hidden>{open === "economy" ? "â–²" : "â–¼"}</span>
           </button>
           {open === "economy" && (
             <ul className="ml-8 mt-2 space-y-1 text-sm text-gray-700">
               <li>
                 <Link href="#" className={subLink}>
-                  Intäkter & utgifter
+                  IntÃ¤kter & utgifter
                 </Link>
               </li>
               <li>
@@ -229,14 +229,14 @@ export default function AdminMenu() {
               </li>
               <li>
                 <Link href="#" className={subLink}>
-                  Export / bokföring
+                  Export / bokfÃ¶ring
                 </Link>
               </li>
             </ul>
           )}
         </div>
 
-        {/* Överblick & Status */}
+        {/* Ã–verblick & Status */}
         <div>
           <button
             onClick={() => toggleMenu("status")}
@@ -244,15 +244,15 @@ export default function AdminMenu() {
           >
             <span className="flex items-center gap-3">
               <ChartBarIcon className="h-5 w-5" />
-              Överblick & Status
+              Ã–verblick & Status
             </span>
-            <span aria-hidden>{open === "status" ? "▲" : "▼"}</span>
+            <span aria-hidden>{open === "status" ? "â–²" : "â–¼"}</span>
           </button>
           {open === "status" && (
             <ul className="ml-8 mt-2 space-y-1 text-sm text-gray-700">
               <li>
                 <Link href="#" className={subLink}>
-                  Dagens körningar
+                  Dagens kÃ¶rningar
                 </Link>
               </li>
               <li>
@@ -262,7 +262,7 @@ export default function AdminMenu() {
               </li>
               <li>
                 <Link href="#" className={subLink}>
-                  Chaufförsstatus
+                  ChauffÃ¶rsstatus
                 </Link>
               </li>
               <li>
@@ -275,16 +275,17 @@ export default function AdminMenu() {
         </div>
       </nav>
 
-      {/* Feedback längst ner */}
+      {/* Feedback lÃ¤ngst ner */}
       <div className="p-4 border-t">
         <Link
           href="#"
           className="flex items-center gap-2 text-sm text-gray-600 hover:text-[#194C66]"
         >
           <ChatBubbleLeftRightIcon className="h-5 w-5" />
-          Feedback och förslag
+          Feedback och fÃ¶rslag
         </Link>
       </div>
     </aside>
   );
 }
+

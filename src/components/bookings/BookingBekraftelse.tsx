@@ -1,4 +1,4 @@
-// src/components/bookings/BookingBekraftelse.tsx
+﻿// src/components/bookings/BookingBekraftelse.tsx
 import Image from "next/image";
 import StatusBadge from "@/components/StatusBadge";
 
@@ -17,7 +17,7 @@ type TripLeg = {
   vehicleModel?: string | null;
 };
 
-function v(x: any, fallback = "—") {
+function v(x: any, fallback = "â€”") {
   if (x === null || x === undefined || x === "") return fallback;
   return String(x);
 }
@@ -26,7 +26,7 @@ export default function BookingBekraftelse({ booking }: { booking: any }) {
   // rubriker
   const bookingNo = v(booking?.booking_number ?? booking?.booking_id, "BK25XXXX");
 
-  // första benet
+  // fÃ¶rsta benet
   const out: TripLeg = {
     date: v(booking?.departure_date),
     time: v(booking?.departure_time),
@@ -34,7 +34,7 @@ export default function BookingBekraftelse({ booking }: { booking: any }) {
     to: v(booking?.destination),
     pax: booking?.passengers ?? null,
     onSite: booking?.on_site_minutes ?? null,
-    endTime: v(booking?.end_time, "—"),
+    endTime: v(booking?.end_time, "â€”"),
     extra: v(booking?.notes, "Ingen information."),
     driver: v(booking?.driver_name, ""),
     driverPhone: v(booking?.driver_phone, ""),
@@ -57,7 +57,7 @@ export default function BookingBekraftelse({ booking }: { booking: any }) {
         to: v(booking?.return_destination || booking?.departure_place),
         pax: booking?.passengers ?? null,
         onSite: booking?.return_on_site_minutes ?? booking?.on_site_minutes ?? null,
-        endTime: v(booking?.return_end_time || booking?.end_time, "—"),
+        endTime: v(booking?.return_end_time || booking?.end_time, "â€”"),
         extra: v(booking?.notes, "Ingen information."),
         driver: v(booking?.return_driver_name || booking?.driver_name, ""),
         driverPhone: v(booking?.return_driver_phone || booking?.driver_phone, ""),
@@ -83,17 +83,17 @@ export default function BookingBekraftelse({ booking }: { booking: any }) {
             />
           </div>
           <div className="pt-1 text-right">
-            {/* använd en status som StatusBadge accepterar */}
+            {/* anvÃ¤nd en status som StatusBadge accepterar */}
             <StatusBadge status="godkand" />
           </div>
         </div>
 
         {/* Titel */}
         <h1 className="mt-2 text-2xl font-semibold text-[#0f172a]">
-          Bokningsbekräftelse
+          BokningsbekrÃ¤ftelse
         </h1>
 
-        {/* Övre kort – order och kund */}
+        {/* Ã–vre kort â€“ order och kund */}
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="border rounded-lg p-4">
             <div className="text-sm text-[#0f172a]/70 mb-1">Order</div>
@@ -103,7 +103,7 @@ export default function BookingBekraftelse({ booking }: { booking: any }) {
               </div>
               <div>
                 <span className="font-semibold">Passagerare:</span>{" "}
-                {booking?.passengers ?? "—"}
+                {booking?.passengers ?? "â€”"}
               </div>
             </div>
           </div>
@@ -137,28 +137,28 @@ export default function BookingBekraftelse({ booking }: { booking: any }) {
                   {idx === 0 ? "Utresa" : "Retur"}
                 </span>
                 <span className="text-xs text-[#0f172a]/50 ml-2">
-                  Avstånd och tider baseras preliminärt
+                  AvstÃ¥nd och tider baseras preliminÃ¤rt
                 </span>
               </div>
 
               <div className="border rounded-lg p-3 text-[14px] text-[#0f172a] leading-[1.5]">
                 <div>
-                  <span className="font-semibold">Avgång:</span> {t.date} kl {t.time}
+                  <span className="font-semibold">AvgÃ¥ng:</span> {t.date} kl {t.time}
                 </div>
                 <div>
-                  <span className="font-semibold">Från:</span> {t.from}
+                  <span className="font-semibold">FrÃ¥n:</span> {t.from}
                 </div>
                 <div>
                   <span className="font-semibold">Till:</span> {t.to}
                 </div>
                 <div>
                   <span className="font-semibold">Antal passagerare:</span>{" "}
-                  {t.pax ?? "—"}
+                  {t.pax ?? "â€”"}
                 </div>
 
                 <div className="mt-2">
-                  <span className="font-semibold">På plats:</span>{" "}
-                  {t.onSite != null ? `${t.onSite} min före` : "—"}
+                  <span className="font-semibold">PÃ¥ plats:</span>{" "}
+                  {t.onSite != null ? `${t.onSite} min fÃ¶re` : "â€”"}
                 </div>
                 <div>
                   <span className="font-semibold">Sluttid:</span> {t.endTime}
@@ -166,19 +166,19 @@ export default function BookingBekraftelse({ booking }: { booking: any }) {
 
                 {(t.driver || t.driverPhone) && (
                   <div className="mt-2">
-                    <span className="font-semibold">Chaufför:</span>{" "}
-                    {[t.driver, t.driverPhone].filter(Boolean).join(", ") || "—"}
+                    <span className="font-semibold">ChauffÃ¶r:</span>{" "}
+                    {[t.driver, t.driverPhone].filter(Boolean).join(", ") || "â€”"}
                   </div>
                 )}
                 {(t.vehicleReg || t.vehicleModel) && (
                   <div>
                     <span className="font-semibold">Fordon:</span>{" "}
-                    {[t.vehicleReg, t.vehicleModel].filter(Boolean).join(" – ") || "—"}
+                    {[t.vehicleReg, t.vehicleModel].filter(Boolean).join(" â€“ ") || "â€”"}
                   </div>
                 )}
 
                 <div className="mt-2">
-                  <span className="font-semibold">Övrig information:</span>{" "}
+                  <span className="font-semibold">Ã–vrig information:</span>{" "}
                   <span className="whitespace-pre-wrap">{t.extra}</span>
                 </div>
               </div>
@@ -189,10 +189,10 @@ export default function BookingBekraftelse({ booking }: { booking: any }) {
         {/* Footer-info/kontakt */}
         <div className="mt-5 border rounded-lg p-4 bg-[#f8fafc]">
           <div className="text-[#0f172a]/90">
-            Frågor om din resa? Ring vårt Kundteam under vardagar 8–17:
+            FrÃ¥gor om din resa? Ring vÃ¥rt Kundteam under vardagar 8â€“17:
             <strong> 010-405 38 38</strong>, eller besvara detta mail.
             <br />
-            Vid akuta trafikärenden efter kontorstid når du vår jour på
+            Vid akuta trafikÃ¤renden efter kontorstid nÃ¥r du vÃ¥r jour pÃ¥
             <strong> 010-777 21 58</strong>.
           </div>
         </div>
@@ -200,3 +200,4 @@ export default function BookingBekraftelse({ booking }: { booking: any }) {
     </div>
   );
 }
+

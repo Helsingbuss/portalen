@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import Image from "next/image";
 import QuickActionsMenu from "./QuickActionsMenu";
 
@@ -40,12 +40,13 @@ export default function Header() {
             ?
           </div>
           <div className="flex flex-col items-start">
-            <span className="font-medium text-sm">Andreas Ekelöf</span>
+            <span className="font-medium text-sm">Andreas EkelÃ¶f</span>
             <span className="text-xs text-gray-200">Helsingbuss</span>
           </div>
-          <span className="ml-1">⌄</span>
+          <span className="ml-1">âŒ„</span>
         </div>
       </div>
     </header>
   );
 }
+

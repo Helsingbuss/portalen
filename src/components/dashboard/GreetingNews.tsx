@@ -1,4 +1,4 @@
-// src/components/dashboard/GreetingNews.tsx
+﻿// src/components/dashboard/GreetingNews.tsx
 import React from "react";
 import { Newspaper, ArrowRight, ChevronRight } from "lucide-react";
 
@@ -13,25 +13,25 @@ export default function GreetingNews({
   name?: string;
   role?: "admin" | "agent" | string;
   items?: NewsItem[];
-  heightClass?: string; // t.ex. "h-[520px]" för att matcha diagramhöjden
+  heightClass?: string; // t.ex. "h-[520px]" fÃ¶r att matcha diagramhÃ¶jden
 }) {
   const now = new Date();
   const h = now.getHours();
   const greeting =
-    h < 10 ? "God morgon" : h < 18 ? "God dag" : "God kväll";
+    h < 10 ? "God morgon" : h < 18 ? "God dag" : "God kvÃ¤ll";
 
   const roleText =
     role === "agent"
-      ? "Här kommer lite uppdateringar för dig som arbetar i portalen."
-      : "Här bjuder vi på lite nyheter";
+      ? "HÃ¤r kommer lite uppdateringar fÃ¶r dig som arbetar i portalen."
+      : "HÃ¤r bjuder vi pÃ¥ lite nyheter";
 
   const news = items.length
     ? items
     : [
-        { title: "Nya betalningsvillkor för privatpersoner", href: "#" },
+        { title: "Nya betalningsvillkor fÃ¶r privatpersoner", href: "#" },
         { title: "Ny hemsida lanserad", href: "#" },
-        { title: "Nya resor ligger ute på hemsidan", href: "#" },
-        { title: "Välkommen till Helsingbuss Portal", href: "#" },
+        { title: "Nya resor ligger ute pÃ¥ hemsidan", href: "#" },
+        { title: "VÃ¤lkommen till Helsingbuss Portal", href: "#" },
       ];
 
   return (
@@ -79,7 +79,7 @@ export default function GreetingNews({
         </ul>
       </div>
 
-      {/* Länk/CTA längst ned */}
+      {/* LÃ¤nk/CTA lÃ¤ngst ned */}
       <div className="pt-3">
         <a
           href="#"
@@ -92,3 +92,4 @@ export default function GreetingNews({
     </div>
   );
 }
+

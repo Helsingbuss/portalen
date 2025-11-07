@@ -1,4 +1,4 @@
-// src/components/offers/LegCalcCard.tsx
+﻿// src/components/offers/LegCalcCard.tsx
 import React from "react";
 import type { LegInput } from "@/lib/pricing";
 
@@ -37,7 +37,7 @@ export default function LegCalcCard({ title, value, onChange }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <Num label="Antal kilometer" value={value.km} onChange={(n) => set({ km: n })} />
         <Num label="Antal timmar dag" value={value.hoursDay} onChange={(n) => set({ hoursDay: n })} />
-        <Num label="Antal timmar kväll" value={value.hoursEvening} onChange={(n) => set({ hoursEvening: n })} />
+        <Num label="Antal timmar kvÃ¤ll" value={value.hoursEvening} onChange={(n) => set({ hoursEvening: n })} />
         <Num label="Antal timmar helg" value={value.hoursWeekend} onChange={(n) => set({ hoursWeekend: n })} />
         <Num label="Rabatt (SEK)" value={value.discount} onChange={(n) => set({ discount: n })} />
       </div>
@@ -68,3 +68,4 @@ function Num({
     </label>
   );
 }
+

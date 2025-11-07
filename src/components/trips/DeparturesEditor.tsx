@@ -1,11 +1,11 @@
-// src/components/trips/DeparturesEditor.tsx
+﻿// src/components/trips/DeparturesEditor.tsx
 import React from "react";
 
 export type DepartureRow = {
   dep_date: string;        // YYYY-MM-DD
   dep_time: string;        // HH:mm
   line_name?: string;      // t.ex. "Linje 101"
-  stops?: string[];        // ["Helsingborg C", "Ängelholm", ...]
+  stops?: string[];        // ["Helsingborg C", "Ã„ngelholm", ...]
 };
 
 export default function DeparturesEditor({
@@ -70,9 +70,9 @@ export default function DeparturesEditor({
             />
           </div>
           <div className="md:col-span-2">
-            <div className="text-xs text-[#194C66]/70 mb-1">Hållplatser (kommaseparerade)</div>
+            <div className="text-xs text-[#194C66]/70 mb-1">HÃ¥llplatser (kommaseparerade)</div>
             <input
-              placeholder="Helsingborg C, Ängelholm, Halmstad ..."
+              placeholder="Helsingborg C, Ã„ngelholm, Halmstad ..."
               className="border rounded px-3 py-2 w-full"
               value={(row.stops || []).join(", ")}
               onChange={(e) => setStops(i, e.target.value)}
@@ -84,15 +84,16 @@ export default function DeparturesEditor({
               onClick={() => del(i)}
               className="text-sm underline text-[#8a1f1f]"
             >
-              Ta bort avgång
+              Ta bort avgÃ¥ng
             </button>
           </div>
         </div>
       ))}
 
       <button type="button" onClick={add} className="px-4 py-2 rounded border text-sm">
-        + Lägg till avgång
+        + LÃ¤gg till avgÃ¥ng
       </button>
     </div>
   );
 }
+

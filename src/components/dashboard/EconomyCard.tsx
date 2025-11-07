@@ -1,11 +1,11 @@
-// src/components/dashboard/EconomyCard.tsx
+﻿// src/components/dashboard/EconomyCard.tsx
 import { useEffect, useMemo, useState } from "react";
 
 export type EconomySummary = {
-  income: number;   // intäkter
-  cost: number;     // kostnader (negativa eller positiva - vi visar -tecken ändå)
+  income: number;   // intÃ¤kter
+  cost: number;     // kostnader (negativa eller positiva - vi visar -tecken Ã¤ndÃ¥)
   result: number;   // resultat = income - cost
-  spark: number[];  // valfria datapunkter för liten graf
+  spark: number[];  // valfria datapunkter fÃ¶r liten graf
   periodLabel?: string;
 };
 
@@ -25,7 +25,7 @@ export default function EconomyCard({ from, to, heightClass = "h-[320px]" }: Pro
     try {
       const res = await fetch(`/api/economy/summary?from=${from}&to=${to}`);
       if (res.status === 501) {
-        // Visma ej konfigurerat – försök lokalt snapshot
+        // Visma ej konfigurerat â€“ fÃ¶rsÃ¶k lokalt snapshot
         setFallbackUsed(true);
         const alt = await fetch(`/api/economy/local?from=${from}&to=${to}`);
         const json = (await alt.json()) as EconomySummary;
@@ -55,7 +55,7 @@ export default function EconomyCard({ from, to, heightClass = "h-[320px]" }: Pro
     <div className={`bg-white rounded-xl shadow p-4 ${heightClass} flex flex-col`}>
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-[#194C66] font-semibold text-lg">
-          Intäkter, kostnader och resultat
+          IntÃ¤kter, kostnader och resultat
         </h2>
         {data?.periodLabel && (
           <span className="text-sm text-[#194C66]/70">{data.periodLabel}</span>
@@ -64,16 +64,16 @@ export default function EconomyCard({ from, to, heightClass = "h-[320px]" }: Pro
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center text-[#194C66]/70">
-          Laddar…
+          Laddarâ€¦
         </div>
       ) : !data ? (
         <div className="flex-1 flex items-center justify-center text-[#194C66]/60">
-          Kunde inte hämta ekonomidata
+          Kunde inte hÃ¤mta ekonomidata
         </div>
       ) : (
         <>
           <div className="grid grid-cols-3 gap-4">
-            <Stat title="Intäkter" value={data.income} positive />
+            <Stat title="IntÃ¤kter" value={data.income} positive />
             <Stat title="Kostnader" value={-Math.abs(data.cost)} />
             <Stat title="Resultat" value={data.result} positive={data.result >= 0} />
           </div>
@@ -83,13 +83,13 @@ export default function EconomyCard({ from, to, heightClass = "h-[320px]" }: Pro
             {data.spark?.length ? (
               <Sparkline values={data.spark} max={maxSpark || 1} />
             ) : (
-              <div className="text-sm text-[#194C66]/60">Ingen grafdata för perioden.</div>
+              <div className="text-sm text-[#194C66]/60">Ingen grafdata fÃ¶r perioden.</div>
             )}
           </div>
 
           {fallbackUsed && (
             <div className="mt-3 text-xs text-[#194C66]/60">
-              Visas från lokal snapshot (Visma-koppling ej aktiverad).
+              Visas frÃ¥n lokal snapshot (Visma-koppling ej aktiverad).
             </div>
           )}
         </>
@@ -140,3 +140,4 @@ function Sparkline({ values, max }: { values: number[]; max: number }) {
     </svg>
   );
 }
+

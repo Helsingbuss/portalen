@@ -1,4 +1,4 @@
-// src/components/Layout.tsx
+﻿// src/components/Layout.tsx
 import { ReactNode, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -40,15 +40,15 @@ export default function Layout({ children, active }: LayoutProps) {
             onClick={() => setDropdownOpen(!dropdownOpen)}
             className="flex items-center gap-2 focus:outline-none"
           >
-            {/* Hjälp-ikon */}
+            {/* HjÃ¤lp-ikon */}
             <div className="flex items-center justify-center w-7 h-7 rounded-full border border-white">
               <span className="text-lg font-semibold">?</span>
             </div>
             <div className="flex flex-col items-start">
-              <span className="font-medium">Andreas Ekelöf</span>
+              <span className="font-medium">Andreas EkelÃ¶f</span>
               <span className="text-sm text-gray-200">Helsingbuss</span>
             </div>
-            <span className="ml-1">⌄</span>
+            <span className="ml-1">âŒ„</span>
           </button>
 
           {/* Dropdown */}
@@ -61,16 +61,16 @@ export default function Layout({ children, active }: LayoutProps) {
                 Logga ut
               </button>
               <button
-                onClick={() => alert("Byta språk kommer snart!")}
+                onClick={() => alert("Byta sprÃ¥k kommer snart!")}
                 className="block w-full text-left px-4 py-2 hover:bg-gray-100"
               >
-                Byt språk
+                Byt sprÃ¥k
               </button>
               <button
-                onClick={() => alert("Hjälp kommer snart!")}
+                onClick={() => alert("HjÃ¤lp kommer snart!")}
                 className="block w-full text-left px-4 py-2 hover:bg-gray-100"
               >
-                Hjälp
+                HjÃ¤lp
               </button>
             </div>
           )}
@@ -101,7 +101,7 @@ export default function Layout({ children, active }: LayoutProps) {
             }`}
           >
             <UsersIcon className="h-5 w-5" />
-            Min användarprofil
+            Min anvÃ¤ndarprofil
           </Link>
 
           <Link
@@ -113,7 +113,7 @@ export default function Layout({ children, active }: LayoutProps) {
             }`}
           >
             <BanknotesIcon className="h-5 w-5" />
-            Företagsinställningar
+            FÃ¶retagsinstÃ¤llningar
           </Link>
 
           <Link
@@ -125,7 +125,7 @@ export default function Layout({ children, active }: LayoutProps) {
             }`}
           >
             <ChartBarIcon className="h-5 w-5" />
-            Hantera användare
+            Hantera anvÃ¤ndare
           </Link>
 
           <Link
@@ -147,3 +147,4 @@ export default function Layout({ children, active }: LayoutProps) {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-// src/components/offers/OfferGodkand.tsx
+﻿// src/components/offers/OfferGodkand.tsx
 import Image from "next/image";
 import StatusBadge from "@/components/StatusBadge";
 
@@ -6,11 +6,11 @@ type OfferGodkandProps = {
   offer: any;
 };
 
-// Globala rattar för radavstånd
+// Globala rattar fÃ¶r radavstÃ¥nd
 const LINE_HEIGHT = 1.5;   // resten av sidan
-const CARD_LH     = 1.25;  // tajtare i korten överst
+const CARD_LH     = 1.25;  // tajtare i korten Ã¶verst
 
-function v(x: any, fallback = "—") {
+function v(x: any, fallback = "â€”") {
   if (x === null || x === undefined || x === "") return fallback;
   return String(x);
 }
@@ -20,7 +20,7 @@ export default function OfferGodkand({ offer }: OfferGodkandProps) {
   const withinSweden = (offer?.trip_type || "sverige") !== "utrikes";
   const offerNo = v(offer?.offer_number, "HB25XXX");
 
-  // Första benet
+  // FÃ¶rsta benet
   const firstLeg = {
     title: withinSweden ? "Bussresa inom Sverige" : "Bussresa utomlands",
     date: v(offer?.departure_date),
@@ -29,15 +29,15 @@ export default function OfferGodkand({ offer }: OfferGodkandProps) {
     to: v(offer?.destination),
     pax: v(offer?.passengers),
     extra: v(offer?.notes, "Ingen information."),
-    onSite: v(offer?.on_site_time, "—"),      // tid när bussen är på plats
-    endTime: v(offer?.end_time, "—"),         // sluttid körning
+    onSite: v(offer?.on_site_time, "â€”"),      // tid nÃ¤r bussen Ã¤r pÃ¥ plats
+    endTime: v(offer?.end_time, "â€”"),         // sluttid kÃ¶rning
     driver: v(offer?.driver_name, ""),        // t.ex. "Namn, 070-xxx xx xx"
     driverPhone: v(offer?.driver_phone, ""),
     vehicleReg: v(offer?.vehicle_reg, ""),    // t.ex. "ABC123"
     vehicleModel: v(offer?.vehicle_model, ""),// t.ex. "Volvo 9700"
   };
 
-  // Andra benet vid tur/retur (om du har separata fält för retur – använd dem)
+  // Andra benet vid tur/retur (om du har separata fÃ¤lt fÃ¶r retur â€“ anvÃ¤nd dem)
   const secondLeg = roundTrip
     ? {
         title: withinSweden ? "Bussresa inom Sverige" : "Bussresa utomlands",
@@ -47,8 +47,8 @@ export default function OfferGodkand({ offer }: OfferGodkandProps) {
         to: v(offer?.departure_place),
         pax: v(offer?.passengers),
         extra: v(offer?.notes, "Ingen information."),
-        onSite: v(offer?.return_on_site_time || offer?.on_site_time, "—"),
-        endTime: v(offer?.return_end_time || offer?.end_time, "—"),
+        onSite: v(offer?.return_on_site_time || offer?.on_site_time, "â€”"),
+        endTime: v(offer?.return_end_time || offer?.end_time, "â€”"),
         driver: v(offer?.return_driver_name || offer?.driver_name, ""),
         driverPhone: v(offer?.return_driver_phone || offer?.driver_phone, ""),
         vehicleReg: v(offer?.return_vehicle_reg || offer?.vehicle_reg, ""),
@@ -79,19 +79,19 @@ export default function OfferGodkand({ offer }: OfferGodkandProps) {
 
         {/* Titel */}
         <h1 className="mt-2 text-2xl font-semibold text-[#0f172a]">
-          Bokningen är klar {offerNo ? `(${offerNo})` : ""}
+          Bokningen Ã¤r klar {offerNo ? `(${offerNo})` : ""}
         </h1>
 
-        {/* Övre kort – bokningsinfo & kundinfo */}
+        {/* Ã–vre kort â€“ bokningsinfo & kundinfo */}
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Bokningsinformation */}
           <div
             className="border rounded-lg p-4 space-y-[2px]"
             style={{ lineHeight: CARD_LH as number }}
           >
-            <Row label="Bokningsdatum" value={v(offer?.offer_date, "—")} lh={CARD_LH} />
-            <Row label="Er referens" value={v(offer?.customer_reference, "—")} lh={CARD_LH} />
-            <Row label="Vår referens" value={v(offer?.internal_reference, "—")} lh={CARD_LH} />
+            <Row label="Bokningsdatum" value={v(offer?.offer_date, "â€”")} lh={CARD_LH} />
+            <Row label="Er referens" value={v(offer?.customer_reference, "â€”")} lh={CARD_LH} />
+            <Row label="VÃ¥r referens" value={v(offer?.internal_reference, "â€”")} lh={CARD_LH} />
             {/* Betalningsvillkor (om du vill visa) */}
             {offer?.payment_terms && (
               <Row label="Betalningsvillkor" value={v(offer?.payment_terms)} lh={CARD_LH} />
@@ -103,24 +103,24 @@ export default function OfferGodkand({ offer }: OfferGodkandProps) {
             className="border rounded-lg p-4 space-y-[2px]"
             style={{ lineHeight: CARD_LH as number }}
           >
-            <Row label="Namn" value={v(offer?.contact_person, "—")} lh={CARD_LH} />
-            <Row label="Adress" value={v(offer?.customer_address, "—")} lh={CARD_LH} />
-            <Row label="Telefon" value={v(offer?.contact_phone, "—")} lh={CARD_LH} />
-            <Row label="E-post" value={v(offer?.contact_email, "—")} wrap lh={CARD_LH} />
+            <Row label="Namn" value={v(offer?.contact_person, "â€”")} lh={CARD_LH} />
+            <Row label="Adress" value={v(offer?.customer_address, "â€”")} lh={CARD_LH} />
+            <Row label="Telefon" value={v(offer?.contact_phone, "â€”")} lh={CARD_LH} />
+            <Row label="E-post" value={v(offer?.contact_email, "â€”")} wrap lh={CARD_LH} />
           </div>
         </div>
 
-        {/* Meddelande från trafikledningen */}
+        {/* Meddelande frÃ¥n trafikledningen */}
         <div className="mt-5 border rounded-lg p-4 bg-[#f8fafc]" style={{ lineHeight: LINE_HEIGHT }}>
           <div className="text-[#0f172a] font-semibold mb-1">
-            Meddelande från Trafikledningen
+            Meddelande frÃ¥n Trafikledningen
           </div>
           <div className="text-[#0f172a]/80">
             {v(offer?.ops_message, "Inget meddelande just nu.")}
           </div>
         </div>
 
-        {/* Reseavsnitt – två kolumner på md+ */}
+        {/* Reseavsnitt â€“ tvÃ¥ kolumner pÃ¥ md+ */}
         <div
           className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4"
           style={{ lineHeight: LINE_HEIGHT }}
@@ -131,16 +131,16 @@ export default function OfferGodkand({ offer }: OfferGodkandProps) {
                 <Image src="/maps_pin.png" alt="Pin" width={18} height={18} />
                 <span className="font-semibold">{trip.title}</span>
                 <span className="text-xs text-[#0f172a]/50 ml-2">
-                  Avstånd och tider baseras preliminärt
+                  AvstÃ¥nd och tider baseras preliminÃ¤rt
                 </span>
               </div>
 
               <div className="border rounded-lg p-3 text-[14px] text-[#0f172a]" style={{ lineHeight: 1.5 }}>
                 <div>
-                  <span className="font-semibold">Avgång:</span> {trip.date} kl {trip.time}
+                  <span className="font-semibold">AvgÃ¥ng:</span> {trip.date} kl {trip.time}
                 </div>
                 <div>
-                  <span className="font-semibold">Från:</span> {trip.from}
+                  <span className="font-semibold">FrÃ¥n:</span> {trip.from}
                 </div>
                 <div>
                   <span className="font-semibold">Till:</span> {trip.to}
@@ -149,31 +149,31 @@ export default function OfferGodkand({ offer }: OfferGodkandProps) {
                   <span className="font-semibold">Antal passagerare:</span> {trip.pax}
                 </div>
 
-                {/* Nya fält */}
+                {/* Nya fÃ¤lt */}
                 <div className="mt-2">
-                  <span className="font-semibold">På plats:</span> {trip.onSite}
+                  <span className="font-semibold">PÃ¥ plats:</span> {trip.onSite}
                 </div>
                 <div>
                   <span className="font-semibold">Sluttid:</span> {trip.endTime}
                 </div>
 
-                {/* Chaufför & fordon – visas bara om något finns */}
+                {/* ChauffÃ¶r & fordon â€“ visas bara om nÃ¥got finns */}
                 {(trip.driver || trip.driverPhone) && (
                   <div className="mt-2">
-                    <span className="font-semibold">Chaufför:</span>{" "}
-                    {trip.driver || "—"}
+                    <span className="font-semibold">ChauffÃ¶r:</span>{" "}
+                    {trip.driver || "â€”"}
                     {trip.driverPhone ? `, ${trip.driverPhone}` : ""}
                   </div>
                 )}
                 {(trip.vehicleReg || trip.vehicleModel) && (
                   <div>
                     <span className="font-semibold">Fordon:</span>{" "}
-                    {[trip.vehicleReg, trip.vehicleModel].filter(Boolean).join(" – ") || "—"}
+                    {[trip.vehicleReg, trip.vehicleModel].filter(Boolean).join(" â€“ ") || "â€”"}
                   </div>
                 )}
 
                 <div className="mt-2">
-                  <span className="font-semibold">Övrig information:</span>{" "}
+                  <span className="font-semibold">Ã–vrig information:</span>{" "}
                   <span className="whitespace-pre-wrap">{trip.extra}</span>
                 </div>
               </div>
@@ -184,24 +184,24 @@ export default function OfferGodkand({ offer }: OfferGodkandProps) {
         {/* Footer / villkor (samma textblock som tidigare stil) */}
         <div className="mt-7 text-[14px] text-[#0f172a]/70" style={{ lineHeight: 1.5 }}>
           <p>
-            Genom att acceptera denna offert bekräftar ni samtidigt att ni tagit del av våra resevillkor,
-            som ni hittar här. Observera att vi reserverar oss för att det aktuella datumet kan vara
-            fullbokat. Slutlig kapacitet kontrolleras vid bokningstillfället och bekräftas först genom en
-            skriftlig bokningsbekräftelse från oss. Vill du boka resan eller har du frågor och synpunkter?
-            Då är du alltid välkommen att kontakta oss – vi hjälper dig gärna. Våra ordinarie öppettider
-            är vardagar kl. <strong>08:00–17:00</strong>. För akuta bokningar med kortare varsel än två
-            arbetsdagar ber vi dig ringa vårt journummer: <strong>010–777 21 58</strong>.
+            Genom att acceptera denna offert bekrÃ¤ftar ni samtidigt att ni tagit del av vÃ¥ra resevillkor,
+            som ni hittar hÃ¤r. Observera att vi reserverar oss fÃ¶r att det aktuella datumet kan vara
+            fullbokat. Slutlig kapacitet kontrolleras vid bokningstillfÃ¤llet och bekrÃ¤ftas fÃ¶rst genom en
+            skriftlig bokningsbekrÃ¤ftelse frÃ¥n oss. Vill du boka resan eller har du frÃ¥gor och synpunkter?
+            DÃ¥ Ã¤r du alltid vÃ¤lkommen att kontakta oss â€“ vi hjÃ¤lper dig gÃ¤rna. VÃ¥ra ordinarie Ã¶ppettider
+            Ã¤r vardagar kl. <strong>08:00â€“17:00</strong>. FÃ¶r akuta bokningar med kortare varsel Ã¤n tvÃ¥
+            arbetsdagar ber vi dig ringa vÃ¥rt journummer: <strong>010â€“777 21 58</strong>.
           </p>
         </div>
 
-        {/* Signaturblock (samma som övriga sidor) */}
+        {/* Signaturblock (samma som Ã¶vriga sidor) */}
         <div
           className="mt-5 grid gap-2 text-xs text-[#0f172a]/60 sm:grid-cols-2 lg:grid-cols-4"
           style={{ lineHeight: LINE_HEIGHT }}
         >
           <div>
             <div>Helsingbuss</div>
-            <div>Höjderupsgränd 12</div>
+            <div>HÃ¶jderupsgrÃ¤nd 12</div>
             <div>254 45 Helsingborg</div>
             <div>helsingbuss.se</div>
           </div>
@@ -247,3 +247,4 @@ function Row({
     </div>
   );
 }
+

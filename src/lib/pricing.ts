@@ -1,9 +1,9 @@
-// src/lib/pricing.ts
+﻿// src/lib/pricing.ts
 export type LegInput = {
   isDomestic: boolean;   // true = Sverige (6% moms), false = utland (0%)
   km: number;            // antal kilometer
   hoursDay: number;      // antal timmar dag
-  hoursEvening: number;  // antal timmar kväll
+  hoursEvening: number;  // antal timmar kvÃ¤ll
   hoursWeekend: number;  // antal timmar helg
   discount: number;      // rabatt i SEK (exkl moms)
 };
@@ -13,7 +13,7 @@ export type QuoteInput = {
   legs: LegInput[];      // 1 (enkel) eller 2 (tur & retur)
 };
 
-// *** ENKEL PRISLISTA (byt ut mot din riktiga när du vill) ***
+// *** ENKEL PRISLISTA (byt ut mot din riktiga nÃ¤r du vill) ***
 export const PRICE = {
   perKm: 9.90,            // SEK / km
   perHourDay: 300,      // SEK / h
@@ -30,14 +30,14 @@ export type QuoteBreakdown = {
     total: number;
   }>;
   serviceFeeExVat: number;
-  serviceFeeVat: number;      // 0% (ändra här om du vill momsätta service)
+  serviceFeeVat: number;      // 0% (Ã¤ndra hÃ¤r om du vill momsÃ¤tta service)
   serviceFeeTotal: number;
   grandExVat: number;
   grandVat: number;
   grandTotal: number;
 };
 
-// Ren, bestämd kalkyl (inga side effects)
+// Ren, bestÃ¤md kalkyl (inga side effects)
 export function calcLegExVat(leg: LegInput): number {
   const km = Math.max(0, leg.km);
   const d  = Math.max(0, leg.hoursDay);
@@ -67,7 +67,7 @@ export function calcQuote(input: QuoteInput): QuoteBreakdown {
   });
 
   const serviceFeeExVat = Math.max(0, input.serviceFee || 0);
-  const serviceFeeVat   = 0; // sätt t.ex. 0.25 om service ska ha 25% moms
+  const serviceFeeVat   = 0; // sÃ¤tt t.ex. 0.25 om service ska ha 25% moms
   const serviceFeeTotal = round(serviceFeeExVat + serviceFeeVat);
 
   const legsEx = legs.reduce((a, b) => a + b.subtotExVat, 0);
@@ -91,3 +91,4 @@ export function calcQuote(input: QuoteInput): QuoteBreakdown {
 function round(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
+

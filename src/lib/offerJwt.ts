@@ -1,4 +1,4 @@
-// src/lib/offerJwt.ts
+﻿// src/lib/offerJwt.ts
 import { SignJWT, jwtVerify } from "jose";
 
 function secretKey(): Uint8Array {
@@ -12,7 +12,7 @@ export type SignParams = {
   expMinutes?: number;
 };
 
-/** Signera JWT för offert-länk (ASYNC) */
+/** Signera JWT fÃ¶r offert-lÃ¤nk (ASYNC) */
 export async function signOfferToken({ offer_id, expMinutes }: SignParams): Promise<string> {
   const ttl = typeof expMinutes === "number" ? expMinutes : 60 * 24 * 45; // 45 dagar
   const token = await new SignJWT({ offer_id, aud: "offer-view" })
@@ -31,10 +31,11 @@ export async function verifyOfferToken(token: string): Promise<{ offer_id: strin
   return { offer_id };
 }
 
-/** Hjälpare för bas-URL:er */
+/** HjÃ¤lpare fÃ¶r bas-URL:er */
 export function baseUrl() {
   return (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "") || "http://localhost:3000";
 }
 export function customerBaseUrl() {
   return (process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL || baseUrl()).replace(/\/$/, "");
 }
+

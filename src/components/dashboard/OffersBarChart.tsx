@@ -1,4 +1,4 @@
-// src/components/dashboard/OffersBarChart.tsx
+﻿// src/components/dashboard/OffersBarChart.tsx
 import React, { useMemo, useState } from "react";
 
 export type Series = {
@@ -23,7 +23,7 @@ const LABELS: Record<keyof Series, string> = {
   offer_answered: "Besvarade offerter",
   offer_unanswered: "Obesvarade offerter",
   booking_in: "Inkomna bokningar",
-  booking_done: "Slutförda bokningar",
+  booking_done: "SlutfÃ¶rda bokningar",
 };
 
 function buildTicks(max: number): number[] {
@@ -164,7 +164,7 @@ export default function OffersBarChart({ series }: Props) {
       </svg>
 
       <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
-        <LegendDot color={COLORS.booking_done} label="Slutförda bokningar" />
+        <LegendDot color={COLORS.booking_done} label="SlutfÃ¶rda bokningar" />
         <LegendDot color={COLORS.booking_in} label="Inkomna bokningar" />
         <LegendDot color={COLORS.offer_answered} label="Besvarade offerter" />
         <LegendDot color={COLORS.offer_unanswered} label="Obesvarade offerter" />
@@ -202,3 +202,4 @@ export function StatCard({
     </div>
   );
 }
+

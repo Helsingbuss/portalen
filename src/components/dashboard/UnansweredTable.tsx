@@ -1,7 +1,7 @@
-// src/components/dashboard/UnansweredTable.tsx
+﻿// src/components/dashboard/UnansweredTable.tsx
 import React, { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/router";
-// ⚠️ togs bort: import av supabaseClient (den användes inte)
+// âš ï¸ togs bort: import av supabaseClient (den anvÃ¤ndes inte)
 
 export type UnansweredRow = {
   id: string;
@@ -75,7 +75,7 @@ export default function UnansweredTable({ rows, title = "Obesvarade offerter", o
               <th className="px-4 py-2 font-bold whitespace-nowrap">Offert-ID</th>
               <th className="px-4 py-2 font-bold whitespace-nowrap">Avresa</th>
               <th className="px-4 py-2 font-bold whitespace-nowrap">Tid</th>
-              <th className="px-4 py-2 font-bold whitespace-nowrap">Från</th>
+              <th className="px-4 py-2 font-bold whitespace-nowrap">FrÃ¥n</th>
               <th className="px-4 py-2 font-bold whitespace-nowrap">Till</th>
               <th className="px-4 py-2 font-bold whitespace-nowrap">Passagerare</th>
               <th className="px-4 py-2 font-bold whitespace-nowrap">Typ av resa</th>
@@ -84,7 +84,7 @@ export default function UnansweredTable({ rows, title = "Obesvarade offerter", o
           </thead>
           <tbody className="text-[15px] text-[#194C66]">
             {pageRows.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-6 text-center text-[#194C66]/60">Inga obesvarade offerter 🎉</td></tr>
+              <tr><td colSpan={8} className="px-4 py-6 text-center text-[#194C66]/60">Inga obesvarade offerter ðŸŽ‰</td></tr>
             )}
             {pageRows.map((r) => {
               const date = safeDate(r.departure_date);
@@ -119,15 +119,16 @@ export default function UnansweredTable({ rows, title = "Obesvarade offerter", o
 
       {total > 0 && (
         <div className="px-4 py-3 flex items-center gap-3 text-sm text-[#194C66]/80">
-          <span>Visar <strong className="text-[#194C66]">{total === 0 ? 0 : start + 1}–{Math.min(end, total)}</strong> av <strong className="text-[#194C66]">{total}</strong></span>
+          <span>Visar <strong className="text-[#194C66]">{total === 0 ? 0 : start + 1}â€“{Math.min(end, total)}</strong> av <strong className="text-[#194C66]">{total}</strong></span>
           <div className="flex-1" />
           <div className="flex items-center gap-2">
-            <button className="px-3 py-1 rounded border border-[#E5E7EB] disabled:opacity-40" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={clampedPage <= 1}>Föregående</button>
+            <button className="px-3 py-1 rounded border border-[#E5E7EB] disabled:opacity-40" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={clampedPage <= 1}>FÃ¶regÃ¥ende</button>
             <span>Sida <strong className="text-[#194C66]">{clampedPage}</strong> av <strong className="text-[#194C66]">{totalPages}</strong></span>
-            <button className="px-3 py-1 rounded border border-[#E5E7EB] disabled:opacity-40" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={clampedPage >= totalPages}>Nästa</button>
+            <button className="px-3 py-1 rounded border border-[#E5E7EB] disabled:opacity-40" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={clampedPage >= totalPages}>NÃ¤sta</button>
           </div>
         </div>
       )}
     </div>
   );
 }
+

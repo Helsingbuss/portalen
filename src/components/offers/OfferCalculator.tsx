@@ -1,7 +1,7 @@
-// src/components/offers/OfferCalculator.tsx
+﻿// src/components/offers/OfferCalculator.tsx
 import { useEffect, useMemo, useState } from "react";
 
-/** Props som krävs för att kunna skicka */
+/** Props som krÃ¤vs fÃ¶r att kunna skicka */
 type Props = {
   offerId: string;          // t.ex. "4b6acc7f-..." (UUID i offers.id)
   offerNumber: string;      // t.ex. "HB25007"
@@ -28,7 +28,7 @@ export default function OfferCalculator({
   const [includeServiceFee, setIncludeServiceFee] = useState<boolean>(true);
   const [serviceFeeMode, setServiceFeeMode] = useState<"once" | "perLeg">("once"); // NYTT
 
-  // Mervärdesskatt + intern notering
+  // MervÃ¤rdesskatt + intern notering
   const [vatRate, setVatRate] = useState<number>(0.06);
   const [note, setNote] = useState<string>("");
 
@@ -54,7 +54,7 @@ export default function OfferCalculator({
     return base + fee;
   };
 
-  // Beräkningar
+  // BerÃ¤kningar
   const exLeg1 = useMemo(() => legCost(leg1), [leg1, kmPrice, hourDay, hourEve, hourWknd, includeServiceFee, serviceFeeMode, serviceFee]);
   const exLeg2 = useMemo(() => (includeReturn ? legCost(leg2) : 0), [includeReturn, leg2, kmPrice, hourDay, hourEve, hourWknd, includeServiceFee, serviceFeeMode, serviceFee]);
 
@@ -108,12 +108,12 @@ export default function OfferCalculator({
       alert(`Misslyckades spara utkast: ${j?.error || res.status}`);
       return;
     }
-    alert("Utkast sparat ✅");
+    alert("Utkast sparat âœ…");
   }
 
   async function sendProposal() {
     if (!canSend) {
-      alert("offerId, offerNumber och customerEmail krävs");
+      alert("offerId, offerNumber och customerEmail krÃ¤vs");
       return;
     }
 
@@ -176,16 +176,16 @@ export default function OfferCalculator({
       }
     }
 
-    alert("Prisförslag skickat ✅");
+    alert("PrisfÃ¶rslag skickat âœ…");
   }
 
   return (
     <div className="space-y-4">
-      {/* Översta raden: prisinställningar */}
+      {/* Ã–versta raden: prisinstÃ¤llningar */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
         <LabeledNumber label="Kilometerpris (kr/km)" value={kmPrice} onChange={setKmPrice} />
         <LabeledNumber label="Timpris dag (kr/tim)" value={hourDay} onChange={setHourDay} />
-        <LabeledNumber label="Timpris kväll (kr/tim)" value={hourEve} onChange={setHourEve} />
+        <LabeledNumber label="Timpris kvÃ¤ll (kr/tim)" value={hourEve} onChange={setHourEve} />
         <LabeledNumber label="Timpris helg (kr/tim)" value={hourWknd} onChange={setHourWknd} />
         <LabeledNumber label="Serviceavgift (kr)" value={serviceFee} onChange={setServiceFee} />
       </div>
@@ -201,14 +201,14 @@ export default function OfferCalculator({
         </label>
 
         <label className="inline-flex items-center gap-2">
-          Läge:
+          LÃ¤ge:
           <select
             className="border rounded px-2 py-1"
             value={serviceFeeMode}
             onChange={(e) => setServiceFeeMode(e.target.value as "once" | "perLeg")}
             disabled={!includeServiceFee}
           >
-            <option value="once">En gång</option>
+            <option value="once">En gÃ¥ng</option>
             <option value="perLeg">Per ben</option>
           </select>
         </label>
@@ -231,15 +231,15 @@ export default function OfferCalculator({
             checked={includeReturn}
             onChange={(e) => setIncludeReturn(e.target.checked)}
           />
-          Inkludera retur i prisförslag
+          Inkludera retur i prisfÃ¶rslag
         </label>
         <button
           type="button"
           onClick={copyLeg1ToLeg2}
           className="px-3 py-1 rounded border text-sm"
-          title="Kopiera tider/km från utresan till returen"
+          title="Kopiera tider/km frÃ¥n utresan till returen"
         >
-          Kopiera utresa → retur
+          Kopiera utresa â†’ retur
         </button>
       </div>
 
@@ -265,7 +265,7 @@ export default function OfferCalculator({
 
       {includeServiceFee && serviceFeeMode === "once" && (
         <div className="text-sm text-[#194C66]/80">
-          Serviceavgift en gång: <strong className="text-[#194C66]">{sek(serviceFee)}</strong> (läggs på totalsumman)
+          Serviceavgift en gÃ¥ng: <strong className="text-[#194C66]">{sek(serviceFee)}</strong> (lÃ¤ggs pÃ¥ totalsumman)
         </div>
       )}
 
@@ -277,7 +277,7 @@ export default function OfferCalculator({
           value={note}
           onChange={(e) => setNote(e.target.value)}
           className="w-full border rounded px-2 py-2"
-          placeholder="T.ex. ”Önskar toalett ombord” eller annan notering för prisförslaget"
+          placeholder="T.ex. â€Ã–nskar toalett ombordâ€ eller annan notering fÃ¶r prisfÃ¶rslaget"
         />
       </div>
 
@@ -303,9 +303,9 @@ export default function OfferCalculator({
           className={`px-4 py-2 rounded-[25px] text-sm font-medium ${
             canSend ? "bg-[#194C66] text-white" : "bg-gray-300 text-gray-600 cursor-not-allowed"
           }`}
-          title={canSend ? "" : "Offert-ID, nummer och e-post måste finnas"}
+          title={canSend ? "" : "Offert-ID, nummer och e-post mÃ¥ste finnas"}
         >
-          Skicka…
+          Skickaâ€¦
         </button>
       </div>
     </div>
@@ -363,7 +363,7 @@ function LegCard({
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <LabeledNumber label="Kilometer" value={value.km} onChange={(v) => onChange({ ...value, km: v })} />
         <LabeledNumber label="Timmar dag" value={value.hDay} onChange={(v) => onChange({ ...value, hDay: v })} />
-        <LabeledNumber label="Timmar kväll" value={value.hEve} onChange={(v) => onChange({ ...value, hEve: v })} />
+        <LabeledNumber label="Timmar kvÃ¤ll" value={value.hEve} onChange={(v) => onChange({ ...value, hEve: v })} />
         <LabeledNumber label="Timmar helg" value={value.hWknd} onChange={(v) => onChange({ ...value, hWknd: v })} />
       </div>
       <div className="mt-3 grid grid-cols-3 gap-3">
@@ -374,3 +374,4 @@ function LegCard({
     </div>
   );
 }
+

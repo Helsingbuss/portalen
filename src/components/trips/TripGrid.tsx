@@ -1,21 +1,21 @@
-import Image from "next/image";
+﻿import Image from "next/image";
 import Link from "next/link";
 import clsx from "clsx";
 
-/** Typ för ett kort (matchar vad widget/API mappar till) */
+/** Typ fÃ¶r ett kort (matchar vad widget/API mappar till) */
 export type TripCardProps = {
   id: string;
   title: string;
   subtitle?: string;
   image?: string | null;
-  ribbon?: string | null; // röd banderoll (valfri)
+  ribbon?: string | null; // rÃ¶d banderoll (valfri)
   badge?: "shopping" | "dagsresa" | "flerdagar" | string | null; // kategori-pille
   city?: string | null;
   country?: string | null;
-  year?: number | null;   // NYTT – för pillen "2025"
+  year?: number | null;   // NYTT â€“ fÃ¶r pillen "2025"
   price_from?: number | null;
   next_date?: string | null; // valfritt, visas ej om du inte skickar
-  href?: string; // länk (extern/slug från admin)
+  href?: string; // lÃ¤nk (extern/slug frÃ¥n admin)
 };
 
 function money(n?: number | null) {
@@ -60,7 +60,7 @@ function TripCard({
             />
           )}
 
-          {/* Diagonal röd banderoll (valfri) */}
+          {/* Diagonal rÃ¶d banderoll (valfri) */}
           {ribbon && (
             <div
               className="absolute left-3 top-3 text-white text-sm font-semibold px-3 py-1 rounded-md"
@@ -75,7 +75,7 @@ function TripCard({
           )}
         </div>
 
-        {/* Innehåll */}
+        {/* InnehÃ¥ll */}
         <div className="p-4">
           {/* Piller som i preview */}
           <div className="flex flex-wrap gap-2 text-xs">
@@ -89,9 +89,9 @@ function TripCard({
 
           <div className="mt-3 flex items-center justify-between">
             <div className="text-sm text-[#0f172a]/60">
-              {/* Visa nästa avgång om du skickar in ett formatert datum (valfritt) */}
-              {next_date ? <>Nästa avgång: <b>{next_date}</b></> : null}
-              {/* Om du vill visa stad också (valfritt) */}
+              {/* Visa nÃ¤sta avgÃ¥ng om du skickar in ett formatert datum (valfritt) */}
+              {next_date ? <>NÃ¤sta avgÃ¥ng: <b>{next_date}</b></> : null}
+              {/* Om du vill visa stad ocksÃ¥ (valfritt) */}
               {!next_date && city ? <>{city}</> : null}
             </div>
 
@@ -103,14 +103,14 @@ function TripCard({
           </div>
         </div>
 
-        {/* klick-overlay för bättre a11y */}
+        {/* klick-overlay fÃ¶r bÃ¤ttre a11y */}
         {href && <span className="absolute inset-0" aria-hidden />}
       </article>
     </Wrapper>
   );
 }
 
-/** Grid-komponent – används på testsidan och ev. widget */
+/** Grid-komponent â€“ anvÃ¤nds pÃ¥ testsidan och ev. widget */
 export function TripGrid({
   items,
   columns = 3,
@@ -136,3 +136,4 @@ export function TripGrid({
 }
 
 export default TripCard;
+

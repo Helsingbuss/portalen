@@ -1,4 +1,4 @@
-// src/components/bookings/BookingConfirmation.tsx
+﻿// src/components/bookings/BookingConfirmation.tsx
 import Image from "next/image";
 
 type Booking = {
@@ -39,7 +39,7 @@ type Booking = {
 };
 
 function money(n?: number | null) {
-  if (n == null) return "—";
+  if (n == null) return "â€”";
   return n.toLocaleString("sv-SE", { style: "currency", currency: "SEK" });
 }
 
@@ -62,7 +62,7 @@ export default function BookingConfirmation({ booking }: { booking: Booking }) {
 
   const trips = [
     {
-      title: roundTrip ? "Utresa" : "Bokad körning",
+      title: roundTrip ? "Utresa" : "Bokad kÃ¶rning",
       date: booking.departure_date,
       start: booking.departure_time,
       end: booking.end_time,
@@ -76,7 +76,7 @@ export default function BookingConfirmation({ booking }: { booking: Booking }) {
     ...(roundTrip
       ? [
           {
-            title: "Återresa",
+            title: "Ã…terresa",
             date: booking.return_date,
             start: booking.return_time,
             end: booking.return_end_time,
@@ -108,16 +108,16 @@ export default function BookingConfirmation({ booking }: { booking: Booking }) {
 
         {/* Titel */}
         <h1 className="mt-2 text-2xl font-semibold text-[#0f172a]">
-          Bokningsbekräftelse {booking.booking_number || "—"}
+          BokningsbekrÃ¤ftelse {booking.booking_number || "â€”"}
         </h1>
 
-        {/* Övre kort – ev totals + kund */}
+        {/* Ã–vre kort â€“ ev totals + kund */}
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* (valfritt) Pris-summering om satt */}
           <div className="border rounded-lg p-4">
             <div className="flex items-baseline gap-2">
               <span className="text-sm text-[#0f172a]/70 font-semibold">Status</span>
-              <span className="text-[#0f172a] capitalize">{booking.status || "—"}</span>
+              <span className="text-[#0f172a] capitalize">{booking.status || "â€”"}</span>
             </div>
 
             <div className="mt-3 flex items-baseline gap-2">
@@ -137,17 +137,17 @@ export default function BookingConfirmation({ booking }: { booking: Booking }) {
           {/* Kundkort */}
           <div className="border rounded-lg p-4">
             <div className="grid grid-cols-[110px_1fr] gap-x-2 text-sm">
-              <div className="text-[#0f172a]/70 font-semibold">Beställare</div>
-              <div className="text-[#0f172a]">{booking.contact_person || "—"}</div>
+              <div className="text-[#0f172a]/70 font-semibold">BestÃ¤llare</div>
+              <div className="text-[#0f172a]">{booking.contact_person || "â€”"}</div>
 
               <div className="text-[#0f172a]/70 font-semibold">Adress</div>
-              <div className="text-[#0f172a]">{booking.customer_address || "—"}</div>
+              <div className="text-[#0f172a]">{booking.customer_address || "â€”"}</div>
 
               <div className="text-[#0f172a]/70 font-semibold">Telefon</div>
-              <div className="text-[#0f172a]">{booking.contact_phone || "—"}</div>
+              <div className="text-[#0f172a]">{booking.contact_phone || "â€”"}</div>
 
               <div className="text-[#0f172a]/70 font-semibold">E-post</div>
-              <div className="text-[#0f172a] break-all">{booking.customer_email || "—"}</div>
+              <div className="text-[#0f172a] break-all">{booking.customer_email || "â€”"}</div>
             </div>
           </div>
         </div>
@@ -155,12 +155,12 @@ export default function BookingConfirmation({ booking }: { booking: Booking }) {
         {/* Intro */}
         <div className="mt-5 text-[15px] leading-relaxed text-[#0f172a]/80">
           <p>
-            Tack! Din bokning är registrerad. Nedan ser du tider, adresser och när bussen är på plats.
-            Hör av dig om något behöver justeras.
+            Tack! Din bokning Ã¤r registrerad. Nedan ser du tider, adresser och nÃ¤r bussen Ã¤r pÃ¥ plats.
+            HÃ¶r av dig om nÃ¥got behÃ¶ver justeras.
           </p>
         </div>
 
-        {/* Körningar */}
+        {/* KÃ¶rningar */}
         <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
           {trips.map((trip, idx) => (
             <div key={idx}>
@@ -171,22 +171,22 @@ export default function BookingConfirmation({ booking }: { booking: Booking }) {
 
               <div className="border rounded-lg p-3 text-[14px] text-[#0f172a] leading-[1.5]">
                 <div>
-                  <span className="font-semibold">Datum:</span> {trip.date || "—"}
+                  <span className="font-semibold">Datum:</span> {trip.date || "â€”"}
                 </div>
                 <div>
-                  <span className="font-semibold">Start:</span> {trip.start || "—"}
+                  <span className="font-semibold">Start:</span> {trip.start || "â€”"}
                   {trip.onsite && (
-                    <span className="text-[#0f172a]/70"> (bussen på plats {trip.onsite})</span>
+                    <span className="text-[#0f172a]/70"> (bussen pÃ¥ plats {trip.onsite})</span>
                   )}
                 </div>
                 <div>
-                  <span className="font-semibold">Slut (planerad):</span> {trip.end || "—"}
+                  <span className="font-semibold">Slut (planerad):</span> {trip.end || "â€”"}
                 </div>
                 <div className="mt-1">
-                  <span className="font-semibold">Från:</span> {trip.from || "—"}
+                  <span className="font-semibold">FrÃ¥n:</span> {trip.from || "â€”"}
                 </div>
                 <div>
-                  <span className="font-semibold">Till:</span> {trip.to || "—"}
+                  <span className="font-semibold">Till:</span> {trip.to || "â€”"}
                 </div>
                 {!!trip.via && (
                   <div>
@@ -194,10 +194,10 @@ export default function BookingConfirmation({ booking }: { booking: Booking }) {
                   </div>
                 )}
                 <div>
-                  <span className="font-semibold">Passagerare:</span> {trip.pax ?? "—"}
+                  <span className="font-semibold">Passagerare:</span> {trip.pax ?? "â€”"}
                 </div>
                 <div className="mt-2">
-                  <span className="font-semibold">Övrig information:</span>{" "}
+                  <span className="font-semibold">Ã–vrig information:</span>{" "}
                   <span className="whitespace-pre-wrap">{trip.extra}</span>
                 </div>
               </div>
@@ -208,8 +208,8 @@ export default function BookingConfirmation({ booking }: { booking: Booking }) {
         {/* Footer */}
         <div className="mt-7 text-[13px] text-[#0f172a]/70 leading-relaxed">
           <p>
-            Vid ändringar eller frågor – kontakta oss.{" "}
-            <strong>Öppettider: vardagar 08:00–17:00.</strong> För akuta ärenden närmare än två
+            Vid Ã¤ndringar eller frÃ¥gor â€“ kontakta oss.{" "}
+            <strong>Ã–ppettider: vardagar 08:00â€“17:00.</strong> FÃ¶r akuta Ã¤renden nÃ¤rmare Ã¤n tvÃ¥
             arbetsdagar: <strong>jour 010-777 21 58</strong>.
           </p>
         </div>
@@ -217,3 +217,4 @@ export default function BookingConfirmation({ booking }: { booking: Booking }) {
     </div>
   );
 }
+

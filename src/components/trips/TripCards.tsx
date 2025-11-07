@@ -1,23 +1,23 @@
-import React from "react";
+﻿import React from "react";
 
 /* ===== Typer ===== */
 export type TripCardProps = {
   id: string;
   image: string;                  // URL till huvudbilden
-  title: string;                  // "Gekås Ullared"
-  subtitle?: string;              // ex. “Fynda stort, res bekvämt”
-  location?: string;              // ex. “Sverige”
+  title: string;                  // "GekÃ¥s Ullared"
+  subtitle?: string;              // ex. â€œFynda stort, res bekvÃ¤mtâ€
+  location?: string;              // ex. â€œSverigeâ€
   tripKind?: "flerdagar" | "dagsresa" | "shopping";
-  tripKindLabel?: string;         // skriv över pillens text om du vill
+  tripKindLabel?: string;         // skriv Ã¶ver pillens text om du vill
   year?: number;                  // 2025, 2026, 2027
 
   priceFrom?: number | string;    // ex. 295
   currency?: string;              // default "SEK"
 
-  // valfritt övrigt
+  // valfritt Ã¶vrigt
   ribbon?: { text: string; color?: string; textColor?: string; angle?: number };
 
-  // länk ska peka till det du sparar i admin (extern länk/slug)
+  // lÃ¤nk ska peka till det du sparar i admin (extern lÃ¤nk/slug)
   ctaHref?: string;
 };
 
@@ -39,7 +39,7 @@ function formatPriceKr(v?: number | string, currency = "SEK") {
   return n.toLocaleString("sv-SE") + (currency === "SEK" ? " kr" : ` ${currency}`);
 }
 
-/* ===== TripCard i “preview”-stil ===== */
+/* ===== TripCard i â€œpreviewâ€-stil ===== */
 export function TripCard(props: TripCardProps) {
   const {
     image, title, subtitle, location, tripKind, tripKindLabel, year,
@@ -59,7 +59,7 @@ export function TripCard(props: TripCardProps) {
       href={ctaHref}
       className="group relative block rounded-2xl border bg-white shadow-sm overflow-hidden transition hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#194C66]/40"
     >
-      {/* Bild – 600x390 aspect */}
+      {/* Bild â€“ 600x390 aspect */}
       <div className="relative bg-[#f3f4f6] aspect-[600/390]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={image} alt={title} className="absolute inset-0 h-full w-full object-cover" />
@@ -85,7 +85,7 @@ export function TripCard(props: TripCardProps) {
 
       {/* Textyta */}
       <div className="p-4">
-        {/* små piller som i admin-preview */}
+        {/* smÃ¥ piller som i admin-preview */}
         <div className="flex flex-wrap gap-2 text-xs">
           {badge && <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{badge}</span>}
           {location && <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{location}</span>}
@@ -95,9 +95,9 @@ export function TripCard(props: TripCardProps) {
         <div className="mt-2 text-lg font-semibold text-[#0f172a]">{title}</div>
         {subtitle && <div className="text-sm text-[#0f172a]/70">{subtitle}</div>}
 
-        {/* bottrad – pris till höger i grå “chip” */}
+        {/* bottrad â€“ pris till hÃ¶ger i grÃ¥ â€œchipâ€ */}
         <div className="mt-3 flex items-center justify-between">
-          {/* vänstersida: lämnas tom eller fylls med ev. datum/linje i framtiden */}
+          {/* vÃ¤nstersida: lÃ¤mnas tom eller fylls med ev. datum/linje i framtiden */}
           <span className="text-sm text-[#0f172a]/60"></span>
 
           {priceText && (
@@ -108,7 +108,7 @@ export function TripCard(props: TripCardProps) {
         </div>
       </div>
 
-      {/* Gör hela kortet klickbart utan extra knapp */}
+      {/* GÃ¶r hela kortet klickbart utan extra knapp */}
       <span className="absolute inset-0" aria-hidden />
     </a>
   );
@@ -131,3 +131,4 @@ export function TripGrid({ items, cols = 3 }: { items: TripCardProps[]; cols?: 3
 }
 
 export default TripGrid;
+

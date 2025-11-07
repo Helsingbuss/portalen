@@ -1,14 +1,14 @@
-// src/components/offers/OfferInkommen.tsx
+﻿// src/components/offers/OfferInkommen.tsx
 import Image from "next/image";
 import StatusBadge from "@/components/StatusBadge";
 
 type OfferInkommenProps = { offer: any };
 
-// Globala rattar för radavstånd
+// Globala rattar fÃ¶r radavstÃ¥nd
 const LINE_HEIGHT = 1.5;   // resten av sidan
-const CARD_LH     = 1.25;  // tajtare i korten överst
+const CARD_LH     = 1.25;  // tajtare i korten Ã¶verst
 
-function v(x: any, fallback = "—") {
+function v(x: any, fallback = "â€”") {
   if (x === null || x === undefined || x === "") return fallback;
   return String(x);
 }
@@ -57,19 +57,19 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
 
         {/* Titel */}
         <h1 className="mt-2 text-2xl font-semibold text-[#0f172a]">
-          Offertförfrågan {offerNo}
+          OffertfÃ¶rfrÃ¥gan {offerNo}
         </h1>
 
-        {/* Övre kort – tajt layout */}
+        {/* Ã–vre kort â€“ tajt layout */}
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Offertinformation */}
           <div
             className="border rounded-lg p-4 space-y-[0,5px]"
             style={{ lineHeight: CARD_LH as number }}
           >
-            <Row label="Offertdatum" value={v(offer?.offer_date, "—")} lh={CARD_LH} />
-            <Row label="Er referens" value={v(offer?.customer_reference, "—")} lh={CARD_LH} />
-            <Row label="Vår referens" value={v(offer?.internal_reference, "—")} lh={CARD_LH} />
+            <Row label="Offertdatum" value={v(offer?.offer_date, "â€”")} lh={CARD_LH} />
+            <Row label="Er referens" value={v(offer?.customer_reference, "â€”")} lh={CARD_LH} />
+            <Row label="VÃ¥r referens" value={v(offer?.internal_reference, "â€”")} lh={CARD_LH} />
           </div>
 
           {/* Kundkort */}
@@ -77,10 +77,10 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
             className="border rounded-lg p-4 space-y-[0,5px]"
             style={{ lineHeight: CARD_LH as number }}
           >
-            <Row label="Namn" value={v(offer?.contact_person, "—")} lh={CARD_LH} />
-            <Row label="Adress" value={v(offer?.customer_address, "—")} lh={CARD_LH} />
-            <Row label="Telefon" value={v(offer?.contact_phone, "—")} lh={CARD_LH} />
-            <Row label="E-post" value={v(offer?.contact_email, "—")} lh={CARD_LH} wrap />
+            <Row label="Namn" value={v(offer?.contact_person, "â€”")} lh={CARD_LH} />
+            <Row label="Adress" value={v(offer?.customer_address, "â€”")} lh={CARD_LH} />
+            <Row label="Telefon" value={v(offer?.contact_phone, "â€”")} lh={CARD_LH} />
+            <Row label="E-post" value={v(offer?.contact_email, "â€”")} lh={CARD_LH} wrap />
           </div>
         </div>
 
@@ -89,16 +89,16 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
           <p>
             Hej!
             <br />
-            Tack för att ni kontaktade Helsingbuss – vi ser fram emot att få
-            ta hand om er resa. Vi har tagit fram ett genomtänkt upplägg som
-            förenar bekvämlighet, säkerhet och smidig planering. I offerten
-            nedan hittar ni tydliga specifikationer och pris. Säg bara till om
-            ni vill lägga till något, byta tider eller uppgradera komfort – vi
-            skräddarsyr gärna efter era önskemål.
+            Tack fÃ¶r att ni kontaktade Helsingbuss â€“ vi ser fram emot att fÃ¥
+            ta hand om er resa. Vi har tagit fram ett genomtÃ¤nkt upplÃ¤gg som
+            fÃ¶renar bekvÃ¤mlighet, sÃ¤kerhet och smidig planering. I offerten
+            nedan hittar ni tydliga specifikationer och pris. SÃ¤g bara till om
+            ni vill lÃ¤gga till nÃ¥got, byta tider eller uppgradera komfort â€“ vi
+            skrÃ¤ddarsyr gÃ¤rna efter era Ã¶nskemÃ¥l.
           </p>
         </div>
 
-        {/* Reseavsnitt – två kolumner på md+ */}
+        {/* Reseavsnitt â€“ tvÃ¥ kolumner pÃ¥ md+ */}
         <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4" style={{ lineHeight: LINE_HEIGHT }}>
           {trips.map((trip, idx) => (
             <div key={idx}>
@@ -106,16 +106,16 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
                 <Image src="/maps_pin.png" alt="Pin" width={18} height={18} />
                 <span className="font-semibold">{trip.title}</span>
                 <span className="text-xs text-[#0f172a]/50 ml-2">
-                  Avstånd och tider baseras preliminärt
+                  AvstÃ¥nd och tider baseras preliminÃ¤rt
                 </span>
               </div>
 
               <div className="border rounded-lg p-3 text-[14px] text-[#0f172a]" style={{ lineHeight: 1.5 }}>
                 <div>
-                  <span className="font-semibold">Avgång:</span> {v(trip.date)} kl {v(trip.time)}
+                  <span className="font-semibold">AvgÃ¥ng:</span> {v(trip.date)} kl {v(trip.time)}
                 </div>
                 <div>
-                  <span className="font-semibold">Från:</span> {v(trip.from)}
+                  <span className="font-semibold">FrÃ¥n:</span> {v(trip.from)}
                 </div>
                 <div>
                   <span className="font-semibold">Till:</span> {v(trip.to)}
@@ -124,7 +124,7 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
                   <span className="font-semibold">Antal passagerare:</span> {v(trip.pax)}
                 </div>
                 <div className="mt-1">
-                  <span className="font-semibold">Övrig information:</span>{" "}
+                  <span className="font-semibold">Ã–vrig information:</span>{" "}
                   <span className="whitespace-pre-wrap">{trip.extra}</span>
                 </div>
               </div>
@@ -135,20 +135,20 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
         {/* Footer / villkor */}
         <div className="mt-7 text-[14px] text-[#0f172a]/70" style={{ lineHeight: 1.5 }}>
           <p>
-            Vid eventuell ändring av uppdragstiden eller körsträckan utöver det
-            som anges i offerten tillkommer tilläggsdebitering. Vi reserverar
-            oss för flertalet frågor samt eventuella ändringar eller pålagor som
-            ligger utanför vår kontroll. Vid behov av ombokning ansvarar
-            beställaren för att ombokningstid följer.
+            Vid eventuell Ã¤ndring av uppdragstiden eller kÃ¶rstrÃ¤ckan utÃ¶ver det
+            som anges i offerten tillkommer tillÃ¤ggsdebitering. Vi reserverar
+            oss fÃ¶r flertalet frÃ¥gor samt eventuella Ã¤ndringar eller pÃ¥lagor som
+            ligger utanfÃ¶r vÃ¥r kontroll. Vid behov av ombokning ansvarar
+            bestÃ¤llaren fÃ¶r att ombokningstid fÃ¶ljer.
           </p>
           <p className="mt-3">
-            Har du frågor, funderingar eller vill bekräfta bokningen? Tveka inte
-            att kontakta oss på <strong>010-405 38 38</strong> (vardagar kl.
-            08.00–17.00). För akuta ärenden utanför kontorstid når du vår
-            jourtelefon på <strong>010-777 21 58</strong>.
+            Har du frÃ¥gor, funderingar eller vill bekrÃ¤fta bokningen? Tveka inte
+            att kontakta oss pÃ¥ <strong>010-405 38 38</strong> (vardagar kl.
+            08.00â€“17.00). FÃ¶r akuta Ã¤renden utanfÃ¶r kontorstid nÃ¥r du vÃ¥r
+            jourtelefon pÃ¥ <strong>010-777 21 58</strong>.
           </p>
           <p className="mt-4 uppercase text-[12px] tracking-wide">
-            Obs: Detta är endast en offert. Välkommen med din bokning!
+            Obs: Detta Ã¤r endast en offert. VÃ¤lkommen med din bokning!
           </p>
         </div>
 
@@ -156,7 +156,7 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
         <div className="mt-5 grid gap-2 text-xs text-[#0f172a]/60 sm:grid-cols-2 lg:grid-cols-4" style={{ lineHeight: LINE_HEIGHT }}>
           <div>
             <div>Helsingbuss</div>
-            <div>Höjderupsgränd 12</div>
+            <div>HÃ¶jderupsgrÃ¤nd 12</div>
             <div>254 45 Helsingborg</div>
             <div>helsingbuss.se</div>
           </div>
@@ -181,7 +181,7 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
   );
 }
 
-/** Enkelradig rad: ”Label Värde” – tajt som standard i korten via lh-prop */
+/** Enkelradig rad: â€Label VÃ¤rdeâ€ â€“ tajt som standard i korten via lh-prop */
 function Row({
   label,
   value,
@@ -195,7 +195,7 @@ function Row({
 }) {
   return (
     <div className="flex items-baseline gap-2 py-0" style={{ lineHeight: lh }}>
-      {/* <-- FETSTIL PÅ ETIKETTERNA */}
+      {/* <-- FETSTIL PÃ… ETIKETTERNA */}
       <span className="text-sm font-semibold text-[#0f172a]/70">{label}</span>
       <span className={`text-sm text-[#0f172a] ${wrap ? "break-all" : "whitespace-nowrap"}`}>
         {value}
@@ -203,3 +203,4 @@ function Row({
     </div>
   );
 }
+

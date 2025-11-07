@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
 
@@ -6,7 +6,7 @@ type Leg = {
   date: string;         // YYYY-MM-DD
   start: string;        // HH:MM
   end?: string;         // HH:MM (planerat slut)
-  onSite?: number | null; // minuter före start då bussen är på plats
+  onSite?: number | null; // minuter fÃ¶re start dÃ¥ bussen Ã¤r pÃ¥ plats
   from: string;
   to: string;
   via: string;
@@ -19,7 +19,7 @@ type Step = 1 | 2;
 
 type Opt = { id: string; label: string };
 
-// ---- Offert-koppling (options från /api/offers/options)
+// ---- Offert-koppling (options frÃ¥n /api/offers/options)
 type OfferOpt = {
   id: string;
   label: string;
@@ -52,10 +52,10 @@ function todayISO() {
 export default function NewBookingAdmin() {
   const [step, setStep] = useState<Step>(1);
 
-  // Visuell placeholder – verkligt nummer skapas i API:t (BK{YY}{NNNN})
+  // Visuell placeholder â€“ verkligt nummer skapas i API:t (BK{YY}{NNNN})
   const nextUiId = useMemo(() => `BK25${"00XX"}`, []);
 
-  // --- STEG 1: Körningar (max 2 rader = Tur & retur) ---
+  // --- STEG 1: KÃ¶rningar (max 2 rader = Tur & retur) ---
   const [draft, setDraft] = useState<Leg>({
     date: todayISO(),
     start: "08:00",
@@ -75,7 +75,7 @@ export default function NewBookingAdmin() {
   const addLeg = () => {
     if (!draft.from || !draft.to || !draft.date || !draft.start) return;
     if (legs.length >= 2) {
-      alert("Max två rader (tur & retur). Ta bort en rad om du vill lägga till en ny.");
+      alert("Max tvÃ¥ rader (tur & retur). Ta bort en rad om du vill lÃ¤gga till en ny.");
       return;
     }
     setLegs((prev) => [...prev, draft]);
@@ -131,7 +131,7 @@ export default function NewBookingAdmin() {
   const [vehicleId, setVehicleId] = useState<string>("");
   const [driverId, setDriverId] = useState<string>("");
 
-  // --- NYTT: Koppla offert (sök & autofyll) ---
+  // --- NYTT: Koppla offert (sÃ¶k & autofyll) ---
   const [offerSearch, setOfferSearch] = useState("");
   const [offerOpts, setOfferOpts] = useState<OfferOpt[]>([]);
   const [offerLoading, setOfferLoading] = useState(false);
@@ -209,7 +209,7 @@ export default function NewBookingAdmin() {
       const ctrl = new AbortController();
       offersAbortRef.current = ctrl;
 
-      // baseline när tomt – senaste 20
+      // baseline nÃ¤r tomt â€“ senaste 20
       const url = q && q.length >= 1
         ? `/api/offers/options?search=${encodeURIComponent(q)}`
         : `/api/offers/options`;
@@ -225,7 +225,7 @@ export default function NewBookingAdmin() {
   }
 
   useEffect(() => {
-    // Hämta fordon & chaufförer (enkla list-API:er)
+    // HÃ¤mta fordon & chauffÃ¶rer (enkla list-API:er)
     (async () => {
       try {
         const v = await fetch("/api/vehicles/options").then((r) => r.json()).catch(() => ({ options: [] }));
@@ -246,7 +246,7 @@ export default function NewBookingAdmin() {
   async function handleSubmit() {
     setSubmitError(null);
     if (!contact.trim() || !email.trim() || !phone.trim()) {
-      setSubmitError("Fyll i Beställare, E-post och Telefon.");
+      setSubmitError("Fyll i BestÃ¤llare, E-post och Telefon.");
       return;
     }
     setSubmitting(true);
@@ -282,10 +282,10 @@ export default function NewBookingAdmin() {
       assigned_vehicle_id: vehicleId || null,
       assigned_driver_id: driverId || null,
 
-      // kopplad offert (frivilligt på backend)
+      // kopplad offert (frivilligt pÃ¥ backend)
       source_offer_id: linkedOfferId || null,
 
-      // övrigt
+      // Ã¶vrigt
       notes: freeNotes || a?.notes || null,
     };
 
@@ -302,10 +302,10 @@ export default function NewBookingAdmin() {
         return;
       }
       const j = await res.json();
-      // Gå till administrativ detaljsida (kan bygga senare)
+      // GÃ¥ till administrativ detaljsida (kan bygga senare)
       window.location.href = `/admin/bookings/${j.booking.id}`;
     } catch (e: any) {
-      setSubmitError(e?.message || "Nätverksfel.");
+      setSubmitError(e?.message || "NÃ¤tverksfel.");
       setSubmitting(false);
     }
   }
@@ -331,7 +331,7 @@ export default function NewBookingAdmin() {
           {/* Stegindikator */}
           <div className="flex gap-2 text-sm">
             <div className={`px-3 py-1 rounded-full ${step === 1 ? "bg-[#194C66] text-white" : "bg-white border text-[#194C66]"}`}>
-              Steg 1: Körningar
+              Steg 1: KÃ¶rningar
             </div>
             <div className={`px-3 py-1 rounded-full ${step === 2 ? "bg-[#194C66] text-white" : "bg-white border text-[#194C66]"}`}>
               Steg 2: Kund & tilldelning
@@ -347,7 +347,7 @@ export default function NewBookingAdmin() {
                 <div className="text-sm text-[#194C66]/70 mb-2">Koppla offert (valfritt)</div>
                 <input
                   className="border rounded px-3 py-2 w-full"
-                  placeholder="Sök offert (nummer, kund, från/till)…"
+                  placeholder="SÃ¶k offert (nummer, kund, frÃ¥n/till)â€¦"
                   value={offerSearch}
                   onChange={(e) => searchOffers(e.target.value)}
                   onFocus={() => {
@@ -356,7 +356,7 @@ export default function NewBookingAdmin() {
                 />
 
                 {offerLoading && (
-                  <div className="mt-2 text-sm text-[#194C66]/60">Söker…</div>
+                  <div className="mt-2 text-sm text-[#194C66]/60">SÃ¶kerâ€¦</div>
                 )}
 
                 {!offerLoading && offerOpts.length > 0 && (
@@ -375,7 +375,7 @@ export default function NewBookingAdmin() {
                 )}
 
                 {!offerLoading && offerSearch && offerOpts.length === 0 && (
-                  <div className="mt-2 text-sm text-[#194C66]/60">Inga träffar.</div>
+                  <div className="mt-2 text-sm text-[#194C66]/60">Inga trÃ¤ffar.</div>
                 )}
 
                 {linkedOfferId && (
@@ -393,7 +393,7 @@ export default function NewBookingAdmin() {
               {/* --- SLUT: KOPPLA OFFERT --- */}
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Vänster */}
+                {/* VÃ¤nster */}
                 <div className="space-y-4">
                   <label className="block text-sm text-[#194C66]/80">
                     <span className="mb-1 block">Datum *</span>
@@ -423,7 +423,7 @@ export default function NewBookingAdmin() {
                     />
                   </label>
                   <label className="block text-sm text-[#194C66]/80">
-                    <span className="mb-1 block">Bussen på plats (min före start)</span>
+                    <span className="mb-1 block">Bussen pÃ¥ plats (min fÃ¶re start)</span>
                     <input
                       type="number"
                       min={0}
@@ -437,7 +437,7 @@ export default function NewBookingAdmin() {
                 {/* Mitten */}
                 <div className="space-y-4">
                   <label className="block text-sm text-[#194C66]/80">
-                    <span className="mb-1 block">Från *</span>
+                    <span className="mb-1 block">FrÃ¥n *</span>
                     <input
                       type="text"
                       value={draft.from}
@@ -453,7 +453,7 @@ export default function NewBookingAdmin() {
                       value={draft.via}
                       onChange={(e) => setDraft({ ...draft, via: e.target.value })}
                       className="w-full border rounded px-2 py-1"
-                      placeholder="Ex. hållplatser / stopp"
+                      placeholder="Ex. hÃ¥llplatser / stopp"
                     />
                   </label>
                   <label className="block text-sm text-[#194C66]/80">
@@ -468,7 +468,7 @@ export default function NewBookingAdmin() {
                   </label>
                 </div>
 
-                {/* Höger */}
+                {/* HÃ¶ger */}
                 <div className="space-y-4">
                   <label className="block text-sm text-[#194C66]/80">
                     <span className="mb-1 block">Till *</span>
@@ -493,7 +493,7 @@ export default function NewBookingAdmin() {
               </div>
 
               <label className="block text-sm text-[#194C66]/80">
-                <span className="mb-1 block">Övrig information</span>
+                <span className="mb-1 block">Ã–vrig information</span>
                 <textarea
                   value={draft.notes}
                   onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
@@ -503,14 +503,14 @@ export default function NewBookingAdmin() {
 
               <div className="flex flex-wrap gap-3">
                 <button onClick={addLeg} className="px-4 py-2 rounded-[25px] bg-[#194C66] text-white text-sm">
-                  + Lägg till rad
+                  + LÃ¤gg till rad
                 </button>
                 <button
                   type="button"
                   onClick={flipDraft}
                   className="px-4 py-2 rounded-[25px] border text-sm text-[#194C66]"
                 >
-                  Vänd på körning
+                  VÃ¤nd pÃ¥ kÃ¶rning
                 </button>
                 {legs.length === 1 && (
                   <button
@@ -518,7 +518,7 @@ export default function NewBookingAdmin() {
                     onClick={createReturnFromFirst}
                     className="px-4 py-2 rounded-[25px] border text-sm text-[#194C66]"
                   >
-                    Skapa retur (vänd sträcka 1)
+                    Skapa retur (vÃ¤nd strÃ¤cka 1)
                   </button>
                 )}
               </div>
@@ -531,8 +531,8 @@ export default function NewBookingAdmin() {
                       <th className="text-left px-3 py-2">Datum</th>
                       <th className="text-left px-3 py-2">Start</th>
                       <th className="text-left px-3 py-2">Slut</th>
-                      <th className="text-left px-3 py-2">Plats på</th>
-                      <th className="text-left px-3 py-2">Från</th>
+                      <th className="text-left px-3 py-2">Plats pÃ¥</th>
+                      <th className="text-left px-3 py-2">FrÃ¥n</th>
                       <th className="text-left px-3 py-2">Via</th>
                       <th className="text-left px-3 py-2">Till</th>
                       <th className="text-left px-3 py-2">Passagerare</th>
@@ -545,15 +545,15 @@ export default function NewBookingAdmin() {
                       <tr key={i} className="border-b">
                         <td className="px-3 py-2">{l.date}</td>
                         <td className="px-3 py-2">{l.start}</td>
-                        <td className="px-3 py-2">{l.end || "—"}</td>
-                        <td className="px-3 py-2">{l.onSite ? `${l.onSite} min före` : "—"}</td>
+                        <td className="px-3 py-2">{l.end || "â€”"}</td>
+                        <td className="px-3 py-2">{l.onSite ? `${l.onSite} min fÃ¶re` : "â€”"}</td>
                         <td className="px-3 py-2">{l.from}</td>
                         <td className="px-3 py-2">{l.via}</td>
                         <td className="px-3 py-2">{l.to}</td>
-                        <td className="px-3 py-2">{l.pax ?? "—"}</td>
-                        <td className="px-3 py-2">{l.onboardContact || "—"}</td>
+                        <td className="px-3 py-2">{l.pax ?? "â€”"}</td>
+                        <td className="px-3 py-2">{l.onboardContact || "â€”"}</td>
                         <td className="px-3 py-2 text-right space-x-3">
-                          <button onClick={() => flipRow(i)} className="text-[#194C66] underline">Vänd</button>
+                          <button onClick={() => flipRow(i)} className="text-[#194C66] underline">VÃ¤nd</button>
                           <button onClick={() => removeLeg(i)} className="text-[#194C66] underline">Ta bort</button>
                         </td>
                       </tr>
@@ -561,7 +561,7 @@ export default function NewBookingAdmin() {
                     {legs.length === 0 && (
                       <tr>
                         <td className="px-3 py-4 text-[#194C66]/60" colSpan={10}>
-                          Inga körningar tillagda ännu.
+                          Inga kÃ¶rningar tillagda Ã¤nnu.
                         </td>
                       </tr>
                     )}
@@ -575,7 +575,7 @@ export default function NewBookingAdmin() {
                   onClick={() => setStep(2)}
                   className="px-4 py-2 rounded-[25px] bg-[#194C66] text-white text-sm disabled:opacity-50"
                 >
-                  Gå vidare
+                  GÃ¥ vidare
                 </button>
               </div>
             </div>
@@ -594,7 +594,7 @@ export default function NewBookingAdmin() {
                 {/* Kund */}
                 <div className="space-y-4">
                   <label className="block text-sm text-[#194C66]/80">
-                    <span className="mb-1 block">Beställare *</span>
+                    <span className="mb-1 block">BestÃ¤llare *</span>
                     <input
                       value={contact}
                       onChange={(e) => setContact(e.target.value)}
@@ -620,7 +620,7 @@ export default function NewBookingAdmin() {
                     />
                   </label>
                   <label className="block text-sm text-[#194C66]/80">
-                    <span className="mb-1 block">Övrig information</span>
+                    <span className="mb-1 block">Ã–vrig information</span>
                     <textarea
                       value={freeNotes}
                       onChange={(e) => setFreeNotes(e.target.value)}
@@ -629,7 +629,7 @@ export default function NewBookingAdmin() {
                   </label>
                 </div>
 
-                {/* Intern tilldelning (ej för kund) */}
+                {/* Intern tilldelning (ej fÃ¶r kund) */}
                 <div className="space-y-4">
                   <div className="text-[#194C66] font-semibold">Tilldelning (internt)</div>
 
@@ -640,7 +640,7 @@ export default function NewBookingAdmin() {
                       onChange={(e) => setVehicleId(e.target.value)}
                       className="w-full border rounded px-2 py-1"
                     >
-                      <option value="">— Välj fordon —</option>
+                      <option value="">â€” VÃ¤lj fordon â€”</option>
                       {vehicles.map((v) => (
                         <option key={v.id} value={v.id}>{v.label}</option>
                       ))}
@@ -648,13 +648,13 @@ export default function NewBookingAdmin() {
                   </label>
 
                   <label className="block text-sm text-[#194C66]/80">
-                    <span className="mb-1 block">Chaufför</span>
+                    <span className="mb-1 block">ChauffÃ¶r</span>
                     <select
                       value={driverId}
                       onChange={(e) => setDriverId(e.target.value)}
                       className="w-full border rounded px-2 py-1"
                     >
-                      <option value="">— Välj chaufför —</option>
+                      <option value="">â€” VÃ¤lj chauffÃ¶r â€”</option>
                       {drivers.map((d) => (
                         <option key={d.id} value={d.id}>{d.label}</option>
                       ))}
@@ -662,7 +662,7 @@ export default function NewBookingAdmin() {
                   </label>
 
                   <div className="text-xs text-[#194C66]/60">
-                    Dessa fält sparas bara i admin och visas inte för kund.
+                    Dessa fÃ¤lt sparas bara i admin och visas inte fÃ¶r kund.
                   </div>
                 </div>
               </div>
@@ -672,14 +672,14 @@ export default function NewBookingAdmin() {
                   onClick={() => setStep(1)}
                   className="px-4 py-2 rounded-[25px] border text-sm text-[#194C66]"
                 >
-                  Gå tillbaka
+                  GÃ¥ tillbaka
                 </button>
                 <button
                   onClick={handleSubmit}
                   disabled={submitting}
                   className="px-4 py-2 rounded-[25px] bg-[#194C66] text-white text-sm disabled:opacity-50"
                 >
-                  {submitting ? "Skapar…" : "Skapa bokning"}
+                  {submitting ? "Skaparâ€¦" : "Skapa bokning"}
                 </button>
               </div>
             </div>
@@ -689,3 +689,4 @@ export default function NewBookingAdmin() {
     </>
   );
 }
+

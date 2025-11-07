@@ -1,12 +1,12 @@
-// src/components/drivers/AvatarUpload.tsx
+﻿// src/components/drivers/AvatarUpload.tsx
 import { useRef, useState } from "react";
 import { uploadDriverAvatar } from "@/lib/uploadDriver";
 
 type Props = {
   driverId: string;
-  className?: string;           // skicka dina befintliga button-klasser hit (så rör vi inte designen)
+  className?: string;           // skicka dina befintliga button-klasser hit (sÃ¥ rÃ¶r vi inte designen)
   disabled?: boolean;
-  onUploaded?: (path: string) => void; // körs efter lyckad uppladdning
+  onUploaded?: (path: string) => void; // kÃ¶rs efter lyckad uppladdning
   patchAfterUpload?: boolean;   // true = PATCH:a /api/drivers/:id med avatar_url (default true)
 };
 
@@ -41,7 +41,7 @@ export default function AvatarUpload({
 
       onUploaded?.(path);
       // eslint-disable-next-line no-alert
-      alert("Profilbilden är uppdaterad ✅");
+      alert("Profilbilden Ã¤r uppdaterad âœ…");
     } catch (err: any) {
       // eslint-disable-next-line no-alert
       alert(err?.message || "Kunde inte ladda upp profilbild");
@@ -53,7 +53,7 @@ export default function AvatarUpload({
 
   return (
     <>
-      {/* Dold filväljare */}
+      {/* Dold filvÃ¤ljare */}
       <input
         ref={fileRef}
         type="file"
@@ -61,16 +61,17 @@ export default function AvatarUpload({
         className="hidden"
         onChange={onSelect}
       />
-      {/* Din befintliga knapp – vi behåller text/utseende via className */}
+      {/* Din befintliga knapp â€“ vi behÃ¥ller text/utseende via className */}
       <button
         type="button"
         className={className}
         onClick={() => fileRef.current?.click()}
         disabled={disabled || busy}
-        title={busy ? "Laddar upp…" : ""}
+        title={busy ? "Laddar uppâ€¦" : ""}
       >
-        {busy ? "Laddar…" : "Byt profilbild"}
+        {busy ? "Laddarâ€¦" : "Byt profilbild"}
       </button>
     </>
   );
 }
+

@@ -1,4 +1,4 @@
-// src/components/StatusBadge.tsx
+﻿// src/components/StatusBadge.tsx
 import { CheckCircle, XCircle, Clock, FileText } from "lucide-react";
 
 interface StatusBadgeProps {
@@ -21,7 +21,7 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
       icon: <Clock className="w-4 h-4 mr-1" />,
     },
     godkand: {
-      text: "Godkänd",
+      text: "GodkÃ¤nd",
       className: "bg-green-100 text-green-800 border border-green-300",
       icon: <CheckCircle className="w-4 h-4 mr-1" />,
     },
@@ -41,3 +41,4 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
     </span>
   );
 }
+

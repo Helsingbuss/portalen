@@ -1,4 +1,4 @@
-// src/lib/uploadDriver.ts
+﻿// src/lib/uploadDriver.ts
 import { supabase } from "@/lib/supabaseClient";
 
 /** Enkel extension-plockare med fallback */
@@ -13,7 +13,7 @@ function getExt(file: File): string {
 }
 
 /**
- * Ladda upp/chansa-uppdatera chaufförs avatar till BUCKET "drivers".
+ * Ladda upp/chansa-uppdatera chauffÃ¶rs avatar till BUCKET "drivers".
  * Returnerar (path) som du patchar in i /api/drivers/[id] som avatar_url.
  */
 export async function uploadDriverAvatar(driverId: string, file: File) {
@@ -22,11 +22,11 @@ export async function uploadDriverAvatar(driverId: string, file: File) {
 
   const ext = getExt(file);
   // Fast och konsekvent plats: profiles/{driverId}/avatar.{ext}
-  // Lägg till timestamp i filnamn för att undvika cache-strul vid upprepade uppladdningar.
+  // LÃ¤gg till timestamp i filnamn fÃ¶r att undvika cache-strul vid upprepade uppladdningar.
   const fileName = `avatar_${Date.now()}.${ext}`;
   const path = `profiles/${driverId}/${fileName}`;
 
-  // Ladda upp direkt från klienten (RLS-policy måste tillåta authenticated: INSERT)
+  // Ladda upp direkt frÃ¥n klienten (RLS-policy mÃ¥ste tillÃ¥ta authenticated: INSERT)
   const { error } = await supabase
     .storage
     .from("drivers")
@@ -40,7 +40,7 @@ export async function uploadDriverAvatar(driverId: string, file: File) {
   return { path };
 }
 
-/** (Valfritt) Hämta en tidsbegränsad URL om du vill visa bilden från privat bucket. */
+/** (Valfritt) HÃ¤mta en tidsbegrÃ¤nsad URL om du vill visa bilden frÃ¥n privat bucket. */
 export async function getSignedAvatarUrl(path: string, seconds = 3600) {
   if (!path) return null;
   const { data, error } = await supabase
@@ -50,3 +50,4 @@ export async function getSignedAvatarUrl(path: string, seconds = 3600) {
   if (error) throw error;
   return data?.signedUrl ?? null;
 }
+

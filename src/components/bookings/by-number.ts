@@ -1,4 +1,4 @@
-// src/pages/api/bookings/by-number.ts
+﻿// src/pages/api/bookings/by-number.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -47,3 +47,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (error) return res.status(404).json({ error: "Bokningen hittades inte" });
   return res.status(200).json({ booking: data });
 }
+
