@@ -265,7 +265,7 @@ export default function DriversListPage() {
                         {r.license_classes?.length ? r.license_classes.join(", ") : "â€”"}
                       </td>
                       <td className="px-4 py-3">
-                        <DriverStatusPill active={r.active} docTag={r.docStatus.tag} />
+                        <DriverStatusPill active={r.active} docTag={toDocTag(r.docStatus?.tag)} />
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">{fmtDate(r.updated_at)}</td>
                     </tr>
@@ -310,4 +310,6 @@ export default function DriversListPage() {
     </>
   );
 }
+
+
 
