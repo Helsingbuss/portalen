@@ -6,12 +6,12 @@ import { signOfferToken } from "@/lib/offerJwt";
    Bas-URL helpers (exporteras)
 ============================ */
 export function baseUrl() {
-  // Din primära portal (admin)
+  // Admin/portal-bas
   const raw = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "");
   return raw || "http://localhost:3000";
 }
 export function customerBaseUrl() {
-  // Offentlig kunddomän (offertlänkar m.m.)
+  // Offentlig kunddomän för länkar till kunder
   const raw = (process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL || "").replace(/\/$/, "");
   return raw || baseUrl();
 }
@@ -134,19 +134,14 @@ async function sendViaResend({
 /* ============================
    OFFERT – kund + admin
 ============================ */
-/**
- * Skicka kund- och adminmejl för offertflödet.
- * - offerId: UUID används i länken (stabil och unik)
- * - offerNumber: HB25xxxx används i ämne och synlig text när den finns
- */
 export async function sendOfferMail(
   to: string,
   offerId: string,
   status: "inkommen" | "besvarad" | "godkand" | "makulerad",
   offerNumber?: string | null
 ) {
-  // signera länk (t=...) – standard-TTL sätts i offerJwt.ts
-  const token = signOfferToken(offerId);
+  // ✅ signOfferToken tar ett objekt: { offer_id, expMinutes? }
+  const token = signOfferToken({ offer_id: offerId }); // default-TTL i offerJwt.ts
 
   const CUSTOMER_BASE = customerBaseUrl();
   const ADMIN_BASE = baseUrl();
@@ -162,10 +157,8 @@ export async function sendOfferMail(
       subject = `Tack – vi har mottagit er offertförfrågan (${displayRef})`;
       html = renderLayout({
         title: "Offertförfrågan mottagen",
-        intro:
-          "Vi har tagit emot er förfrågan och återkommer med prisförslag och detaljer så snart vi kan.",
-        freeHtml:
-          `<p>Ni kan följa ärendet via länken nedan. Länken visar alltid den senaste informationen.</p>`,
+        intro: "Vi har tagit emot er förfrågan och återkommer med prisförslag och detaljer så snart vi kan.",
+        freeHtml: `<p>Ni kan följa ärendet via länken nedan. Länken visar alltid den senaste informationen.</p>`,
         rows: [{ label: "Offert-ID", value: displayRef }],
         cta: { label: `Visa er förfrågan (${displayRef})`, href: publicLink },
       });
@@ -185,8 +178,7 @@ export async function sendOfferMail(
       subject = `Tack – er offert är godkänd (${displayRef})`;
       html = renderLayout({
         title: "Offerten är godkänd",
-        intro:
-          "Tack! Vi skapar nu er bokning och återkommer med bokningsbekräftelse inom kort.",
+        intro: "Tack! Vi skapar nu er bokning och återkommer med bokningsbekräftelse inom kort.",
         rows: [{ label: "Offert-ID", value: displayRef }],
         cta: { label: "Visa offerten", href: publicLink },
       });
@@ -196,8 +188,7 @@ export async function sendOfferMail(
       subject = `Offert makulerad (${displayRef})`;
       html = renderLayout({
         title: "Offerten har makulerats",
-        intro:
-          "Er offert är inte längre aktiv. Behöver ni ett nytt förslag hjälper vi gärna till.",
+        intro: "Er offert är inte längre aktiv. Behöver ni ett nytt förslag hjälper vi gärna till.",
         rows: [{ label: "Offert-ID", value: displayRef }],
         cta: { label: "Kontakta oss", href: `${CUSTOMER_BASE}/kontakt` },
       });
