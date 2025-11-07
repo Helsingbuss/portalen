@@ -64,19 +64,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     (async () => {
       try {
         if (data?.customer_email) {
-          await sendBookingMail(
-  data.customer_email,
-  data.booking_number,
-  "created",
-  {
-    passengers: (data.passengers ?? null),
-    from: data.from,
-    to: data.to,
-    date: data.departure_date,
-    time: data.departure_time
-  }
-);
-        }
+          await sendBookingMail({
+  to: data.customer_email,
+  booking_number: data.booking_number,
+  event: "created",
+  passengers: data.passengers ?? null,
+
+  // ev. platta fält som kan komma från formulär
+  from:    (data.from ?? null) as string | null,
+  toPlace: (data.toPlace ?? null) as string | null,
+  date:    (data.date ?? null) as string | null,
+  time:    (data.time ?? null) as string | null,
+  notes:   (data.notes ?? null) as string | null,
+});}
       } catch (e) {
         console.warn("sendBookingMail failed:", (e as any)?.message || e);
       }
@@ -88,6 +88,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: e?.message || "Serverfel" });
   }
 }
+
 
 
 

@@ -1,2 +1,5 @@
-*.psd filter=lfs diff=lfs merge=lfs -text
-node_modules/@next/swc-win32-x64-msvc/next-swc.win32-x64-msvc.node filter=lfs diff=lfs merge=lfs -text
+﻿*.ts   text eol=lf working-tree-encoding=UTF-8
+*.tsx  text eol=lf working-tree-encoding=UTF-8
+*.js   text eol=lf working-tree-encoding=UTF-8
+*.json text eol=lf working-tree-encoding=UTF-8
+*.md   text eol=lf working-tree-encoding=UTF-8
