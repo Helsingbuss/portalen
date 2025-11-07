@@ -12,7 +12,7 @@
     });
 
     items.forEach((t) => {
-      // Länk: extern först, annars linkbase + id
+      // Länk: extern url → href → linkbase/id
       var href = t.external_url || t.href || ((linkbase || "/trip/").replace(/\/+$/, "/") + (t.id || ""));
 
       const card = document.createElement(href ? "a" : "div");
@@ -35,7 +35,7 @@
       card.addEventListener("mouseenter", () => (wrap.style.boxShadow = "0 3px 16px rgba(0,0,0,.1)"));
       card.addEventListener("mouseleave", () => (wrap.style.boxShadow = "0 1px 6px rgba(0,0,0,.06)"));
 
-      // Bild 600x390 (aspect ~ 65%)
+      // --- Bild 600x390 (aspect 65%) ---
       const fig = document.createElement("div");
       css(fig, { position: "relative", background: "#f3f4f6" });
       const ph = document.createElement("div");
@@ -47,22 +47,18 @@
         img.src = t.image;
         img.alt = t.title || "";
         css(img, {
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          display: "block",
+          position: "absolute", left: 0, top: 0, right: 0, bottom: 0,
+          width: "100%", height: "100%", objectFit: "cover", display: "block",
         });
         fig.appendChild(img);
       }
       wrap.appendChild(fig);
 
-      // Body
+      // --- Body ---
       const body = document.createElement("div");
       css(body, { padding: "14px" });
 
-      // Piller: land + år (badge kan vara null i ditt API, så vi skippar den när den saknas)
+      // Piller (kategori/land/år) – flera kategorier stöds
       const pills = document.createElement("div");
       css(pills, { display: "flex", gap: "8px", flexWrap: "wrap", fontSize: "12px" });
 
@@ -79,41 +75,51 @@
         });
         pills.appendChild(p);
       }
-      pill(t.country); // ex. "Sverige"
-      pill(t.year);    // ex. 2025
+
+      // kategorier: trip_kind + categories[] (unika)
+      const catSet = new Set();
+      if (t.trip_kind) catSet.add(t.trip_kind);
+      if (Array.isArray(t.categories)) for (const c of t.categories) if (c) catSet.add(c);
+      // land & år
+      if (t.country) pill(t.country);
+      if (t.year) pill(String(t.year));
+      // lägg kategorier sist (eller byt ordning om du vill)
+      for (const c of catSet) pill(c);
 
       if (pills.childNodes.length) body.appendChild(pills);
 
       // Titel
       const h = document.createElement("div");
       h.textContent = t.title || "";
-      css(h, {
-        marginTop: pills.childNodes.length ? "8px" : "0",
-        fontSize: "18px",
-        fontWeight: "700",
-        color: "#0f172a",
-      });
+      css(h, { marginTop: pills.childNodes.length ? "8px" : "0", fontSize: "18px", fontWeight: "700", color: "#0f172a" });
       body.appendChild(h);
 
-      // Kort om resan (subtitle)
+      // Undertitel
       if (t.subtitle) {
         const sub = document.createElement("div");
         sub.textContent = t.subtitle;
-        css(sub, { marginTop: "6px", color: "#0f172ab3", fontSize: "14px", lineHeight: "1.45" });
+        css(sub, { marginTop: "4px", color: "#0f172aB3", fontSize: "14px" });
         body.appendChild(sub);
       }
 
-      // Bottrad: Nästa avgång / Flera datum + pris-chip till höger
+      // Kort om resan (NYTT)
+      if (t.description) {
+        const desc = document.createElement("div");
+        desc.textContent = t.description;
+        css(desc, { marginTop: "6px", color: "#334155", fontSize: "14px", lineHeight: "1.45" });
+        body.appendChild(desc);
+      }
+
+      // Bottrad – “Nästa avgång / Flera datum” + pris-chip
       const foot = document.createElement("div");
       css(foot, { marginTop: "12px", display: "flex", alignItems: "center", justifyContent: "space-between" });
 
       const left = document.createElement("span");
       css(left, { fontSize: "13px", color: "#0f172a99" });
       if (t.next_date) {
-        // t.next_date kommer i ISO (YYYY-MM-DD) — visa som svenskt datum
-        const d = new Date(t.next_date + "T00:00:00");
-        const sv = isNaN(d.getTime()) ? t.next_date : d.toLocaleDateString("sv-SE", { year: "numeric", month: "short", day: "numeric" });
-        left.textContent = "Nästa avgång: " + sv;
+        // Visa i svensk form
+        const d = new Date(t.next_date + "T12:00:00"); // undvik TZ-strul
+        left.textContent = "Nästa avgång: " + d.toLocaleDateString("sv-SE", { day: "2-digit", month: "short", year: "numeric" });
       } else {
         left.textContent = "Flera datum";
       }

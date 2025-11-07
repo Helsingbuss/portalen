@@ -7,20 +7,23 @@ import DeparturesEditor, { DepartureRow } from "@/components/trips/DeparturesEdi
 
 type TripKind = "flerdagar" | "dagsresa" | "shopping";
 
+const CATEGORY_OPTIONS: TripKind[] = ["flerdagar", "dagsresa", "shopping"];
+
 type Form = {
   title: string;
   subtitle: string;
-  trip_kind: TripKind;
+  trip_kind: TripKind;        // primär kategori
+  categories: TripKind[];     // extra kategorier (flera)
   badge: string;
   ribbon: string;
   city: string;
   country: string;
-  price_from: string;   // skrivs om till number/null vid submit
-  hero_image: string;   // public url
+  price_from: string;         // skrivs om till number/null vid submit
+  hero_image: string;         // public url
   published: boolean;
   external_url?: string;
-  year?: number;        // 2025–2027
-  summary?: string;     // kort om resan
+  year?: number;              // 2025–2027
+  summary?: string;           // kort om resan
 };
 
 type LineStop = { name: string; time?: string };
@@ -89,7 +92,7 @@ function LinesEditor({
   return (
     <div className="space-y-4">
       {lines.length === 0 && (
-        <div className="text-sm text-gray-500 border rounded-xl p-3">Inga linjer tillagda ännu.</div>
+        <div className="text-sm text-gray-500 border rounded-xl p-3">Inga hållplatser ännu.</div>
       )}
 
       <div className="flex justify-end">
@@ -178,6 +181,7 @@ export default function NewTripPage() {
     title: "",
     subtitle: "",
     trip_kind: "dagsresa",
+    categories: [],           // NYTT
     badge: "",
     ribbon: "",
     city: "",
@@ -198,6 +202,14 @@ export default function NewTripPage() {
 
   function upd<K extends keyof Form>(k: K, v: Form[K]) { setF((s) => ({ ...s, [k]: v })); }
   function safeJson<T = any>(text: string | null): T | null { if (!text) return null; try { return JSON.parse(text) as T; } catch { return null; } }
+
+  function toggleCategory(cat: TripKind) {
+    setF((s) => {
+      const has = s.categories.includes(cat);
+      const next = has ? s.categories.filter(c => c !== cat) : [...s.categories, cat];
+      return { ...s, categories: next };
+    });
+  }
 
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const input = e.currentTarget;
@@ -234,6 +246,7 @@ export default function NewTripPage() {
         external_url: f.external_url?.trim() || null,
         year: f.year || null,
         summary: f.summary?.trim() || null,
+        categories: f.categories.length ? f.categories : null, // NYTT
         departures,
         lines,
       };
@@ -297,7 +310,14 @@ export default function NewTripPage() {
 
         <div className="p-4">
           <div className="flex flex-wrap gap-2 text-xs">
+            {/* primär kategori */}
             {f.trip_kind && <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{f.trip_kind}</span>}
+            {/* extra kategorier */}
+            {f.categories
+              .filter((c) => c !== f.trip_kind)
+              .map((c) => (
+                <span key={c} className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{c}</span>
+              ))}
             {f.country && <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{f.country}</span>}
             {f.year && <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{f.year}</span>}
           </div>
@@ -368,16 +388,17 @@ export default function NewTripPage() {
 
                 <div className="mt-4 grid md:grid-cols-2 gap-4">
                   <div>
-                    <FieldLabel>Kategori</FieldLabel>
+                    <FieldLabel>Primär kategori</FieldLabel>
                     <select
                       className="border rounded-xl px-3 py-2.5 w-full focus:outline-none focus:ring-2 focus:ring-[#194C66]/30"
                       value={f.trip_kind}
                       onChange={(e) => upd("trip_kind", e.target.value as Form["trip_kind"])}
                     >
-                      <option value="flerdagar">Flerdagar</option>
-                      <option value="dagsresa">Dagsresa</option>
-                      <option value="shopping">Shopping</option>
+                      {CATEGORY_OPTIONS.map((o) => (
+                        <option key={o} value={o}>{o}</option>
+                      ))}
                     </select>
+                    <Help>Denna visas alltid först på kortet.</Help>
                   </div>
                   <div>
                     <FieldLabel>År</FieldLabel>
@@ -389,6 +410,23 @@ export default function NewTripPage() {
                       {[2025, 2026, 2027].map((y) => (<option value={y} key={y}>{y}</option>))}
                     </select>
                   </div>
+                </div>
+
+                <div className="mt-4">
+                  <FieldLabel>Fler kategorier (valfritt)</FieldLabel>
+                  <div className="flex flex-wrap gap-3">
+                    {CATEGORY_OPTIONS.map((cat) => (
+                      <label key={cat} className="inline-flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={f.categories.includes(cat)}
+                          onChange={() => toggleCategory(cat)}
+                        />
+                        <span className="px-2 py-1 rounded-full bg-gray-100">{cat}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <Help>Kan kombineras (t.ex. <b>shopping</b> + <b>flerdagar</b>).</Help>
                 </div>
 
                 <div className="mt-4 grid md:grid-cols-3 gap-4">

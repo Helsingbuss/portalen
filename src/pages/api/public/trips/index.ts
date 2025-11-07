@@ -1,7 +1,6 @@
-// src/pages/api/public/trips/index.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
-const sb =
+const supabase =
   (admin as any).supabaseAdmin || (admin as any).supabase || (admin as any).default;
 
 function setCORS(res: NextApiResponse) {
@@ -11,79 +10,119 @@ function setCORS(res: NextApiResponse) {
   res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=300");
 }
 
+type TripRow = {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  // OBS: vi försöker båda namnen – ta det som finns i din DB:
+  summary?: string | null;        // “Kort om resan” (om du döpt fältet så)
+  description?: string | null;    // alternativt namn
+  hero_image: string | null;
+  ribbon: string | null;
+  badge: string | null;           // liten tag (valfritt)
+  trip_kind?: string | null;      // huvudsaklig kategori
+  tags?: string[] | null;         // flera kategorier (valfritt text[])
+  city: string | null;
+  country: string | null;
+  price_from: number | null;
+  year: number | null;
+  external_url: string | null;
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   setCORS(res);
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "GET") return res.status(405).json({ ok: false, error: "Method not allowed" });
 
-  const limit = Math.max(1, Math.min(50, Number(req.query.limit ?? 6)));
+  const limit = Math.max(1, Math.min(50, Number(req.query.limit) || 6));
 
   try {
-    // Hämta publicerade trips
-    const { data: trips, error: tripsErr } = await sb
+    // 1) Hämta publicerade resor
+    const { data, error } = await supabase
       .from("trips")
       .select(
         [
           "id",
           "title",
-          "subtitle",            // kort om resan
-          "hero_image",          // -> image
+          "subtitle",
+          "summary",        // om fältet finns
+          "description",    // fallback om du använt detta namn
+          "hero_image",
           "ribbon",
           "badge",
+          "trip_kind",
+          "tags",
           "city",
           "country",
           "price_from",
           "year",
           "external_url",
-          "published",
         ].join(",")
       )
       .eq("published", true)
       .order("created_at", { ascending: false })
       .limit(limit);
 
-    if (tripsErr) throw tripsErr;
+    if (error) throw error;
 
-    // Hämta nästa avgång per trip med COALESCE (behöver inte kolumnen "date")
-    const { data: depRows, error: depErr } = await sb
-      .from("trip_departures")
-      .select("trip_id, depart_date, departure_date, dep_date")
-      .in(
-        "trip_id",
-        trips.map((t: any) => t.id)
-      );
+    const ids = (data || []).map((r: TripRow) => r.id);
+    let nextDates: Record<string, string | null> = {};
 
-    if (depErr) throw depErr;
+    // 2) Hämta närmsta avgång per resa (kolumnen heter hos dig "date")
+    if (ids.length) {
+      const { data: dep, error: derr } = await supabase
+        .from("trip_departures")
+        .select("trip_id,date") // <= viktigt: 'date' matchar din tabell
+        .in("trip_id", ids)
+        .order("date", { ascending: true });
 
-    // Map trip_id -> minsta datum (nästa)
-    const nextMap = new Map<string, string | null>();
-    for (const r of depRows ?? []) {
-      const d: string | null =
-        r.depart_date || r.departure_date || r.dep_date || null;
-      if (!d) continue;
-      const prev = nextMap.get(r.trip_id);
-      if (!prev || d < prev) nextMap.set(r.trip_id, d);
+      if (derr) throw derr;
+
+      for (const row of dep || []) {
+        const tid = row.trip_id as string;
+        const d = row.date as string | null;
+        if (!d) continue;
+        if (!nextDates[tid]) nextDates[tid] = d; // första (tidigaste)
+      }
     }
 
-    // Forma svar för widgeten
-    const payload = (trips ?? []).map((t: any) => ({
-      id: t.id,
-      title: t.title,
-      subtitle: t.subtitle ?? null,                // <-- visas under titel
-      image: t.hero_image ?? null,
-      ribbon: t.ribbon ?? null,
-      badge: t.badge ?? null,
-      city: t.city ?? null,
-      country: t.country ?? null,
-      price_from: t.price_from ?? null,
-      year: t.year ?? null,                        // <-- piller "2025"
-      external_url: t.external_url ?? null,        // <-- widget-länk prioriterar denna
-      next_date: nextMap.get(t.id) ?? null,        // <-- "Nästa avgång: ..."
-    }));
+    // 3) Mappa till widget-format
+    const trips = (data || []).map((r: TripRow) => {
+      // beskrivning: summary → description → null
+      const description = (r.summary ?? r.description ?? null) as string | null;
 
-    return res.status(200).json({ ok: true, trips: payload });
+      // kategorier (piller): kombinera trip_kind + tags (unika, sanningsvärde)
+      const cats = [
+        r.trip_kind || "",
+        ...(Array.isArray(r.tags) ? r.tags : []),
+      ]
+        .map(s => (s || "").trim())
+        .filter(Boolean);
+
+      const uniqCats = Array.from(new Set(cats));
+
+      return {
+        id: r.id,
+        title: r.title,
+        subtitle: r.subtitle,
+        description,                 // <- NYCKELN som widgeten visar
+        image: r.hero_image,
+        ribbon: r.ribbon,
+        badge: r.badge,              // kvar om du använder den
+        trip_kind: r.trip_kind,      // huvudsaklig kategori
+        categories: uniqCats,        // flera kategorier
+        city: r.city,
+        country: r.country,
+        price_from: r.price_from,
+        year: r.year,
+        external_url: r.external_url,
+        next_date: nextDates[r.id] || null,
+      };
+    });
+
+    return res.status(200).json({ ok: true, trips });
   } catch (e: any) {
-    console.error("/api/public/trips", e?.message || e);
+    console.error("/api/public/trips error:", e?.message || e);
     return res.status(500).json({ ok: false, error: e?.message || "Server error" });
   }
 }
