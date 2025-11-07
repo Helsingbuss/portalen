@@ -22,7 +22,7 @@ export function customerBaseUrl() {
   return "http://localhost:3000";
 }// Lokal fallback
   return "http://localhost:3000";
-}const FROM = process.env.MAIL_FROM || "Helsingbuss <info@helsingbuss.se>";
+const FROM = process.env.MAIL_FROM || "Helsingbuss <info@helsingbuss.se>";
 const ADMIN_TO = process.env.MAIL_ADMIN || "offert@helsingbuss.se";
 const LOGO_ABS = `${baseUrl()}/mork_logo.png`;
 
@@ -320,6 +320,9 @@ export async function sendDriverOrderMail(
 
 
 export { sendViaResend as sendMail };
+
+
+
 
 
 
