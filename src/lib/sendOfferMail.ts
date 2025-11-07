@@ -1,6 +1,7 @@
 ﻿import { Resend } from "resend";
 import sg from "@sendgrid/mail";
 import nodemailer from "nodemailer";
+import { signOfferToken } from "@/lib/offerJwt"; // måste finnas enligt tidigare steg
 
 /** Inparametrar för utskick när en offert skapas */
 export type SendOfferParams = {
@@ -32,9 +33,25 @@ export type SendOfferParams = {
   notes?: string | null;
 };
 
-/** Välj avsändare och admin-adress från env */
-const FROM = process.env.MAIL_FROM || "Helsingbuss <no-reply@localhost>";
+/** Avsändare och admin från env */
+const FROM = process.env.MAIL_FROM || "Helsingbuss <no-reply@helsingbuss.se>";
 const ADMIN = process.env.ADMIN_ALERT_EMAIL || "";
+
+/** Bas-URL till kundportalen – ingen localhost i utskick */
+function customerBaseUrl() {
+  const url =
+    process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    "https://kund.helsingbuss.se";
+  return url.replace(/\/+$/, "");
+}
+
+/** Säkra kundlänken med kort JWT-token */
+function buildSecureOfferLink(offerId: string) {
+  // giltighet: 30 dagar (valfritt att justera)
+  const t = signOfferToken({ offer_id: offerId, expMinutes: 60 * 24 * 30 });
+  return `${customerBaseUrl()}/offert/${encodeURIComponent(offerId)}?t=${encodeURIComponent(t)}`;
+}
 
 /** === Leverantörsväljare (Resend → SendGrid → SMTP) === */
 function pickProvider() {
@@ -50,7 +67,7 @@ function pickProvider() {
   if (haveSendgrid) return "sendgrid" as const;
   if (haveSmtp) return "smtp" as const;
   throw new Error(
-    "Ingen mejlkonfiguration hittades. Sätt RESEND_API_KEY eller SENDGRID_API_KEY eller SMTP_* i .env.local."
+    "Ingen mejlkonfiguration hittades. Sätt RESEND_API_KEY eller SENDGRID_API_KEY eller SMTP_* i miljövariabler."
   );
 }
 
@@ -112,8 +129,7 @@ async function sendWithSMTP(args: {
   });
 }
 
-/** === Template helpers (svenska, samma tonläge som tidigare) === */
-
+/** === Template helpers (svenska) === */
 function safe(v?: string | null) {
   return (v ?? "").trim() || "—";
 }
@@ -141,7 +157,19 @@ function tripBlock(p: SendOfferParams) {
   return `<div>${first}</div>${ret}`;
 }
 
+function ctaButton(href: string, label: string) {
+  return `
+  <div style="margin:18px 0">
+    <a href="${href}" target="_blank" rel="noopener"
+       style="display:inline-block;padding:10px 16px;border-radius:999px;
+              background:#194C66;color:#fff;text-decoration:none;font-weight:600">
+      ${label}
+    </a>
+  </div>`;
+}
+
 function renderAdminHtml(p: SendOfferParams) {
+  const link = buildSecureOfferLink(p.offerId);
   return `
   <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#111">
     <h2 style="margin:0 0 8px 0">Ny offertförfrågan</h2>
@@ -155,13 +183,7 @@ function renderAdminHtml(p: SendOfferParams) {
     <div style="font-weight:600;margin-bottom:4px">Reseinformation</div>
     ${tripBlock(p)}
 
-    ${
-      p.notes
-        ? `<hr style="border:none;border-top:1px solid #eee;margin:12px 0" />
-           <div style="font-weight:600;margin-bottom:4px">Övrigt</div>
-           <div>${safe(p.notes)}</div>`
-        : ""
-    }
+    ${ctaButton(link, "Öppna offerten")}
 
     <hr style="border:none;border-top:1px solid #eee;margin:16px 0" />
     <div style="color:#6b7280;font-size:12px">
@@ -171,6 +193,7 @@ function renderAdminHtml(p: SendOfferParams) {
 }
 
 function renderCustomerHtml(p: SendOfferParams) {
+  const link = buildSecureOfferLink(p.offerId);
   return `
   <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#111">
     <h2 style="margin:0 0 8px 0">Tack! Vi har mottagit din offertförfrågan</h2>
@@ -181,11 +204,7 @@ function renderCustomerHtml(p: SendOfferParams) {
     <div style="font-weight:600;margin:12px 0 4px">Sammanfattning</div>
     ${tripBlock(p)}
 
-    ${
-      p.notes
-        ? `<div style="margin-top:8px"><b>Övrig information:</b><br/>${safe(p.notes)}</div>`
-        : ""
-    }
+    ${ctaButton(link, "Visa din offert")}
 
     <hr style="border:none;border-top:1px solid #eee;margin:16px 0" />
     <div style="color:#6b7280;font-size:12px">
@@ -195,6 +214,7 @@ function renderCustomerHtml(p: SendOfferParams) {
 }
 
 function renderText(p: SendOfferParams) {
+  const link = buildSecureOfferLink(p.offerId);
   const lines = [
     `Offert: ${p.offerNumber}`,
     `Beställare: ${p.customerName || "-"}`,
@@ -220,20 +240,19 @@ function renderText(p: SendOfferParams) {
       `Tid: ${p.return_time || "-"}`
     );
   }
-  if (p.notes) {
-    lines.push("", "Övrigt", p.notes);
-  }
+  lines.push("", `Visa offerten: ${link}`);
   return lines.join("\n");
 }
 
 /** Skicka två mejl: till admin och till kund (med fallback-kedja) */
 export async function sendOfferMail(p: SendOfferParams) {
   const provider = pickProvider();
-  const send = provider === "resend"
-    ? sendWithResend
-    : provider === "sendgrid"
-    ? sendWithSendgrid
-    : sendWithSMTP;
+  const send =
+    provider === "resend"
+      ? sendWithResend
+      : provider === "sendgrid"
+      ? sendWithSendgrid
+      : sendWithSMTP;
 
   const adminSubject = `Ny offertförfrågan ${p.offerNumber}`;
   const customerSubject = `Tack! Vi har mottagit din offertförfrågan (${p.offerNumber})`;
@@ -252,7 +271,7 @@ export async function sendOfferMail(p: SendOfferParams) {
     });
   }
 
-  // 2) Kund (skicka endast om kunden har giltig e-post)
+  // 2) Kund
   if (p.customerEmail && /\S+@\S+\.\S+/.test(p.customerEmail)) {
     await send({
       to: p.customerEmail,
