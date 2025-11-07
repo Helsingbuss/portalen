@@ -41,13 +41,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== "GET")
     return res.status(405).json({ ok: false, error: "Method not allowed" });
 
-  const limit = Math.max(1, Math.min(Number(req.query.limit ?? 6) || 6, 24));
+  const limitParam = Number(req.query.limit ?? 6);
+  const limit = Math.max(1, Math.min(isNaN(limitParam) ? 6 : limitParam, 24));
 
   try {
-    // 1) Fetch published trips
-    const { data: trips, error: tripsErr } = await supabase
+    // 1) Fetch published trips (no generic on .select to avoid “untyped call” error)
+    const { data: tripsRaw, error: tripsErr } = await supabase
       .from("trips")
-      .select<TripRow>(
+      .select(
         [
           "id",
           "title",
@@ -71,22 +72,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (tripsErr) throw tripsErr;
 
-    // 2) For each trip, compute next_date (tolerate multiple column names)
+    const trips = (tripsRaw ?? []) as TripRow[];
+
+    // 2) Compute next_date for each trip (tolerate multiple column names)
     const todayMidnight = new Date(new Date().toDateString());
 
     const out = [];
-    for (const t of trips ?? []) {
+    for (const t of trips) {
       let next_date: string | null = null;
 
-      const { data: depRows, error: depErr } = await supabase
+      const { data: depRowsRaw, error: depErr } = await supabase
         .from("trip_departures")
-        .select<DepRow>("depart_date, dep_date, date")
+        .select("depart_date, dep_date, date")
         .eq("trip_id", t.id);
 
-      if (!depErr && depRows && depRows.length > 0) {
+      if (!depErr && depRowsRaw && depRowsRaw.length > 0) {
+        const depRows = depRowsRaw as DepRow[];
         const dates: Date[] = depRows
           .map((r: DepRow) => r.depart_date || r.dep_date || r.date || null)
-          .filter(Boolean)
+          .filter((v: string | null): v is string => Boolean(v))
           .map((d: string) => new Date(d))
           .filter((d: Date) => !isNaN(d.getTime()) && d >= todayMidnight)
           .sort((a: Date, b: Date) => a.getTime() - b.getTime());
@@ -106,9 +110,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         price_from: t.price_from ?? null,
         year: t.year ?? null,
         external_url: t.external_url ?? null,
-        summary: t.summary ?? null,        // <- short description now included
-        trip_kind: t.trip_kind ?? null,    // <- primary category
-        categories: t.categories ?? null,  // <- optional extra categories
+        summary: t.summary ?? null,       // <- included
+        trip_kind: t.trip_kind ?? null,   // <- included
+        categories: t.categories ?? null, // <- included
         next_date,
       });
     }
@@ -116,7 +120,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ ok: true, trips: out });
   } catch (e: any) {
     console.error("/api/public/trips error:", e?.message || e);
-    // Keep widget from breaking hard: still return 200 with ok:false
     return res.status(200).json({ ok: false, error: e?.message || "Server error" });
   }
 }
