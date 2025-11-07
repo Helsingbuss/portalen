@@ -115,7 +115,7 @@ export default function AdminMenu() {
                 </Link>
               </li>
               <li>
-                <Link href="#" className={subLink}>
+                <Link href="/admin/trips" className={subLink}>
                   Lista över resor
                 </Link>
               </li>

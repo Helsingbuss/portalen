@@ -1,5 +1,5 @@
 // src/pages/admin/trips/new.tsx
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/router";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
@@ -224,6 +224,64 @@ export default function NewTripPage() {
   function upd<K extends keyof Form>(k: K, v: Form[K]) { setF((s) => ({ ...s, [k]: v })); }
   function safeJson<T = any>(text: string | null): T | null { if (!text) return null; try { return JSON.parse(text) as T; } catch { return null; } }
 
+  // Prefill om ?id= finns (inkl. badge → UI-fält)
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const id = url.searchParams.get("id");
+    if (!id) return;
+
+    (async () => {
+      try {
+        setBusy("save");
+        const r = await fetch(`/api/public/trips/${id}`);
+        const j = await r.json();
+        if (!r.ok || j.error) throw new Error(j.error || "Kunde inte läsa resa.");
+
+        const t = j.trip || j;
+
+        upd("title", t.title || "");
+        upd("subtitle", t.subtitle || "");
+        upd("trip_kind", (t.trip_kind || "dagsresa") as any);
+        upd("badge", t.badge || "");
+        upd("ribbon", t.ribbon || "");
+        upd("city", t.city || "");
+        upd("country", t.country || "");
+        upd("price_from", t.price_from != null ? String(t.price_from) : "");
+        upd("hero_image", t.hero_image || "");
+        upd("published", !!t.published);
+        upd("external_url", t.external_url || "");
+        upd("year", t.year || new Date().getFullYear());
+        upd("summary", t.summary || "");
+
+        // badge → UI
+        const spec = parseBadgeSpec(t.badge);
+        if (spec) {
+          setBadgeText(spec.text || "");
+          setBadgeBg(spec.bg || "");
+          setBadgeFg(spec.fg || "");
+        } else {
+          setBadgeText("");
+          setBadgeBg("");
+          setBadgeFg("");
+        }
+
+        // Departures (stöder både depart_date och date)
+        const deps: any[] = (t.departures || []).map((d: any) => ({
+          date: String(d.depart_date || d.date || "").slice(0,10),
+        }));
+        setDepartures(deps.filter(d => d.date));
+
+        // Lines om finns i trip
+        if (Array.isArray(t.lines)) setLines(t.lines);
+      } catch (e) {
+        console.warn("Prefill failed", e);
+      } finally {
+        setBusy(null);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const input = e.currentTarget;
     const file = input?.files?.[0];
@@ -278,6 +336,8 @@ export default function NewTripPage() {
       if (!payload.title) throw new Error("Ange titel.");
       if (!payload.hero_image) throw new Error("Ladda upp eller ange en bild.");
 
+      // OBS: denna post går till create (din befintliga rutt).
+      // Om du vill skilja på create/update kan vi lägga till /api/trips/update och växla här baserat på ?id=.
       const r = await fetch("/api/trips/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -357,26 +417,26 @@ export default function NewTripPage() {
             {f.year && <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{f.year}</span>}
           </div>
 
-          <div className="mt-2 text-lg font-semibold text-[#0f172a]">{f.title || "Titel"}</div>
-          <div className="text-sm text-[#0f172a]/70">{f.subtitle}</div>
-          {f.summary && <div className="mt-2 text-sm text-[#0f172a]/80">{f.summary}</div>}
+        <div className="mt-2 text-lg font-semibold text-[#0f172a]">{f.title || "Titel"}</div>
+        <div className="text-sm text-[#0f172a]/70">{f.subtitle}</div>
+        {f.summary && <div className="mt-2 text-sm text-[#0f172a]/80">{f.summary}</div>}
 
-          <div className="mt-3 flex items-center justify-between">
-            <div className="text-sm text-[#0f172a]/80">
-              {previewDatesText && <div>{previewDatesText}</div>}
-              {linesSummary && <div>{linesSummary}</div>}
-            </div>
-
-            {f.price_from && (
-              <div className="text-sm font-semibold px-3 py-2 bg-[#eef2f7] rounded-full whitespace-nowrap">
-                fr. {Number(f.price_from).toLocaleString("sv-SE")} kr
-              </div>
-            )}
+        <div className="mt-3 flex items-center justify-between">
+          <div className="text-sm text-[#0f172a]/80">
+            {previewDatesText && <div>{previewDatesText}</div>}
+            {linesSummary && <div>{linesSummary}</div>}
           </div>
 
-          {f.external_url && (
-            <div className="mt-2 text-xs text-[#0f172a]/60 truncate">Länk: {f.external_url}</div>
+          {f.price_from && (
+            <div className="text-sm font-semibold px-3 py-2 bg-[#eef2f7] rounded-full whitespace-nowrap">
+              fr. {Number(f.price_from).toLocaleString("sv-SE")} kr
+            </div>
           )}
+        </div>
+
+        {f.external_url && (
+          <div className="mt-2 text-xs text-[#0f172a]/60 truncate">Länk: {f.external_url}</div>
+        )}
         </div>
       </div>
     ),
