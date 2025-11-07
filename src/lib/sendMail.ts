@@ -20,6 +20,7 @@ export function customerBaseUrl() {
     return "https://kund.helsingbuss.se";
   }
   return "http://localhost:3000";
+}return "http://localhost:3000";
 }// Lokal fallback
   return "http://localhost:3000";
 const FROM = process.env.MAIL_FROM || "Helsingbuss <info@helsingbuss.se>";
@@ -320,6 +321,7 @@ export async function sendDriverOrderMail(
 
 
 export { sendViaResend as sendMail };
+
 
 
 
