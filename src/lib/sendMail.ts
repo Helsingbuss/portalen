@@ -1,41 +1,34 @@
 // src/lib/sendMail.ts
 import { Resend } from "resend";
-import { signOfferToken } from "@/lib/offerJwt";
+import { signOfferToken, getCustomerBaseUrl } from "@/lib/offerJwt";
 
 /* ============================
    Bas-URL helpers (exporteras)
 ============================ */
-export function publicBaseUrl() {
-  const v =
-    (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "") ||
-    "http://localhost:3000";
-  return v;
-}
-export function loginBaseUrl() {
-  const v =
-    (process.env.NEXT_PUBLIC_LOGIN_BASE_URL || "").replace(/\/$/, "") ||
-    publicBaseUrl();
-  return v;
-}
-export function customerBaseUrl() {
-  const v =
-    (process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL || "").replace(/\/$/, "") ||
-    publicBaseUrl();
-  return v;
+export const BASE =
+  (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "") ||
+  "http://localhost:3000";
+
+/** Publik bas-URL för kundportalen (kund.helsingbuss.se) */
+export function customerBaseUrl(): string {
+  try {
+    const v = getCustomerBaseUrl?.();
+    if (v) return v.replace(/\/$/, "");
+  } catch {}
+  // Fallback: miljövariabel eller BASE
+  const env =
+    (process.env.CUSTOMER_BASE_URL || process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL || "").replace(
+      /\/$/,
+      ""
+    );
+  return env || BASE;
 }
 
-/* ============================
-   ENV + klient
-============================ */
 const FROM = process.env.MAIL_FROM || "Helsingbuss <info@helsingbuss.se>";
 const ADMIN_TO = process.env.MAIL_ADMIN || "offert@helsingbuss.se";
+const LOGO_ABS = `${BASE}/mork_logo.png`;
 
-// logotyp hämtas från login-domänen (där din widget/asset bor)
-const LOGO_ABS = `${loginBaseUrl()}/mork_logo.png`;
-
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 /* ============================
    Hjälpare: layout + sändning
@@ -61,17 +54,16 @@ function renderLayout(opts: {
         <td style="padding:4px 0;color:#0f172a80;font-size:12px;width:42%">${escapeHtml(
           r.label
         )}</td>
-        <td style="padding:4px 0;color:#0f172a;font-size:14px">${escapeHtml(
-          r.value
-        )}</td>
+        <td style="padding:4px 0;color:#0f172a;font-size:14px">${escapeHtml(r.value)}</td>
       </tr>`
       )
       .join("") || "";
 
   const ctaHtml = opts.cta
-    ? `<a href="${opts.cta.href}" style="display:inline-block;background:#194C66;color:#fff;text-decoration:none;padding:10px 16px;border-radius:999px;font-size:14px;font-weight:600">${escapeHtml(
-        opts.cta.label
-      )}</a>`
+    ? `<a href="${opts.cta.href}" style="display:inline-block;background:#194C66;color:#fff;
+          text-decoration:none;padding:10px 16px;border-radius:999px;font-size:14px">${escapeHtml(
+            opts.cta.label
+          )}</a>`
     : "";
 
   const footerHtml = `
@@ -132,40 +124,41 @@ function renderLayout(opts: {
   </html>`;
 }
 
-/** Exporterad låg-nivå sändare som andra moduler redan importerar */
-export async function sendMail(args: {
+async function sendViaResend({
+  to,
+  subject,
+  html,
+  bcc,
+}: {
   to: string | string[];
   subject: string;
   html: string;
-  text?: string;
   bcc?: string | string[];
-  replyTo?: string | string[];
 }) {
   if (!resend) {
     console.warn("⚠️ Ingen RESEND_API_KEY – kör testläge.");
-    return { success: true, test: true, to: args.to, subject: args.subject };
+    return { success: true, test: true, to, subject };
   }
   await resend.emails.send({
     from: FROM,
-    to: args.to,
-    subject: args.subject,
-    html: args.html,
-    text: args.text,
-    bcc: args.bcc,
-    reply_to: args.replyTo,
+    to,
+    subject,
+    html,
+    bcc,
   });
   return { success: true };
 }
 
 /* ============================
-   OFFERT – E-post
+   OFFERT – kund + admin-mail
 ============================ */
 /**
  * Skicka kund- och adminmejl för offertflödet.
- * - offerId: UUID (stabil och unik)
- * - offerNumber: HB25xxxx (visas i ämne och innehåll)
- * Länk till kund: kund.helsingbuss.se + JWT (t=...)
- * Länk till admin: login.helsingbuss.se
+ * - offerId: UUID används i länken (stabil och unik)
+ * - offerNumber: HB25xxxx används i ämne och synlig text när den finns
+ *
+ * Publik länk går nu till kund.helsingbuss.se (eller env) och innehåller
+ * en signerad JWT-token i query (?t=...) för säker åtkomst.
  */
 export async function sendOfferMail(
   to: string,
@@ -173,14 +166,15 @@ export async function sendOfferMail(
   status: "inkommen" | "besvarad" | "godkand" | "makulerad",
   offerNumber?: string | null
 ) {
-  // signera länk (t=...) – giltig i 45 dagar om inget annat
-  const token = signOfferToken({ offer_id: offerId, expiresInDays: 45 });
-  const publicLink = `${customerBaseUrl()}/offert/${encodeURIComponent(
-    offerId
-  )}?t=${encodeURIComponent(token)}`;
-  const adminLink = `${loginBaseUrl()}/admin/offers/${encodeURIComponent(
-    offerId
+  // signera länk (t=...) – giltig i 45 dagar
+  const token = signOfferToken(offerId, 45);
+
+  const CUSTOMER_BASE = customerBaseUrl();
+  const publicLink = `${CUSTOMER_BASE}/offert/${encodeURIComponent(offerId)}?t=${encodeURIComponent(
+    token
   )}`;
+
+  const adminLink = `${BASE}/admin/offers/${offerId}`;
   const displayRef = offerNumber || offerId;
 
   let subject = "";
@@ -228,13 +222,13 @@ export async function sendOfferMail(
         intro:
           "Er offert är inte längre aktiv. Behöver ni ett nytt förslag hjälper vi gärna till.",
         rows: [{ label: "Offert-ID", value: displayRef }],
-        cta: { label: "Kontakta oss", href: `${customerBaseUrl()}/kontakt` },
+        cta: { label: "Kontakta oss", href: `${CUSTOMER_BASE}/kontakt` },
       });
       break;
   }
 
   // 1) Kund
-  await sendMail({ to, subject, html });
+  const r1 = await sendViaResend({ to, subject, html });
 
   // 2) Admin-notis (endast vid inkommen)
   if (status === "inkommen") {
@@ -249,23 +243,23 @@ export async function sendOfferMail(
       freeHtml: `<p><a href="${adminLink}">Öppna i Admin</a></p>`,
       cta: null,
     });
-    await sendMail({
+    await sendViaResend({
       to: ADMIN_TO,
       subject: `📩 Ny offertförfrågan (${displayRef}) – ${to}`,
       html: adminHtml,
     });
   }
 
-  return { ok: true as const };
+  return r1;
 }
 
 /* ============================
-   BOKNING – E-post
+   BOKNING – kundmail
 ============================ */
-export async function sendBookingMail(args: {
-  to: string;
-  bookingNumber: string; // BK25xxxx
-  mode: "created" | "updated";
+export async function sendBookingMail(
+  to: string,
+  bookingNumber: string, // BK25xxxx
+  mode: "created" | "updated",
   details?: {
     passengers?: number | null;
     from?: string | null;
@@ -273,14 +267,10 @@ export async function sendBookingMail(args: {
     date?: string | null;
     time?: string | null;
     freeTextHtml?: string; // valfri egen text
-  };
-}) {
-  const { to, bookingNumber, mode, details } = args;
-
+  }
+) {
   const displayRef = bookingNumber;
-  const link = `${customerBaseUrl()}/bokning/${encodeURIComponent(
-    bookingNumber
-  )}`;
+  const link = `${BASE}/booking/${encodeURIComponent(bookingNumber)}`;
 
   const rows: Array<{ label: string; value: string }> = [
     { label: "Ordernummer (Boknings ID)", value: displayRef },
@@ -310,15 +300,14 @@ export async function sendBookingMail(args: {
     cta: { label: `Visa bokningen (${displayRef})`, href: link },
   });
 
-  await sendMail({ to, subject, html });
-  return { ok: true as const };
+  return sendViaResend({ to, subject, html });
 }
 
 /* ============================
-   KÖRORDER – E-post
+   KÖRORDER – chaufförsmail
 ============================ */
-export async function sendDriverOrderMail(args: {
-  to: string; // chaufförens e-post
+export async function sendDriverOrderMail(
+  to: string, // chaufförens e-post
   payload: {
     driverName?: string | null;
     out: {
@@ -336,10 +325,8 @@ export async function sendDriverOrderMail(args: {
     contact?: { name?: string | null; phone?: string | null };
     vehicle?: { reg?: string | null };
     freeTextHtml?: string;
-  };
-}) {
-  const { to, payload } = args;
-
+  }
+) {
   const rows: Array<{ label: string; value: string }> = [];
 
   if (payload.out.date) rows.push({ label: "Utresa datum", value: payload.out.date });
@@ -365,6 +352,5 @@ export async function sendDriverOrderMail(args: {
     cta: null,
   });
 
-  await sendMail({ to, subject, html });
-  return { ok: true as const };
+  return sendViaResend({ to, subject, html });
 }

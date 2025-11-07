@@ -1,5 +1,6 @@
 // src/lib/offerJwt.ts
 import crypto from "crypto";
+import { signOfferToken, getCustomerBaseUrl } from "@/lib/offerJwt";
 
 // ---- Settings / helpers -----------------------------------------------------
 
