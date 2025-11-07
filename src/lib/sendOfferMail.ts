@@ -168,7 +168,7 @@ function ctaButton(href: string, label: string) {
   </div>`;
 }
 
-async async function renderAdminHtml(p: SendOfferParams): Promise<string> {
+async function renderAdminHtml(p: SendOfferParams): Promise<string> {
   const link = await buildSecureOfferLink(p.offerId);
   return `
   <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#111">
@@ -192,7 +192,7 @@ async async function renderAdminHtml(p: SendOfferParams): Promise<string> {
   </div>`;
 }
 
-async function renderCustomerHtml(p: SendOfferParams) {
+async function renderCustomerHtml(p: SendOfferParams): Promise<string> {
   const link = await buildSecureOfferLink(p.offerId);
   return `
   <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#111">
@@ -283,6 +283,7 @@ export async function sendOfferMail(p: SendOfferParams) {
 
   return { ok: true as const, provider };
 }
+
 
 
 
