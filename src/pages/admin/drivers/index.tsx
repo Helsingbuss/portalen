@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
-import DriverStatusPill from "@/components/drivers/DriverStatusPill";
+import DriverStatusPill, { toDocTag } from "@/components/drivers/DriverStatusPill";
 import Link from "next/link";
 
 type APIRow = {
