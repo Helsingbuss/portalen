@@ -1,36 +1,32 @@
 // src/pages/api/trips/upload-media.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import formidable from "formidable";
-import { createReadStream } from "fs";
 import path from "path";
 import crypto from "crypto";
+import { promises as fsp } from "fs";
 import supabase from "@/lib/supabaseAdmin";
 
 export const config = {
-  api: { bodyParser: false }, // viktigt för formidable
+  api: { bodyParser: false }, // nödvändigt för formidable
 };
 
 type ApiOk = { ok: true; file: { url: string; path: string } };
 type ApiErr = { ok: false; error: string };
 type ApiResp = ApiOk | ApiErr;
 
-// undvik "Fields"/"Files"-typerna från formidable v2/v3 – använd egna
 type FormFields = Record<string, any>;
 type FormFiles = Record<string, any>;
 
 function parseForm(req: NextApiRequest): Promise<{ fields: FormFields; files: FormFiles }> {
   const form = formidable({ multiples: false, maxFileSize: 10 * 1024 * 1024, keepExtensions: true });
   return new Promise((resolve, reject) => {
-    form.parse(req, (err: any, fields: FormFields, files: FormFiles) =>
-      err ? reject(err) : resolve({ fields, files })
-    );
+    form.parse(req, (err, fields, files) => (err ? reject(err) : resolve({ fields, files })));
   });
 }
 
 function extFromFilename(filename?: string) {
   if (!filename) return "";
-  const e = path.extname(filename).toLowerCase();
-  return e || "";
+  return path.extname(filename).toLowerCase() || "";
 }
 
 function ymd() {
@@ -46,30 +42,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   try {
     const { fields, files } = await parseForm(req);
 
-    // plocka ut första filen oavsett key
+    // plocka ut första filen (oavsett fältnamn)
     let firstFile: any | undefined;
     for (const key of Object.keys(files || {})) {
-      const val = (files as any)[key];
-      if (Array.isArray(val) && val.length > 0) { firstFile = val[0]; break; }
-      if (val && typeof val === "object" && val.filepath) { firstFile = val; break; }
+      const v: any = (files as any)[key];
+      if (Array.isArray(v) && v.length > 0) { firstFile = v[0]; break; }
+      if (v && typeof v === "object" && v.filepath) { firstFile = v; break; }
     }
-
-    if (!firstFile || !firstFile.filepath) {
+    if (!firstFile?.filepath) {
       return res.status(400).json({ ok: false, error: "Ingen fil mottagen" });
     }
 
     const kindRaw = Array.isArray(fields?.kind) ? fields.kind[0] : fields?.kind;
     const kind = (kindRaw || "cover") as string;
 
-    const ext = extFromFilename(firstFile.originalFilename as string | undefined);
+    const ext = extFromFilename(firstFile.originalFilename);
     const key = `${kind}/${ymd()}/${crypto.randomUUID()}${ext}`;
+    const bucket = "trip-media"; // ändra om du använder annat bucket-namn
 
-    const bucket = "trip-media"; // justera om ditt bucket-namn skiljer
-    const stream = createReadStream(firstFile.filepath);
+    // 🔧 Viktigt: läs filen som Buffer (inte stream) → inga duplex-problem i Node 18+
+    const fileBuf = await fsp.readFile(firstFile.filepath);
+    const contentType = firstFile.mimetype || undefined;
 
-    const { error: upErr } = await supabase.storage.from(bucket).upload(key, stream, {
+    const { error: upErr } = await supabase.storage.from(bucket).upload(key, fileBuf, {
       upsert: false,
-      contentType: firstFile.mimetype || undefined,
+      contentType,
     });
     if (upErr) {
       return res.status(500).json({ ok: false, error: `Upload failed: ${upErr.message}` });
