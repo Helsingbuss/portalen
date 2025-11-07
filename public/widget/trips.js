@@ -1,7 +1,6 @@
 // /public/widget/trips.js
 (function () {
   function $(sel) { return document.querySelector(sel); }
-
   function css(el, styles) { Object.assign(el.style, styles || {}); return el; }
 
   function renderTrips(el, items, cols, linkbase) {
@@ -14,100 +13,142 @@
     });
 
     items.forEach((t) => {
-      const card = document.createElement("a");
-      card.href = (linkbase || "/trip/") + t.id;
-      card.target = "_self";
-      card.rel = "noopener";
+      // ---- LÄNK: använd extern URL från admin om den finns ----
+      var href =
+        t.external_url || t.href || ((linkbase || "/trip/").replace(/\/+$/, "/") + (t.id || ""));
+
+      const card = document.createElement(href ? "a" : "div");
+      if (href) {
+        card.href = href;
+        card.target = "_self";
+        card.rel = "noopener";
+      }
       card.style.textDecoration = "none";
       card.style.color = "inherit";
 
       const wrap = document.createElement("div");
       css(wrap, {
         background: "#fff",
-        borderRadius: "12px",
-        boxShadow: "0 1px 6px rgba(0,0,0,.08)",
+        border: "1px solid #e5e7eb",
+        borderRadius: "16px",
+        boxShadow: "0 1px 6px rgba(0,0,0,.06)",
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
         height: "100%",
+        transition: "box-shadow .2s ease",
       });
+      card.addEventListener("mouseenter", () => wrap.style.boxShadow = "0 3px 16px rgba(0,0,0,.1)");
+      card.addEventListener("mouseleave", () => wrap.style.boxShadow = "0 1px 6px rgba(0,0,0,.06)");
 
-      // bild
+      // ---- Bild med 600x390-aspect ----
+      const fig = document.createElement("div");
+      css(fig, { position: "relative", background: "#f3f4f6" });
+      // aspect-ratio hack: 390/600 = 65%
+      const ph = document.createElement("div");
+      css(ph, { width: "100%", paddingTop: "65%" });
+      fig.appendChild(ph);
+
       if (t.image) {
-        const fig = document.createElement("div");
-        css(fig, { position: "relative" });
         const img = document.createElement("img");
         img.src = t.image;
         img.alt = t.title || "";
-        css(img, { width: "100%", height: "200px", objectFit: "cover", display: "block" });
+        css(img, {
+          position: "absolute",
+          left: 0, top: 0, right: 0, bottom: 0,
+          width: "100%", height: "100%", objectFit: "cover", display: "block"
+        });
         fig.appendChild(img);
-
-        // banderoll (röd sned)
-        if (t.ribbon && t.ribbon.text) {
-          const rb = document.createElement("div");
-          rb.textContent = t.ribbon.text;
-          css(rb, {
-            position: "absolute",
-            top: "16px",
-            left: "-40px",
-            transform: "rotate(-10deg)",
-            background: "#EF4444",
-            color: "#fff",
-            padding: "8px 28px",
-            fontWeight: "700",
-            borderRadius: "6px",
-            boxShadow: "0 2px 8px rgba(0,0,0,.15)",
-            letterSpacing: ".3px",
-          });
-          fig.appendChild(rb);
-        }
-        wrap.appendChild(fig);
       }
 
-      const body = document.createElement("div");
-      css(body, { padding: "14px 14px 16px 14px" });
+      // röd banderoll (valfri)
+      if (t.ribbon && (t.ribbon.text || typeof t.ribbon === "string")) {
+        const text = t.ribbon.text || t.ribbon;
+        const rb = document.createElement("div");
+        rb.textContent = text;
+        css(rb, {
+          position: "absolute",
+          top: "12px",
+          left: "12px",
+          transform: "rotate(-10deg)",
+          background: "#EF4444",
+          color: "#fff",
+          padding: "6px 14px",
+          fontWeight: "700",
+          fontSize: "13px",
+          borderRadius: "6px",
+          boxShadow: "0 2px 8px rgba(0,0,0,.15)",
+          letterSpacing: ".2px",
+        });
+        fig.appendChild(rb);
+      }
+      wrap.appendChild(fig);
 
-      if (t.badge) {
-        const badge = document.createElement("div");
-        badge.textContent = t.badge;
-        css(badge, {
-          display: "inline-block",
-          background: "#F1F5F9",
-          color: "#0F172A",
-          fontSize: "12px",
+      // ---- Body ----
+      const body = document.createElement("div");
+      css(body, { padding: "14px" });
+
+      // Piller-rad som i preview (badge/land/år)
+      const pills = document.createElement("div");
+      css(pills, { display: "flex", gap: "8px", flexWrap: "wrap", fontSize: "12px" });
+
+      function pill(txt) {
+        if (!txt) return;
+        const p = document.createElement("span");
+        p.textContent = txt;
+        css(p, {
+          background: "#f1f5f9",
+          color: "#334155",
+          padding: "4px 8px",
           borderRadius: "999px",
-          padding: "3px 10px",
-          marginBottom: "6px",
           fontWeight: "600",
         });
-        body.appendChild(badge);
+        pills.appendChild(p);
       }
+      pill(t.badge);
+      pill(t.country);
+      pill(t.year); // förutsätter att API skickar year (2025/2026/2027)
+      if (pills.childNodes.length) body.appendChild(pills);
 
+      // Titel och undertitel
       const h = document.createElement("div");
       h.textContent = t.title || "";
-      css(h, { fontSize: "18px", fontWeight: "700", color: "#194C66" });
+      css(h, { marginTop: pills.childNodes.length ? "8px" : "0", fontSize: "18px", fontWeight: "700", color: "#0f172a" });
       body.appendChild(h);
 
       if (t.subtitle) {
         const sub = document.createElement("div");
         sub.textContent = t.subtitle;
-        css(sub, { marginTop: "6px", color: "#0f172a99" });
+        css(sub, { marginTop: "4px", color: "#0f172aB3", fontSize: "14px" });
         body.appendChild(sub);
       }
 
-      if (t.city || t.country) {
-        const loc = document.createElement("div");
-        loc.textContent = [t.city, t.country].filter(Boolean).join(", ");
-        css(loc, { marginTop: "6px", fontSize: "13px", color: "#0f172a99" });
-        body.appendChild(loc);
-      }
+      // Bottrad: (vänster tom/valfritt) och pris-chip till höger
+      const foot = document.createElement("div");
+      css(foot, { marginTop: "12px", display: "flex", alignItems: "center", justifyContent: "space-between" });
+
+      // valfritt plats/datum
+      const left = document.createElement("span");
+      css(left, { fontSize: "13px", color: "#0f172a99" });
+      if (t.next_date) left.textContent = "Nästa avgång: " + t.next_date;
+      foot.appendChild(left);
 
       if (t.price_from != null) {
-        const price = document.createElement("div");
-        price.textContent = "fr. " + Number(t.price_from).toLocaleString("sv-SE") + ":-";
-        css(price, { marginTop: "10px", fontWeight: "700", color: "#A83248" });
-        body.appendChild(price);
+        const price = document.createElement("span");
+        // admin-stil: “fr. 295 kr”
+        price.textContent = "fr. " + Number(t.price_from).toLocaleString("sv-SE") + " kr";
+        css(price, {
+          padding: "6px 12px",
+          borderRadius: "999px",
+          background: "#eef2f7",
+          color: "#0f172a",
+          fontWeight: "700",
+          fontSize: "14px",
+          whiteSpace: "nowrap",
+        });
+        foot.appendChild(price);
       }
+      body.appendChild(foot);
 
       wrap.appendChild(body);
       card.appendChild(wrap);

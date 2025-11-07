@@ -8,13 +8,14 @@ export type TripCardProps = {
   title: string;
   subtitle?: string;
   image?: string | null;
-  ribbon?: string | null;                    // röd banderoll
-  badge?: "shopping" | "dagsresa" | "flerdagar" | string | null; // lilla etiketten
+  ribbon?: string | null; // röd banderoll (valfri)
+  badge?: "shopping" | "dagsresa" | "flerdagar" | string | null; // kategori-pille
   city?: string | null;
   country?: string | null;
+  year?: number | null;   // NYTT – för pillen "2025"
   price_from?: number | null;
-  next_date?: string | null;
-  href?: string;                             // valfri länk
+  next_date?: string | null; // valfritt, visas ej om du inte skickar
+  href?: string; // länk (extern/slug från admin)
 };
 
 function money(n?: number | null) {
@@ -23,10 +24,10 @@ function money(n?: number | null) {
     style: "currency",
     currency: "SEK",
     maximumFractionDigits: 0,
-  }).format(n);
+  }).format(n); // "295 kr"
 }
 
-/** Ett kort */
+/** Ett kort i samma stil som admin-preview */
 function TripCard({
   id,
   title,
@@ -36,16 +37,20 @@ function TripCard({
   badge,
   city,
   country,
+  year,
   price_from,
   next_date,
   href,
 }: TripCardProps) {
-  const content = (
-    <div className="bg-white rounded-2xl shadow overflow-hidden hover:shadow-md transition-shadow">
-      <div className="relative">
-        {/* Bild */}
-        <div className="aspect-[16/10] bg-gray-100">
-          {image ? (
+  const Wrapper: any = href ? Link : "div";
+  const wrapperProps = href ? { href, className: "block", "aria-label": title } : { className: "block" };
+
+  return (
+    <Wrapper key={id} {...wrapperProps}>
+      <article className="relative overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:shadow-md">
+        {/* Bild 600x390 */}
+        <div className="relative bg-[#f3f4f6] aspect-[600/390]">
+          {image && (
             <Image
               src={image}
               alt={title}
@@ -53,68 +58,55 @@ function TripCard({
               sizes="(min-width: 1024px) 33vw, 100vw"
               className="object-cover"
             />
-          ) : null}
-        </div>
+          )}
 
-        {/* Röd ribbon (kampanj) */}
-        {ribbon ? (
-          <div className="absolute left-0 top-6 -rotate-10">
-            <div className="bg-[#e74c3c] text-white text-sm font-semibold px-4 py-1 rounded-md shadow">
+          {/* Diagonal röd banderoll (valfri) */}
+          {ribbon && (
+            <div
+              className="absolute left-3 top-3 text-white text-sm font-semibold px-3 py-1 rounded-md"
+              style={{
+                background: "#ef4444",
+                transform: "rotate(-10deg)",
+                boxShadow: "0 2px 8px rgba(0,0,0,.15)",
+              }}
+            >
               {ribbon}
             </div>
-          </div>
-        ) : null}
-      </div>
-
-      {/* Innehåll */}
-      <div className="p-4">
-        {/* Liten badge över titel */}
-        <div className="flex items-center gap-2 mb-1">
-          {badge ? (
-            <span className="inline-block text-[11px] px-2 py-0.5 rounded-full bg-[#194C66]/10 text-[#194C66] font-medium">
-              {badge}
-            </span>
-          ) : null}
-          {(city || country) && (
-            <span className="text-xs text-slate-500">
-              {city ? `${city}, ` : ""}
-              {country ?? ""}
-            </span>
           )}
         </div>
 
-        <div className="text-lg font-semibold text-slate-900">{title}</div>
-        {subtitle ? (
-          <div className="text-sm text-slate-600 mt-1">{subtitle}</div>
-        ) : null}
+        {/* Innehåll */}
+        <div className="p-4">
+          {/* Piller som i preview */}
+          <div className="flex flex-wrap gap-2 text-xs">
+            {badge && <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{badge}</span>}
+            {country && <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{country}</span>}
+            {year && <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{year}</span>}
+          </div>
 
-        <div className="mt-4 flex items-end justify-between">
-          <div className="text-sm text-slate-600">
-            {next_date ? (
-              <>
-                Nästa avgång <span className="font-medium text-slate-800">{next_date}</span>
-              </>
-            ) : (
-              "Flera datum"
+          <div className="mt-2 text-lg font-semibold text-[#0f172a]">{title}</div>
+          {subtitle && <div className="text-sm text-[#0f172a]/70">{subtitle}</div>}
+
+          <div className="mt-3 flex items-center justify-between">
+            <div className="text-sm text-[#0f172a]/60">
+              {/* Visa nästa avgång om du skickar in ett formatert datum (valfritt) */}
+              {next_date ? <>Nästa avgång: <b>{next_date}</b></> : null}
+              {/* Om du vill visa stad också (valfritt) */}
+              {!next_date && city ? <>{city}</> : null}
+            </div>
+
+            {price_from != null && (
+              <span className="text-sm font-semibold px-3 py-2 bg-[#eef2f7] rounded-full whitespace-nowrap">
+                fr. {money(price_from)}
+              </span>
             )}
           </div>
-          {price_from != null && (
-            <div className="px-3 py-1.5 rounded-full bg-[#194C66] text-white text-sm font-semibold">
-              fr. {money(price_from)}
-            </div>
-          )}
         </div>
-      </div>
-    </div>
-  );
 
-  // Länkbar eller inte
-  return href ? (
-    <Link href={href} className="block" aria-label={title} key={id}>
-      {content}
-    </Link>
-  ) : (
-    <div key={id}>{content}</div>
+        {/* klick-overlay för bättre a11y */}
+        {href && <span className="absolute inset-0" aria-hidden />}
+      </article>
+    </Wrapper>
   );
 }
 
