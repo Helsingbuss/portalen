@@ -1,29 +1,24 @@
 // src/lib/sendMail.ts
 import { Resend } from "resend";
-import { signOfferToken, getCustomerBaseUrl } from "@/lib/offerJwt";
+import { signOfferToken } from "@/lib/offerJwt";
 
 /* ============================
    Bas-URL helpers (exporteras)
 ============================ */
-export const BASE =
-  (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "") ||
-  "http://localhost:3000";
-
-/** Publik bas-URL fÃ¶r kundportalen (kund.helsingbuss.se) */
-export function customerBaseUrl(): string {
-  try {
-    const v = getCustomerBaseUrl?.();
-    if (v) return v.replace(/\/$/, "");
-  } catch {}
-  // Fallback: miljÃ¶variabel eller BASE
-  const env =
-    (process.env.CUSTOMER_BASE_URL || process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL || "").replace(
-      /\/$/,
-      ""
-    );
-  return env || BASE;
+export function baseUrl() {
+  const raw = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "");
+  return raw || "http://localhost:3000";
+}
+export function customerBaseUrl() {
+  const raw = (process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL || "").replace(/\/$/, "");
+  // fallback till login/hemsida om kund-subdomänen saknas
+  return raw || baseUrl();
 }
 
+/* ============================
+   ENV + klient
+============================ */
+const BASE = baseUrl();
 const FROM = process.env.MAIL_FROM || "Helsingbuss <info@helsingbuss.se>";
 const ADMIN_TO = process.env.MAIL_ADMIN || "offert@helsingbuss.se";
 const LOGO_ABS = `${BASE}/mork_logo.png`;
@@ -31,7 +26,7 @@ const LOGO_ABS = `${BASE}/mork_logo.png`;
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 /* ============================
-   HjÃ¤lpare: layout + sÃ¤ndning
+   Hjälpare: layout + sändning
 ============================ */
 type CTA = { label: string; href: string } | null;
 
@@ -43,7 +38,7 @@ function renderLayout(opts: {
   title: string;
   intro?: string;
   rows?: Array<{ label: string; value: string }>;
-  freeHtml?: string; // valfritt extra innehÃ¥ll (din befintliga text)
+  freeHtml?: string;
   cta?: CTA;
 }) {
   const rowsHtml =
@@ -51,25 +46,22 @@ function renderLayout(opts: {
       .map(
         (r) => `
       <tr>
-        <td style="padding:4px 0;color:#0f172a80;font-size:12px;width:42%">${escapeHtml(
-          r.label
-        )}</td>
+        <td style="padding:4px 0;color:#0f172a80;font-size:12px;width:42%">${escapeHtml(r.label)}</td>
         <td style="padding:4px 0;color:#0f172a;font-size:14px">${escapeHtml(r.value)}</td>
       </tr>`
       )
       .join("") || "";
 
   const ctaHtml = opts.cta
-    ? `<a href="${opts.cta.href}" style="display:inline-block;background:#194C66;color:#fff;
-          text-decoration:none;padding:10px 16px;border-radius:999px;font-size:14px">${escapeHtml(
-            opts.cta.label
-          )}</a>`
+    ? `<a href="${opts.cta.href}" style="display:inline-block;background:#194C66;color:#fff;text-decoration:none;padding:10px 16px;border-radius:999px;font-size:14px">${escapeHtml(
+        opts.cta.label
+      )}</a>`
     : "";
 
   const footerHtml = `
-    FrÃ¥gor om din resa? Ring vÃ¥rt Kundteam vardagar 8â€“17:
-    <strong>010-405 38 38</strong> eller svara pÃ¥ detta mail.
-    Vid akuta trafikÃ¤renden utanfÃ¶r kontorstid: <strong>010-777 21 58</strong>.
+    Frågor om din resa? Ring vårt Kundteam vardagar 8–17:
+    <strong>010-405 38 38</strong> eller svara på detta mail.
+    Vid akuta trafikärenden utanför kontorstid: <strong>010-777 21 58</strong>.
   `;
 
   return `<!doctype html>
@@ -86,16 +78,8 @@ function renderLayout(opts: {
 
             <tr>
               <td style="background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-                <h1 style="margin:0 0 12px 0;font-size:20px;color:#0f172a">${escapeHtml(
-                  opts.title
-                )}</h1>
-                ${
-                  opts.intro
-                    ? `<p style="margin:0 0 12px 0;color:#0f172a80">${escapeHtml(
-                        opts.intro
-                      )}</p>`
-                    : ""
-                }
+                <h1 style="margin:0 0 12px 0;font-size:20px;color:#0f172a">${escapeHtml(opts.title)}</h1>
+                ${opts.intro ? `<p style="margin:0 0 12px 0;color:#0f172a80">${escapeHtml(opts.intro)}</p>` : ""}
 
                 ${
                   opts.freeHtml
@@ -136,29 +120,20 @@ async function sendViaResend({
   bcc?: string | string[];
 }) {
   if (!resend) {
-    console.warn("âš ï¸ Ingen RESEND_API_KEY â€“ kÃ¶r testlÃ¤ge.");
+    console.warn("⚠️ Ingen RESEND_API_KEY – testläge (ingen leverans).");
     return { success: true, test: true, to, subject };
   }
-  await resend.emails.send({
-    from: FROM,
-    to,
-    subject,
-    html,
-    bcc,
-  });
+  await resend.emails.send({ from: FROM, to, subject, html, bcc });
   return { success: true };
 }
 
 /* ============================
-   OFFERT â€“ kund + admin-mail
+   OFFERT – mejl
 ============================ */
 /**
- * Skicka kund- och adminmejl fÃ¶r offertflÃ¶det.
- * - offerId: UUID anvÃ¤nds i lÃ¤nken (stabil och unik)
- * - offerNumber: HB25xxxx anvÃ¤nds i Ã¤mne och synlig text nÃ¤r den finns
- *
- * Publik lÃ¤nk gÃ¥r nu till kund.helsingbuss.se (eller env) och innehÃ¥ller
- * en signerad JWT-token i query (?t=...) fÃ¶r sÃ¤ker Ã¥tkomst.
+ * Skicka kund- och adminmejl för offertflödet.
+ * - offerId: UUID (länkreferens)
+ * - offerNumber: HB25xxxx (visas i ämne om finns)
  */
 export async function sendOfferMail(
   to: string,
@@ -166,15 +141,12 @@ export async function sendOfferMail(
   status: "inkommen" | "besvarad" | "godkand" | "makulerad",
   offerNumber?: string | null
 ) {
-  // signera lÃ¤nk (t=...) â€“ giltig i 45 dagar
-  const token = signOfferToken({ offer_id: offerId, expiresInDays: 45 });
+  // signera länk (t=...) – giltig i 45 dagar
+  const token = signOfferToken(offerId, 45);
 
   const CUSTOMER_BASE = customerBaseUrl();
-  const publicLink = `${CUSTOMER_BASE}/offert/${encodeURIComponent(offerId)}?t=${encodeURIComponent(
-    token
-  )}`;
-
-  const adminLink = `${BASE}/admin/offers/${offerId}`;
+  const publicLink = `${CUSTOMER_BASE}/offert/${encodeURIComponent(offerId)}?t=${encodeURIComponent(token)}`;
+  const adminLink = `${BASE}/admin/offers/${encodeURIComponent(offerId)}`;
   const displayRef = offerNumber || offerId;
 
   let subject = "";
@@ -182,34 +154,31 @@ export async function sendOfferMail(
 
   switch (status) {
     case "inkommen":
-      subject = `Tack â€“ vi har mottagit er offertfÃ¶rfrÃ¥gan (${displayRef})`;
+      subject = `Tack – vi har mottagit er offertförfrågan (${displayRef})`;
       html = renderLayout({
-        title: "OffertfÃ¶rfrÃ¥gan mottagen",
-        intro:
-          "Vi har tagit emot er fÃ¶rfrÃ¥gan och Ã¥terkommer med prisfÃ¶rslag och detaljer sÃ¥ snart vi kan.",
-        freeHtml:
-          `<p>Ni kan fÃ¶lja Ã¤rendet via lÃ¤nken nedan. LÃ¤nken visar alltid den senaste informationen.</p>`,
+        title: "Offertförfrågan mottagen",
+        intro: "Vi har tagit emot er förfrågan och återkommer med prisförslag och detaljer så snart vi kan.",
+        freeHtml: `<p>Ni kan följa ärendet via länken nedan. Länken visar alltid den senaste informationen.</p>`,
         rows: [{ label: "Offert-ID", value: displayRef }],
-        cta: { label: `Visa er fÃ¶rfrÃ¥gan (${displayRef})`, href: publicLink },
+        cta: { label: `Visa er förfrågan (${displayRef})`, href: publicLink },
       });
       break;
 
     case "besvarad":
-      subject = `Er offert Ã¤r klar (${displayRef})`;
+      subject = `Er offert är klar (${displayRef})`;
       html = renderLayout({
         title: "Er offert",
-        intro: "Nu Ã¤r ert prisfÃ¶rslag klart. Klicka nedan fÃ¶r att granska och svara.",
+        intro: "Nu är ert prisförslag klart. Klicka nedan för att granska och svara.",
         rows: [{ label: "Offert-ID", value: displayRef }],
-        cta: { label: `Ã–ppna offerten (${displayRef})`, href: publicLink },
+        cta: { label: `Öppna offerten (${displayRef})`, href: publicLink },
       });
       break;
 
     case "godkand":
-      subject = `Tack â€“ er offert Ã¤r godkÃ¤nd (${displayRef})`;
+      subject = `Tack – er offert är godkänd (${displayRef})`;
       html = renderLayout({
-        title: "Offerten Ã¤r godkÃ¤nd",
-        intro:
-          "Tack! Vi skapar nu er bokning och Ã¥terkommer med bokningsbekrÃ¤ftelse inom kort.",
+        title: "Offerten är godkänd",
+        intro: "Tack! Vi skapar nu er bokning och återkommer med bokningsbekräftelse inom kort.",
         rows: [{ label: "Offert-ID", value: displayRef }],
         cta: { label: "Visa offerten", href: publicLink },
       });
@@ -219,10 +188,9 @@ export async function sendOfferMail(
       subject = `Offert makulerad (${displayRef})`;
       html = renderLayout({
         title: "Offerten har makulerats",
-        intro:
-          "Er offert Ã¤r inte lÃ¤ngre aktiv. BehÃ¶ver ni ett nytt fÃ¶rslag hjÃ¤lper vi gÃ¤rna till.",
+        intro: "Er offert är inte längre aktiv. Behöver ni ett nytt förslag hjälper vi gärna till.",
         rows: [{ label: "Offert-ID", value: displayRef }],
-        cta: { label: "Kontakta oss", href: `${CUSTOMER_BASE}/kontakt` },
+        cta: { label: "Kontakta oss", href: `${BASE}/kontakt` },
       });
       break;
   }
@@ -233,19 +201,19 @@ export async function sendOfferMail(
   // 2) Admin-notis (endast vid inkommen)
   if (status === "inkommen") {
     const adminHtml = renderLayout({
-      title: "Ny offertfÃ¶rfrÃ¥gan",
+      title: "Ny offertförfrågan",
       intro: "En ny offert har inkommit via hemsidan.",
       rows: [
         { label: "Offert-ID", value: displayRef },
         { label: "Kundens e-post", value: to },
-        { label: "AdminlÃ¤nk", value: adminLink },
+        { label: "Adminlänk", value: adminLink },
       ],
-      freeHtml: `<p><a href="${adminLink}">Ã–ppna i Admin</a></p>`,
+      freeHtml: `<p><a href="${adminLink}">Öppna i Admin</a></p>`,
       cta: null,
     });
     await sendViaResend({
       to: ADMIN_TO,
-      subject: `ðŸ“© Ny offertfÃ¶rfrÃ¥gan (${displayRef}) â€“ ${to}`,
+      subject: `📩 Ny offertförfrågan (${displayRef}) – ${to}`,
       html: adminHtml,
     });
   }
@@ -254,7 +222,7 @@ export async function sendOfferMail(
 }
 
 /* ============================
-   BOKNING â€“ kundmail
+   BOKNING – mejl
 ============================ */
 export async function sendBookingMail(
   to: string,
@@ -266,35 +234,34 @@ export async function sendBookingMail(
     to?: string | null;
     date?: string | null;
     time?: string | null;
-    freeTextHtml?: string; // valfri egen text
+    freeTextHtml?: string;
   }
 ) {
   const displayRef = bookingNumber;
-  const link = `${BASE}/booking/${encodeURIComponent(bookingNumber)}`;
+  const link = `${customerBaseUrl()}/booking/${encodeURIComponent(bookingNumber)}`;
 
   const rows: Array<{ label: string; value: string }> = [
     { label: "Ordernummer (Boknings ID)", value: displayRef },
   ];
-  if (details?.passengers)
-    rows.push({ label: "Passagerare", value: String(details.passengers) });
-  if (details?.from) rows.push({ label: "FrÃ¥n", value: details.from });
+  if (details?.passengers) rows.push({ label: "Passagerare", value: String(details.passengers) });
+  if (details?.from) rows.push({ label: "Från", value: details.from });
   if (details?.to) rows.push({ label: "Till", value: details.to });
   if (details?.date) rows.push({ label: "Datum", value: details.date });
   if (details?.time) rows.push({ label: "Tid", value: details.time });
 
   const baseText =
     details?.freeTextHtml ??
-    `<p>VÃ¤nligen klicka pÃ¥ knappen fÃ¶r att se vad som har registrerats.
-      Fakturan skickas efter utfÃ¶rt uppdrag. Kontrollera gÃ¤rna att allt stÃ¤mmer.</p>`;
+    `<p>Vänligen klicka på knappen för att se vad som har registrerats.
+      Fakturan skickas efter utfört uppdrag. Kontrollera gärna att allt stämmer.</p>`;
 
   const subject =
     mode === "created"
-      ? `BokningsbekrÃ¤ftelse (${displayRef})`
-      : `Uppdatering â€“ Bokning ${displayRef}`;
+      ? `Bokningsbekräftelse (${displayRef})`
+      : `Uppdatering – Bokning ${displayRef}`;
 
   const html = renderLayout({
-    title: mode === "created" ? "BokningsbekrÃ¤ftelse" : "Uppdatering av bokning",
-    intro: mode === "created" ? "Tack fÃ¶r er bokning!" : "Vi har uppdaterat er bokning.",
+    title: mode === "created" ? "Bokningsbekräftelse" : "Uppdatering av bokning",
+    intro: mode === "created" ? "Tack för er bokning!" : "Vi har uppdaterat er bokning.",
     rows,
     freeHtml: baseText,
     cta: { label: `Visa bokningen (${displayRef})`, href: link },
@@ -304,24 +271,14 @@ export async function sendBookingMail(
 }
 
 /* ============================
-   KÃ–RORDER â€“ chauffÃ¶rsmail
+   KÖRORDER – mejl
 ============================ */
 export async function sendDriverOrderMail(
-  to: string, // chauffÃ¶rens e-post
+  to: string,
   payload: {
     driverName?: string | null;
-    out: {
-      date?: string | null;
-      time?: string | null;
-      from?: string | null;
-      to?: string | null;
-    };
-    ret?: {
-      date?: string | null;
-      time?: string | null;
-      from?: string | null;
-      to?: string | null;
-    };
+    out: { date?: string | null; time?: string | null; from?: string | null; to?: string | null };
+    ret?: { date?: string | null; time?: string | null; from?: string | null; to?: string | null };
     contact?: { name?: string | null; phone?: string | null };
     vehicle?: { reg?: string | null };
     freeTextHtml?: string;
@@ -331,22 +288,22 @@ export async function sendDriverOrderMail(
 
   if (payload.out.date) rows.push({ label: "Utresa datum", value: payload.out.date });
   if (payload.out.time) rows.push({ label: "Utresa tid", value: payload.out.time });
-  if (payload.out.from) rows.push({ label: "Utresa frÃ¥n", value: payload.out.from });
+  if (payload.out.from) rows.push({ label: "Utresa från", value: payload.out.from });
   if (payload.out.to) rows.push({ label: "Utresa till", value: payload.out.to });
 
   if (payload.ret?.date) rows.push({ label: "Retur datum", value: payload.ret.date });
   if (payload.ret?.time) rows.push({ label: "Retur tid", value: payload.ret.time });
-  if (payload.ret?.from) rows.push({ label: "Retur frÃ¥n", value: payload.ret.from });
+  if (payload.ret?.from) rows.push({ label: "Retur från", value: payload.ret.from });
   if (payload.ret?.to) rows.push({ label: "Retur till", value: payload.ret.to });
 
-  if (payload.contact?.name) rows.push({ label: "Kontakt pÃ¥ plats", value: payload.contact.name });
+  if (payload.contact?.name) rows.push({ label: "Kontakt på plats", value: payload.contact.name });
   if (payload.contact?.phone) rows.push({ label: "Telefon", value: payload.contact.phone });
   if (payload.vehicle?.reg) rows.push({ label: "Fordon", value: payload.vehicle.reg });
 
-  const subject = `KÃ¶rorder${payload.driverName ? ` â€“ ${payload.driverName}` : ""}`;
+  const subject = `Körorder${payload.driverName ? ` – ${payload.driverName}` : ""}`;
   const html = renderLayout({
     title: subject,
-    intro: "HÃ¤r Ã¤r uppdraget. VÃ¤nligen bekrÃ¤fta om nÃ¥got inte stÃ¤mmer.",
+    intro: "Här är uppdraget. Vänligen bekräfta om något inte stämmer.",
     rows,
     freeHtml: payload.freeTextHtml,
     cta: null,
