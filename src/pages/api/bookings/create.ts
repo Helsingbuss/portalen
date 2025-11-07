@@ -65,7 +65,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (data?.customer_email) {
           await sendBookingMail({
             to: data.customer_email,
-            bookingNumber: data.booking_number,       // mappa DB booking_number -> bookingNumber
+            bookingNumber: data.booking_number,       // DB: booking_number -> typ: bookingNumber
             passengers: data.passengers ?? null,
 
             // Mappning från dina fält i tabellen
@@ -73,7 +73,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             toPlace: (data.destination ?? null) as string | null,
             date:    (data.departure_date ?? null) as string | null,
             time:    (data.departure_time ?? null) as string | null,
-            notes:   (data.notes ?? null) as string | null,
+            // ❌ notes tas bort här – stöds inte av typen SendBookingParams
           });
         }
       } catch (e) {
