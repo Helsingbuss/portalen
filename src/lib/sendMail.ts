@@ -19,7 +19,9 @@ export function customerBaseUrl() {
   if (process.env.VERCEL_ENV === "production") {
     return "https://kund.helsingbuss.se";
   }
+  // Lokal fallback
   return "http://localhost:3000";
+}return "http://localhost:3000";
 }return "http://localhost:3000";
 }// Lokal fallback
   return "http://localhost:3000";
@@ -321,6 +323,7 @@ export async function sendDriverOrderMail(
 
 
 export { sendViaResend as sendMail };
+
 
 
 

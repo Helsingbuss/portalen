@@ -91,11 +91,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           : dd < 0
           ? { tag: "utgånget", days: dd }
           : dd <= 30
-          ? { tag: "snart (≤30d)", days: dd }
+          ? { tag: "snart (<=30d)", days: dd }
           : dd <= 60
-          ? { tag: "snart (≤60d)", days: dd }
+          ? { tag: "snart (<=60d)", days: dd }
           : dd <= 90
-          ? { tag: "snart (≤90d)", days: dd }
+          ? { tag: "snart (<=90d)", days: dd }
           : { tag: "ok", days: dd };
 
       const first = d.first_name ?? null;
@@ -131,3 +131,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: "Kunde inte hämta chaufförer" });
   }
 }
+

@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import Header from "@/components/Header";
 import AdminMenu from "@/components/AdminMenu";
 
 type DocStatus = { tag: string; days: number };
 type DriverRow = {
   id: string;
-  // nya fält från API – används före 'name'
+  // nya fÃ¤lt frÃ¥n API â€“ anvÃ¤nds fÃ¶re 'name'
   first_name?: string | null;
   last_name?: string | null;
 
-  name?: string; // kvar för kompatibilitet
+  name?: string; // kvar fÃ¶r kompatibilitet
   phone: string;
   email: string;
   license_classes: string[];
@@ -26,7 +26,7 @@ type ApiResponse = {
 };
 
 function clsBadge(list: string[]) {
-  if (!list?.length) return "—";
+  if (!list?.length) return "â€”";
   return list.join(", ");
 }
 
@@ -34,11 +34,11 @@ function tagClass(tag: string) {
   switch (tag) {
     case "ok":
       return "bg-green-50 text-green-700 border border-green-200";
-    case "snart (≤30d)":
+    case "snart (â‰¤30d)":
       return "bg-yellow-50 text-yellow-700 border border-yellow-200";
-    case "snart (≤60d)":
+    case "snart (â‰¤60d)":
       return "bg-amber-50 text-amber-700 border border-amber-200";
-    case "snart (≤90d)":
+    case "snart (â‰¤90d)":
       return "bg-orange-50 text-orange-700 border border-orange-200";
     case "utgånget":
       return "bg-red-50 text-red-700 border border-red-200";
@@ -84,14 +84,14 @@ export default function AdminDriversListPage() {
         setLoading(true);
         setError(null);
         const res = await fetch(queryUrl);
-        if (!res.ok) throw new Error(`Kunde inte hämta chaufförer (${res.status})`);
+        if (!res.ok) throw new Error(`Kunde inte hÃ¤mta chauffÃ¶rer (${res.status})`);
         const j: ApiResponse = await res.json();
         if (abort) return;
         setRows(j.rows || []);
         setTotal(j.total || 0);
       } catch (e: any) {
         if (!abort) {
-          setError(e?.message || "Kunde inte hämta chaufförer");
+          setError(e?.message || "Kunde inte hÃ¤mta chauffÃ¶rer");
           setRows([]);
           setTotal(0);
         }
@@ -106,7 +106,7 @@ export default function AdminDriversListPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  // Reset page när filter ändras
+  // Reset page nÃ¤r filter Ã¤ndras
   useEffect(() => {
     setPage(1);
   }, [search, status, cls, expSoon]);
@@ -118,14 +118,14 @@ export default function AdminDriversListPage() {
         <Header />
         <main className="p-6 space-y-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-semibold text-[#194C66]">Chaufförer</h1>
+            <h1 className="text-xl font-semibold text-[#194C66]">ChauffÃ¶rer</h1>
           </div>
 
           {/* Filterkort */}
           <div className="bg-white rounded-xl shadow p-4">
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div>
-                <label className="block text-sm text-[#194C66]/80 mb-1">Sök</label>
+                <label className="block text-sm text-[#194C66]/80 mb-1">SÃ¶k</label>
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -148,7 +148,7 @@ export default function AdminDriversListPage() {
               </div>
 
               <div>
-                <label className="block text-sm text-[#194C66]/80 mb-1">Körkortsklass</label>
+                <label className="block text-sm text-[#194C66]/80 mb-1">KÃ¶rkortsklass</label>
                 <input
                   value={cls}
                   onChange={(e) => setCls(e.target.value)}
@@ -158,16 +158,16 @@ export default function AdminDriversListPage() {
               </div>
 
               <div>
-                <label className="block text-sm text-[#194C66]/80 mb-1">Dokument går ut</label>
+                <label className="block text-sm text-[#194C66]/80 mb-1">Dokument gÃ¥r ut</label>
                 <select
                   value={String(expSoon)}
                   onChange={(e) => setExpSoon(Number(e.target.value) as 0 | 30 | 60 | 90)}
                   className="w-full border rounded px-3 py-2 bg-white"
                 >
                   <option value="0">Alla</option>
-                  <option value="30">≤ 30 dagar</option>
-                  <option value="60">≤ 60 dagar</option>
-                  <option value="90">≤ 90 dagar</option>
+                  <option value="30">â‰¤ 30 dagar</option>
+                  <option value="60">â‰¤ 60 dagar</option>
+                  <option value="90">â‰¤ 90 dagar</option>
                 </select>
               </div>
 
@@ -189,7 +189,7 @@ export default function AdminDriversListPage() {
 
           {/* Lista */}
           <div className="bg-white rounded-xl shadow p-4">
-            {loading && <div className="text-[#194C66]/70">Laddar…</div>}
+            {loading && <div className="text-[#194C66]/70">Laddarâ€¦</div>}
             {!loading && error && (
               <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 p-3 text-sm">
                 {error}
@@ -205,7 +205,7 @@ export default function AdminDriversListPage() {
                         <th className="text-left px-3 py-2">Namn</th>
                         <th className="text-left px-3 py-2">Telefon</th>
                         <th className="text-left px-3 py-2">E-post</th>
-                        <th className="text-left px-3 py-2">Körkort</th>
+                        <th className="text-left px-3 py-2">KÃ¶rkort</th>
                         <th className="text-left px-3 py-2">Status</th>
                         <th className="text-left px-3 py-2">Dokument</th>
                         <th className="text-left px-3 py-2">Uppdaterad</th>
@@ -216,7 +216,7 @@ export default function AdminDriversListPage() {
                       {rows.length === 0 && (
                         <tr>
                           <td className="px-3 py-4 text-[#194C66]/60" colSpan={8}>
-                            Inga träffar.
+                            Inga trÃ¤ffar.
                           </td>
                         </tr>
                       )}
@@ -224,7 +224,7 @@ export default function AdminDriversListPage() {
                         const prettyName =
                           (r.first_name || r.last_name)
                             ? `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim()
-                            : (r.name && r.name !== "—" ? r.name : "(Namn saknas)");
+                            : (r.name && r.name !== "â€”" ? r.name : "(Namn saknas)");
 
                         return (
                           <tr key={r.id} className="border-b">
@@ -255,11 +255,11 @@ export default function AdminDriversListPage() {
                               </span>
                             </td>
                             <td className="px-3 py-2">
-                              {r.updated_at ? new Date(r.updated_at).toLocaleDateString() : "—"}
+                              {r.updated_at ? new Date(r.updated_at).toLocaleDateString() : "â€”"}
                             </td>
                             <td className="px-3 py-2">
                               <a href={`/admin/drivers/${r.id}`} className="text-[#194C66] underline">
-                                Öppna
+                                Ã–ppna
                               </a>
                             </td>
                           </tr>
@@ -280,14 +280,14 @@ export default function AdminDriversListPage() {
                       disabled={page <= 1}
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
                     >
-                      Föregående
+                      FÃ¶regÃ¥ende
                     </button>
                     <button
                       className="px-3 py-2 rounded-[25px] border text-sm text-[#194C66] disabled:opacity-50"
                       disabled={page >= totalPages}
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     >
-                      Nästa
+                      NÃ¤sta
                     </button>
                   </div>
                 </div>
@@ -300,7 +300,8 @@ export default function AdminDriversListPage() {
   );
 }
 
-// Tvinga SSR (hindrar SSG/”window undefined” under build)
+// Tvinga SSR (hindrar SSG/â€window undefinedâ€ under build)
 export async function getServerSideProps() {
   return { props: {} };
 }
+

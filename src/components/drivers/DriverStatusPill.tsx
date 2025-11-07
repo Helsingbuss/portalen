@@ -4,7 +4,7 @@ export default function DriverStatusPill({
   docTag,
 }: {
   active: boolean;
-  docTag: "ok" | "snart (â‰¤30d)" | "snart (â‰¤60d)" | "snart (â‰¤90d)" | "utgÃ¥nget" | "saknas";
+  docTag: "ok" | "saknas" | "snart (<=30d)" | "snart (<=60d)" | "snart (<=90d)" | "utgånget";
 }) {
   const base =
     "inline-flex items-center px-2 py-[2px] rounded-full text-xs font-medium whitespace-nowrap";
@@ -16,7 +16,7 @@ export default function DriverStatusPill({
   let docCls = "bg-gray-100 text-gray-800";
   if (docTag === "ok") docCls = "bg-green-100 text-green-800";
   if (docTag.startsWith("snart")) docCls = "bg-yellow-100 text-yellow-800";
-  if (docTag === "utgÃ¥nget") docCls = "bg-red-100 text-red-800";
+  if (docTag === "utgånget") docCls = "bg-red-100 text-red-800";
   if (docTag === "saknas") docCls = "bg-gray-100 text-gray-800";
 
   return (
@@ -26,4 +26,6 @@ export default function DriverStatusPill({
     </div>
   );
 }
+
+
 
