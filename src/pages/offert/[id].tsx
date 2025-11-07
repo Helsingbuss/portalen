@@ -51,7 +51,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   try {
     const payload = await verifyOfferToken(token); // kastar vid fel/expire
     // Säkerställ att token verkligen är för den här offerten
-    if (payload.offer_id !== slug && payload.offer_number !== slug) {
+    if (payload.offer_id !== slug) {
       return { props: { offer: null, auth: { ok: false, reason: "forbidden" } } };
     }
   } catch (e: any) {
@@ -145,4 +145,5 @@ export default function OffertPublic({ offer, auth }: Props) {
     </>
   );
 }
+
 
