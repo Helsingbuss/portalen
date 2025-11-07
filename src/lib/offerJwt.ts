@@ -1,96 +1,108 @@
 // src/lib/offerJwt.ts
 import crypto from "crypto";
 
-
-// ---- Settings / helpers -----------------------------------------------------
-
-function getSecret(): string {
-  const s = process.env.OFFER_JWT_SECRET;
-  if (!s) throw new Error("Missing env OFFER_JWT_SECRET");
-  return s;
+/**
+ * Säkerhets-hemlighet för offertlänkar (MÅSTE vara satt i miljön!)
+ * Skapa med t.ex.:
+ *   node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+ */
+const SECRET = (process.env.OFFER_JWT_SECRET || "").trim();
+if (!SECRET) {
+  console.warn("⚠ OFFER_JWT_SECRET is not set. Public offer links will not be secure.");
 }
 
-// Base64URL helpers
-function b64url(input: Buffer | string): string {
-  const b = Buffer.isBuffer(input) ? input : Buffer.from(String(input));
-  return b
-    .toString("base64")
-    .replace(/=/g, "")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_");
+/** Bas-URL för kunddomänen (kund.helsingbuss.se → fallbacks till BASE_URL → localhost) */
+export function getCustomerBaseUrl() {
+  return (
+    process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL?.replace(/\/$/, "") ||
+    process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ||
+    "http://localhost:3000"
+  );
 }
-function b64urlJson(obj: any): string {
+
+// ---- Base64url helpers ------------------------------------------------------
+
+function b64url(input: Buffer | string) {
+  const buf = Buffer.isBuffer(input) ? input : Buffer.from(input);
+  return buf.toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function b64urlJson(obj: unknown) {
   return b64url(Buffer.from(JSON.stringify(obj)));
 }
-function fromB64url(s: string): Buffer {
-  // pad
-  const pad = 4 - (s.length % 4 || 4);
-  const base64 = s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat(pad === 4 ? 0 : pad);
-  return Buffer.from(base64, "base64");
+
+function hmacSha256(data: string, secret: string) {
+  return crypto.createHmac("sha256", secret).update(data).digest();
 }
 
-// ---- Public helpers for base URLs (used in mail + pages) --------------------
+// ---- Sign & verify ----------------------------------------------------------
 
-export function getCustomerBaseUrl(): string {
-  return (
-    (process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL || "").replace(/\/$/, "") ||
-    (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "") ||
-    "http://localhost:3000"
-  );
-}
+type SignInput =
+  | string
+  | {
+      offer_id: string;
+      /** alternativ tidsstyrning i minuter (annars används expiresInDays) */
+      expMinutes?: number;
+      /** standard 30 dagar om varken expMinutes eller expiresInDays anges */
+      expiresInDays?: number;
+    };
 
-export function getLoginBaseUrl(): string {
-  return (
-    (process.env.NEXT_PUBLIC_LOGIN_BASE_URL || "").replace(/\/$/, "") ||
-    (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "") ||
-    "http://localhost:3000"
-  );
-}
-
-// ---- JWT sign/verify (HS256) ------------------------------------------------
-
-type OfferJwtPayload = {
+type TokenPayload = {
   offer_id: string;
-  iat: number; // seconds
-  exp: number; // seconds
+  exp: number; // unix epoch (sekunder)
 };
 
-export function signOfferToken(offer_id: string, expiresInDays = 14): string {
-  if (!offer_id) throw new Error("offer_id required");
+/**
+ * Skapar ett HMAC-signerat token (JWT-liknande) för offentliga offertlänkar.
+ * Accepterar antingen enbart `offer_id` (string) eller ett options-objekt.
+ *
+ * Standardgiltighet: 30 dagar.
+ */
+export function signOfferToken(input: SignInput): string {
+  const offer_id = typeof input === "string" ? input : input.offer_id;
+
+  let expMinutes: number | undefined;
+  if (typeof input !== "string") {
+    expMinutes =
+      typeof input.expMinutes === "number"
+        ? input.expMinutes
+        : typeof input.expiresInDays === "number"
+        ? input.expiresInDays * 24 * 60
+        : undefined;
+  }
+
+  // default: 30 dagar
+  const minutes = expMinutes ?? 30 * 24 * 60;
+  const nowMs = Date.now();
+  const expSec = Math.floor((nowMs + minutes * 60_000) / 1000);
+
   const header = { alg: "HS256", typ: "JWT" };
-  const now = Math.floor(Date.now() / 1000);
-  const exp = now + expiresInDays * 24 * 60 * 60;
+  const payload: TokenPayload = { offer_id, exp: expSec };
 
-  const payload: OfferJwtPayload = { offer_id, iat: now, exp };
-
-  const part1 = b64urlJson(header);
-  const part2 = b64urlJson(payload);
-  const data = `${part1}.${part2}`;
-
-  const sig = crypto.createHmac("sha256", getSecret()).update(data).digest();
-  const part3 = b64url(sig);
-
-  return `${data}.${part3}`;
+  const head = b64urlJson(header);
+  const body = b64urlJson(payload);
+  const toSign = `${head}.${body}`;
+  const sig = b64url(hmacSha256(toSign, SECRET || "dev-secret"));
+  return `${toSign}.${sig}`;
 }
 
-export function verifyOfferToken(token: string): OfferJwtPayload {
-  if (!token) throw new Error("missing token");
-  const parts = token.split(".");
-  if (parts.length !== 3) throw new Error("invalid token format");
-
-  const [p1, p2, p3] = parts;
-  const data = `${p1}.${p2}`;
-  const expected = b64url(crypto.createHmac("sha256", getSecret()).update(data).digest());
-
-  if (p3 !== expected) throw new Error("invalid signature");
-
-  const payloadJson = fromB64url(p2).toString("utf8");
-  const payload = JSON.parse(payloadJson) as OfferJwtPayload;
-
-  if (!payload.offer_id) throw new Error("invalid payload");
-  const now = Math.floor(Date.now() / 1000);
-  if (typeof payload.exp === "number" && now >= payload.exp) {
-    throw new Error("expired");
+/**
+ * Verifierar token & giltighetstid. Kastar Error vid ogiltigt/utgånget.
+ * Returnerar nyttolasten (offer_id, exp) vid OK.
+ */
+export function verifyOfferToken(token: string): TokenPayload {
+  if (!token || typeof token !== "string" || token.split(".").length !== 3) {
+    throw new Error("invalid token format");
   }
+  const [headB64, bodyB64, sigB64] = token.split(".");
+  const expected = b64url(hmacSha256(`${headB64}.${bodyB64}`, SECRET || "dev-secret"));
+  if (sigB64 !== expected) throw new Error("invalid signature");
+
+  const json = Buffer.from(bodyB64.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
+  const payload = JSON.parse(json) as TokenPayload;
+
+  if (!payload?.offer_id || !payload?.exp) throw new Error("invalid payload");
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (payload.exp <= nowSec) throw new Error("expired");
   return payload;
 }
