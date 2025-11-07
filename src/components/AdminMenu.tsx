@@ -285,7 +285,7 @@ export default function AdminMenu() {
           className="flex items-center gap-2 text-sm text-gray-600 hover:text-[#194C66]"
         >
           <ChatBubbleLeftRightIcon className="h-5 w-5" />
-          Feedback och förslag
+          Feedback och förslags
         </Link>
       </div>
     </aside>
