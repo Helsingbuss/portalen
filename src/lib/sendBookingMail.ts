@@ -1,31 +1,31 @@
-﻿// src/lib/sendBookingMail.ts
-// Facade som alignar med nya sendMail.ts-API:t
-
-import {
-  sendBookingMail as coreSendBookingMail,
-  customerBaseUrl,
-} from "./sendMail";
+import { sendBookingMail as coreSendBookingMail } from "@/lib/sendMail";
 
 export type SendBookingParams = {
-  to: string;                       // kundens e-post
-  bookingNumber: string;            // BK25xxxx
-  mode: "created" | "updated";      // skapad / uppdaterad
-  details?: {
-    passengers?: number | null;
-    from?: string | null;
-    to?: string | null;
-    date?: string | null;
-    time?: string | null;
-    freeTextHtml?: string;          // valfri egen text som HTML
-  };
+  to: string;
+  bookingNumber: string;
+  mode?: "created" | "updated";
+  passengers?: number | null;
+  out?: { date?: string | null; time?: string | null; from?: string | null; to?: string | null; };
+  from?: string | null;
+  to?: string | null;
+  date?: string | null;
+  time?: string | null;
+  freeTextHtml?: string;
 };
 
-/**
- * Skicka bokningsmail via det nya gemensamma maillagret (sendMail.ts)
- */
 export async function sendBookingMail(p: SendBookingParams) {
-  return coreSendBookingMail(p.to, p.bookingNumber, p.mode, p.details);
+  const mode = p.mode ?? "created";
+  return coreSendBookingMail(
+    p.to,
+    p.bookingNumber,
+    mode,
+    {
+      passengers: p.passengers ?? null,
+      from: p.out?.from ?? p.from ?? null,
+      to:   p.out?.to   ?? p.to   ?? null,
+      date: p.out?.date ?? p.date ?? null,
+      time: p.out?.time ?? p.time ?? null,
+      freeTextHtml: p.freeTextHtml,
+    }
+  );
 }
-
-// Exportera vidare sÃ¥ ev. gamla imports funkar
-export { customerBaseUrl };
