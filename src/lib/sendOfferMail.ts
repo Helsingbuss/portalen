@@ -49,7 +49,7 @@ function customerBaseUrl() {
 /** Säkra kundlänken med kort JWT-token */
 function buildSecureOfferLink(offerId: string) {
   // giltighet: 30 dagar (valfritt att justera)
-  const t = signOfferToken({ offer_id: offerId, expMinutes: 60 * 24 * 30 });
+  const t = signOfferToken({ offer_id: offerId, expiresInDays: 30 });
   return `${customerBaseUrl()}/offert/${encodeURIComponent(offerId)}?t=${encodeURIComponent(t)}`;
 }
 

@@ -1,4 +1,4 @@
-// src/lib/sendBookingMail.ts
+﻿// src/lib/sendBookingMail.ts
 // Facade som alignar med nya sendMail.ts-API:t
 
 import {
@@ -27,5 +27,5 @@ export async function sendBookingMail(p: SendBookingParams) {
   return coreSendBookingMail(p.to, p.bookingNumber, p.mode, p.details);
 }
 
-// Exportera vidare så ev. gamla imports funkar
+// Exportera vidare sÃ¥ ev. gamla imports funkar
 export { customerBaseUrl };
