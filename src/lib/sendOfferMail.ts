@@ -257,7 +257,7 @@ export async function sendOfferMail(p: SendOfferParams) {
   const adminSubject = `Ny offertförfrågan ${p.offerNumber}`;
   const customerSubject = `Tack! Vi har mottagit din offertförfrågan (${p.offerNumber})`;
 
-  const htmlAdmin = renderAdminHtml(p);
+  const htmlAdmin = await renderAdminHtml(p);
   const htmlCustomer = await renderCustomerHtml(p);
   const text = await renderText(p);
 
@@ -283,6 +283,8 @@ export async function sendOfferMail(p: SendOfferParams) {
 
   return { ok: true as const, provider };
 }
+
+
 
 
 
