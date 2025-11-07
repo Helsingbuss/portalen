@@ -1,74 +1,143 @@
 // src/pages/api/trips/upload-media.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import formidable from "formidable";
+import formidable, { Files, Fields, File as FormidableFile } from "formidable";
+import { createClient } from "@supabase/supabase-js";
+import { readFile } from "fs/promises";
+import { randomUUID } from "crypto";
 
+// why: multipart kräver avstängd bodyParser i Next.js Pages API
 export const config = { api: { bodyParser: false } };
 
-type Ok = { ok: true; url?: string | null; info?: string };
-type Fail = { error: string };
+type UploadOk = {
+  url: string;
+  bucket: string;
+  path: string;
+  mimetype: string | undefined;
+  size: number | undefined;
+};
+type UploadErr = { error: string };
 
-// Minimal parser utan generiska typer (undviker Turbopack/TS-konflikter)
-function parseForm(req: NextApiRequest): Promise<{ fields: any; files: any }> {
-  const form = formidable({ multiples: false, keepExtensions: true });
+function getEnvUrl(): string {
+  const url =
+    process.env.SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL || // why: återanvänd redan ifyllda klientvärden
+    "";
+  if (!url) throw new Error("Missing SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL)");
+  return url;
+}
+
+function getEnvKey(): { key: string; usingServiceRole: boolean } {
+  const service = process.env.SUPABASE_SERVICE_ROLE_KEY; // rekommenderad (server-only)
+  if (service) return { key: service, usingServiceRole: true };
+
+  // Fallback om du inte har service key konfigurerad lokalt
+  const anon = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+  if (!anon)
+    throw new Error(
+      "Missing SUPABASE_SERVICE_ROLE_KEY and ANON key. Provide one of them in .env.local"
+    );
+  return { key: anon, usingServiceRole: false }; // why: funkar om bucket tillåter write för anon/authed
+}
+
+function parseForm(req: NextApiRequest): Promise<{ fields: Fields; files: Files }> {
   return new Promise((resolve, reject) => {
-    form.parse(req, (err: any, fields: any, files: any) => {
-      if (err) return reject(err);
-      resolve({ fields, files });
+    const form = formidable({
+      multiples: false,
+      maxFileSize: 10 * 1024 * 1024, // 10MB
+      keepExtensions: true,
     });
+    form.parse(req, (err, fields, files) => (err ? reject(err) : resolve({ fields, files })));
   });
+}
+
+function pickFirstFile(files: Files): FormidableFile | null {
+  const preferred = ["file", "image", "media", "upload", "hero"];
+  for (const key of preferred) {
+    const v = files[key];
+    if (!v) continue;
+    return Array.isArray(v) ? (v[0] as FormidableFile) : (v as FormidableFile);
+  }
+  for (const k of Object.keys(files)) {
+    const v = files[k];
+    if (!v) continue;
+    return Array.isArray(v) ? (v[0] as FormidableFile) : (v as FormidableFile);
+  }
+  return null;
+}
+
+function sanitizeFilename(name: string | undefined): string {
+  const base = (name ?? "upload").toLowerCase();
+  return base.replace(/\s+/g, "-").replace(/[^a-z0-9._-]/g, "").replace(/^-+/, "");
+}
+
+function slugFromField(fields: Fields): string {
+  const raw = Array.isArray(fields.slug) ? fields.slug[0] : (fields.slug as string | undefined);
+  const s = (raw ?? randomUUID()).toString().toLowerCase();
+  return s
+    .normalize("NFKD")
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<Ok | Fail>
+  res: NextApiResponse<UploadOk | UploadErr>
 ) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
 
   try {
+    const SUPABASE_URL = getEnvUrl();
+    const { key: SUPABASE_KEY, usingServiceRole } = getEnvKey();
+    const BUCKET = process.env.SUPABASE_BUCKET_TRIPS || "trips";
+
     const { fields, files } = await parseForm(req);
+    const file = pickFirstFile(files);
+    if (!file) return res.status(400).json({ error: "No file found in form-data" });
 
-    // Fält från formuläret (om du skickar med dem)
-    const tripId: string | undefined =
-      (Array.isArray(fields?.tripId) ? fields.tripId[0] : fields?.tripId) ?? undefined;
-    const kind: "cover" | "gallery" =
-      ((Array.isArray(fields?.kind) ? fields.kind[0] : fields?.kind) as any) || "gallery";
-    const hint: string | undefined =
-      (Array.isArray(fields?.hint) ? fields.hint[0] : fields?.hint) ?? undefined;
-
-    // Hämta filobjektet oavsett om formidable ger array eller ej
-    const rawFile: any =
-      (files as any)?.file?.[0] ??
-      (files as any)?.file ??
-      (Object.values(files || {})[0] as any);
-
-    if (!rawFile) {
-      return res.status(400).json({ error: "Ingen fil mottagen" });
+    const mimetype = (file.mimetype || "").toLowerCase();
+    if (!mimetype.startsWith("image/")) {
+      return res.status(415).json({ error: `Unsupported media type: ${mimetype || "unknown"}` });
     }
 
-    // TODO: Lagra filen i t.ex. Supabase Storage och returnera en publik URL.
-    // Exempel (avaktiverat för att hålla bygget enkelt):
-    //
-    // import { promises as fs } from "fs";
-    // import { createClient } from "@supabase/supabase-js";
-    // const bytes = await fs.readFile(rawFile.filepath);
-    // const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-    // const path = `trips/${tripId ?? "misc"}/${Date.now()}-${rawFile.originalFilename}`;
-    // const { data, error } = await supabase.storage.from("trip-media").upload(path, bytes, { contentType: rawFile.mimetype });
-    // if (error) throw error;
-    // const { data: pub } = supabase.storage.from("trip-media").getPublicUrl(path);
-    // return res.status(200).json({ ok: true, url: pub.publicUrl });
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { persistSession: false },
+    });
 
-    // Stubbsvar så att bygg/deploy går igenom även innan lagring kopplats upp:
+    const buf = await readFile(file.filepath);
+    const slug = slugFromField(fields);
+    const original = sanitizeFilename(file.originalFilename);
+    const timestamp = Date.now();
+    const objectPath = `${slug}/hero-${timestamp}-${original}`;
+
+    const { error: upErr } = await supabase.storage
+      .from(BUCKET)
+      .upload(objectPath, buf, { contentType: mimetype, upsert: false });
+    if (upErr) {
+      // why: ofta pga otillräckliga policies när endast ANON används
+      const hint = usingServiceRole
+        ? ""
+        : " (hint: bucket måste tillåta writes för anon/authed eller använd SUPABASE_SERVICE_ROLE_KEY server-side)";
+      return res.status(500).json({ error: `Upload failed: ${upErr.message}${hint}` });
+    }
+
+    // Public bucket: return public URL; annars byt till signed URL
+    const { data } = supabase.storage.from(BUCKET).getPublicUrl(objectPath);
+    const url = data?.publicUrl;
+    if (!url) return res.status(500).json({ error: "Failed to obtain public URL" });
+
     return res.status(200).json({
-      ok: true,
-      url: null,
-      info: `Mottog fil '${rawFile.originalFilename}' (${kind}${hint ? `, ${hint}` : ""}) för tripId=${tripId ?? "—"} (stub)`,
+      url,
+      bucket: BUCKET,
+      path: objectPath,
+      mimetype: file.mimetype,
+      size: file.size,
     });
   } catch (e: any) {
-    console.error("upload-media error:", e?.message || e);
-    return res.status(500).json({ error: "Uppladdning misslyckades" });
+    return res.status(500).json({ error: e?.message || "Unexpected server error" });
   }
 }
