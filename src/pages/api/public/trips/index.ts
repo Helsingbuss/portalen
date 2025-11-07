@@ -45,7 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const limit = Math.max(1, Math.min(isNaN(limitParam) ? 6 : limitParam, 24));
 
   try {
-    // 1) Fetch published trips (no generic on .select to avoid “untyped call” error)
+    // 1) Hämta publicerade trips
     const { data: tripsRaw, error: tripsErr } = await supabase
       .from("trips")
       .select(
@@ -73,29 +73,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (tripsErr) throw tripsErr;
 
     const trips = (tripsRaw ?? []) as TripRow[];
-
-    // 2) Compute next_date for each trip (tolerate multiple column names)
     const todayMidnight = new Date(new Date().toDateString());
 
     const out = [];
     for (const t of trips) {
       let next_date: string | null = null;
 
-      const { data: depRowsRaw, error: depErr } = await supabase
-        .from("trip_departures")
-        .select("depart_date, dep_date, date")
-        .eq("trip_id", t.id);
+      try {
+        const { data: depRowsRaw } = await supabase
+          .from("trip_departures")
+          .select("depart_date, dep_date, date")
+          .eq("trip_id", t.id);
 
-      if (!depErr && depRowsRaw && depRowsRaw.length > 0) {
-        const depRows = depRowsRaw as DepRow[];
+        const depRows = (depRowsRaw ?? []) as DepRow[];
         const dates: Date[] = depRows
-          .map((r: DepRow) => r.depart_date || r.dep_date || r.date || null)
-          .filter((v: string | null): v is string => Boolean(v))
-          .map((d: string) => new Date(d))
-          .filter((d: Date) => !isNaN(d.getTime()) && d >= todayMidnight)
-          .sort((a: Date, b: Date) => a.getTime() - b.getTime());
+          .map((r) => r.depart_date || r.dep_date || r.date || null)
+          .filter((v): v is string => Boolean(v))
+          .map((d) => new Date(d))
+          .filter((d) => !isNaN(d.getTime()) && d >= todayMidnight)
+          .sort((a, b) => a.getTime() - b.getTime());
 
         if (dates[0]) next_date = dates[0].toISOString().slice(0, 10);
+      } catch {
+        // svälj departures-fel: vi vill fortfarande visa trip-kortet
+        next_date = null;
       }
 
       out.push({
@@ -110,9 +111,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         price_from: t.price_from ?? null,
         year: t.year ?? null,
         external_url: t.external_url ?? null,
-        summary: t.summary ?? null,       // <- included
-        trip_kind: t.trip_kind ?? null,   // <- included
-        categories: t.categories ?? null, // <- included
+        summary: t.summary ?? null,
+        trip_kind: t.trip_kind ?? null,
+        categories: t.categories ?? null,
         next_date,
       });
     }
@@ -120,6 +121,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ ok: true, trips: out });
   } catch (e: any) {
     console.error("/api/public/trips error:", e?.message || e);
-    return res.status(200).json({ ok: false, error: e?.message || "Server error" });
+    // VIKTIGT: 500 vid fel så widgeten visar felruta korrekt
+    return res.status(500).json({ ok: false, error: e?.message || "Server error" });
   }
 }
