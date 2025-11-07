@@ -9,24 +9,56 @@ export type DocTag =
   | "snart (≤90d)"
   | "utgånget";
 
-/** Mappa fel-encodade varianter till korrekta */
+/**
+ * Normaliserar strängar som kan komma felkodade från API/DB, t.ex.
+ *  - "snart (â‰¤30d)" -> "snart (≤30d)"
+ *  - "utgÃ¥nget" -> "utgånget"
+ */
 export function toDocTag(input: string): DocTag {
-  const s = (input || "").trim()
-    // vanliga mojibake för “≤”
-    .replace("(≤30d)", "(≤30d)")
-    .replace("(≤60d)", "(≤60d)")
-    .replace("(≤90d)", "(≤90d)")
-    // vanliga mojibake för å/å
-    .replace("utgånget", "utgånget");
+  const s = (input || "")
+    .trim()
+    // Mojibake för ≤
+    .replace(/â‰¤/g, "≤")
+    // Mojibake för å/Å/Ä/Ö (vanliga varianter)
+    .replace(/Ã¥/g, "å")
+    .replace(/Ã…/g, "Å")
+    .replace(/Ã¤/g, "ä")
+    .replace(/Ã„/g, "Ä")
+    .replace(/Ã¶/g, "ö")
+    .replace(/Ã–/g, "Ö");
 
-  // Fallbackar för säkerhets skull
-  if (s === "ok" || s === "saknas" || s === "utgånget") return s as DocTag;
-  if (s.includes("(≤30d)")) return "snart (≤30d)";
-  if (s.includes("(≤60d)")) return "snart (≤60d)";
-  if (s.includes("(≤90d)")) return "snart (≤90d)";
+  const map: Record<string, DocTag> = {
+    "ok": "ok",
+    "saknas": "saknas",
+    "snart (≤30d)": "snart (≤30d)",
+    "snart (≤60d)": "snart (≤60d)",
+    "snart (≤90d)": "snart (≤90d)",
+    "utgånget": "utgånget",
+    // Felskrivningar/felencodade varianter:
+    "snart (â‰¤30d)": "snart (≤30d)",
+    "snart (â‰¤60d)": "snart (≤60d)",
+    "snart (â‰¤90d)": "snart (≤90d)",
+    "utgÃ¥nget": "utgånget",
+  };
 
-  // om något nytt värde dyker upp: behandla som “saknas”
-  return "saknas";
+  return (map[s] as DocTag) ?? "ok";
+}
+
+function stylesByTag(tag: DocTag) {
+  switch (tag) {
+    case "ok":
+      return { bg: "bg-green-100", text: "text-green-800", dot: "bg-green-500" };
+    case "saknas":
+      return { bg: "bg-gray-100", text: "text-gray-800", dot: "bg-gray-500" };
+    case "snart (≤30d)":
+      return { bg: "bg-amber-100", text: "text-amber-900", dot: "bg-amber-500" };
+    case "snart (≤60d)":
+      return { bg: "bg-yellow-100", text: "text-yellow-900", dot: "bg-yellow-500" };
+    case "snart (≤90d)":
+      return { bg: "bg-sky-100", text: "text-sky-900", dot: "bg-sky-500" };
+    case "utgånget":
+      return { bg: "bg-red-100", text: "text-red-900", dot: "bg-red-500" };
+  }
 }
 
 export default function DriverStatusPill({
@@ -34,27 +66,19 @@ export default function DriverStatusPill({
   docTag,
 }: {
   active: boolean;
-  docTag: DocTag;
+  docTag: DocTag | string; // tillåt string men normalisera
 }) {
-  const label = docTag;
-  const color =
-    docTag === "ok"
-      ? "bg-green-600"
-      : docTag.startsWith("snart")
-      ? "bg-amber-600"
-      : docTag === "saknas" || docTag === "utgånget"
-      ? "bg-red-600"
-      : "bg-slate-600";
+  const tag = toDocTag(String(docTag));
+  const s = stylesByTag(tag);
 
   return (
     <span
-      className={`inline-flex items-center px-2 py-1 rounded-full text-white text-xs ${color} ${
-        active ? "" : "opacity-70"
-      }`}
-      title={label}
+      className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm ${s.bg} ${s.text}`}
+      title={active ? "Aktiv" : "Inaktiv"}
     >
-      {label}
+      <span className={`h-2.5 w-2.5 rounded-full ${s.dot}`} />
+      {tag}
+      {!active && <span className="ml-2 text-xs opacity-80">(inaktiv)</span>}
     </span>
   );
 }
-

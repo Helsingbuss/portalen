@@ -66,7 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (data?.customer_email) {
           await sendBookingMail({
   to: data.customer_email,
-  booking_number: data.booking_number,
+  bookingNumber: data.booking_number,
   event: "created",
   passengers: data.passengers ?? null,
 
@@ -88,6 +88,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: e?.message || "Serverfel" });
   }
 }
+
 
 
 

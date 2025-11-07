@@ -1,4 +1,5 @@
-﻿import { useEffect, useState } from "react";
+﻿// src/pages/admin/drivers/index.tsx
+import { useEffect, useState } from "react";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
 import DriverStatusPill, { toDocTag, type DocTag } from "@/components/drivers/DriverStatusPill";
@@ -36,7 +37,9 @@ function computeDocStatus(expiresIso?: string | null): Row["docStatus"] {
   const today = new Date();
   const exp = new Date(expiresIso);
   const oneDay = 1000 * 60 * 60 * 24;
-  const days = Math.floor((exp.getTime() - new Date(today.setHours(0, 0, 0, 0)).getTime()) / oneDay);
+  const days = Math.floor(
+    (exp.getTime() - new Date(today.setHours(0, 0, 0, 0)).getTime()) / oneDay
+  );
 
   if (days < 0) return { tag: "utgånget", days };
   if (days <= 30) return { tag: "snart (≤30d)", days };
@@ -64,12 +67,12 @@ export default function DriversListPage() {
   function buildUrl() {
     const params = new URLSearchParams();
     if (search) params.set("search", search);
-    if (status) params.set("status", status);                // "alla" hanteras i API
-    if (cls) params.set("klass", cls);                       // API-param: klass
+    if (status) params.set("status", status);                 // "alla" hanteras i API
+    if (cls) params.set("klass", cls);                        // API-param: klass
     if (expSoon) params.set("expireInDays", String(expSoon)); // API-param: expireInDays
     params.set("page", String(page));
     params.set("pageSize", String(pageSize));
-    return /api/drivers/list?;
+    return `/api/drivers/list?${params.toString()}`;
   }
 
   async function load() {
@@ -79,7 +82,7 @@ export default function DriversListPage() {
       const j: { rows: APIRow[]; total: number } = await res.json();
 
       const mapped: Row[] = (j?.rows ?? []).map((d) => {
-        const name = ${d.first_name ?? ""} .trim() || "(Namn saknas)";
+        const name = `${d.first_name ?? ""} ${d.last_name ?? ""}`.trim() || "(Namn saknas)";
         const phone = d.phone ?? "—";
         const email = d.email ?? "—";
         const license_classes = d.license_classes ?? [];
@@ -87,7 +90,7 @@ export default function DriversListPage() {
         const updated_at = d.updated_at ?? null;
         const docStatus = computeDocStatus(d.docs_expire_at);
 
-        // Normalisera eventuell mojibake som "snart (â‰¤30d)" -> "snart (≤30d)"
+        // Normalisera taggar (fixar ev. mojibake från API)
         const normalizedTag = toDocTag(docStatus.tag);
 
         return {
@@ -267,7 +270,7 @@ export default function DriversListPage() {
                       className="border-b last:border-b-0 border-[#E5E7EB]/80 hover:bg-[#194C66]/5"
                     >
                       <td className="px-4 py-3">
-                        <Link href={/admin/drivers/} className="font-semibold underline">
+                        <Link href={`/admin/drivers/${r.id}`} className="font-semibold underline">
                           {r.name}
                         </Link>
                       </td>
