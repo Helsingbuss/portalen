@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { supabase } from "@/lib/supabaseAdmin";
 import { sendOfferMail } from "@/lib/sendOfferMail"; // använder objekt-signaturen
 
+
 function todayISODate(): string {
   return new Date().toISOString().split("T")[0];
 }
