@@ -27,7 +27,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const customer_email: string | null = toNull(p.customer_email);
     const customer_phone: string | null = toNull(p.customer_phone);
 
-    const customer_reference: string | null = toNull(p.customer_reference);
+    // Kommer från UI-fältet ”Kontaktperson ombord (namn och nummer)” i steg 1 om du skickar det
+    const raw_onboard_contact: string | null = toNull(p.onboard_contact);
+
+    // Rätt DB-kolumn: customer_reference (använd om given, annars fall tillbaka till onboard_contact, annars kontaktperson)
+    const customer_reference: string | null =
+      toNull(p.customer_reference) ?? raw_onboard_contact ?? customer_name;
+
     const internal_reference: string | null = toNull(p.internal_reference);
 
     const passengers: number | null =
@@ -47,25 +53,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const return_date: string | null = pickYmd(toNull(p.return_date));
     const return_time: string | null = toNull(p.return_time);
 
-    const via: string | null = toNull(p.via);
-    const onboard_contact: string | null = toNull(p.onboard_contact);
+    // 🚫 Ingen 'via' i DB – rätt kolumn är 'stopover_places'
+    const stopover_places: string | null = toNull(p.stopover_places ?? p.via);
 
-    const round_trip: boolean | null =
-      typeof p.round_trip === "boolean"
-        ? p.round_trip
-        : p.round_trip === "true"
-        ? true
-        : p.round_trip === "false"
-        ? false
-        : null;
-
+    // 🚫 'round_trip' finns inte i din DB – skicka inte den i insert
     const notes: string | null = toNull(p.notes);
 
     if (!customer_name || !customer_email) {
       return res.status(400).json({ error: "customer_name och customer_email krävs" });
     }
 
-    // ---- Offertnummer (HB25xxx) – samma logik som i create-offer.ts ----
+    // ---- Offertnummer (HB25xxx) – samma logik som tidigare ----
     const { data: lastOffer } = await supabase
       .from("offers")
       .select("offer_number")
@@ -73,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .limit(1)
       .single();
 
-    let nextNumber = 7; // Startvärde (HB25007) – behåll din tidigare logik
+    let nextNumber = 7; // Startvärde (HB25007)
     if (lastOffer?.offer_number) {
       const lastNum = parseInt(String(lastOffer.offer_number).replace("HB25", ""), 10);
       if (Number.isFinite(lastNum)) nextNumber = lastNum + 1;
@@ -89,10 +87,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // kontakt
       contact_person: customer_name,
       contact_phone: customer_phone,
-      contact_email: customer_email, // läggs så quote/accept hittar det
+      contact_email: customer_email, // gör att quote/accept hittar e-post
 
       // referenser
-      customer_reference,
+      customer_reference,           // ✅ rätt kolumn
       internal_reference,
 
       // resa
@@ -101,7 +99,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       destination,
       departure_date,
       departure_time,
-      round_trip,
+      stopover_places,              // ✅ rätt kolumnnamn
 
       // retur
       return_departure,
@@ -109,9 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return_date,
       return_time,
 
-      // ev. extra
-      via,
-      onboard_contact,
+      // övrigt
       notes,
 
       created_at: new Date().toISOString(),
@@ -126,8 +122,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (insErr) throw insErr;
 
-    // ---- Skicka mejl med NYA objekt-signaturen ----
-    // (tyst felhantering – själva skapandet ska inte falla på mail)
+    // ---- Skicka mejl (tyst felhantering) ----
     try {
       await sendOfferMail({
         offerId: String(row.id ?? offer_number),
@@ -142,8 +137,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         date: departure_date,
         time: departure_time,
         passengers,
-        via,
-        onboardContact: onboard_contact,
+        via: stopover_places,               // för mail-templaten
+        onboardContact: raw_onboard_contact, // visas i mail, men SPARAS INTE i DB
 
         return_from: return_departure,
         return_to: return_destination,

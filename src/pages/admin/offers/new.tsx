@@ -131,6 +131,9 @@ export default function NewOfferAdmin() {
       customer_email: needEmail,
       customer_phone: needPhone,
 
+      // 👇 Viktigt: spara Kontakt ombord som customer_reference
+      customer_reference: leg1?.onboardContact || needRef,
+
       // övrigt kund (valfritt att spara parallellt)
       customer_name: needRef,
       customer_type: "privat",
