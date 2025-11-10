@@ -72,6 +72,16 @@ type InsertedBooking = {
   departure_time?: string | null;
 };
 
+// Type guard för att säkert identifiera InsertedBooking
+function isInsertedBooking(x: any): x is InsertedBooking {
+  return (
+    x &&
+    typeof x === "object" &&
+    typeof x.id === "string" &&
+    typeof x.booking_number === "string"
+  );
+}
+
 /** ---------- handler ---------- */
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -199,8 +209,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .single();
 
       if (!error && data) {
-        inserted = data as InsertedBooking;
-        break;
+        const candidate = data as unknown;
+        if (isInsertedBooking(candidate)) {
+          inserted = candidate;
+          break;
+        } else {
+          // Ov�ntad form – behandla som fel för att bryta snyggt
+          lastErr = new Error("Ov�ntat insert-svar: saknar id/booking_number");
+          break;
+        }
       }
 
       const msg = String(error?.message || "");
@@ -233,7 +250,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             toPlace: (inserted.destination ?? null) as string | null,
             date: (inserted.departure_date ?? null) as string | null,
             time: (tidyHHMM(inserted.departure_time) ?? null) as string | null,
-            // notes stöds ej i typen
           });
         }
       } catch (e) {
