@@ -1,3 +1,4 @@
+// src/components/offers/OfferColumns.tsx
 import Image from "next/image";
 import StatusBadge from "@/components/StatusBadge";
 
@@ -7,8 +8,12 @@ import TripLegCard from "@/components/offers/TripLegCard";
 import OfferFooterTerms from "@/components/offers/OfferFooterTerms";
 import OfferLeftSidebar from "@/components/offers/OfferLeftSidebar";
 
-type StatusUnion = "inkommen" | "godkand" | "besvarad" | "makulerad";
+type OfferInkommenProps = { offer: any };
 
+const LINE_HEIGHT = 1.5;
+
+// --- FIX: union-typ och normalisering för status ---
+type StatusUnion = "inkommen" | "godkand" | "besvarad" | "makulerad";
 function normalizeStatus(s: any): StatusUnion {
   const t = String(s ?? "").toLowerCase();
   if (t === "besvarad") return "besvarad";
@@ -16,10 +21,6 @@ function normalizeStatus(s: any): StatusUnion {
   if (t === "godkand" || t === "godkänd") return "godkand";
   return "inkommen";
 }
-
-type OfferInkommenProps = { offer: any };
-
-const LINE_HEIGHT = 1.5;
 
 function v(x: any, fallback = "—") {
   if (x === null || x === undefined || x === "") return fallback;
@@ -32,7 +33,7 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
 
   const offerNo = v(offer?.offer_number, "HB25XXX");
   const customerNo = v(offer?.customer_number, "K10023");
-  const status = v(offer?.status, "inkommen");
+  const status: StatusUnion = normalizeStatus(offer?.status); // <-- FIX
 
   const firstLeg = {
     title: withinSweden ? "Bussresa inom Sverige" : "Bussresa utomlands",
@@ -68,7 +69,7 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
       <OfferTopBar
         offerNumber={offerNo}
         customerNumber={customerNo}
-        status={status}
+        status={status} // <-- FIX
         customerName={v(offer?.contact_person, "")}
       />
 
@@ -94,7 +95,7 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
               />
             </div>
             <div className="pt-1 text-right">
-              <StatusBadge status={status} />
+              <StatusBadge status={status} /> {/* <-- FIX */}
             </div>
           </div>
 
