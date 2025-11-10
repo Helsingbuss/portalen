@@ -48,8 +48,8 @@ function fmtDate(d?: string | null) {
 
 function fmtTime(t?: string | null) {
   if (!t) return "—";
-  // HH:MM → Date för formatering
-  const dt = new Date(`1970-01-01T${t.length >= 5 ? t.slice(0,5) : t}:00`);
+  const base = (t.length >= 5 ? t.slice(0, 5) : t);
+  const dt = new Date(`1970-01-01T${base}:00`);
   if (isNaN(dt.getTime())) return v(t);
   return new Intl.DateTimeFormat("sv-SE", { timeStyle: "short" }).format(dt);
 }
@@ -58,10 +58,9 @@ function buildICS(b: Booking) {
   // Skapar en enkel .ics med 1–2 VEVENT (utresa + ev. retur)
   const esc = (s: string) => s.replace(/([,;])/g, "\\$1").replace(/\n/g, "\\n");
   const asDT = (d?: string | null, t?: string | null) => {
-    // 2025-11-10 + 08:00 → 20251110T080000
     if (!d) return "";
     const dd = d.replace(/-/g, "");
-    const tt = (t || "00:00").slice(0,5).replace(":", "") + "00";
+    const tt = (t || "00:00").slice(0, 5).replace(":", "") + "00";
     return `${dd}T${tt}`;
   };
 
@@ -81,7 +80,7 @@ function buildICS(b: Booking) {
     `SUMMARY:${esc("Helsingbuss – Utresa")}`,
     `DTSTART:${dtStart1}`,
     dtEnd1 ? `DTEND:${dtEnd1}` : `DTEND:${dtStart1}`,
-    `LOCATION:${esc(`${v(b.departure_place,"-")} → ${v(b.destination,"-")}`)}`,
+    `LOCATION:${esc(`${v(b.departure_place, "-")} → ${v(b.destination, "-")}`)}`,
     `DESCRIPTION:${esc(
       `Bokning: ${v(b.booking_number)}\\nPassagerare: ${v(b.passengers)}\\nKontakt: ${v(b.contact_person)} (${v(b.customer_phone)})`
     )}`,
@@ -98,7 +97,7 @@ function buildICS(b: Booking) {
       `SUMMARY:${esc("Helsingbuss – Retur")}`,
       `DTSTART:${dtStart2}`,
       dtEnd2 ? `DTEND:${dtEnd2}` : `DTEND:${dtStart2}`,
-      `LOCATION:${esc(`${v(b.return_departure,"-")} → ${v(b.return_destination,"-")}`)}`,
+      `LOCATION:${esc(`${v(b.return_departure, "-")} → ${v(b.return_destination, "-")}`)}`,
       `DESCRIPTION:${esc(`Bokning: ${v(b.booking_number)}`)}`,
       "END:VEVENT"
     );
@@ -144,6 +143,12 @@ export default function BookingPublicPage() {
     const ics = buildICS(booking);
     return `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
   }, [booking]);
+
+  const hasReturn =
+    !!(booking?.return_departure ||
+       booking?.return_destination ||
+       booking?.return_date ||
+       booking?.return_time);
 
   return (
     <div className="min-h-screen bg-[#f5f4f0] py-8">
@@ -268,4 +273,65 @@ export default function BookingPublicPage() {
                     <span className="font-semibold">Till:</span>{" "}
                     {v(booking.destination)}
                   </div>
-                </
+                </div>
+              </div>
+
+              {/* Retur (visas om uppgifter finns) */}
+              {hasReturn && (
+                <div className="border rounded-lg p-4">
+                  <div className="text-sm text-[#0f172a]/60 mb-1">Retur</div>
+                  <div className="text-[#0f172a] space-y-1">
+                    <div>
+                      <span className="font-semibold">Datum:</span>{" "}
+                      {fmtDate(booking.return_date || booking.departure_date)}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Tid:</span>{" "}
+                      {fmtTime(booking.return_time || booking.departure_time)}
+                    </div>
+                    {typeof booking.return_on_site_minutes === "number" && (
+                      <div>
+                        <span className="font-semibold">På plats:</span>{" "}
+                        {booking.return_on_site_minutes} min före
+                      </div>
+                    )}
+                    <div>
+                      <span className="font-semibold">Från:</span>{" "}
+                      {v(booking.return_departure || "")}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Till:</span>{" "}
+                      {v(booking.return_destination || "")}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Övrigt */}
+              {booking.notes && (
+                <div className="border rounded-lg p-4 md:col-span-2">
+                  <div className="text-sm text-[#0f172a]/60 mb-1">Övrig information</div>
+                  <div className="text-[#0f172a] whitespace-pre-wrap">
+                    {booking.notes}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer-info / kontakt */}
+            <div className="mt-6 text-[14px] text-[#0f172a]/80">
+              <p>
+                Bekräftelsen avser ovanstående uppgifter. Ändringar bekräftas skriftligt
+                av oss. Frågor inför resan? Vardagar kl. 08:00–17:00 på{" "}
+                <a className="underline" href="mailto:kundteam@helsingbuss.se">
+                  kundteam@helsingbuss.se
+                </a>{" "}
+                eller jour <strong>010–777 21 58</strong>.
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
