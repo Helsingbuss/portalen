@@ -7,6 +7,16 @@ import TripLegCard from "@/components/offers/TripLegCard";
 import OfferFooterTerms from "@/components/offers/OfferFooterTerms";
 import OfferLeftSidebar from "@/components/offers/OfferLeftSidebar";
 
+type StatusUnion = "inkommen" | "godkand" | "besvarad" | "makulerad";
+
+function normalizeStatus(s: any): StatusUnion {
+  const t = String(s ?? "").toLowerCase();
+  if (t === "besvarad") return "besvarad";
+  if (t === "makulerad") return "makulerad";
+  if (t === "godkand" || t === "godkänd") return "godkand";
+  return "inkommen";
+}
+
 type OfferInkommenProps = { offer: any };
 
 const LINE_HEIGHT = 1.5;
