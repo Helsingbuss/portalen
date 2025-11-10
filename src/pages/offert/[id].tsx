@@ -1,8 +1,7 @@
-// src/pages/offert/[id].tsx
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
 
-// Behåll dina design-komponenter
+// Delvyer
 import OfferInkommen from "@/components/offers/OfferInkommen";
 import OfferBesvarad from "@/components/offers/OfferBesvarad";
 import OfferGodkand from "@/components/offers/OfferGodkand";
@@ -12,7 +11,7 @@ import OfferMakulerad from "@/components/offers/OfferMakulerad";
 import { verifyOfferToken } from "@/lib/offerJwt";
 
 type Offer = {
-  id: string;
+  id?: string;
   offer_number?: string | null;
   status?: string | null;
   [key: string]: any;
@@ -23,69 +22,157 @@ type AuthFail = "missing" | "invalid" | "expired" | "forbidden";
 type Props = {
   offer: Offer | null;
   auth?: { ok: false; reason: AuthFail } | { ok: true };
+  viewOverride?: string | null;
 };
 
-// Bygg en säker bas-URL för SSR-anrop till vårt eget API.
-// 1) Använd alltid samma host som sidan körs på (så subdomän blir rätt).
-// 2) Respektera proxy-header för protokoll (http/https) i Vercel.
 function resolveSelfOrigin(ctx: Parameters<GetServerSideProps>[0]) {
   const host = String(ctx.req.headers.host || "");
-  // I Vercel sätter edge/proxy ofta x-forwarded-proto
   const xfProto = (ctx.req.headers["x-forwarded-proto"] as string) || "";
   const proto = xfProto ? xfProto.split(",")[0].trim() : "http";
-  // Fallback om host saknas vid lokalkörning
   const effectiveHost = host || "localhost:3000";
   return `${proto}://${effectiveHost}`;
 }
 
-export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
-  const slug = String(ctx.params?.id || "");
-  const token = String(ctx.query?.t || "");
+/* ----------------------- DEMO HELPERS ----------------------- */
 
-  // 1) Kräver token i länken
-  if (!token) {
-    return { props: { offer: null, auth: { ok: false, reason: "missing" } } };
+function buildMockBreakdown(roundTrip: boolean) {
+  // Snygga siffror som ger tydliga per-sträcka-belopp i Besvarad
+  if (roundTrip) {
+    const leg1 = { subtotExVat: 8500, vat: 2125, total: 10625 };
+    const leg2 = { subtotExVat: 7900, vat: 1975, total: 9875 };
+    const serviceFee = 0;
+    return {
+      legs: [leg1, leg2],
+      serviceFeeExVat: serviceFee,
+      grandExVat: leg1.subtotExVat + leg2.subtotExVat + serviceFee,
+      grandVat: leg1.vat + leg2.vat,
+      grandTotal: leg1.total + leg2.total,
+    };
+  } else {
+    const leg = { subtotExVat: 9200, vat: 2300, total: 11500 };
+    return {
+      legs: [leg],
+      grandExVat: leg.subtotExVat,
+      grandVat: leg.vat,
+      grandTotal: leg.total,
+    };
+  }
+}
+
+function buildDemoOffer(kind: "single" | "roundtrip", view: string): Offer {
+  const roundTrip = kind === "roundtrip";
+  const today = new Date().toISOString().slice(0, 10);
+
+  const base: Offer = {
+    id: "demo-id",
+    offer_number: "HB25PREVIEW",
+    status:
+      view === "besvarad" ? "besvarad" :
+      view === "godkand" || view === "godkänd" ? "godkand" :
+      view === "makulerad" || view === "avbojd" || view === "avböjd" ? "makulerad" :
+      "inkommen",
+    offer_date: today,
+    customer_reference: "Namn/Efternamn",
+    internal_reference: "Vår referens",
+    contact_person: "Namn Efternamn",
+    customer_address: "Exempelgatan 12, 123 45 Exempelstad",
+    contact_phone: "+46 (0)10-405 38 38",
+    contact_email: "info@helsingbuss.se",
+    trip_type: "sverige",
+    passengers: 15,
+
+    departure_date: today,
+    departure_time: "10:00",
+    departure_place: "Kristianstad",
+    destination: "Malmö C",
+    notes: "Ingen information.",
+
+    // totals (fallbacks om breakdown saknas)
+    amount_ex_vat: null,
+    vat_amount: null,
+    total_amount: null,
+
+    // breakdown för Besvarad
+    vat_breakdown: buildMockBreakdown(roundTrip),
+  };
+
+  if (roundTrip) {
+    base.round_trip = true;
+    base.return_date = today;
+    base.return_time = "19:00";
+  } else {
+    base.round_trip = false;
   }
 
-  // 2) Verifiera token server-side
+  // Sätt totals från breakdown så både totals & per-resa visas
+  const b = base.vat_breakdown as any;
+  base.amount_ex_vat = b?.grandExVat ?? null;
+  base.vat_amount = b?.grandVat ?? null;
+  base.total_amount = b?.grandTotal ?? null;
+
+  return base;
+}
+
+/* ----------------------- SSR ----------------------- */
+
+export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
+  const slug = String(ctx.params?.id || "");
+  const viewOverride = ctx.query?.view ? String(ctx.query.view).toLowerCase() : null;
+
+  // DEMO-MODE: /offert/demo?view=besvarad&kind=roundtrip
+  if (slug === "demo") {
+    const rawKind = String(ctx.query?.kind || "single").toLowerCase();
+    const kind = rawKind === "roundtrip" ? "roundtrip" : "single";
+    const v = viewOverride || "inkommen";
+    const demoOffer = buildDemoOffer(kind as "single" | "roundtrip", v);
+    return {
+      props: {
+        offer: demoOffer,
+        auth: { ok: true },
+        viewOverride: v,
+      },
+    };
+  }
+
+  const token = String(ctx.query?.t || "");
+
+  if (!token) {
+    return { props: { offer: null, auth: { ok: false, reason: "missing" }, viewOverride } };
+  }
+
   try {
-    const payload = await verifyOfferToken(token); // kastar vid fel/expire
-    // Säkerställ att token verkligen är för den här offerten
+    const payload = await verifyOfferToken(token);
     if (payload.offer_id !== slug) {
-      return { props: { offer: null, auth: { ok: false, reason: "forbidden" } } };
+      return { props: { offer: null, auth: { ok: false, reason: "forbidden" }, viewOverride } };
     }
   } catch (e: any) {
     const msg = String(e?.message || "").toLowerCase();
     if (msg.includes("expired")) {
-      return { props: { offer: null, auth: { ok: false, reason: "expired" } } };
+      return { props: { offer: null, auth: { ok: false, reason: "expired" }, viewOverride } };
     }
-    return { props: { offer: null, auth: { ok: false, reason: "invalid" } } };
+    return { props: { offer: null, auth: { ok: false, reason: "invalid" }, viewOverride } };
   }
 
-  // 3) Token OK → hämta offerten via ditt API (oförändrad layout/data)
   try {
-    const base = resolveSelfOrigin(ctx); // samma host (kund.helsingbuss.se eller lokalt)
+    const base = resolveSelfOrigin(ctx);
     const resp = await fetch(`${base}/api/offers/${encodeURIComponent(slug)}`, {
-      // tips: om du vill dubbel-verifiera i API:t kan du skicka token i headern
-      headers: {
-        "x-offer-link": "jwt-ok",
-        "x-offer-token": token,
-      },
+      headers: { "x-offer-link": "jwt-ok", "x-offer-token": token },
     });
 
     if (!resp.ok) {
-      return { props: { offer: null, auth: { ok: false, reason: "invalid" } } };
+      return { props: { offer: null, auth: { ok: false, reason: "invalid" }, viewOverride } };
     }
 
     const json = await resp.json();
-    return { props: { offer: (json?.offer ?? null) as Offer | null, auth: { ok: true } } };
+    return { props: { offer: (json?.offer ?? null) as Offer | null, auth: { ok: true }, viewOverride } };
   } catch {
-    return { props: { offer: null, auth: { ok: false, reason: "invalid" } } };
+    return { props: { offer: null, auth: { ok: false, reason: "invalid" }, viewOverride } };
   }
 };
 
-export default function OffertPublic({ offer, auth }: Props) {
-  // Visa tydligt fel vid saknad/felaktig/utgången token
+/* ----------------------- PAGE ----------------------- */
+
+export default function OffertPublic({ offer, auth, viewOverride }: Props) {
   if (auth && auth.ok === false) {
     const title = "Offert – åtkomst nekad";
     const msg =
@@ -125,25 +212,34 @@ export default function OffertPublic({ offer, auth }: Props) {
   }
 
   const status = (offer.status || "").toLowerCase();
-  const title = offer.offer_number
-    ? `Offertförfrågan ${offer.offer_number}`
-    : "Offertförfrågan";
+  const title = offer.offer_number ? `Offert ${offer.offer_number}` : "Offert";
 
-  // Behåll exakt samma designflöde som tidigare
+  const map: Record<string, any> = {
+    inkommen: OfferInkommen,
+    besvarad: OfferBesvarad,
+    godkand: OfferGodkand,
+    "godkänd": OfferGodkand,
+    makulerad: OfferMakulerad,
+    avbojd: OfferMakulerad,
+    "avböjd": OfferMakulerad,
+  };
+
+  let View = (viewOverride && map[viewOverride]) || null;
+
+  if (!View) {
+    View =
+      status === "besvarad" ? OfferBesvarad
+      : status === "godkand" || status === "godkänd" ? OfferGodkand
+      : status === "makulerad" || status === "avbojd" || status === "avböjd" ? OfferMakulerad
+      : OfferInkommen;
+  }
+
   const commonProps: any = { ...offer, offer };
-
-  let View = OfferInkommen as any;
-  if (status === "besvarad") View = OfferBesvarad;
-  else if (status === "godkand" || status === "godkänd") View = OfferGodkand;
-  else if (status === "makulerad") View = OfferMakulerad;
 
   return (
     <>
       <Head><title>{title}</title></Head>
-      {/* rendera komponenten rakt av – den äger all styling/layout */}
       <View {...commonProps} />
     </>
   );
 }
-
-
