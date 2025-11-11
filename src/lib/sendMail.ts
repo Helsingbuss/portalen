@@ -1,158 +1,147 @@
 ﻿// src/lib/sendMail.ts
 import { Resend } from "resend";
 
-/** Bas-URL för portalen (admin/dash) */
-export function baseUrl() {
-  const raw = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "");
-  return raw || "http://localhost:3000";
-}
+/**
+ * ENV & klient
+ */
+const resendApiKey = (process.env.RESEND_API_KEY ?? "").trim();
+const resend = new Resend(resendApiKey);
 
-/** Bas-URL för kundportalen (offert/offerter) */
-export function customerBaseUrl() {
-  const fromEnv =
-    process.env.CUSTOMER_BASE_URL || process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL;
-  if (fromEnv) return fromEnv;
+// Helper för säkert env-läsning
+const env = (v?: string | null) => (v ?? "").trim();
 
-  if (process.env.VERCEL_ENV === "production") {
-    return "https://kund.helsingbuss.se";
-  }
-  return "http://localhost:3000";
-}
+// Adresser från .env (behåller dina defaultar)
+const SUPPORT_INBOX = env(process.env.SUPPORT_INBOX) || "kundteam@helsingbuss.se";
+const OFFERS_INBOX  = env(process.env.OFFERS_INBOX)  || "offert@helsingbuss.se";
 
-/** Bas-URL för admin-login */
-export function adminBaseUrl() {
-  const fromEnv =
-    process.env.ADMIN_BASE_URL || process.env.NEXT_PUBLIC_ADMIN_BASE_URL;
-  if (fromEnv) return fromEnv;
+// Låt FROM vara styrbart i .env, men ha bra fallback
+// OBS: se till att MAIL_FROM-domänen är verifierad i Resend
+const DEFAULT_FROM = env(process.env.MAIL_FROM) || "Helsingbuss <no-reply@helsingbuss.se>";
 
-  if (process.env.VERCEL_ENV === "production") {
-    return "https://login.helsingbuss.se";
-  }
-  return "http://localhost:3000";
-}
-
-export const FROM =
-  process.env.MAIL_FROM || "Helsingbuss <info@helsingbuss.se>";
-export const ADMIN_TO =
-  process.env.MAIL_ADMIN || "offert@helsingbuss.se";
-export const LOGO_ABS = `${baseUrl()}/mork_logo.png`;
-
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
-
-function esc(s?: string | null) {
-  return (s ?? "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-export async function sendMail(opts: {
+/**
+ * Typer
+ */
+export type SendMailOpts = {
   to: string | string[];
   subject: string;
   html: string;
-  text?: string;
-  from?: string; // valfritt, default FROM
-}) {
-  if (!resend) {
-    console.warn("RESEND_API_KEY saknas; hoppar över sendMail (dev-läge).");
-    return { id: "dev-skip", error: null } as const;
-  }
-
-  return await resend.emails.send({
-    from: opts.from || FROM,
-    to: opts.to,
-    subject: opts.subject,
-    html: opts.html,
-    text: opts.text,
-  });
-}
-
-/** Typ för bokningsmail (OBS: bookingNumber i camelCase + event ingår) */
-export type SendBookingParams = {
-  to: string;
-  bookingNumber: string;
-  event: "created" | "updated" | "canceled";
-  passengers?: any[] | null;
-
-  from?: string | null;
-  toPlace?: string | null;
-  date?: string | null;
-  time?: string | null;
-  notes?: string | null;
+  // nya fält
+  cc?: string | string[];
+  bcc?: string | string[];
+  replyTo?: string | string[];
+  // meta-flaggor
+  mirrorToOffersInbox?: boolean; // bcc:a OFFERS_INBOX automatiskt
 };
 
-export async function sendBookingMail(p: SendBookingParams) {
-  const titleMap: Record<SendBookingParams["event"], string> = {
-    created: "Din bokning är registrerad",
-    updated: "Din bokning har uppdaterats",
-    canceled: "Din bokning har avbokats",
+/**
+ * Utils
+ */
+function toArray(x?: string | string[]): string[] {
+  if (!x) return [];
+  return Array.isArray(x) ? x : [x];
+}
+
+// enkel "sanitizer": trim + ta bort tomma + dedupe (case-insensitiv jämförelse)
+function sanitizeAddressList(list: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of list) {
+    const s = (raw || "").trim();
+    if (!s) continue;
+    // jämför dedupe i lower, men behåll original casing
+    const key = s.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out;
+}
+
+/**
+ * Huvud-funktion
+ */
+export async function sendMail(opts: SendMailOpts) {
+  if (!resendApiKey) {
+    throw new Error("RESEND_API_KEY saknas");
+  }
+  if (!opts?.to) {
+    throw new Error("sendMail: 'to' saknas");
+  }
+  if (!opts.subject) {
+    throw new Error("sendMail: 'subject' saknas");
+  }
+  if (!opts.html) {
+    throw new Error("sendMail: 'html' saknas");
+  }
+
+  // Normalisera mottagare
+  const to  = sanitizeAddressList(toArray(opts.to));
+  const cc  = sanitizeAddressList(toArray(opts.cc));
+  const bcc = sanitizeAddressList(toArray(opts.bcc));
+
+  if (to.length === 0) {
+    throw new Error("sendMail: 'to' tom efter normalisering");
+  }
+
+  // Bygg slutlig BCC-lista + spegling till OFFERS_INBOX om flaggad
+  const finalBccSet = new Set<string>(bcc.map((x) => x.toLowerCase()));
+  if (opts.mirrorToOffersInbox && OFFERS_INBOX) {
+    finalBccSet.add(OFFERS_INBOX.toLowerCase());
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[sendMail] BCC → OFFERS_INBOX: ${OFFERS_INBOX}`);
+    }
+  }
+
+  // undvik dubbletter mellan to/cc/bcc
+  const toLower = new Set(to.map((x) => x.toLowerCase()));
+  const ccLower = new Set(cc.map((x) => x.toLowerCase()));
+
+  // ta bort alla BCC som redan ligger i TO/CC
+  for (const addr of Array.from(finalBccSet)) {
+    if (toLower.has(addr) || ccLower.has(addr)) {
+      finalBccSet.delete(addr);
+    }
+  }
+
+  const finalBcc = Array.from(finalBccSet);
+
+  // Reply-To (default till SUPPORT_INBOX)
+  const replyToList = sanitizeAddressList(toArray(opts.replyTo));
+  const reply_to = replyToList.length ? replyToList : [SUPPORT_INBOX];
+
+  // Resend payload
+  const payload: any = {
+    from: DEFAULT_FROM,
+    to,
+    subject: opts.subject,
+    html: opts.html,
   };
-  const subject = `Bokning ${p.bookingNumber} – ${titleMap[p.event]}`;
 
-  const rowsHtml = [
-    ["Bokningsnummer", p.bookingNumber],
-    ["Från", p.from ?? "—"],
-    ["Till", p.toPlace ?? "—"],
-    ["Datum", p.date ?? "—"],
-    ["Tid", p.time ?? "—"],
-    ["Notering", p.notes ?? "—"],
-    ["Passagerare", Array.isArray(p.passengers) ? String(p.passengers.length) : "—"],
-  ]
-    .map(
-      ([label, value]) => `
-        <tr>
-          <td style="padding:6px 0;color:#0f172a80;font-size:12px;width:42%">${esc(
-            label
-          )}</td>
-          <td style="padding:6px 0;color:#0f172a;font-size:14px">${esc(
-            value as string
-          )}</td>
-        </tr>`
-    )
-    .join("");
+  if (cc.length) payload.cc = cc;
+  if (finalBcc.length) payload.bcc = finalBcc;
+  if (reply_to.length) payload.reply_to = reply_to;
 
-  const html = `<!doctype html>
-  <html lang="sv">
-    <body style="margin:0;padding:24px;background:#f5f4f0">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-        <tr><td align="center">
-          <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:12px;overflow:hidden">
-            <tr>
-              <td style="padding:16px 20px;border-bottom:1px solid #e5e7eb">
-                <img src="${LOGO_ABS}" alt="Helsingbuss" style="max-width:180px;height:auto" />
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:20px 20px 0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial">
-                <h1 style="margin:0 0 12px 0;color:#0f172a;font-size:18px;line-height:1.3">${esc(
-                  titleMap[p.event]
-                )}</h1>
-                <p style="margin:0 0 16px 0;color:#334155;font-size:14px">
-                  Här är en sammanfattning av din bokning hos Helsingbuss.
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:0 20px 4px">
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-                  ${rowsHtml}
-                </table>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:16px 20px;color:#64748b;font-size:12px;border-top:1px solid #e5e7eb">
-                Frågor om din resa? Ring vårt Kundteam vardagar 8–17: <strong>010-405 38 38</strong> eller svara på detta mail.
-                Vid akuta trafikärenden utanför kontorstid: <strong>010-777 21 58</strong>.
-              </td>
-            </tr>
-          </table>
-        </td></tr>
-      </table>
-    </body>
-  </html>`;
+  const result = await resend.emails.send(payload);
 
-  return await sendMail({
-    to: p.to,
-    subject,
-    html,
-  });
+  // enkel felhantering/logg
+  const anyErr = (result as any)?.error;
+  if (anyErr) {
+    const emsg = anyErr.message || "Okänt Resend-fel";
+    throw new Error(`Resend error: ${emsg}`);
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[sendMail] OK, id=${(result as any)?.id ?? "unknown"}`);
+  }
+
+  return result;
+}
+
+/**
+ * Hjälp: spegla alltid till OFFERS_INBOX (praktiskt för offert-utskick)
+ */
+export async function sendMailWithOfferMirror(
+  opts: Omit<SendMailOpts, "mirrorToOffersInbox">
+) {
+  return sendMail({ ...opts, mirrorToOffersInbox: true });
 }
