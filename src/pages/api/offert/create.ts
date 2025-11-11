@@ -5,7 +5,6 @@ import { sendOfferMail } from "@/lib/sendOfferMail";
 import { Resend } from "resend";
 import cors from "@/lib/cors"; // ✅ CORS
 
-
 // ---- Supabase klient (tål olika exports) ----
 const supabase =
   (admin as any).supabaseAdmin ||
@@ -58,14 +57,12 @@ function nextOfferNumberFactory(prefixYear?: string) {
 
     let nextNum = 7; // start fallback (HB{YY}007)
     if (lastOffer?.offer_number) {
-      // plocka ut löpnumret efter "HBxx"
       const m = String(lastOffer.offer_number).match(/^HB(\d{2})(\d{3,})$/);
       if (m) {
         const lastYY = m[1];
         const lastRun = parseInt(m[2], 10);
         nextNum = (lastYY === yy && Number.isFinite(lastRun)) ? lastRun + 1 : 7;
       } else {
-        // äldre format? ta sista siffrorna efter HBYY
         const tail = parseInt(String(lastOffer.offer_number).replace(/^HB\d{2}/, ""), 10);
         if (Number.isFinite(tail)) nextNum = tail + 1;
       }
@@ -75,7 +72,7 @@ function nextOfferNumberFactory(prefixYear?: string) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // 1) CORS
+  // 1) CORS (hanterar även OPTIONS)
   const proceeded = await cors(req, res, {
     allowOrigins: [
       env(process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL),
@@ -85,10 +82,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       "http://localhost:3000",
       "http://127.0.0.1:3000",
     ].filter(Boolean),
-    allowMethods: ["POST", "OPTIONS"],
+    allowMethods: ["GET", "POST", "OPTIONS"], // 👈 la till GET
     allowHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   });
   if (proceeded === false) return; // preflight svarat
+
+  // 1b) Enkel GET för att slippa "Method not allowed" i webbläsaren
+  if (req.method === "GET") {
+    // valfri "ping" => /api/offert/create?ping=1 testar DB-koppling
+    if ("ping" in (req.query || {})) {
+      try {
+        await supabase.from("offers").select("id").limit(1);
+        return res.status(200).json({ ok: true, message: "pong", service: "offert/create" });
+      } catch {
+        return res.status(200).json({ ok: false, message: "pong (db unavailable)", service: "offert/create" });
+      }
+    }
+
+    return res.status(200).json({
+      ok: true,
+      message: "Use POST to create an offer.",
+      example: {
+        customer_name: "Företag AB",
+        customer_email: "anna@example.com",
+        customer_phone: "+4670...",
+        onboard_contact: "Anna Andersson, +4670...",
+        customer_reference: "Projekt X",
+        internal_reference: "INT-123",
+        passengers: 45,
+        departure_place: "Helsingborg",
+        destination: "Ullared",
+        departure_date: "2025-11-28",
+        departure_time: "07:30",
+        stopover_places: "Landskrona, Halmstad",
+        return_departure: "Ullared",
+        return_destination: "Helsingborg",
+        return_date: "2025-11-28",
+        return_time: "18:00",
+        notes: "Barnvagn + extra lastutrymme",
+      },
+    });
+  }
 
   if (req.method !== "POST") return httpErr(res, 405, "Method not allowed");
 
@@ -101,7 +135,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   });
 
   try {
-    // 3) Säkerställ att vi har JSON
+    // 3) Säkerställ att vi har JSON (gäller bara POST)
     if (!contentType.includes("application/json")) {
       console.warn("[offert/create] Wrong content-type:", contentType);
       return httpErr(res, 415, "Content-Type must be application/json");
@@ -199,7 +233,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return httpErr(res, 500, "Kunde inte spara offert");
     }
 
-    // ---- Mail: 1) till kund (primärt via sendOfferMail HTML)
+    // ---- Mail: 1) till kund
     let mailOk = false;
     let mailError: string | null = null;
 
@@ -232,7 +266,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       mailError = err?.message || String(err);
       console.warn("[offert/create] sendOfferMail failed:", mailError);
 
-      // --- Fallback via Resend (text, BCC → OFFERS_INBOX) ---
+      // --- Fallback via Resend ---
       try {
         if (RESEND_API_KEY && EMAIL_FROM) {
           const resend = new Resend(RESEND_API_KEY);
@@ -243,8 +277,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
           await resend.emails.send({
             from: EMAIL_FROM,
-            to: customer_email!,            // kunden
-            ...(OFFERS_INBOX ? { bcc: [OFFERS_INBOX] } : {}), // intern spegling
+            to: customer_email!,
+            ...(OFFERS_INBOX ? { bcc: [OFFERS_INBOX] } : {}),
             reply_to: EMAIL_REPLY_TO,
             subject: `Tack för din offertförfrågan – ${offer_number}`,
             text:
@@ -272,7 +306,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    // ---- Mail: 2) separat intern notis till OFFERS_INBOX (oavsett)
+    // ---- Mail: 2) intern notis
     try {
       if (RESEND_API_KEY && EMAIL_FROM && OFFERS_INBOX) {
         const resend = new Resend(RESEND_API_KEY);
@@ -299,7 +333,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     } catch (internalErr: any) {
       console.error("[offert/create] internal notify failed:", internalErr?.message || internalErr);
-      // Fortsätt ändå – detta ska inte fälla användarflödet
     }
 
     console.log("[offert/create] done in", Date.now() - t0, "ms");
