@@ -2,84 +2,51 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 import { sendOfferMail } from "@/lib/sendOfferMail";
-
-// ⬇️ Extra: Resend-fallback om sendOfferMail skulle fallera
 import { Resend } from "resend";
 
-// Få en supabase-klient oavsett export i supabaseAdmin
+// ---- Supabase klient (tål olika exports) ----
 const supabase =
   (admin as any).supabaseAdmin ||
   (admin as any).supabase ||
   (admin as any).default;
 
+// ---- Env helpers ----
+const env = (v?: string | null) => (v ?? "").trim();
+const lc = (v?: string | null) => env(v).toLowerCase();
+
+const RESEND_API_KEY = env(process.env.RESEND_API_KEY);
+const EMAIL_FROM     = env(process.env.EMAIL_FROM) || "Helsingbuss <no-reply@helsingbuss.se>";
+const EMAIL_REPLY_TO = env(process.env.EMAIL_REPLY_TO) || "kundteam@helsingbuss.se";
+
+const SUPPORT_INBOX  = lc(process.env.SUPPORT_INBOX) || "kundteam@helsingbuss.se";
+const OFFERS_INBOX   = lc(process.env.OFFERS_INBOX)  || "offert@helsingbuss.se";
+
+// kunddomän för publika vyer
+const CUSTOMER_BASE_URL =
+  env(process.env.CUSTOMER_BASE_URL) ||
+  env(process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL) ||
+  env(process.env.NEXT_PUBLIC_BASE_URL); // sista utvägen
+
+// ---- Små helpers ----
 function toNull<T = any>(v: T | null | undefined): T | null {
   return v === "" || v === undefined ? null : (v as any);
 }
-
 function pickYmd(v?: string | null) {
   if (!v) return null;
-  // accepterar "YYYY-MM-DD" eller en ISO-sträng
   return v.length >= 10 ? v.slice(0, 10) : v;
 }
-
 function parseNumber(n: any): number | null {
   if (typeof n === "number") return Number.isFinite(n) ? n : null;
   const t = Number(n);
   return Number.isFinite(t) ? t : null;
 }
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  try {
-    const p = req.body ?? {};
-
-    // ---- Läs in fält från formuläret ----
-    const customer_name: string | null = toNull(p.customer_name);
-    const customer_email: string | null = toNull(p.customer_email);
-    const customer_phone: string | null = toNull(p.customer_phone);
-
-    // UI-fält (valfritt) “Kontaktperson ombord (namn och nummer)”
-    const raw_onboard_contact: string | null = toNull(p.onboard_contact);
-
-    // Rätt DB-kolumn: customer_reference
-    const customer_reference: string | null =
-      toNull(p.customer_reference) ?? raw_onboard_contact ?? customer_name;
-
-    const internal_reference: string | null = toNull(p.internal_reference);
-
-    const passengers: number | null = parseNumber(p.passengers);
-
-    const departure_place: string | null = toNull(p.departure_place);
-    const destination: string | null = toNull(p.destination);
-    const departure_date: string | null = pickYmd(toNull(p.departure_date));
-    const departure_time: string | null = toNull(p.departure_time);
-
-    const return_departure: string | null = toNull(p.return_departure);
-    const return_destination: string | null = toNull(p.return_destination);
-    const return_date: string | null = pickYmd(toNull(p.return_date));
-    const return_time: string | null = toNull(p.return_time);
-
-    // Tidigare “via”, rätt kolumn i DB heter stopover_places
-    const stopover_places: string | null = toNull(p.stopover_places ?? p.via);
-
-    // Övrigt
-    const notes: string | null = toNull(p.notes);
-
-    // Minimal validering
-    if (!customer_name || !customer_email) {
-      return res
-        .status(400)
-        .json({ error: "customer_name och customer_email krävs" });
-    }
-    if (!departure_place || !destination) {
-      // Inte hårt krav, men bra feedback om publika formuläret missar
-      console.warn("create.ts: saknar departure_place/destination");
-    }
-
-    // ---- Offertnummer (HB25xxx) – samma logik som tidigare ----
+function httpErr(res: NextApiResponse, code: number, msg: string) {
+  console.error(`[offert/create] ${code} ${msg}`);
+  return res.status(code).json({ error: msg });
+}
+function nextOfferNumberFactory(prefixYear?: string) {
+  const yy = prefixYear ?? new Date().getFullYear().toString().slice(-2); // "25"
+  return async function next(): Promise<string> {
     const { data: lastOffer } = await supabase
       .from("offers")
       .select("offer_number")
@@ -87,16 +54,79 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .limit(1)
       .maybeSingle();
 
-    let nextNumber = 7; // startvärde (HB25007)
+    let nextNum = 7; // start fallback (HB{YY}007)
     if (lastOffer?.offer_number) {
-      const lastNum = parseInt(String(lastOffer.offer_number).replace("HB25", ""), 10);
-      if (Number.isFinite(lastNum)) nextNumber = lastNum + 1;
+      // plocka ut löpnumret efter "HBxx"
+      const m = String(lastOffer.offer_number).match(/^HB(\d{2})(\d{3,})$/);
+      if (m) {
+        const lastYY = m[1];
+        const lastRun = parseInt(m[2], 10);
+        nextNum = (lastYY === yy && Number.isFinite(lastRun)) ? lastRun + 1 : 7;
+      } else {
+        // gammalt format? försök ta sista 3-4 siffrorna
+        const tail = parseInt(String(lastOffer.offer_number).replace(/^HB\d{2}/, ""), 10);
+        if (Number.isFinite(tail)) nextNum = tail + 1;
+      }
     }
-    const offer_number = `HB25${String(nextNumber).padStart(3, "0")}`;
+    return `HB${yy}${String(nextNum).padStart(3, "0")}`;
+  };
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") return httpErr(res, 405, "Method not allowed");
+
+  const t0 = Date.now();
+  try {
+    const p = req.body ?? {};
+    console.log("[offert/create] incoming", {
+      contentType: req.headers["content-type"],
+      origin: req.headers.origin,
+      hasBody: !!req.body,
+    });
+
+    // ---- Fält från formulär ----
+    const customer_name:  string | null = toNull(p.customer_name);
+    const customer_email: string | null = lc(toNull(p.customer_email));
+    const customer_phone: string | null = toNull(p.customer_phone);
+
+    // UI-fält: “Kontaktperson ombord (namn och nummer)” → fallback till customer_reference
+    const onboard_contact: string | null = toNull(p.onboard_contact);
+    const customer_reference: string | null =
+      toNull(p.customer_reference) ?? onboard_contact ?? customer_name;
+
+    const internal_reference: string | null = toNull(p.internal_reference);
+
+    const passengers: number | null = parseNumber(p.passengers);
+
+    const departure_place: string | null = toNull(p.departure_place);
+    const destination:     string | null = toNull(p.destination);
+    const departure_date:  string | null = pickYmd(toNull(p.departure_date));
+    const departure_time:  string | null = toNull(p.departure_time);
+
+    const return_departure: string | null = toNull(p.return_departure);
+    const return_destination: string | null = toNull(p.return_destination);
+    const return_date: string | null = pickYmd(toNull(p.return_date));
+    const return_time: string | null = toNull(p.return_time);
+
+    const stopover_places: string | null = toNull(p.stopover_places ?? p.via);
+    const notes: string | null = toNull(p.notes);
+
+    // ---- Minimal validering ----
+    const missing: string[] = [];
+    if (!customer_name)  missing.push("customer_name");
+    if (!customer_email) missing.push("customer_email");
+    if (!departure_place) missing.push("departure_place");
+    if (!destination)     missing.push("destination");
+    if (!departure_date)  missing.push("departure_date");
+    if (!departure_time)  missing.push("departure_time");
+    if (missing.length) return httpErr(res, 400, `Saknar fält: ${missing.join(", ")}`);
+
+    // ---- Offertnummer HB{YY}{xxx} ----
+    const nextOfferNumber = nextOfferNumberFactory();
+    const offer_number = await nextOfferNumber();
 
     // ---- Spara i DB ----
     const nowIso = new Date().toISOString();
-
     const insertPayload: any = {
       offer_number,
       status: "inkommen",
@@ -138,14 +168,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .select("*")
       .single();
 
-    if (insErr) throw insErr;
+    if (insErr) {
+      console.error("[offert/create] supabase insert error:", insErr);
+      return httpErr(res, 500, "Kunde inte spara offert");
+    }
 
-    // ---- Skicka mejl
+    // ---- Mail: 1) till kund (med BCC till OFFERS_INBOX vid fallback)
     let mailOk = false;
     let mailError: string | null = null;
 
     try {
-      // Din befintliga funktion (behåll!)
+      // Din primära HTML-mall
       await sendOfferMail({
         offerId: String(row.id ?? offer_number),
         offerNumber: String(offer_number),
@@ -160,7 +193,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         time: departure_time,
         passengers,
         via: stopover_places,
-        onboardContact: raw_onboard_contact,
+        onboardContact: onboard_contact,
 
         return_from: return_departure,
         return_to: return_destination,
@@ -172,27 +205,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       mailOk = true;
     } catch (err: any) {
       mailError = err?.message || String(err);
-      console.warn("sendOfferMail (create offert) failed:", mailError);
+      console.warn("[offert/create] sendOfferMail failed:", mailError);
 
-      // ⬇️ Fallback via Resend om nyckel finns.
+      // --- Fallback via Resend (BCC → OFFERS_INBOX) ---
       try {
-        const apiKey = process.env.RESEND_API_KEY;
-        const from = process.env.EMAIL_FROM; // t.ex. "Helsingbuss <no-reply@helsingbuss.se>"
-        const replyTo = process.env.EMAIL_REPLY_TO || "kundteam@helsingbuss.se";
-
-        if (apiKey && from) {
-          const resend = new Resend(apiKey);
-
-          const previewUrl = `${process.env.NEXT_PUBLIC_BASE_URL || ""}/offert/${offer_number}?view=inkommen`;
+        if (RESEND_API_KEY && EMAIL_FROM) {
+          const resend = new Resend(RESEND_API_KEY);
+          const previewUrlBase = CUSTOMER_BASE_URL || env(process.env.NEXT_PUBLIC_BASE_URL);
+          const previewUrl = previewUrlBase
+            ? `${previewUrlBase.replace(/\/+$/, "")}/offert/${offer_number}?view=inkommen`
+            : "";
 
           await resend.emails.send({
-            from,
+            from: EMAIL_FROM,
             to: customer_email!,
-            reply_to: replyTo,
+            ...(OFFERS_INBOX ? { bcc: [OFFERS_INBOX] } : {}),
+            reply_to: EMAIL_REPLY_TO,
             subject: `Tack för din offertförfrågan – ${offer_number}`,
             text:
               `Hej ${customer_name || ""}!\n\n` +
-              `Vi har tagit emot er offertförfrågan. Ni kan följa och granska den här: ${previewUrl}\n\n` +
+              `Vi har tagit emot er offertförfrågan.${previewUrl ? `\nGranska här: ${previewUrl}\n` : "\n"}\n` +
               `Sammanfattning:\n` +
               `Från: ${departure_place || "-"}\n` +
               `Till: ${destination || "-"}\n` +
@@ -200,27 +232,56 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               `Tid: ${departure_time || "-"}\n` +
               `Passagerare: ${passengers ?? "-"}\n` +
               (return_date || return_time || return_departure || return_destination
-                ? `\nRetur: ${return_departure || "-"} → ${return_destination || "-"} ` +
-                  `(${return_date || "-"} ${return_time || "-"})\n`
+                ? `\nRetur: ${return_departure || "-"} → ${return_destination || "-"} (${return_date || "-"} ${return_time || "-"})\n`
                 : "") +
-              `\nHar du frågor eller vill justera något? Svara på detta mail eller kontakta oss på ${replyTo}.\n\n` +
+              `\nHar du frågor eller vill justera något? Svara på detta mail eller kontakta oss på ${EMAIL_REPLY_TO}.\n\n` +
               `Vänliga hälsningar,\nHelsingbuss`,
           });
-
-          mailOk = true; // fallback lyckades
+          mailOk = true;
         }
       } catch (fallbackErr: any) {
-        console.error("Resend fallback failed:", fallbackErr?.message || fallbackErr);
+        console.error("[offert/create] Resend fallback failed:", fallbackErr?.message || fallbackErr);
       }
     }
 
+    // ---- Mail: 2) separat intern notis till OFFERS_INBOX (oavsett ovan)
+    try {
+      if (RESEND_API_KEY && EMAIL_FROM && OFFERS_INBOX) {
+        const resend = new Resend(RESEND_API_KEY);
+        await resend.emails.send({
+          from: EMAIL_FROM,
+          to: OFFERS_INBOX,
+          reply_to: customer_email || EMAIL_REPLY_TO || SUPPORT_INBOX,
+          subject: `Ny offert inkommen ${offer_number} – ${customer_name || ""}`,
+          text:
+            `Offert ${offer_number} har inkommit.\n\n` +
+            `Kontakt: ${customer_name || "-"}\n` +
+            `E-post: ${customer_email || "-"}\n` +
+            `Telefon: ${customer_phone || "-"}\n\n` +
+            `Från: ${departure_place || "-"}\n` +
+            `Till: ${destination || "-"}\n` +
+            `Datum: ${departure_date || "-"}\n` +
+            `Tid: ${departure_time || "-"}\n` +
+            `Passagerare: ${passengers ?? "-"}\n` +
+            (return_date || return_time || return_departure || return_destination
+              ? `\nRetur: ${return_departure || "-"} → ${return_destination || "-"} (${return_date || "-"} ${return_time || "-"})\n`
+              : "") +
+            (notes ? `\nNoteringar:\n${notes}\n` : ""),
+        });
+      }
+    } catch (internalErr: any) {
+      console.error("[offert/create] internal notify failed:", internalErr?.message || internalErr);
+      // Fortsätt ändå – detta ska inte fälla användarflödet
+    }
+
+    console.log("[offert/create] done in", Date.now() - t0, "ms");
     return res.status(200).json({
       success: true,
       offer: row,
       mail: mailOk ? "sent" : (mailError ? `failed: ${mailError}` : "skipped"),
     });
   } catch (e: any) {
-    console.error("/api/offert/create error:", e?.message || e);
-    return res.status(500).json({ error: e?.message || "Serverfel" });
+    console.error("[offert/create] unhandled:", e?.message || e);
+    return httpErr(res, 500, "Serverfel");
   }
 }
