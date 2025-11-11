@@ -1,19 +1,18 @@
 ﻿// src/lib/supabaseClient.ts
 import { createClient } from "@supabase/supabase-js";
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.NEXT_PUBLIC_SUPABASE_KEY;
+const url =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.SUPABASE_URL ||
+  "";
 
-if (!url || !key) {
-  // Den här syns i serverkonsolen (VS Code / terminal)
-  console.error("❌ Supabase env saknas",
-    { hasUrl: !!url, keyLen: (key || "").length }
-  );
-  throw new Error("Supabase-konfiguration saknas (.env.local?)");
-} else {
-  console.log("✅ Supabase env laddad",
-    { hasUrl: true, keyLen: key.length }
-  );
-}
+const anonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_KEY ||
+  "";
 
-export const supabase = createClient(url, key);
+export const supabaseClient = createClient(url, anonKey, {
+  auth: { persistSession: true },
+});
+
+export default supabaseClient;

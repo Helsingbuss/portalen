@@ -5,6 +5,7 @@ import { sendOfferMail } from "@/lib/sendOfferMail";
 import { Resend } from "resend";
 import cors from "@/lib/cors"; // ✅ CORS
 
+
 // ---- Supabase klient (tål olika exports) ----
 const supabase =
   (admin as any).supabaseAdmin ||
