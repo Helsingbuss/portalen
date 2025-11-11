@@ -1,28 +1,54 @@
-﻿import { sendMail, customerBaseUrl } from "./sendMail";
+﻿// src/lib/sendBookingMail.ts
 
 /**
- * Booking mail payload used by API routes.
- * - Top-level fields kept for backward compatibility (from/toPlace/date/time)
- * - Primary fields are nested in `out` and `ret` and include `to`
+ * Skickar bokningsmail via Resend och bygger korrekt länk till publika bokningssidan.
+ * - Länken pekar nu på /bokning/[nummer] (svensk ruta) istället för /booking/
+ * - "From" hämtas från SUPPORT_INBOX (fallback: support@helsingbuss.se)
+ * - OFFERS_INBOX lämnas orörd (används av offertflödena)
  */
+
 export type SendBookingParams = {
-  to: string;                 // customer's email
-  bookingNumber: string;      // e.g. BK25xxxx
+  to: string;                 // kundens e-post
+  bookingNumber: string;      // t.ex. BK25xxxx
   mode?: "created" | "updated";
 
-  // Back-compat flat fields (optional)
+  // Back-compat platta fält
   passengers?: number | null;
-  from?: string | null;       // fallback if out.from missing
-  toPlace?: string | null;    // fallback if out.to missing
-  date?: string | null;       // fallback if out.date missing
-  time?: string | null;       // fallback if out.time missing
+  from?: string | null;
+  toPlace?: string | null;
+  date?: string | null;
+  time?: string | null;
 
-  // Primary structured legs
+  // Primära sträckor
   out?: { date?: string | null; time?: string | null; from?: string | null; to?: string | null };
   ret?: { date?: string | null; time?: string | null; from?: string | null; to?: string | null };
 
   freeTextHtml?: string;
 };
+
+/* -------------------- Env helpers -------------------- */
+
+function env(v: string | undefined, fallback = ""): string {
+  return (v ?? "").trim() || fallback;
+}
+
+function customerBaseUrl(): string {
+  // prioritet: CUSTOMER_BASE_URL > NEXT_PUBLIC_CUSTOMER_BASE_URL > NEXT_PUBLIC_BASE_URL
+  return (
+    env(process.env.CUSTOMER_BASE_URL) ||
+    env(process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL) ||
+    env(process.env.NEXT_PUBLIC_BASE_URL) ||
+    "https://kund.helsingbuss.se"
+  );
+}
+
+function supportFromAddress(): { fromEmail: string; fromName: string } {
+  // skicka från support-inboxen (verifierad i Resend)
+  const inbox = env(process.env.SUPPORT_INBOX, "support@helsingbuss.se");
+  return { fromEmail: inbox.toLowerCase(), fromName: "Helsingbuss" };
+}
+
+/* -------------------- Mail rendering -------------------- */
 
 function rowsFrom(p: SendBookingParams): Array<{ label: string; value: string }> {
   const out = {
@@ -44,13 +70,13 @@ function rowsFrom(p: SendBookingParams): Array<{ label: string; value: string }>
 
   if (p.passengers != null) r.push({ label: "Passagerare", value: String(p.passengers) });
 
-  // Outbound
+  // Utresa
   if (out.date) r.push({ label: "Utresa datum", value: out.date });
   if (out.time) r.push({ label: "Utresa tid", value: out.time });
   if (out.from) r.push({ label: "Utresa från", value: out.from });
   if (out.to)   r.push({ label: "Utresa till", value: out.to });
 
-  // Return (optional)
+  // Retur (valfritt)
   if (ret.date) r.push({ label: "Retur datum", value: ret.date });
   if (ret.time) r.push({ label: "Retur tid", value: ret.time });
   if (ret.from) r.push({ label: "Retur från", value: ret.from });
@@ -113,10 +139,43 @@ function htmlBody(p: SendBookingParams, link: string): string {
 </html>`;
 }
 
-/** Public function used by API route */
+/* -------------------- Resend transport -------------------- */
+
+async function sendMail(opts: { to: string; subject: string; html: string }) {
+  const apiKey = env(process.env.RESEND_API_KEY);
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY saknas – kan inte skicka e-post.");
+  }
+
+  const { fromEmail, fromName } = supportFromAddress();
+
+  const resp = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: `${fromName} <${fromEmail}>`,
+      to: [opts.to],
+      subject: opts.subject,
+      html: opts.html,
+    }),
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => "");
+    throw new Error(`Resend fel ${resp.status}: ${text || resp.statusText}`);
+  }
+  return resp.json().catch(() => ({}));
+}
+
+/* -------------------- Public API -------------------- */
+
 export async function sendBookingMail(p: SendBookingParams) {
-  const base = customerBaseUrl(); // e.g. https://kund.helsingbuss.se
-  const link = `${base}/booking/${encodeURIComponent(p.bookingNumber)}`;
+  const base = customerBaseUrl(); // ex. https://kund.helsingbuss.se
+  // Viktigt: använd svenska routen /bokning/ som finns i appen
+  const link = `${base.replace(/\/+$/, "")}/bokning/${encodeURIComponent(p.bookingNumber)}`;
 
   const subject = p.mode === "created"
     ? `Bokningsbekräftelse (${p.bookingNumber})`
@@ -130,7 +189,3 @@ export async function sendBookingMail(p: SendBookingParams) {
     html,
   });
 }
-
-
-
-
