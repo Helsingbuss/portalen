@@ -1,24 +1,35 @@
 ﻿// src/lib/supabaseAdmin.ts
 import { createClient } from "@supabase/supabase-js";
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const serviceKey = process.env.SUPABASE_SERVICE_KEY || "";
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_KEY || "";
+const URL =
+  process.env.SUPABASE_URL ||
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  "";
 
-if (!url) {
-  console.error("❌ NEXT_PUBLIC_SUPABASE_URL saknas");
+const SERVICE_KEY =
+  process.env.SUPABASE_SERVICE_KEY ||
+  process.env.SUPABASE_SECRET ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  "";
+
+if (!URL || !SERVICE_KEY) {
+  console.error("❌ Supabase env saknas", {
+    hasUrl: !!URL,
+    hasServiceKey: !!SERVICE_KEY,
+  });
 }
 
-/**
- * Normalfall: service role key (server-sida, full access).
- * Nödläge: om serviceKey saknas, använd anonKey (read-only) så att dev inte kraschar.
- */
-let keyToUse = serviceKey || anonKey;
-if (!keyToUse) {
-  console.error("❌ Inga Supabase-nycklar hittades (.env.local)");
-  keyToUse = "invalid-key"; // gör att Supabase svarar "Invalid API key" men Next fortsätter köra
-}
+export const supabaseAdmin = createClient(URL, SERVICE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
+  db: { schema: process.env.SUPABASE_SCHEMA || "public" },
+  global: { headers: { "X-Client-Info": "hb-portal-server" } },
+});
 
-export const supabase = createClient(url, keyToUse, { auth: { persistSession: false } });
-export const supabaseAdmin = supabase;
-export default supabase;
+// kompatibla exports
+export const supabase = supabaseAdmin;
+export default supabaseAdmin;
+
+console.log("✅ Supabase admin klar", {
+  hasUrl: !!URL,
+  keyLen: SERVICE_KEY.length,
+});
