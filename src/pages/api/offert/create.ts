@@ -1,8 +1,11 @@
-﻿import type { NextApiRequest, NextApiResponse } from "next";
+﻿// src/pages/api/offert/create.ts
+import type { NextApiRequest, NextApiResponse } from "next";
 import supabase from "@/lib/supabaseAdmin";
 import { sendOfferMail } from "@/lib/sendMail";
+import { allowCors } from "@/lib/cors";
 
-export const config = { runtime: "nodejs" as const }; // Viktigt för Resend/Node
+// Viktigt: REN statisk sträng (eller ta bort helt)
+export const config = { runtime: "nodejs" };
 
 function pickYmd(v?: string | null) {
   if (!v) return null;
@@ -14,12 +17,14 @@ async function nextOfferNumber(): Promise<string> {
   const yy = String(new Date().getFullYear()).slice(2);
   const prefix = `HB${yy}`;
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("offers")
     .select("offer_number")
     .ilike("offer_number", `${prefix}%`)
     .order("offer_number", { ascending: false })
     .limit(100);
+
+  if (error) console.error("[offert/create] select error:", error);
 
   let nextRun = 7;
   if (data?.length) {
@@ -39,6 +44,7 @@ async function nextOfferNumber(): Promise<string> {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!allowCors(req, res)) return;
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
@@ -92,6 +98,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       stopover_places: via,
       notes,
       offer_date: new Date().toISOString().split("T")[0],
+      internal_reference,
     };
 
     const ins = await supabase
@@ -105,7 +112,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ ok: false, error: ins.error.message });
     }
 
-    // === MAIL ===
+    // === MAIL === (kasta vid fel så frontend ser det)
     try {
       const result = await sendOfferMail({
         offerId: String(ins.data.id),
@@ -128,7 +135,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
       console.log("[offert/create] mail result:", result);
     } catch (mailErr: any) {
-      console.error("[offert/create] mail failed:", mailErr?.message || mailErr);
+      console.error("[offert/create] mail FAILED:", mailErr?.message || mailErr);
+      return res.status(500).json({ ok: false, error: "Mailleverans misslyckades: " + (mailErr?.message || "okänt fel") });
     }
 
     return res.status(200).json({ ok: true, offer: ins.data });
