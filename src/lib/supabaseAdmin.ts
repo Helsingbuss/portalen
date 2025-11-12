@@ -1,19 +1,24 @@
 ﻿// src/lib/supabaseAdmin.ts
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE;
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const serviceKey = process.env.SUPABASE_SERVICE_KEY || "";
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_KEY || "";
 
-if (!SUPABASE_URL) {
-  console.error("[supabaseAdmin] Missing SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL");
-}
-if (!SUPABASE_SERVICE_ROLE) {
-  console.error("[supabaseAdmin] Missing SUPABASE_SERVICE_ROLE (service role key)");
+if (!url) {
+  console.error("❌ NEXT_PUBLIC_SUPABASE_URL saknas");
 }
 
-export const supabaseAdmin = createClient(String(SUPABASE_URL), String(SUPABASE_SERVICE_ROLE), {
-  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  global: { headers: { "X-Client-Info": "helsingbuss-admin" } }
-});
+/**
+ * Normalfall: service role key (server-sida, full access).
+ * Nödläge: om serviceKey saknas, använd anonKey (read-only) så att dev inte kraschar.
+ */
+let keyToUse = serviceKey || anonKey;
+if (!keyToUse) {
+  console.error("❌ Inga Supabase-nycklar hittades (.env.local)");
+  keyToUse = "invalid-key"; // gör att Supabase svarar "Invalid API key" men Next fortsätter köra
+}
 
-export default supabaseAdmin;
+export const supabase = createClient(url, keyToUse, { auth: { persistSession: false } });
+export const supabaseAdmin = supabase; // vissa filer importerar detta namnet
+export default supabase;               // andra använder default-import

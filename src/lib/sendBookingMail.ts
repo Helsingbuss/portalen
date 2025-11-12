@@ -1,191 +1,166 @@
-﻿// src/lib/sendBookingMail.ts
+// src/lib/sendBookingMail.ts
+import { Resend } from "resend";
+import sg from "@sendgrid/mail";
+import nodemailer from "nodemailer";
 
-/**
- * Skickar bokningsmail via Resend och bygger korrekt länk till publika bokningssidan.
- * - Länken pekar nu på /bokning/[nummer] (svensk ruta) istället för /booking/
- * - "From" hämtas från SUPPORT_INBOX (fallback: support@helsingbuss.se)
- * - OFFERS_INBOX lämnas orörd (används av offertflödena)
- */
-
-export type SendBookingParams = {
-  to: string;                 // kundens e-post
-  bookingNumber: string;      // t.ex. BK25xxxx
-  mode?: "created" | "updated";
-
-  // Back-compat platta fält
-  passengers?: number | null;
-  from?: string | null;
-  toPlace?: string | null;
+type LegInfo = {
   date?: string | null;
   time?: string | null;
-
-  // Primära sträckor
-  out?: { date?: string | null; time?: string | null; from?: string | null; to?: string | null };
-  ret?: { date?: string | null; time?: string | null; from?: string | null; to?: string | null };
-
-  freeTextHtml?: string;
+  from?: string | null;
+  to?: string | null;
 };
 
-/* -------------------- Env helpers -------------------- */
+export type SendBookingMailParams = {
+  to: string;                    // kundens e-post
+  bookingNumber: string;         // BK25XXXX
+  passengers?: number | null;
+  out?: LegInfo;                 // utresa
+  ret?: LegInfo | null;          // retur (om finns)
+  baseUrl?: string | null;       // valfritt; auto-deriveras om ej satt
+};
 
-function env(v: string | undefined, fallback = ""): string {
-  return (v ?? "").trim() || fallback;
+function resolveBaseUrl(explicit?: string | null) {
+  if (explicit) return explicit.replace(/\/+$/, "");
+  const envUrl =
+    process.env.PUBLIC_BASE_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_URL ||
+    "";
+  if (!envUrl) return "http://localhost:3000";
+  const hasProtocol = /^https?:\/\//i.test(envUrl);
+  return (hasProtocol ? envUrl : `https://${envUrl}`).replace(/\/+$/, "");
 }
 
-function customerBaseUrl(): string {
-  // prioritet: CUSTOMER_BASE_URL > NEXT_PUBLIC_CUSTOMER_BASE_URL > NEXT_PUBLIC_BASE_URL
-  return (
-    env(process.env.CUSTOMER_BASE_URL) ||
-    env(process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL) ||
-    env(process.env.NEXT_PUBLIC_BASE_URL) ||
-    "https://kund.helsingbuss.se"
-  );
+function htmlEscape(s: string) {
+  return s.replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c] as string));
 }
 
-function supportFromAddress(): { fromEmail: string; fromName: string } {
-  // skicka från support-inboxen (verifierad i Resend)
-  const inbox = env(process.env.SUPPORT_INBOX, "support@helsingbuss.se");
-  return { fromEmail: inbox.toLowerCase(), fromName: "Helsingbuss" };
+function renderLines(out?: LegInfo | null, ret?: LegInfo | null, pax?: number | null) {
+  const outLine = out
+    ? `${out.date ?? "—"} ${out.time ?? ""} — ${out.from ?? "—"} → ${out.to ?? "—"}`
+    : "—";
+  const retLine = ret
+    ? `${ret.date ?? "—"} ${ret.time ?? ""} — ${ret.from ?? "—"} → ${ret.to ?? "—"}`
+    : null;
+
+  return { outLine, retLine, paxText: Number.isFinite(pax ?? NaN) ? String(pax) : "—" };
 }
 
-/* -------------------- Mail rendering -------------------- */
+function buildHtml({ bookingNumber, out, ret, passengers, link }: { bookingNumber: string; out?: LegInfo | null; ret?: LegInfo | null; passengers?: number | null; link: string }) {
+  const { outLine, retLine, paxText } = renderLines(out, ret, passengers);
 
-function rowsFrom(p: SendBookingParams): Array<{ label: string; value: string }> {
-  const out = {
-    date: p.out?.date ?? p.date ?? null,
-    time: p.out?.time ?? p.time ?? null,
-    from: p.out?.from ?? p.from ?? null,
-    to:   p.out?.to   ?? p.toPlace ?? null,
-  };
-  const ret = {
-    date: p.ret?.date ?? null,
-    time: p.ret?.time ?? null,
-    from: p.ret?.from ?? null,
-    to:   p.ret?.to   ?? null,
-  };
+  const body = `
+  <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#194C66;line-height:1.45">
+    <h2 style="margin:0 0 8px 0">Bokning (${htmlEscape(bookingNumber)})</h2>
+    <p style="margin:0 0 16px 0;">Tack för er bokning!</p>
 
-  const r: Array<{ label: string; value: string }> = [
-    { label: "Ordernummer (Boknings ID)", value: p.bookingNumber },
-  ];
+    <p style="margin:0 0 12px 0">
+      <a href="${link}" style="color:#194C66;text-decoration:underline">Vänligen klicka här för att se vad som har registrerats (${htmlEscape(bookingNumber)}).</a>
+    </p>
 
-  if (p.passengers != null) r.push({ label: "Passagerare", value: String(p.passengers) });
+    <div style="background:#f5f7fa;border:1px solid #e5eef3;border-radius:12px;padding:12px;margin:12px 0">
+      <div><strong>Ordernummer (Boknings ID):</strong> ${htmlEscape(bookingNumber)}</div>
+      <div><strong>Passagerare:</strong> ${htmlEscape(paxText)}</div>
+      <div style="margin-top:6px"><strong>Utresa:</strong><br/>${htmlEscape(outLine)}</div>
+      ${retLine ? `<div style="margin-top:6px"><strong>Retur:</strong><br/>${htmlEscape(retLine)}</div>` : ""}
+    </div>
 
-  // Utresa
-  if (out.date) r.push({ label: "Utresa datum", value: out.date });
-  if (out.time) r.push({ label: "Utresa tid", value: out.time });
-  if (out.from) r.push({ label: "Utresa från", value: out.from });
-  if (out.to)   r.push({ label: "Utresa till", value: out.to });
+    <p style="margin:12px 0 0 0;">Fakturan kommer att skickas ut efter utfört uppdrag.</p>
+    <p style="margin:8px 0 0 0;">Kontrollera gärna att bokningen stämmer enligt era önskemål.</p>
 
-  // Retur (valfritt)
-  if (ret.date) r.push({ label: "Retur datum", value: ret.date });
-  if (ret.time) r.push({ label: "Retur tid", value: ret.time });
-  if (ret.from) r.push({ label: "Retur från", value: ret.from });
-  if (ret.to)   r.push({ label: "Retur till", value: ret.to });
+    <p style="margin:12px 0 0 0;">
+      Frågor om din resa? Ring vårt Kundteam under vardagar 8–17: <strong>010-405&nbsp;38&nbsp;38</strong>,
+      eller besvara detta mail.<br/>
+      Vid akuta trafikärenden efter kontorstid når du vår jour på <strong>010-777&nbsp;21&nbsp;58</strong>.
+    </p>
 
-  return r;
+    <p style="margin:16px 0 0 0;">Vänliga hälsningar<br/>Helsingbuss Kundteam</p>
+  </div>`;
+  return body;
 }
 
-function htmlBody(p: SendBookingParams, link: string): string {
-  const rows = rowsFrom(p).map(
-    (r) => `
-      <tr>
-        <td style="padding:4px 0;color:#0f172a80;font-size:12px;width:42%">${r.label}</td>
-        <td style="padding:4px 0;color:#0f172a;font-size:14px">${r.value}</td>
-      </tr>`
-  ).join("");
-
-  const intro =
-    p.mode === "created"
-      ? "Tack för er bokning!"
-      : "Vi har uppdaterat er bokning.";
-
-  const freeText = p.freeTextHtml ?? `
-    <p>Vänligen klicka på knappen för att se vad som har registrerats.
-    Fakturan skickas efter utfört uppdrag. Kontrollera gärna att allt stämmer.</p>
-  `;
-
-  return `<!doctype html>
-<html lang="sv">
-  <body style="margin:0;padding:24px;background:#f5f4f0">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-      <tr><td align="center">
-        <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="max-width:640px">
-          <tr>
-            <td style="background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-              <h1 style="margin:0 0 12px 0;font-size:20px;color:#0f172a">
-                ${p.mode === "created" ? "Bokningsbekräftelse" : "Uppdatering av bokning"}
-              </h1>
-              <p style="margin:0 0 12px 0;color:#0f172a80">${intro}</p>
-
-              <div style="color:#0f172acc;font-size:14px;line-height:1.6">
-                ${freeText}
-              </div>
-
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:12px">
-                ${rows}
-              </table>
-
-              <div style="margin-top:16px">
-                <a href="${link}" style="display:inline-block;background:#194C66;color:#fff;text-decoration:none;padding:10px 16px;border-radius:999px;font-size:14px">
-                  Visa bokningen (${p.bookingNumber})
-                </a>
-              </div>
-            </td>
-          </tr>
-        </table>
-      </td></tr>
-    </table>
-  </body>
-</html>`;
+function buildText({ bookingNumber, out, ret, passengers, link }: { bookingNumber: string; out?: LegInfo | null; ret?: LegInfo | null; passengers?: number | null; link: string }) {
+  const { outLine, retLine, paxText } = renderLines(out, ret, passengers);
+  return [
+    `Bokning (${bookingNumber})`,
+    `Tack för er bokning!`,
+    ``,
+    `Se bokningsdetaljer: ${link}`,
+    ``,
+    `Ordernummer (Boknings ID): ${bookingNumber}`,
+    `Passagerare: ${paxText}`,
+    `Utresa: ${outLine}`,
+    retLine ? `Retur: ${retLine}` : ``,
+    ``,
+    `Fakturan kommer att skickas ut efter utfört uppdrag.`,
+    `Kontrollera gärna att bokningen stämmer enligt era önskemål.`,
+    ``,
+    `Frågor om din resa?`,
+    `Kundteam vardagar 8–17: 010-405 38 38, eller besvara detta mail.`,
+    `Jour efter kontorstid: 010-777 21 58.`,
+    ``,
+    `Vänliga hälsningar`,
+    `Helsingbuss Kundteam`,
+  ].filter(Boolean).join("\n");
 }
 
-/* -------------------- Resend transport -------------------- */
+export async function sendBookingMail(params: SendBookingMailParams) {
+  const from = process.env.MAIL_FROM || "Helsingbuss <no-reply@helsingbuss.se>";
+  const base = resolveBaseUrl(params.baseUrl);
+  const link = `${base}/bokning/${encodeURIComponent(params.bookingNumber)}`;
+  const subject = `Bokning (${params.bookingNumber})`;
+  const html = buildHtml({ bookingNumber: params.bookingNumber, out: params.out, ret: params.ret || null, passengers: params.passengers, link });
+  const text = buildText({ bookingNumber: params.bookingNumber, out: params.out, ret: params.ret || null, passengers: params.passengers, link });
 
-async function sendMail(opts: { to: string; subject: string; html: string }) {
-  const apiKey = env(process.env.RESEND_API_KEY);
-  if (!apiKey) {
-    throw new Error("RESEND_API_KEY saknas – kan inte skicka e-post.");
+  // 1) Resend
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      await resend.emails.send({ from, to: params.to, subject, html, text, bcc: process.env.MAIL_BOOKINGS_BCC || undefined });
+      return { ok: true, provider: "resend" as const };
+    } catch (e) { /* fall through */ }
   }
 
-  const { fromEmail, fromName } = supportFromAddress();
-
-  const resp = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: `${fromName} <${fromEmail}>`,
-      to: [opts.to],
-      subject: opts.subject,
-      html: opts.html,
-    }),
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => "");
-    throw new Error(`Resend fel ${resp.status}: ${text || resp.statusText}`);
+  // 2) SendGrid
+  if (process.env.SENDGRID_API_KEY) {
+    try {
+      sg.setApiKey(process.env.SENDGRID_API_KEY);
+      await sg.send({
+        from,
+        to: params.to,
+        bcc: process.env.MAIL_BOOKINGS_BCC || undefined,
+        subject,
+        html,
+        text,
+      } as any);
+      return { ok: true, provider: "sendgrid" as const };
+    } catch (e) { /* fall through */ }
   }
-  return resp.json().catch(() => ({}));
-}
 
-/* -------------------- Public API -------------------- */
+  // 3) SMTP (nodemailer)
+  if (process.env.SMTP_HOST) {
+    const transport = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: String(process.env.SMTP_SECURE || "false").toLowerCase() === "true",
+      auth: (process.env.SMTP_USER && process.env.SMTP_PASS)
+        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+        : undefined,
+    } as any);
 
-export async function sendBookingMail(p: SendBookingParams) {
-  const base = customerBaseUrl(); // ex. https://kund.helsingbuss.se
-  // Viktigt: använd svenska routen /bokning/ som finns i appen
-  const link = `${base.replace(/\/+$/, "")}/bokning/${encodeURIComponent(p.bookingNumber)}`;
+    await transport.sendMail({
+      from,
+      to: params.to,
+      bcc: process.env.MAIL_BOOKINGS_BCC || undefined,
+      subject,
+      html,
+      text,
+    });
+    return { ok: true, provider: "smtp" as const };
+  }
 
-  const subject = p.mode === "created"
-    ? `Bokningsbekräftelse (${p.bookingNumber})`
-    : `Uppdatering – Bokning ${p.bookingNumber}`;
-
-  const html = htmlBody(p, link);
-
-  return sendMail({
-    to: p.to,
-    subject,
-    html,
-  });
+  return { ok: false, error: "No email provider configured" as const };
 }
