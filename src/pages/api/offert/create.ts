@@ -1,68 +1,49 @@
 ﻿// src/pages/api/offert/create.ts
+export const config = { api: { bodyParser: true } };
+export const runtime = "nodejs"; // 👈 tvinga Node (inte Edge)
+
 import type { NextApiRequest, NextApiResponse } from "next";
-import * as admin from "@/lib/supabaseAdmin";
+import supabaseAdmin from "@/lib/supabaseAdmin";
 import { sendOfferMail } from "@/lib/sendOfferMail";
 import { Resend } from "resend";
-import cors from "@/lib/cors"; // ✅ CORS
-import { verifyTurnstile } from "@/lib/turnstile";      // 👈 NYTT
-import { verifyTicket } from "@/lib/formTicket";        // 👈 NYTT
+import cors from "@/lib/cors";
+import { verifyTurnstile } from "@/lib/turnstile";
+import { verifyTicket } from "@/lib/formTicket";
 
-// ---- Supabase klient (tål olika exports) ----
-const supabase =
-  (admin as any).supabaseAdmin ||
-  (admin as any).supabase ||
-  (admin as any).default;
+const supabase = supabaseAdmin;
 
-// ---- Env helpers ----
 const env = (v?: string | null) => (v ?? "").trim();
 const lc = (v?: string | null) => env(v).toLowerCase();
 
 const RESEND_API_KEY = env(process.env.RESEND_API_KEY);
 const EMAIL_FROM     = env(process.env.EMAIL_FROM) || "Helsingbuss <no-reply@helsingbuss.se>";
 const EMAIL_REPLY_TO = env(process.env.EMAIL_REPLY_TO) || "kundteam@helsingbuss.se";
-
 const SUPPORT_INBOX  = lc(process.env.SUPPORT_INBOX) || "kundteam@helsingbuss.se";
 const OFFERS_INBOX   = lc(process.env.OFFERS_INBOX)  || "offert@helsingbuss.se";
 
-// kunddomän för publika vyer
 const CUSTOMER_BASE_URL =
   env(process.env.CUSTOMER_BASE_URL) ||
   env(process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL) ||
-  env(process.env.NEXT_PUBLIC_BASE_URL); // sista utvägen
+  env(process.env.NEXT_PUBLIC_BASE_URL);
 
-// ---- Små helpers ----
-function toNull<T = any>(v: T | null | undefined): T | null {
-  return v === "" || v === undefined ? null : (v as any);
-}
-function pickYmd(v?: string | null) {
-  if (!v) return null;
-  return v.length >= 10 ? v.slice(0, 10) : v;
-}
-function parseNumber(n: any): number | null {
-  if (typeof n === "number") return Number.isFinite(n) ? n : null;
-  const t = Number(n);
-  return Number.isFinite(t) ? t : null;
-}
-function httpErr(res: NextApiResponse, code: number, msg: string) {
-  console.error(`[offert/create] ${code} ${msg}`);
-  return res.status(code).json({ error: msg });
+function toNull<T = any>(v: T | null | undefined): T | null { return v === "" || v === undefined ? null : (v as any); }
+function pickYmd(v?: string | null) { if (!v) return null; return v.length >= 10 ? v.slice(0, 10) : v; }
+function parseNumber(n: any): number | null { if (typeof n === "number") return Number.isFinite(n) ? n : null; const t = Number(n); return Number.isFinite(t) ? t : null; }
+function httpErr(res: NextApiResponse, code: number, msg: string, extra?: any) {
+  console.error(`[offert/create] ${code} ${msg}`, extra ? { extra } : undefined);
+  return res.status(code).json({ error: msg, ...(extra ? { extra } : {}) });
 }
 function nextOfferNumberFactory(prefixYear?: string) {
-  const yy = prefixYear ?? new Date().getFullYear().toString().slice(-2); // "25"
+  const yy = prefixYear ?? new Date().getFullYear().toString().slice(-2);
   return async function next(): Promise<string> {
-    const { data: lastOffer } = await supabase
-      .from("offers")
-      .select("offer_number")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    let nextNum = 7; // start fallback (HB{YY}007)
+    const { data: lastOffer, error } = await supabase
+      .from("offers").select("offer_number").order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (error) { console.error("[offert/create] select last offer_number error", error); }
+    let nextNum = 7;
     if (lastOffer?.offer_number) {
       const m = String(lastOffer.offer_number).match(/^HB(\d{2})(\d{3,})$/);
       if (m) {
-        const lastYY = m[1];
-        const lastRun = parseInt(m[2], 10);
+        const lastYY = m[1]; const lastRun = parseInt(m[2], 10);
         nextNum = (lastYY === yy && Number.isFinite(lastRun)) ? lastRun + 1 : 7;
       } else {
         const tail = parseInt(String(lastOffer.offer_number).replace(/^HB\d{2}/, ""), 10);
@@ -74,131 +55,82 @@ function nextOfferNumberFactory(prefixYear?: string) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // 1) CORS (hanterar även OPTIONS)
   const proceeded = await cors(req, res, {
     allowOrigins: [
+      "https://helsingbuss.se",
+      "https://www.helsingbuss.se",
+      "https://login.helsingbuss.se",
+      "https://www.login.helsingbuss.se",
+      "https://hbshuttle.se",
+      "https://www.hbshuttle.se",
       env(process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL),
       env(process.env.CUSTOMER_BASE_URL),
       env(process.env.NEXT_PUBLIC_BASE_URL),
       env(process.env.NEXT_PUBLIC_LOGIN_BASE_URL),
-      "https://helsingbuss.se",
-      "https://www.helsingbuss.se",
-      "https://hbshuttle.se",
-      "https://www.hbshuttle.se",
       "http://localhost:3000",
       "http://127.0.0.1:3000",
     ].filter(Boolean),
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   });
-  if (proceeded === false) return; // preflight svarat
+  if (proceeded === false) return;
 
-  // 1b) GET för ping & exempel
   if (req.method === "GET") {
-    if ("ping" in (req.query || {})) {
-      try {
-        await supabase.from("offers").select("id").limit(1);
-        return res.status(200).json({ ok: true, message: "pong", service: "offert/create" });
-      } catch {
-        return res.status(200).json({ ok: false, message: "pong (db unavailable)", service: "offert/create" });
-      }
+    try {
+      const { error } = await supabase.from("offers").select("id").limit(1);
+      return res.status(200).json({ ok: !error, db: error ? error.message : "ok", service: "offert/create" });
+    } catch (e: any) {
+      return res.status(200).json({ ok: false, db: e?.message || String(e), service: "offert/create" });
     }
-    return res.status(200).json({
-      ok: true,
-      message: "Use POST to create an offer.",
-      example: {
-        customer_name: "Företag AB",
-        customer_email: "anna@example.com",
-        customer_phone: "+4670...",
-        onboard_contact: "Anna Andersson, +4670...",
-        customer_reference: "Projekt X",
-        internal_reference: "INT-123",
-        passengers: 45,
-        departure_place: "Helsingborg",
-        destination: "Ullared",
-        departure_date: "2025-11-28",
-        departure_time: "07:30",
-        stopover_places: "Landskrona, Halmstad",
-        return_departure: "Ullared",
-        return_destination: "Helsingborg",
-        return_date: "2025-11-28",
-        return_time: "18:00",
-        notes: "Barnvagn + extra lastutrymme",
-      },
-    });
   }
-
   if (req.method !== "POST") return httpErr(res, 405, "Method not allowed");
 
-  // 2) Grundlogg
   const t0 = Date.now();
   const contentType = (req.headers["content-type"] || "").toString();
   const origin = (req.headers.origin as string) || null;
   const ua = (req.headers["user-agent"] || "").toString();
   const ip = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").toString();
-  console.log("[offert/create] start", { origin, contentType });
 
   try {
-    // 3) Säkerställ JSON
     if (!contentType.includes("application/json")) {
-      console.warn("[offert/create] Wrong content-type:", contentType);
-      return httpErr(res, 415, "Content-Type must be application/json");
+      return httpErr(res, 415, "Content-Type must be application/json", { contentType });
     }
 
     const p = req.body ?? {};
-    console.log("[offert/create] body keys", Object.keys(p || {}));
-
-    // 3a) Bot-skydd: honeypot
+    // Bot-skydd
     const honeypot = (p.hp ?? p.honeypot ?? p._hp ?? "").toString().trim();
     if (honeypot) return httpErr(res, 400, "Bot suspected");
 
-    // 3b) Säkerhetskontroll: Turnstile ELLER signerad ticket måste vara OK
     const turnstileToken = (p.turnstile_token || p["cf-turnstile-response"] || "").toString();
     const formTicket = (p.form_ticket || "").toString();
 
     const turnstileOk = turnstileToken ? await verifyTurnstile(turnstileToken, ip) : false;
-    const ticketOk = formTicket ? verifyTicket(formTicket, ua, origin) : false;
-
+    let ticketOk = false;
+    try { ticketOk = formTicket ? verifyTicket(formTicket, ua, origin) : false; } catch (e:any) {
+      console.warn("[offert/create] verifyTicket error:", e?.message || e);
+    }
     if (!turnstileOk && !ticketOk) {
-      return httpErr(res, 401, "Security check failed");
+      return httpErr(res, 401, "Security check failed", { turnstileOk, ticketOk });
     }
 
-    // (Frivillig) JWT avläsning – ska inte fälla publikt flöde
-    try {
-      const auth = req.headers.authorization || "";
-      if (auth.startsWith("Bearer ")) {
-        // validera om ni vill – men kasta INTE fel här
-      }
-    } catch {}
-
-    // ---- Fält från formulär ----
     const customer_name:  string | null = toNull(p.customer_name);
     const customer_email: string | null = lc(toNull(p.customer_email));
     const customer_phone: string | null = toNull(p.customer_phone);
-
-    // UI-fält: “Kontaktperson ombord (namn och nummer)” → fallback till customer_reference
     const onboard_contact: string | null = toNull(p.onboard_contact);
-    const customer_reference: string | null =
-      toNull(p.customer_reference) ?? onboard_contact ?? customer_name;
-
+    const customer_reference: string | null = toNull(p.customer_reference) ?? onboard_contact ?? customer_name;
     const internal_reference: string | null = toNull(p.internal_reference);
-
     const passengers: number | null = parseNumber(p.passengers);
-
     const departure_place: string | null = toNull(p.departure_place);
     const destination:     string | null = toNull(p.destination);
     const departure_date:  string | null = pickYmd(toNull(p.departure_date));
     const departure_time:  string | null = toNull(p.departure_time);
-
     const return_departure:   string | null = toNull(p.return_departure);
     const return_destination: string | null = toNull(p.return_destination);
     const return_date:        string | null = pickYmd(toNull(p.return_date));
     const return_time:        string | null = toNull(p.return_time);
-
     const stopover_places: string | null = toNull(p.stopover_places ?? p.via);
     const notes: string | null = toNull(p.notes);
 
-    // ---- Minimal validering ----
     const missing: string[] = [];
     if (!customer_name)   missing.push("customer_name");
     if (!customer_email)  missing.push("customer_email");
@@ -208,103 +140,48 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!departure_time)  missing.push("departure_time");
     if (missing.length) return httpErr(res, 400, `Saknar fält: ${missing.join(", ")}`);
 
-    // ---- Offertnummer HB{YY}{xxx} ----
-    const nextOfferNumber = nextOfferNumberFactory();
-    const offer_number = await nextOfferNumber();
+    const offer_number = await nextOfferNumberFactory()();
 
-    // ---- Spara i DB ----
     const nowIso = new Date().toISOString();
     const insertPayload: any = {
-      offer_number,
-      status: "inkommen",
-      offer_date: nowIso.slice(0, 10),
-
-      // kontakt
-      contact_person: customer_name,
-      contact_phone: customer_phone,
-      contact_email: customer_email,
-
-      // referenser
-      customer_reference,
-      internal_reference,
-
-      // resa
-      passengers,
-      departure_place,
-      destination,
-      departure_date,
-      departure_time,
-      stopover_places,
-
-      // retur
-      return_departure,
-      return_destination,
-      return_date,
-      return_time,
-
-      // övrigt
+      offer_number, status: "inkommen", offer_date: nowIso.slice(0, 10),
+      contact_person: customer_name, contact_phone: customer_phone, contact_email: customer_email,
+      customer_reference, internal_reference,
+      passengers, departure_place, destination, departure_date, departure_time, stopover_places,
+      return_departure, return_destination, return_date, return_time,
       notes,
-
-      created_at: nowIso,
-      updated_at: nowIso,
+      created_at: nowIso, updated_at: nowIso,
     };
 
     const { data: row, error: insErr } = await supabase
-      .from("offers")
-      .insert([insertPayload])
-      .select("*")
-      .single();
+      .from("offers").insert([insertPayload]).select("*").single();
 
     if (insErr) {
-      console.error("[offert/create] supabase insert error:", insErr);
-      return httpErr(res, 500, "Kunde inte spara offert");
+      return httpErr(res, 500, "Kunde inte spara offert", { supabase: insErr });
     }
 
-    // ---- Mail: 1) till kund
-    let mailOk = false;
-    let mailError: string | null = null;
-
+    let mailOk = false; let mailError: string | null = null;
     try {
       await sendOfferMail({
-        offerId: String(row.id ?? offer_number),
-        offerNumber: String(offer_number),
+        offerId: String(row.id ?? offer_number), offerNumber: String(offer_number),
         customerEmail: customer_email,
-
-        customerName: customer_name,
-        customerPhone: customer_phone,
-
-        from: departure_place,
-        to: destination,
-        date: departure_date,
-        time: departure_time,
-        passengers,
-        via: stopover_places,
-        onboardContact: onboard_contact,
-
-        return_from: return_departure,
-        return_to: return_destination,
-        return_date,
-        return_time,
-
+        customerName: customer_name, customerPhone: customer_phone,
+        from: departure_place, to: destination, date: departure_date, time: departure_time,
+        passengers, via: stopover_places, onboardContact: onboard_contact,
+        return_from: return_departure, return_to: return_destination, return_date, return_time,
         notes,
       });
       mailOk = true;
     } catch (err: any) {
       mailError = err?.message || String(err);
       console.warn("[offert/create] sendOfferMail failed:", mailError);
-
-      // --- Fallback via Resend ---
       try {
         if (RESEND_API_KEY && EMAIL_FROM) {
           const resend = new Resend(RESEND_API_KEY);
           const previewBase = CUSTOMER_BASE_URL || env(process.env.NEXT_PUBLIC_BASE_URL);
-          const previewUrl = previewBase
-            ? `${previewBase.replace(/\/+$/, "")}/offert/${offer_number}?view=inkommen`
-            : "";
-
+          const previewUrl = previewBase ? `${previewBase.replace(/\/+$/, "")}/offert/${offer_number}?view=inkommen` : "";
           await resend.emails.send({
-            from: EMAIL_FROM,
-            to: customer_email!,
+            from: EMAIL_FROM, to: customer_email!,
             ...(OFFERS_INBOX ? { bcc: [OFFERS_INBOX] } : {}),
             reply_to: EMAIL_REPLY_TO,
             subject: `Tack för din offertförfrågan – ${offer_number}`,
@@ -325,7 +202,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               `\nHar du frågor eller vill justera något? Svara på detta mail eller kontakta oss på ${EMAIL_REPLY_TO}.\n\n` +
               `Vänliga hälsningar,\nHelsingbuss`,
           });
-
           mailOk = true;
         }
       } catch (fallbackErr: any) {
@@ -333,13 +209,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    // ---- Mail: 2) intern notis
     try {
       if (RESEND_API_KEY && EMAIL_FROM && OFFERS_INBOX) {
         const resend = new Resend(RESEND_API_KEY);
         await resend.emails.send({
-          from: EMAIL_FROM,
-          to: OFFERS_INBOX,
+          from: EMAIL_FROM, to: OFFERS_INBOX,
           reply_to: customer_email || EMAIL_REPLY_TO || SUPPORT_INBOX,
           subject: `Ny offert inkommen ${offer_number} – ${customer_name || ""}`,
           text:
@@ -362,14 +236,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.error("[offert/create] internal notify failed:", internalErr?.message || internalErr);
     }
 
-    console.log("[offert/create] done in", Date.now() - t0, "ms");
     return res.status(200).json({
       success: true,
       offer: row,
       mail: mailOk ? "sent" : (mailError ? `failed: ${mailError}` : "skipped"),
+      ms: Date.now() - t0,
     });
   } catch (e: any) {
-    console.error("[offert/create] unhandled:", e?.message || e);
-    return httpErr(res, 500, "Serverfel");
+    return httpErr(res, 500, "Serverfel", { message: e?.message || String(e) });
   }
 }
