@@ -1,7 +1,7 @@
-﻿import { Resend } from "resend";
+﻿// src/lib/sendOfferMail.ts
+import { Resend } from "resend";
 import { createOfferToken } from "@/lib/offerToken";
 
-/** Publika parametrar för offertmejl (camelCase) */
 export type SendOfferParams = {
   offerId: string;
   offerNumber: string;
@@ -12,8 +12,8 @@ export type SendOfferParams = {
 
   from?: string | null;
   to?: string | null;
-  date?: string | null;      // YYYY-MM-DD
-  time?: string | null;      // HH:mm
+  date?: string | null;
+  time?: string | null;
   passengers?: number | null;
   via?: string | null;
   onboardContact?: string | null;
@@ -26,17 +26,16 @@ export type SendOfferParams = {
   notes?: string | null;
 };
 
-/* === ENV === */
 const env = (v?: string | null) => (v ?? "").toString().trim();
 
 const RESEND_KEY        = env(process.env.RESEND_API_KEY);
-const FROM_PRIMARY      = env(process.env.MAIL_FROM) || env(process.env.EMAIL_FROM) || "";
-const FROM_FALLBACK     = env(process.env.RESEND_FROM_FALLBACK) || "Resend Sandbox <onboarding@resend.dev>";
+const FROM_PRIMARY      = env(process.env.MAIL_FROM) || env(process.env.EMAIL_FROM);
+const FROM_FALLBACK     = env(process.env.RESEND_FROM_FALLBACK) || "Helsingbuss <onboarding@resend.dev>";
 const REPLY_TO          = env(process.env.EMAIL_REPLY_TO);
 
 const OFFERS_INBOX      = env(process.env.OFFERS_INBOX);
 const ADMIN_ALERT       = env(process.env.ADMIN_ALERT_EMAIL);
-const FORCE_TO          = env(process.env.MAIL_FORCE_TO) || ""; // ENDAST vid test
+const FORCE_TO          = env(process.env.MAIL_FORCE_TO); // gäller ENDAST kund
 const BCC_ALL           = env(process.env.MAIL_BCC_ALL);
 
 const CUSTOMER_BASE_URL =
@@ -49,7 +48,6 @@ const ADMIN_BASE =
   env(process.env.NEXT_PUBLIC_BASE_URL) ||
   "https://login.helsingbuss.se";
 
-/* === UI/Brand === */
 const BRAND = {
   name: "Helsingbuss",
   logoUrl: env(process.env.MAIL_BRAND_LOGO_URL) || "https://helsingbuss.se/assets/mail/logo-helsingbuss.png",
@@ -59,32 +57,30 @@ const BRAND = {
   muted: "#6b7280",
 };
 
-/* === Helpers === */
 const safe = (v?: string | null) => (v ?? "").toString().trim() || "—";
 const isValidEmail = (e?: string | null) => !!e && /\S+@\S+\.\S+/.test(e);
-
-const looksLikePlaceholder = (e: string) =>
-  /^(e-?post|email|e-?mail)$/i.test((e || "").trim());
-
+const looksLikePlaceholder = (e: string) => /^(e-?post|email|e-?mail)$/i.test(e.trim());
 const sanitizeEmail = (raw?: string | null) => {
   const e = (raw ?? "").trim();
   if (!e || looksLikePlaceholder(e)) return "";
   return e;
 };
 
-function isValidFromFormat(v?: string | null) {
-  const s = (v ?? "").trim();
-  if (!s) return false;
-  // Tillåt "Namn <mejl@domän>" ELLER "mejl@domän"
-  const named = /^.+<[^<>\s]+@[^<>\s]+\.[^<>\s]+>$/;
-  const bare  = /^[^<>\s]+@[^<>\s]+\.[^<>\s]+$/;
-  return named.test(s) || bare.test(s);
+// --- FROM-validering/fallback ---
+function isValidFromFormat(v: string) {
+  return /.+<[^@<>]+@[^@<>]+\.[^@<>]+>$/i.test(v) || /^[^@<>]+@[^@<>]+\.[^@<>]+$/i.test(v);
+}
+function pickFrom(to: string) {
+  const internal = /@helsingbuss\.se$/i.test(to);
+  const primaryOk = isValidFromFormat(FROM_PRIMARY);
+  // internt -> använd fallback (DMARC)
+  if (internal) return FROM_FALLBACK;
+  return primaryOk ? FROM_PRIMARY : FROM_FALLBACK;
 }
 
 function buildCustomerUrl(offerId: string, offerNumber: string) {
   const base = CUSTOMER_BASE_URL.replace(/\/+$/, "");
   const token = createOfferToken({ sub: offerId, no: offerNumber, role: "customer" }, "14d");
-  // skickar både token och t för kompatibilitet
   return `${base}/offert/${encodeURIComponent(offerNumber)}?view=inkommen&token=${encodeURIComponent(token)}&t=${encodeURIComponent(token)}`;
 }
 
@@ -93,17 +89,14 @@ function adminStartUrl() {
   return `${base}/start`;
 }
 
-function row(label: string, value?: string | null) {
-  return `
+function tripBlockHtml(p: SendOfferParams) {
+  const rows: string[] = [];
+  const row = (label: string, value?: string | null) => `
     <tr>
       <td style="padding:6px 0;color:#111;font-weight:600;width:160px;vertical-align:top">${label}</td>
       <td style="padding:6px 0;color:#111">${safe(value)}</td>
     </tr>
   `;
-}
-
-function tripBlockHtml(p: SendOfferParams) {
-  const rows: string[] = [];
   rows.push(row("Från", p.from));
   rows.push(row("Till", p.to));
   rows.push(row("Datum", p.date));
@@ -191,7 +184,6 @@ function renderAdminHtml(p: SendOfferParams) {
       <div>${safe(p.notes)}</div>
     ` : ""}
   `;
-  // ADMIN -> knapp till /start
   const cta = { href: adminStartUrl(), label: "Öppna i portalen" };
   return renderWrapper(inner, "Ny offertförfrågan", undefined, cta);
 }
@@ -202,9 +194,7 @@ function renderCustomerHtml(p: SendOfferParams) {
     <p style="margin:0 0 10px 0">Tack! Vi återkommer så snart vi har gått igenom uppgifterna.</p>
     <div style="font-weight:600;margin:12px 0 6px">Sammanfattning</div>
     ${tripBlockHtml(p)}
-    ${p.notes ? `
-      <div style="margin-top:8px"><b>Övrig information:</b><br/>${safe(p.notes)}</div>
-    ` : ""}
+    ${p.notes ? `<div style="margin-top:8px"><b>Övrig information:</b><br/>${safe(p.notes)}</div>` : ""}
   `;
   const href = buildCustomerUrl(p.offerId, p.offerNumber);
   const cta = { href, label: "Visa din offert" };
@@ -228,9 +218,7 @@ function renderText(p: SendOfferParams) {
   if (p.via) lines.push(`Via: ${p.via}`);
   if (p.onboardContact) lines.push(`Kontakt ombord: ${p.onboardContact}`);
   if (p.return_from || p.return_to || p.return_date || p.return_time) {
-    lines.push(
-      "",
-      "Retur",
+    lines.push("", "Retur",
       `Från: ${p.return_from || "-"}`,
       `Till: ${p.return_to || "-"}`,
       `Datum: ${p.return_date || "-"}`,
@@ -241,26 +229,11 @@ function renderText(p: SendOfferParams) {
   return lines.join("\n");
 }
 
-/** Skicka via Resend. Väljer 'from' robust med fallback. */
-async function sendViaResend(args: {
-  to: string;
-  subject: string;
-  html: string;
-  text: string;
-  bcc?: string[];
-}) {
+async function sendViaResend(args: { to: string; subject: string; html: string; text: string; bcc?: string[] }) {
   if (!RESEND_KEY) throw new Error("RESEND_API_KEY saknas");
   const resend = new Resend(RESEND_KEY);
 
-  const isInternalRecipient = /@helsingbuss\.se$/i.test(args.to);
-
-  // Primär/fallback beroende på mottagare + formatvalidering
-  let from = isInternalRecipient ? FROM_FALLBACK : FROM_PRIMARY;
-  if (!isValidFromFormat(from)) {
-    // sista nödfall
-    from = isValidFromFormat(FROM_FALLBACK) ? FROM_FALLBACK : "Resend Sandbox <onboarding@resend.dev>";
-  }
-
+  const from = pickFrom(args.to);
   const payload: any = {
     from,
     to: args.to,
@@ -269,16 +242,16 @@ async function sendViaResend(args: {
     text: args.text,
     ...(REPLY_TO ? { reply_to: REPLY_TO } : {}),
   };
-
   if (args.bcc?.length) payload.bcc = args.bcc;
-  if (BCC_ALL) payload.bcc = Array.isArray(payload.bcc) ? [...(payload.bcc || []), BCC_ALL] : [BCC_ALL];
+  if (BCC_ALL) payload.bcc = Array.isArray(payload.bcc) ? [...payload.bcc, BCC_ALL] : [BCC_ALL];
 
   const r: any = await resend.emails.send(payload);
   if (r?.error) throw new Error(r.error?.message || "Resend error");
+
+  console.log("[mail] queued", { to: args.to, subject: args.subject, from, id: r?.id || null });
   return r;
 }
 
-/** Skicka admin-notis + kundmejl med rätt routing/BCC/knappar */
 export async function sendOfferMail(p: SendOfferParams) {
   const cleanCustomerEmail = sanitizeEmail(p.customerEmail);
   const params: SendOfferParams = { ...p, customerEmail: cleanCustomerEmail };
@@ -290,32 +263,35 @@ export async function sendOfferMail(p: SendOfferParams) {
   const htmlCustomer = renderCustomerHtml(params);
   const text         = renderText(params);
 
-  // 1) ADMIN -> OFFERS_INBOX (ingen BCC till kundteam)
+  // 1) ADMIN -> OFFERS_INBOX (eller ADMIN_ALERT om tomt)
   const adminTo = OFFERS_INBOX || ADMIN_ALERT;
   if (adminTo) {
-    await sendViaResend({
-      to: adminTo,
-      subject: adminSubject,
-      html: htmlAdmin,
-      text,
-    });
+    try {
+      await sendViaResend({ to: adminTo, subject: adminSubject, html: htmlAdmin, text });
+    } catch (e: any) {
+      console.error("[mail][admin] failed", { to: adminTo, err: e?.message || e });
+    }
   } else {
-    console.warn("[sendOfferMail] OFFERS_INBOX/ADMIN saknas – hoppar över admin-notis");
+    console.warn("[mail][admin] skipped – OFFERS_INBOX/ADMIN_ALERT saknas");
   }
 
-  // 2) KUND -> giltig adress, BCC till OFFERS_INBOX (om FORCE_TO ej används)
+  // 2) KUND -> force eller kundens e-post
   const toCustomer = FORCE_TO || cleanCustomerEmail;
   if (isValidEmail(toCustomer)) {
-    const bccList = FORCE_TO ? undefined : (OFFERS_INBOX ? [OFFERS_INBOX] : undefined);
-    await sendViaResend({
-      to: toCustomer,
-      subject: customerSubject,
-      html: htmlCustomer,
-      text,
-      bcc: bccList,
-    });
+    try {
+      const bccList = FORCE_TO ? undefined : (OFFERS_INBOX ? [OFFERS_INBOX] : undefined);
+      await sendViaResend({
+        to: toCustomer,
+        subject: customerSubject,
+        html: htmlCustomer,
+        text,
+        bcc: bccList,
+      });
+    } catch (e: any) {
+      console.error("[mail][customer] failed", { to: toCustomer, err: e?.message || e });
+    }
   } else {
-    console.warn("[sendOfferMail] Ogiltig kundadress – hoppar över kundmejl:", toCustomer);
+    console.warn("[mail][customer] skipped – ogiltig kundadress:", toCustomer);
   }
 
   return { ok: true as const, forced: !!FORCE_TO };
