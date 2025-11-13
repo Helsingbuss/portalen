@@ -1,8 +1,6 @@
 // src/pages/api/bookings/[id].ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireAdmin } from "@/lib/supabaseAdmin";
-
-const db = requireAdmin();
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type ApiOk = {
   ok: true;
@@ -12,12 +10,20 @@ type ApiOk = {
 };
 type ApiErr = { ok: false; error: string };
 
-// Tillåt t.ex. "BK25XXXX" (enkelt mönster för dina BK-nummer)
+// BK-nummer, t.ex. "BK25XXXX"
 function looksLikeBookingNo(v: string) {
   return /^BK[0-9A-Z\-_.]+$/i.test(v);
 }
 function isUUID(s: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s || "");
+}
+
+// Säkerställ att vi har en fungerande klient (slipper "possibly null")
+function requireDB() {
+  if (!supabaseAdmin) {
+    throw new Error("Supabase not configured");
+  }
+  return supabaseAdmin;
 }
 
 export default async function handler(
@@ -32,6 +38,8 @@ export default async function handler(
   if (!rawId) {
     return res.status(400).json({ ok: false, error: "Missing booking id" });
   }
+
+  const db = requireDB();
 
   try {
     const selectCols = [
@@ -65,7 +73,7 @@ export default async function handler(
       "assigned_driver_id",
       "assigned_vehicle_id",
 
-      // ev. redundanta fält om de finns kvar i din tabell
+      // ev. redundanta fält
       "driver_name",
       "driver_phone",
       "vehicle_reg",
@@ -83,7 +91,7 @@ export default async function handler(
     const isId = isUUID(candidate);
 
     if (isBk) {
-      // 1) Primärt: hitta på booking_number (case-insensitive equality med ILIKE utan wildcard)
+      // 1) Primärt: sök på booking_number (case-insensitive likamed)
       const r1 = await db
         .from("bookings")
         .select(selectCols)
@@ -104,7 +112,7 @@ export default async function handler(
         error = r2.error ?? null;
       }
     } else {
-      // 2) Primärt: id-lookup om det ser ut som UUID
+      // 2) Primärt: UUID
       if (isId) {
         const r = await db
           .from("bookings")
@@ -147,9 +155,7 @@ export default async function handler(
           driver_label = d.data.label || d.data.name || d.data.email || null;
         }
       }
-    } catch {
-      /* tyst */
-    }
+    } catch {/* ignore */}
 
     // Best effort: etikett för tilldelat fordon
     let vehicle_label: string | null = null;
@@ -164,9 +170,7 @@ export default async function handler(
           vehicle_label = v.data.label || v.data.name || v.data.reg || v.data.registration || null;
         }
       }
-    } catch {
-      /* tyst */
-    }
+    } catch {/* ignore */}
 
     return res.status(200).json({ ok: true, booking: data, driver_label, vehicle_label });
   } catch (e: any) {

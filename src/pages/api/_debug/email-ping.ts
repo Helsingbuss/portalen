@@ -1,76 +1,30 @@
+// src/pages/api/_debug/email-ping.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Resend } from "resend";
 
-export const config = { runtime: "nodejs" };
-
-// smidig env-helper
-const env = (v?: string | null) => (v ?? "").toString().trim();
-const RESEND_KEY    = env(process.env.RESEND_API_KEY);
-const FROM_PRIMARY  = env(process.env.MAIL_FROM) || env(process.env.EMAIL_FROM) || "";
-const FROM_FALLBACK = env(process.env.RESEND_FROM_FALLBACK) || "Resend Sandbox <onboarding@resend.dev>";
-const TEST_TO       = env(process.env.TEST_MAIL_TO);
-const ADMIN_ALERT   = env(process.env.ADMIN_ALERT_EMAIL);
-const OFFERS_INBOX  = env(process.env.OFFERS_INBOX);
-
-function isValidFromFormat(v?: string | null) {
-  const s = (v ?? "").trim();
-  if (!s) return false;
-  const named = /^.+<[^<>\s]+@[^<>\s]+\.[^<>\s]+>$/;
-  const bare  = /^[^<>\s]+@[^<>\s]+\.[^<>\s]+$/;
-  return named.test(s) || bare.test(s);
-}
+const strip = (s?: string | null) => (s ?? "").toString().trim().replace(/^["']|["']$/g, "");
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  const apiKey = strip(process.env.RESEND_API_KEY);
+  const from = strip(process.env.MAIL_FROM) || "Helsingbuss <no-reply@helsingbuss.se>";
+  const to = strip(process.env.TEST_MAIL_TO) || strip(process.env.ADMIN_ALERT_EMAIL) || "info@helsingbuss.se";
+
   try {
-    if (req.method === "GET") {
-      return res.status(200).json({ ok: true, method: "GET", via: "pages", time: new Date().toISOString() });
-    }
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method not allowed" });
-    }
+    if (!apiKey) return res.status(400).json({ error: "RESEND_API_KEY saknas" });
 
-    if (!RESEND_KEY) {
-      return res.status(500).json({ error: "Missing RESEND_API_KEY" });
-    }
-
-    const resend = new Resend(RESEND_KEY);
-
-    // välj to → TEST_MAIL_TO > ADMIN_ALERT > OFFERS_INBOX > fallback
-    const to =
-      TEST_TO ||
-      ADMIN_ALERT ||
-      OFFERS_INBOX ||
-      "info@helsingbuss.se";
-
-    // välj from robust (primär → fallback)
-    let from = FROM_PRIMARY;
-    if (!isValidFromFormat(from)) {
-      from = isValidFromFormat(FROM_FALLBACK) ? FROM_FALLBACK : "Resend Sandbox <onboarding@resend.dev>";
-    }
-
-    const base =
-      env(process.env.NEXT_PUBLIC_LOGIN_BASE_URL) ||
-      env(process.env.NEXT_PUBLIC_BASE_URL) ||
-      "https://login.helsingbuss.se";
-
-    const r: any = await resend.emails.send({
+    const resend = new Resend(apiKey);
+    const r = await resend.emails.send({
       from,
       to,
-      subject: "Diagnostik: Helsingbuss Portal – email-ping",
-      html: `<p>Hej! Detta är ett diagnostikmail från API:t.</p>
-             <p>Tid: ${new Date().toISOString()}</p>
-             <p><a href="${base}/start">Öppna portalen</a></p>`,
-      text: `Hej! Detta är ett diagnostikmail från API:t.
-Tid: ${new Date().toISOString()}
-${base}/start`,
+      subject: "🔧 email-ping",
+      html: `<pre>from=${from}</pre>`,
     });
 
-    if (r?.error) {
-      return res.status(400).json({ error: r.error?.message || "Resend error", from, to });
-    }
-
-    return res.status(200).json({ ok: true, result: r?.data || null, from, to, via: "pages", method: "POST" });
+    if ((r as any)?.error) return res.status(400).json({ error: (r as any).error.message || "Resend error" });
+    return res.status(200).json({ ok: true, to, from });
   } catch (e: any) {
-    return res.status(500).json({ error: e?.message || "Server error" });
+    return res.status(500).json({ error: e?.message || "error" });
   }
 }

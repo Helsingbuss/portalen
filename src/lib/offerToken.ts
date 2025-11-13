@@ -1,44 +1,39 @@
 // src/lib/offerToken.ts
-import jwt, { type Secret, type SignOptions, type JwtPayload } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 
-const SECRET = process.env.OFFER_JWT_SECRET || "";
-const DEBUG_FALLBACK = process.env.DEBUG_EMAIL_TOKEN || "debug-token-123";
-
-type OfferClaims = {
-  /** UUID för offerten (server-id) */
-  sub?: string;
-  /** Offertnummer, t.ex. HB25019 */
-  no?: string;
-  /** Målgrupp för länken */
+type JWTPayload = {
+  sub?: string;          // offert-id
+  no?: string;           // offer_number
   role?: "customer" | "admin";
+  [k: string]: any;
 };
 
-/** Tillåt strängar som "14d", "2h" osv. eller number (sekunder). */
-type TTL = `${number}${"ms" | "s" | "m" | "h" | "d"}`;
+const SECRET = (process.env.OFFER_JWT_SECRET || "").trim();
+const DEBUG_FALLBACK = (process.env.DEBUG_EMAIL_TOKEN || "debug-token").trim();
 
-/** Skapar JWT för offentliga offertlänkar (HS256). */
+/**
+ * Skapar en länk-token för offert (kundlänk).
+ * exp kan vara t.ex. "14d" eller 3600. Vi castar till any för att undvika typ-strul i jsonwebtoken@types.
+ */
 export function createOfferToken(
-  payload: OfferClaims,
-  exp: TTL | number = "14d" as TTL
+  payload: { sub: string; no: string; role?: "customer" | "admin" },
+  exp: string | number = "14d"
 ): string {
-  // Castar expiresIn till any för att stödja både v8 och v9 av jsonwebtoken
-  const opts: SignOptions = { algorithm: "HS256", expiresIn: exp as any };
-  if (SECRET) {
-    return jwt.sign(payload as any, SECRET as Secret, opts);
-  }
-  // Dev-fallback om hemlighet saknas
-  return DEBUG_FALLBACK;
+  if (!SECRET) return DEBUG_FALLBACK;
+
+  const opts: jwt.SignOptions = {
+    algorithm: "HS256",
+    // jsonwebtoken-typerna använder en branded typ för strings -> casta för att accepteras
+    expiresIn: exp as any,
+  };
+
+  return jwt.sign(payload as any, SECRET as jwt.Secret, opts);
 }
 
-/** Verifierar token och returnerar claims + legacy-fält för bakåtkomp. */
-export async function verifyOfferToken(token: string): Promise<Record<string, any>> {
-  if (!SECRET && token === DEBUG_FALLBACK) {
-    return { sub: "debug", no: "debug", role: "customer", offer_id: "debug", offer_number: "debug" };
-  }
-
-  const decoded = jwt.verify(token, SECRET as Secret) as JwtPayload | string;
-  const claims = typeof decoded === "string" ? { sub: decoded } : (decoded as Record<string, any>);
-
-  // Lägg till legacy-keys så din nuvarande [id].tsx fortsätter funka
-  return { ...claims, offer_id: claims.sub, offer_number: claims.no };
+/**
+ * Verifierar token och returnerar payload (inkl. .sub och .no).
+ */
+export async function verifyOfferToken(token: string): Promise<JWTPayload> {
+  if (!SECRET) throw new Error("missing-secret");
+  return jwt.verify(token, SECRET as jwt.Secret) as JWTPayload;
 }
