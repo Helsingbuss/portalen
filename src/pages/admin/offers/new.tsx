@@ -181,7 +181,7 @@ export default function NewOfferAdmin() {
       destination: _trim(leg1?.to),
       departure_date: _trim(leg1?.date),
       departure_time: tidyTime(_trim(leg1?.time)),
-      stopover_places: _trim(leg1?.via), // ← VIA -> stopover_places
+      stopover_places: _trim(leg1?.via), // VIA -> stopover_places
 
       // retur
       return_departure: _trim(leg2?.from || null),
@@ -206,7 +206,7 @@ export default function NewOfferAdmin() {
           j?.error ||
           "Kunde inte skapa offert. Försök igen eller kontakta administratör.";
 
-        if (msg.toLowerCase().includes("next_offer_serial")) {
+        if (String(msg).toLowerCase().includes("next_offer_serial")) {
           setSubmitError(
             "Kunde inte generera offertnummer (saknas DB-funktion next_offer_serial)."
           );
@@ -218,7 +218,19 @@ export default function NewOfferAdmin() {
       }
 
       const j = await res.json();
-      window.location.href = `/admin/offers/${j.offer.id}`;
+      const offerId =
+        j?.offer?.id ??
+        j?.id ??
+        j?.offer_id ??
+        null;
+
+      if (!offerId) {
+        setSubmitError("Kunde inte läsa svaret (saknar offer.id). Offerten kan vara skapad – kontrollera Offertlistan.");
+        setSubmitting(false);
+        return;
+      }
+
+      window.location.href = `/admin/offers/${offerId}`;
     } catch (e: any) {
       setSubmitError(e?.message || "Nätverksfel. Försök igen.");
       setSubmitting(false);
