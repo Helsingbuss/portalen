@@ -25,5 +25,19 @@
     "**/*.tsx",
     "src/types/**/*.d.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    ".next",
+    "out",
+    "**/_bak*",
+    "**/_bak*/*",
+    "**/__bak__/**",
+    "**/_archive/**",
+    "**/*.bak.ts",
+    "**/*.bak.tsx",
+    "**/*.old.ts",
+    "**/*.old.tsx",
+    "**/*.backup.ts",
+    "**/*.backup.tsx"
+  ]
 }

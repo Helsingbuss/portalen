@@ -1,6 +1,8 @@
 ﻿// src/pages/api/dashboard/unanswered.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { supabase } from "@/lib/supabaseAdmin";
+import { requireAdmin } from "@/lib/supabaseAdmin";
+
+const db = requireAdmin();
 
 type Row = {
   id: string;
@@ -15,9 +17,11 @@ type Row = {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("offers")
-      .select("id, offer_number, departure_place, destination, passengers, round_trip, departure_date, departure_time, status, offer_date")
+      .select(
+        "id, offer_number, departure_place, destination, passengers, round_trip, departure_date, departure_time, status, offer_date"
+      )
       .eq("status", "inkommen")
       .order("offer_date", { ascending: false })
       .limit(10);
@@ -29,7 +33,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       offer_number: o.offer_number ?? null,
       from: o.departure_place ?? null,
       to: o.destination ?? null,
-      pax: typeof o.passengers === "number" ? o.passengers : o.passengers ? Number(o.passengers) : null,
+      pax:
+        typeof o.passengers === "number"
+          ? o.passengers
+          : o.passengers
+          ? Number(o.passengers)
+          : null,
       type: o.round_trip ? "Tur & Retur" : "Enkelresa",
       departure_date: o.departure_date ?? null,
       departure_time: o.departure_time ?? null,
@@ -37,9 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json({ rows });
   } catch (e: any) {
-    console.error("unanswered api error:", e?.message || e);
-    return res.status(500).json({ error: "Kunde inte hÃ¤mta obesvarade" });
+    console.error("API /dashboard/unanswered error:", e?.message || e);
+    return res.status(500).json({ error: e?.message || "Serverfel" });
   }
 }
-
-

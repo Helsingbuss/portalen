@@ -1,55 +1,76 @@
-// src/pages/api/_debug/email-ping.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Resend } from "resend";
 
 export const config = { runtime: "nodejs" };
 
+// smidig env-helper
+const env = (v?: string | null) => (v ?? "").toString().trim();
+const RESEND_KEY    = env(process.env.RESEND_API_KEY);
+const FROM_PRIMARY  = env(process.env.MAIL_FROM) || env(process.env.EMAIL_FROM) || "";
+const FROM_FALLBACK = env(process.env.RESEND_FROM_FALLBACK) || "Resend Sandbox <onboarding@resend.dev>";
+const TEST_TO       = env(process.env.TEST_MAIL_TO);
+const ADMIN_ALERT   = env(process.env.ADMIN_ALERT_EMAIL);
+const OFFERS_INBOX  = env(process.env.OFFERS_INBOX);
+
+function isValidFromFormat(v?: string | null) {
+  const s = (v ?? "").trim();
+  if (!s) return false;
+  const named = /^.+<[^<>\s]+@[^<>\s]+\.[^<>\s]+>$/;
+  const bare  = /^[^<>\s]+@[^<>\s]+\.[^<>\s]+$/;
+  return named.test(s) || bare.test(s);
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // ÖPPEN CORS
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("Vary", "Origin");
-  if (req.method === "OPTIONS") { res.status(200).end(); return; }
+  try {
+    if (req.method === "GET") {
+      return res.status(200).json({ ok: true, method: "GET", via: "pages", time: new Date().toISOString() });
+    }
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "Method not allowed" });
+    }
 
-  if (req.method === "GET") {
-    res.status(200).json({ ok: true, via: "email-ping", method: "GET" });
-    return;
+    if (!RESEND_KEY) {
+      return res.status(500).json({ error: "Missing RESEND_API_KEY" });
+    }
+
+    const resend = new Resend(RESEND_KEY);
+
+    // välj to → TEST_MAIL_TO > ADMIN_ALERT > OFFERS_INBOX > fallback
+    const to =
+      TEST_TO ||
+      ADMIN_ALERT ||
+      OFFERS_INBOX ||
+      "info@helsingbuss.se";
+
+    // välj from robust (primär → fallback)
+    let from = FROM_PRIMARY;
+    if (!isValidFromFormat(from)) {
+      from = isValidFromFormat(FROM_FALLBACK) ? FROM_FALLBACK : "Resend Sandbox <onboarding@resend.dev>";
+    }
+
+    const base =
+      env(process.env.NEXT_PUBLIC_LOGIN_BASE_URL) ||
+      env(process.env.NEXT_PUBLIC_BASE_URL) ||
+      "https://login.helsingbuss.se";
+
+    const r: any = await resend.emails.send({
+      from,
+      to,
+      subject: "Diagnostik: Helsingbuss Portal – email-ping",
+      html: `<p>Hej! Detta är ett diagnostikmail från API:t.</p>
+             <p>Tid: ${new Date().toISOString()}</p>
+             <p><a href="${base}/start">Öppna portalen</a></p>`,
+      text: `Hej! Detta är ett diagnostikmail från API:t.
+Tid: ${new Date().toISOString()}
+${base}/start`,
+    });
+
+    if (r?.error) {
+      return res.status(400).json({ error: r.error?.message || "Resend error", from, to });
+    }
+
+    return res.status(200).json({ ok: true, result: r?.data || null, from, to, via: "pages", method: "POST" });
+  } catch (e: any) {
+    return res.status(500).json({ error: e?.message || "Server error" });
   }
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
-    return;
-  }
-
-  const key = process.env.RESEND_API_KEY;
-  if (!key) { res.status(500).json({ error: "Missing RESEND_API_KEY" }); return; }
-
-  const resend = new Resend(key);
-  const from =
-    process.env.MAIL_FROM ||
-    process.env.RESEND_FROM_FALLBACK ||
-    "Helsingbuss <onboarding@resend.dev>";
-  const to =
-    process.env.OFFERS_INBOX ||
-    process.env.ADMIN_ALERT_EMAIL ||
-    "offert@helsingbuss.se";
-
-  const base =
-    process.env.NEXT_PUBLIC_LOGIN_BASE_URL ||
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    "http://localhost:3000";
-
-  const r = await resend.emails.send({
-    from,
-    to,
-    subject: "EMAIL-PING: Helsingbuss Portal",
-    html: `<p>Ping ${new Date().toISOString()} – <a href="${base}/start">Start</a></p>`,
-    text: `Ping ${new Date().toISOString()} – ${base}/start`,
-  } as any);
-
-  if ((r as any)?.error) {
-    res.status(400).json({ error: (r as any).error?.message || "Resend error" });
-    return;
-  }
-  res.status(200).json({ ok: true, id: (r as any)?.data?.id || null });
 }

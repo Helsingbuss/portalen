@@ -2,8 +2,6 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 import { sendOfferMail } from "@/lib/sendOfferMail";
 
-export const config = { runtime: "nodejs" };
-
 const supabase =
   (admin as any).supabaseAdmin || (admin as any).supabase || (admin as any).default;
 
@@ -17,17 +15,15 @@ async function declineWithFallback(offerId: string) {
     { status: "cancelled", stampField: "declined_at" as const },
     { status: "canceled",  stampField: "declined_at" as const },
   ];
-  const tried: string[] = [];
   for (const v of variants) {
     const payload: any = { status: v.status };
     payload[v.stampField] = new Date().toISOString();
     const { error } = await supabase.from("offers").update(payload).eq("id", offerId);
     if (!error) return v.status;
     const msg = String(error.message || "");
-    tried.push(v.status);
     if (!/status|check/i.test(msg)) throw new Error(error.message);
   }
-  throw new Error(`Inget av statusvärdena tillåts av offers_status_check. Testade: ${tried.join(", ")}`);
+  throw new Error("Statusvärde tillåts inte av offers_status_check");
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -52,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await sendOfferMail({
         offerId: String(offer.id ?? offer.offer_number),
         offerNumber: String(offer.offer_number ?? offer.id),
-        customerEmail: to,
+        customerEmail: to, // CAMELCASE
         customerName: (offer as any).contact_person ?? null,
         customerPhone: (offer as any).customer_phone ?? (offer as any).contact_phone ?? null,
         from: (offer as any).departure_place ?? null,

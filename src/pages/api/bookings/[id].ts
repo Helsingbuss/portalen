@@ -1,6 +1,8 @@
 // src/pages/api/bookings/[id].ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { supabaseAdmin as supabase } from "@/lib/supabaseAdmin";
+import { requireAdmin } from "@/lib/supabaseAdmin";
+
+const db = requireAdmin();
 
 type ApiOk = {
   ok: true;
@@ -82,7 +84,7 @@ export default async function handler(
 
     if (isBk) {
       // 1) Primärt: hitta på booking_number (case-insensitive equality med ILIKE utan wildcard)
-      const r1 = await supabase
+      const r1 = await db
         .from("bookings")
         .select(selectCols)
         .ilike("booking_number", candidate.toUpperCase())
@@ -91,9 +93,9 @@ export default async function handler(
       data = r1.data ?? null;
       error = r1.error ?? null;
 
-      // Fallback till id om ingen träff (ifall någon råkat klistra in UUID)
+      // Fallback till id om ingen träff
       if (!error && !data && isId) {
-        const r2 = await supabase
+        const r2 = await db
           .from("bookings")
           .select(selectCols)
           .eq("id", candidate)
@@ -104,7 +106,7 @@ export default async function handler(
     } else {
       // 2) Primärt: id-lookup om det ser ut som UUID
       if (isId) {
-        const r = await supabase
+        const r = await db
           .from("bookings")
           .select(selectCols)
           .eq("id", candidate)
@@ -113,9 +115,9 @@ export default async function handler(
         error = r.error ?? null;
       }
 
-      // Fallback: prova som booking_number ändå (om användaren klistrat in ett BK-nr utan BK/format)
+      // Fallback: prova som booking_number ändå
       if (!error && !data) {
-        const r2 = await supabase
+        const r2 = await db
           .from("bookings")
           .select(selectCols)
           .ilike("booking_number", candidate.toUpperCase())
@@ -132,11 +134,11 @@ export default async function handler(
       return res.status(404).json({ ok: false, error: "Not found" });
     }
 
-    // Best effort: plocka etikett för tilldelad chaufför
+    // Best effort: etikett för tilldelad chaufför
     let driver_label: string | null = null;
     try {
       if (data.assigned_driver_id) {
-        const d = await supabase
+        const d = await db
           .from("drivers")
           .select("id,name,label,email,active")
           .eq("id", data.assigned_driver_id)
@@ -149,11 +151,11 @@ export default async function handler(
       /* tyst */
     }
 
-    // Best effort: plocka etikett för tilldelat fordon
+    // Best effort: etikett för tilldelat fordon
     let vehicle_label: string | null = null;
     try {
       if (data.assigned_vehicle_id) {
-        const v = await supabase
+        const v = await db
           .from("vehicles")
           .select("id,label,name,reg,registration")
           .eq("id", data.assigned_vehicle_id)

@@ -1,8 +1,8 @@
-﻿import type { NextApiRequest, NextApiResponse } from "next";
+﻿// src/pages/api/offert/create.ts
+import type { NextApiRequest, NextApiResponse } from "next";
 import supabase from "@/lib/supabaseAdmin";
+import { allowCors } from "@/lib/cors";
 import { sendOfferMail } from "@/lib/sendOfferMail";
-
-export const config = { runtime: "nodejs" }; // viktig: ren sträng
 
 function pickYmd(v?: string | null) {
   if (!v) return null;
@@ -13,17 +13,12 @@ function pickYmd(v?: string | null) {
 async function nextOfferNumber(): Promise<string> {
   const yy = String(new Date().getFullYear()).slice(2);
   const prefix = `HB${yy}`;
-
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from("offers")
     .select("offer_number")
     .ilike("offer_number", `${prefix}%`)
     .order("offer_number", { ascending: false })
     .limit(100);
-
-  if (error) {
-    console.error("[offert/create] nextOfferNumber error:", error);
-  }
 
   let nextRun = 7;
   if (data?.length) {
@@ -43,16 +38,18 @@ async function nextOfferNumber(): Promise<string> {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!allowCors(req, res)) return;
   if (req.method !== "POST") {
+    res.setHeader("Allow", "POST,OPTIONS");
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
   try {
     const b = (req.body || {}) as Record<string, any>;
 
-    const customerName  = (b.contact_person || b.customer_name || "").toString().trim();
-    const customerEmail = (b.customer_email || b.email || "").toString().trim();
-    const customerPhone = (b.customer_phone || b.phone || "").toString().trim();
+    const customerName   = (b.contact_person || b.customer_name || "").toString().trim();
+    const customerEmail  = (b.customer_email || b.contact_email || b.email || "").toString().trim();
+    const customerPhone  = (b.customer_phone || b.contact_phone || b.phone || "").toString().trim();
 
     if (!customerName || !customerEmail) {
       return res.status(400).json({ ok: false, error: "Fyll i namn och e-post." });
@@ -72,7 +69,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const notes              = b.notes ?? b.message ?? null;
 
     const customer_reference = (b.customer_reference || customerName).toString().trim();
-    const internal_reference = (b.internal_reference || "").toString().trim();
 
     const offer_number = await nextOfferNumber();
     const status = "inkommen";
@@ -81,9 +77,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       offer_number,
       status,
       customer_reference,
-      // Viktigt: skriv till båda kolumnerna så alla vyer/ändpunkter funkar
+
+      // spara i båda fält för kompatibilitet
       customer_email: customerEmail,
       contact_email: customerEmail,
+
       customer_phone: customerPhone,
       contact_phone: customerPhone,
 
@@ -97,24 +95,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return_date,
       return_time,
       stopover_places: via,
-      onboard_contact: onboardContact,
       notes,
-      internal_reference,
       offer_date: new Date().toISOString().split("T")[0],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
-
-    console.log("[offert/create] inserting:", {
-      offer_number,
-      customerEmail,
-      destination,
-      departure_date,
-      passengers,
-    });
 
     const ins = await supabase
       .from("offers")
       .insert(row)
-      .select("id, offer_number, customer_email")
+      .select("id, offer_number")
       .single();
 
     if (ins.error) {
@@ -122,14 +112,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ ok: false, error: ins.error.message });
     }
 
-    // === MAIL ===
+    // skickar mejl (admin + kund)
     try {
-      const result = await sendOfferMail({
+      await sendOfferMail({
         offerId: String(ins.data.id),
         offerNumber: offer_number,
-        // OBS: Signaturen heter customerEmail (camelCase)
-        customerEmail: customerEmail,
-
+        customerEmail: customerEmail, // CAMELCASE
         customerName,
         customerPhone,
         from: departure_place,
@@ -145,9 +133,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return_time,
         notes,
       });
-      console.log("[offert/create] mail result:", result);
     } catch (mailErr: any) {
-      // Vi loggar men blockerar inte själva offerten
       console.error("[offert/create] mail failed:", mailErr?.message || mailErr);
     }
 

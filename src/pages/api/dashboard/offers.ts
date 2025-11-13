@@ -3,7 +3,9 @@ import type {
   NextApiRequest as NextApiRequestT,
   NextApiResponse as NextApiResponseT,
 } from "next";
-import { supabase as sbClient } from "@/lib/supabaseAdmin";
+import { requireAdmin } from "@/lib/supabaseAdmin";
+
+const db = requireAdmin();
 
 type Row = {
   id: string;
@@ -14,8 +16,9 @@ type Row = {
   destination: string | null;
   passengers: number | null;
   status: string | null;
+  offer_date?: string | null;
 
-  // fÃ¶r typbestÃ¤mning
+  // för typbestämning
   return_departure?: string | null;
   return_destination?: string | null;
   return_date?: string | null;
@@ -37,7 +40,7 @@ export default async function handler(
     since.setDate(since.getDate() - 30);
     const sinceISO = since.toISOString().slice(0, 10);
 
-    const { data: rows, error } = await sbClient
+    const { data, error } = await db
       .from("offers")
       .select(
         [
@@ -50,7 +53,6 @@ export default async function handler(
           "passengers",
           "status",
           "offer_date",
-          // nytt fÃ¶r typ
           "return_departure",
           "return_destination",
           "return_date",
@@ -63,18 +65,20 @@ export default async function handler(
 
     if (error) throw error;
 
-    const byDay: Record<string, { inkommen: number; besvarad: number }> = {};
-    const unanswered: Row[] = [];
+    // Casta bort Supabase-unionen (data | PostgrestError)
+    const rows = (data ?? []) as unknown as Row[];
 
-    for (const r of rows ?? []) {
-      const rr = r as any as Row;
-      const day = (rr as any).offer_date?.slice(0, 10) ?? "okÃ¤nd";
+    const byDay: Record<string, { inkommen: number; besvarad: number }> = {};
+    const unanswered: (Row & { type?: string })[] = [];
+
+    for (const rr of rows) {
+      const day = (rr.offer_date ?? "").slice(0, 10) || "okänd";
       if (!byDay[day]) byDay[day] = { inkommen: 0, besvarad: 0 };
       byDay[day].inkommen += 1;
-      if ((rr as any).status === "besvarad") byDay[day].besvarad += 1;
+      if (rr.status === "besvarad") byDay[day].besvarad += 1;
 
       // obesvarade
-      if ((rr as any).status !== "besvarad") {
+      if (rr.status !== "besvarad") {
         const hasReturn =
           Boolean(
             rr.return_departure ||
@@ -85,8 +89,6 @@ export default async function handler(
 
         unanswered.push({
           ...rr,
-          // detta anvÃ¤nds i tabellens "Typ"-kolumn
-          // @ts-ignore â€“ vi adderar fÃ¤ltet i payloaden
           type: hasReturn ? "Tur & retur" : "Enkelresa",
         });
       }
@@ -108,8 +110,7 @@ export default async function handler(
         from: r.departure_place,
         to: r.destination,
         pax: r.passengers,
-        // @ts-ignore â€“ â€œtypeâ€ fÃ¤ltet vi satte ovan
-        type: (r as any).type ?? "â€”",
+        type: r.type ?? "—",
         departure_date: fmtDate(r.departure_date),
         departure_time: r.departure_time,
       })),
@@ -121,5 +122,3 @@ export default async function handler(
     return res.status(500).json({ error: e.message ?? "Serverfel" });
   }
 }
-
-

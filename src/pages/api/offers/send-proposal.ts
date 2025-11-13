@@ -1,113 +1,111 @@
-﻿// src/pages/api/offers/send-proposal.ts
-import type { NextApiRequest, NextApiResponse } from "next";
+﻿import type { NextApiRequest, NextApiResponse } from "next";
 import { supabase } from "@/lib/supabaseAdmin";
 import { sendOfferMail } from "@/lib/sendOfferMail";
+import { Resend } from "resend";
 
-export const config = { runtime: "nodejs" };
+const env = (v?: string | null) => (v ?? "").toString().trim();
+
+const RESEND_KEY   = env(process.env.RESEND_API_KEY);
+const FROM_PRIMARY = env(process.env.MAIL_FROM) || env(process.env.EMAIL_FROM) || "Helsingbuss <onboarding@resend.dev>";
+const ADMIN_TO     = env(process.env.OFFERS_INBOX) || env(process.env.ADMIN_ALERT_EMAIL) || "offert@helsingbuss.se";
+
+function adminStartUrl() {
+  const base =
+    env(process.env.NEXT_PUBLIC_LOGIN_BASE_URL) ||
+    env(process.env.NEXT_PUBLIC_BASE_URL) ||
+    "https://login.helsingbuss.se";
+  return base.replace(/\/+$/, "") + "/start";
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
   try {
     const {
       offerId,        // UUID i tabellen offers
       offerNumber,    // t.ex. HB25007
-      customerEmail,  // mottagare (kund) — CAMEL CASE!
+      customerEmail,  // mottagare (kund)
       totals,         // (valfritt) summering från kalkylen
       pricing,        // (valfritt) radrader
       input,          // (valfritt) inmatade fält
-    } = (req.body ?? {}) as {
-      offerId: string;
-      offerNumber: string;
-      customerEmail?: string;
-      totals?: any;
-      pricing?: any;
-      input?: any;
-    };
+    } = req.body ?? {};
 
-    if (!offerId || !offerNumber) {
-      return res.status(400).json({ error: "offerId och offerNumber krävs" });
+    if (!offerId || !offerNumber || !customerEmail) {
+      return res.status(400).json({ error: "offerId, offerNumber och customerEmail krävs" });
     }
 
-    // Spara kalkyl och markera ev. skickad
-    const { mode, breakdown } = (req.body ?? {}) as {
-      mode?: "draft" | "send";
-      breakdown?: {
-        grandExVat: number;
-        grandVat: number;
-        grandTotal: number;
-        serviceFeeExVat: number;
-        legs: { subtotExVat: number; vat: number; total: number }[];
-      };
-    };
+    // Spara kalkyl och markera offerten som besvarad
+    const { error: updErr } = await supabase
+      .from("offers")
+      .update({
+        calc_totals: totals ?? null,
+        calc_pricing: pricing ?? null,
+        calc_input: input ?? null,
+        status: "besvarad",
+        sent_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", offerId);
 
-    const patch: any = {
-      amount_ex_vat: breakdown?.grandExVat ?? null,
-      vat_amount: breakdown?.grandVat ?? null,
-      total_amount: breakdown?.grandTotal ?? null,
-      calc_json: input ?? null,
-      vat_breakdown: breakdown ?? null,
-      calc_totals: totals ?? null,
-      calc_pricing: pricing ?? null,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (mode === "send") {
-      patch.status = "besvarad";
-      patch.sent_at = new Date().toISOString();
-    }
-
-    const { error: updErr } = await supabase.from("offers").update(patch).eq("id", offerId);
     if (updErr) throw updErr;
 
-    // Skicka mejl till kund ENDAST i "send"-läge
-    if (mode === "send") {
-      // 1) Hämta kundens e-post från DB om den inte skickades i body
-      let to = (customerEmail || "").trim();
-      if (!to) {
-        const { data: offerRow } = await supabase
-          .from("offers")
-          .select("customer_email, contact_email")
-          .eq("id", offerId)
-          .single();
-        to = (offerRow?.customer_email || offerRow?.contact_email || "").trim();
-      }
+    // 1) SKICKA KUNDMEJL (sendOfferMail sköter kund + admin-kopia internt korrekt)
+    await sendOfferMail({
+      offerId: String(offerId),
+      offerNumber: String(offerNumber),
+      customerEmail: String(customerEmail),
 
-      // 2) Skicka med korrekt fältnamn: customerEmail (camelCase)
-      if (to && /\S+@\S+\.\S+/.test(to)) {
-        try {
-          await sendOfferMail({
-            offerId: String(offerId),
-            offerNumber: String(offerNumber),
-            customerEmail: String(to), // ✅ RÄTT NAMN
-            // valfritt – skicka gärna med sammanfattning från input om du vill
-            customerName: input?.customer_name ?? input?.contact_person ?? null,
-            customerPhone: input?.customer_phone ?? input?.contact_phone ?? null,
-            from: input?.departure_place ?? null,
-            to: input?.destination ?? null,
-            date: input?.departure_date ?? null,
-            time: input?.departure_time ?? null,
-            passengers:
-              typeof input?.passengers === "number"
-                ? input.passengers
-                : Number.isFinite(Number(input?.passengers))
-                ? Number(input?.passengers)
-                : null,
-            via: input?.via ?? null,
-            onboardContact: input?.onboard_contact ?? null,
-            return_from: input?.return_departure ?? null,
-            return_to: input?.return_destination ?? null,
-            return_date: input?.return_date ?? null,
-            return_time: input?.return_time ?? null,
-            notes: input?.notes ?? null,
-          });
-        } catch (mailErr) {
-          console.error("sendOfferMail failed:", mailErr);
-          // fortsätter ändå – DB är uppdaterad
-        }
-      } else {
-        console.warn("[send-proposal] Ingen giltig kundadress hittades.");
-      }
+      // (valfritt) fyll på med inmatning om du vill
+      customerName: input?.customer_name ?? input?.contact_person ?? null,
+      customerPhone: input?.customer_phone ?? input?.contact_phone ?? null,
+
+      from: input?.departure_place ?? null,
+      to: input?.destination ?? null,
+      date: input?.departure_date ?? null,
+      time: input?.departure_time ?? null,
+      passengers:
+        typeof input?.passengers === "number"
+          ? input.passengers
+          : Number.isFinite(Number(input?.passengers))
+          ? Number(input?.passengers)
+          : null,
+      via: input?.via ?? null,
+      onboardContact: input?.onboard_contact ?? null,
+
+      return_from: input?.return_departure ?? null,
+      return_to: input?.return_destination ?? null,
+      return_date: input?.return_date ?? null,
+      return_time: input?.return_time ?? null,
+
+      notes: input?.notes ?? null,
+    });
+
+    // 2) (VALFRITT) FRISTÅENDE ADMIN-NOTIS – länka ALLTID till /start
+    //    OBS: INTE via sendOfferMail (annars risk för kundlayout till admin).
+    if (RESEND_KEY && ADMIN_TO) {
+      const resend = new Resend(RESEND_KEY);
+      const href = adminStartUrl();
+      await resend.emails.send({
+        from: FROM_PRIMARY,
+        to: ADMIN_TO,
+        subject: `📤 Offert skickad (${String(offerNumber)})`,
+        html: `
+          <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111">
+            <p>Prisförslag har skickats till kund.</p>
+            <p><strong>Offert:</strong> ${String(offerNumber)}</p>
+            <table role="presentation" cellspacing="0" cellpadding="0" style="margin:18px 0 6px">
+              <tr><td>
+                <a href="${href}" style="display:inline-block;background:#1D2937;color:#fff;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:700">
+                  Öppna i portalen
+                </a>
+              </td></tr>
+            </table>
+          </div>
+        `,
+        text: `Prisförslag har skickats.\nOffert: ${String(offerNumber)}\nÖppna i portalen: ${href}`,
+      } as any);
     }
 
     return res.status(200).json({ success: true });

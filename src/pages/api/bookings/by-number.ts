@@ -1,6 +1,8 @@
 // src/pages/api/bookings/by-number.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireAdmin } from "@/lib/supabaseAdmin";
+
+const db = requireAdmin();
 
 function isUndefinedColumn(err: any) {
   const m = String(err?.message || "").toLowerCase();
@@ -66,7 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let lastErr: any = null;
 
     for (const col of cols) {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await db
         .from("bookings")
         .select(SELECT_COLS)
         .ilike(col, bookingNo) // case-insensitivt likamed (ingen wildcard)

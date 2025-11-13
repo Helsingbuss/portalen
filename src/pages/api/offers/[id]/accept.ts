@@ -3,42 +3,35 @@ import * as admin from "@/lib/supabaseAdmin";
 import { sendOfferMail } from "@/lib/sendOfferMail";
 import { Resend } from "resend";
 
+const env = (v?: string | null) => (v ?? "").toString().trim();
+
 export const config = { runtime: "nodejs" };
 
 const supabase =
   (admin as any).supabaseAdmin || (admin as any).supabase || (admin as any).default;
 
-const OFFERS_INBOX = process.env.OFFERS_INBOX || "";
-const ADMIN_ALERT  = process.env.ADMIN_ALERT_EMAIL || "";
-const FROM_PRIMARY = process.env.MAIL_FROM || "Helsingbuss <info@helsingbuss.se>";
-const FROM_FALLBACK = "Helsingbuss <onboarding@resend.dev>";
-const REPLY_TO = process.env.EMAIL_REPLY_TO || "";
+const FROM_PRIMARY = env(process.env.MAIL_FROM) || env(process.env.EMAIL_FROM) || "Helsingbuss <onboarding@resend.dev>";
+const ADMIN_TO     = env(process.env.OFFERS_INBOX) || env(process.env.ADMIN_ALERT_EMAIL) || "offert@helsingbuss.se";
+const RESEND_KEY   = env(process.env.RESEND_API_KEY);
 
-const BASE =
-  (process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_LOGIN_BASE_URL || "")
-    .replace(/\/$/, "") || "http://localhost:3000";
-
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-
-function pickAdminTo() {
-  // Prioritera ALLTID offert-inbox
-  return OFFERS_INBOX || ADMIN_ALERT || "";
-}
-
-function fromFor(to: string) {
-  return /@helsingbuss\.se$/i.test(to) ? FROM_FALLBACK : FROM_PRIMARY;
+function adminStartUrl() {
+  const base =
+    env(process.env.NEXT_PUBLIC_LOGIN_BASE_URL) ||
+    env(process.env.NEXT_PUBLIC_BASE_URL) ||
+    "https://login.helsingbuss.se";
+  return base.replace(/\/+$/, "") + "/start";
 }
 
 /** Prova flera statusvärden tills ett går igenom CHECK-constrainten */
 async function updateStatusWithFallback(offerId: string) {
   const variants = [
-    { status: "godkand",   stampField: "accepted_at" as const },
-    { status: "godkänd",   stampField: "accepted_at" as const },
-    { status: "accepted",  stampField: "accepted_at" as const },
-    { status: "approved",  stampField: "accepted_at" as const },
-    { status: "bekräftad", stampField: "accepted_at" as const },
-    { status: "bekraftad", stampField: "accepted_at" as const },
-    { status: "booked",    stampField: "accepted_at" as const },
+    { status: "godkand",  stampField: "accepted_at" as const },
+    { status: "godkänd",  stampField: "accepted_at" as const },
+    { status: "accepted", stampField: "accepted_at" as const },
+    { status: "approved", stampField: "accepted_at" as const },
+    { status: "bekräftad",stampField: "accepted_at" as const },
+    { status: "bekraftad",stampField: "accepted_at" as const },
+    { status: "booked",   stampField: "accepted_at" as const },
   ];
 
   const tried: string[] = [];
@@ -71,11 +64,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const finalStatus = await updateStatusWithFallback(offer.id);
 
-    // Kund
     const to =
       b.customerEmail ||
-      (offer as any).customer_email ||
       (offer as any).contact_email ||
+      (offer as any).customer_email ||
       null;
 
     if (to) {
@@ -98,34 +90,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // Admin-notis → OFFERS_INBOX (med fallback-from för intern adress)
-    const adminTo = pickAdminTo();
-    if (resend && adminTo) {
+    // ADMIN-notis – LÄNK TILL /start (inte /offert eller /admin/offers/:id)
+    if (RESEND_KEY && ADMIN_TO) {
+      const resend = new Resend(RESEND_KEY);
+      const href = adminStartUrl();
       await resend.emails.send({
-        from: fromFor(adminTo),
-        to: adminTo,
-        ...(REPLY_TO ? { reply_to: REPLY_TO } : {}),
+        from: FROM_PRIMARY,
+        to: ADMIN_TO,
         subject: `✅ Offert godkänd (${offer.offer_number || offer.id})`,
         html: `
-          <p>En offert har godkänts av kund.</p>
-          <p><strong>Offert:</strong> ${offer.offer_number || offer.id}</p>
-          <p><strong>Status i DB:</strong> ${finalStatus}</p>
-          <p><a href="${BASE}/admin/offers/${offer.id}">Öppna offert i Admin</a></p>
-          <p><a href="${BASE}/admin/bookings/new?fromOffer=${offer.id}">Skapa bokning från offerten</a></p>
+          <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111">
+            <p>En offert har godkänts av kund.</p>
+            <p><strong>Offert:</strong> ${offer.offer_number || offer.id}</p>
+            <p><strong>Status i DB:</strong> ${finalStatus}</p>
+            <table role="presentation" cellspacing="0" cellpadding="0" style="margin:18px 0 6px">
+              <tr><td>
+                <a href="${href}" style="display:inline-block;background:#1D2937;color:#fff;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:700">
+                  Öppna i portalen
+                </a>
+              </td></tr>
+            </table>
+          </div>
         `,
-        text: [
-          `En offert har godkänts av kund.`,
-          `Offert: ${offer.offer_number || offer.id}`,
-          `Status i DB: ${finalStatus}`,
-          `${BASE}/admin/offers/${offer.id}`,
-          `${BASE}/admin/bookings/new?fromOffer=${offer.id}`,
-        ].join("\n"),
+        text: `Offert godkänd.\nOffert: ${offer.offer_number || offer.id}\nStatus: ${finalStatus}\nÖppna i portalen: ${href}`,
       } as any);
     }
 
     return res.status(200).json({
       ok: true,
-      nextUrl: `${BASE}/admin/bookings/new?fromOffer=${offer.id}`,
+      nextUrl: adminStartUrl(), // valfritt: skicka /start som nextUrl
       status: finalStatus,
     });
   } catch (e: any) {

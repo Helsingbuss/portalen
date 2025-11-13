@@ -122,6 +122,14 @@ function buildDemoOffer(kind: "single" | "roundtrip", view: string): Offer {
 
 /* ----------------------- SSR ----------------------- */
 
+// liten helper för att plocka första satta värdet
+function pickFirst<T = string>(...vals: any[]): T | null {
+  for (const v of vals) {
+    if (v !== undefined && v !== null && String(v).trim() !== "") return v as T;
+  }
+  return null;
+}
+
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const slug = String(ctx.params?.id || "");
   const viewOverride = ctx.query?.view ? String(ctx.query.view).toLowerCase() : null;
@@ -141,17 +149,16 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     };
   }
 
-  const token = String(ctx.query?.t || "");
-
+  // Tillåt både ?t= och ?token=
+  const token = String((ctx.query?.t ?? ctx.query?.token ?? "") || "");
   if (!token) {
     return { props: { offer: null, auth: { ok: false, reason: "missing" }, viewOverride } };
   }
 
+  // 1) verifiera token (men gör ingen tidig slug-jämförelse här)
+  let payload: any;
   try {
-    const payload = await verifyOfferToken(token);
-    if (payload.offer_id !== slug) {
-      return { props: { offer: null, auth: { ok: false, reason: "forbidden" }, viewOverride } };
-    }
+    payload = await verifyOfferToken(token);
   } catch (e: any) {
     const msg = String(e?.message || "").toLowerCase();
     if (msg.includes("expired")) {
@@ -160,12 +167,17 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     return { props: { offer: null, auth: { ok: false, reason: "invalid" }, viewOverride } };
   }
 
+  // Stöd för flera nycklar i token
+  const tokId = pickFirst<string>(payload?.offer_id, payload?.offerId, payload?.sub);
+  const tokNo = pickFirst<string>(payload?.offer_number, payload?.offerNumber, payload?.no);
+
+  // 2) hämta offerten – din API-route klarar både UUID och offer_number i slug
   try {
     const base = resolveSelfOrigin(ctx);
     const url = `${base}/api/offers/${encodeURIComponent(slug)}`;
     const resp = await fetch(url, {
       headers: {
-        "accept": "application/json",
+        accept: "application/json",
         "x-offer-link": "jwt-ok",
         "x-offer-token": token,
       },
@@ -176,7 +188,26 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     }
 
     const json = await resp.json();
-    return { props: { offer: (json?.offer ?? null) as Offer | null, auth: { ok: true }, viewOverride } };
+    const offer: Offer | null = (json?.offer ?? null) as Offer | null;
+    if (!offer) {
+      return { props: { offer: null, auth: { ok: false, reason: "invalid" }, viewOverride } };
+    }
+
+    // 3) godkänn om något av följande matchar:
+    //    - token.id mot offer.id
+    //    - token.no mot offer.offer_number
+    //    - slug är samma som offer.id eller offer.offer_number
+    const idMatch = tokId && String(offer.id || "") === String(tokId);
+    const noMatch = tokNo && String(offer.offer_number || "") === String(tokNo);
+    const slugMatch =
+      String(slug) === String(offer.id || "") ||
+      String(slug) === String(offer.offer_number || "");
+
+    if (!(idMatch || noMatch || slugMatch)) {
+      return { props: { offer: null, auth: { ok: false, reason: "forbidden" }, viewOverride } };
+    }
+
+    return { props: { offer, auth: { ok: true }, viewOverride } };
   } catch {
     return { props: { offer: null, auth: { ok: false, reason: "invalid" }, viewOverride } };
   }
