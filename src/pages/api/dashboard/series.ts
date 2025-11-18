@@ -2,131 +2,131 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import supabase from "@/lib/supabaseAdmin";
 
-
+export const config = { runtime: "nodejs" };
 
 type Series = {
-  weeks: string[];            // etiketter till grafen (nu bara "48","49","50"...)
+  weeks: string[];
   offer_answered: number[];
   offer_unanswered: number[];
   booking_in: number[];
   booking_done: number[];
 };
 
-const EMPTY: Series = {
-  weeks: [],
-  offer_answered: [],
-  offer_unanswered: [],
-  booking_in: [],
-  booking_done: [],
-};
+type Payload = Series;
 
-function ymd(d: Date) {
-  return d.toISOString().slice(0, 10);
+function ymd(d: Date) { return d.toISOString().slice(0,10); }
+
+// Svensk ISO-vecka
+function weekNo(dateStr: string): number {
+  const d = new Date(dateStr + "T12:00:00Z"); // undvik TZ-glapp
+  // ISO: torsdagstrick
+  const tmp = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  // Torsdag i aktuell vecka
+  const day = (tmp.getUTCDay() + 6) % 7; // 0=mån
+  tmp.setUTCDate(tmp.getUTCDate() - day + 3);
+  // Första torsdagen på året
+  const firstThu = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 4));
+  const firstDay = (firstThu.getUTCDay() + 6) % 7;
+  firstThu.setUTCDate(firstThu.getUTCDate() - firstDay + 3);
+  // Veckonummer
+  const diff = tmp.getTime() - firstThu.getTime();
+  return 1 + Math.round(diff / (7 * 24 * 3600 * 1000));
 }
 
-// ISO-vecka (svensk standard)
-function weekKey(d: Date) {
-  const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const dayNum = (dt.getUTCDay() + 6) % 7;     // mån=0 … sön=6
-  dt.setUTCDate(dt.getUTCDate() - dayNum + 3); // till torsdag
-  const firstThu = new Date(Date.UTC(dt.getUTCFullYear(), 0, 4));
-  const week = 1 + Math.round((+dt - +firstThu) / 604800000);
-  const ww = String(week).padStart(2, "0");    // "01".."53"
-  return `${dt.getUTCFullYear()}-W${ww}`;      // t.ex. "2025-W49"
-}
-
-function makeWeekBins(fromStr: string, toStr: string) {
-  const keys: string[] = [];
-  const map = new Map<string, number>();
-  const from = new Date(fromStr);
-  const to = new Date(toStr);
-  for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-    const k = weekKey(d);
-    if (!map.has(k)) {
-      map.set(k, keys.length);
-      keys.push(k);
-    }
-  }
-  return { keys, indexOf: (k: string) => map.get(k) ?? -1 };
-}
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<Payload | { error: string }>
+) {
   try {
     const from = String(req.query.from || ymd(new Date()));
-    const to = String(req.query.to || "2025-12-31");
+    const to   = String(req.query.to   || "2025-12-31");
 
-    const { keys, indexOf } = makeWeekBins(from, to);
-    const n = keys.length;
-
-    const series: Series = {
-      weeks: Array(n).fill(""),
-      offer_answered: Array(n).fill(0),
-      offer_unanswered: Array(n).fill(0),
-      booking_in: Array(n).fill(0),
-      booking_done: Array(n).fill(0),
-    };
-
-    // --- OFFERS ---
-    const { data: offers } = await supabase
+    // Hämta OFFERS i intervallet (på offer_date om den finns, annars created_at)
+    const { data: offers, error: oerr } = await supabase
       .from("offers")
       .select("*")
-      .gte("created_at", from)
-      .lte("created_at", to);
+      .gte("offer_date", from)
+      .lte("offer_date", to);
 
-    if (Array.isArray(offers)) {
-      for (const row of offers) {
-        const created = row.created_at ? new Date(row.created_at) : null;
-        if (!created) continue;
-        const k = weekKey(created);
-        const i = indexOf(k);
-        if (i < 0) continue;
+    if (oerr) throw oerr;
 
-        const s = String(row.status ?? "").toLowerCase();
-        if (["besvarad", "answered", "godkänd", "accepted"].includes(s)) {
-          series.offer_answered[i] += 1;
-        } else {
-          series.offer_unanswered[i] += 1;
-        }
-      }
-    }
-
-    // --- BOOKINGS (valfritt om tabellen finns) ---
+    // Hämta BOOKINGS (om du har en bookings-tabell; annars tomma arr)
+    let bookings: any[] = [];
     try {
-      const { data: bookings } = await supabase
+      const { data: bdata } = await supabase
         .from("bookings")
         .select("*")
         .gte("created_at", from)
         .lte("created_at", to);
+      bookings = bdata ?? [];
+    } catch { /* tolerera om tabellen inte finns */ }
 
-      if (Array.isArray(bookings)) {
-        for (const row of bookings) {
-          const created = row.created_at ? new Date(row.created_at) : null;
-          if (!created) continue;
-          const k = weekKey(created);
-          const i = indexOf(k);
-          if (i < 0) continue;
+    // Samla veckor som förekommer
+    const weekSet = new Set<number>();
 
-          const st = String(row.status ?? "").toLowerCase();
-          if (["klar", "done", "slutförd"].includes(st)) {
-            series.booking_done[i] += 1;
-          } else {
-            series.booking_in[i] += 1;
-          }
-        }
-      }
-    } catch {
-      /* ignorera om tabell saknas */
+    const oWeek = (o: any) => {
+      const d = String(o.offer_date || o.created_at || "").slice(0,10);
+      if (!d) return null;
+      const w = weekNo(d);
+      if (w) weekSet.add(w);
+      return w;
+    };
+    const bWeek = (b: any) => {
+      const d = String(b.created_at || "").slice(0,10);
+      if (!d) return null;
+      const w = weekNo(d);
+      if (w) weekSet.add(w);
+      return w;
+    };
+
+    offers.forEach(oWeek);
+    bookings.forEach(bWeek);
+
+    const weeks = Array.from(weekSet).sort((a,b)=>a-b).map(n => String(n));
+
+    const counters = {
+      offer_answered:   new Map<string, number>(),
+      offer_unanswered: new Map<string, number>(),
+      booking_in:       new Map<string, number>(),
+      booking_done:     new Map<string, number>(),
+    };
+
+    const inc = (m: Map<string, number>, k: string) =>
+      m.set(k, 1 + (m.get(k) || 0));
+
+    // offers
+    for (const o of offers) {
+      const w = oWeek(o);
+      if (!w) continue;
+      const ww = String(w);
+      const s = String(o.status ?? "").toLowerCase();
+      if (s === "besvarad" || s === "answered") inc(counters.offer_answered, ww);
+      else                                      inc(counters.offer_unanswered, ww);
     }
 
-    // --- Mappa etiketter till enbart veckonummer ---
-    // "2025-W49" -> "49" (utan ledande nolla)
-    series.weeks = keys.map(k => {
-      const ww = k.split("-W")[1] ?? k;
-      return String(parseInt(ww, 10)); // "01" -> "1"
-    });
+    // bookings (om finns)
+    for (const b of bookings) {
+      const ww = bWeek(b);
+      if (!ww) continue;
+      const w = String(ww);
+      const s = String(b.status ?? "").toLowerCase();
+      if (s === "klar" || s === "done" || s === "completed") inc(counters.booking_done, w);
+      else                                                   inc(counters.booking_in,   w);
+    }
 
-    return res.status(200).json(series);
-  } catch {
-    return res.status(200).json(EMPTY);
+    const toArr = (m: Map<string, number>) => weeks.map(w => m.get(w) || 0);
+
+    const payload: Series = {
+      weeks,
+      offer_answered:   toArr(counters.offer_answered),
+      offer_unanswered: toArr(counters.offer_unanswered),
+      booking_in:       toArr(counters.booking_in),
+      booking_done:     toArr(counters.booking_done),
+    };
+
+    return res.status(200).json(payload);
+  } catch (e:any) {
+    console.error("/api/dashboard/series error:", e?.message || e);
+    return res.status(500).json({ error: e?.message || "Serverfel" });
   }
 }
