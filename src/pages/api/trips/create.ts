@@ -1,6 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 
+
+
+
 const supabase =
   (admin as any).supabaseAdmin ||
   (admin as any).supabase ||
@@ -19,11 +22,11 @@ type Body = {
   published: boolean;
   external_url?: string | null;
   year?: number | null;
-  summary?: string | null;            // “Kort om resan” (nytt)
-  // valfritt stöd för flera kategorier
+  summary?: string | null;            // â€œKort om resanâ€ (nytt)
+  // valfritt stÃ¶d fÃ¶r flera kategorier
   categories?: string[] | null;       // t.ex. ["shopping","flerdagar"]
   tags?: string[] | null;             // alias, om du redan har 'tags' i DB
-  departures?: Array<any>;            // kommer från DeparturesEditor
+  departures?: Array<any>;            // kommer frÃ¥n DeparturesEditor
 };
 
 function setCORS(res: NextApiResponse) {
@@ -57,10 +60,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // validering basic
   if (!b?.title || !b?.hero_image) {
-    return res.status(400).json({ ok: false, error: "Titel och bild krävs." });
+    return res.status(400).json({ ok: false, error: "Titel och bild krÃ¤vs." });
   }
 
-  // bygg insert-objekt – endast fält vi med säkerhet vill försöka spara
+  // bygg insert-objekt â€“ endast fÃ¤lt vi med sÃ¤kerhet vill fÃ¶rsÃ¶ka spara
   const baseInsert: Record<string, any> = {
     title: (b.title || "").trim(),
     subtitle: b.subtitle ?? null,
@@ -76,10 +79,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     year: b.year ?? null,
   };
 
-  // försök spara summary i 'summary' (fallback till 'description' om kolumnen saknas)
+  // fÃ¶rsÃ¶k spara summary i 'summary' (fallback till 'description' om kolumnen saknas)
   let useSummaryColumn = true;
 
-  // om du vill lagra “flera kategorier”: mappa till 'tags' om kolumnen finns
+  // om du vill lagra â€œflera kategorierâ€: mappa till 'tags' om kolumnen finns
   const tagsArray = Array.isArray(b.tags)
     ? b.tags
     : Array.isArray(b.categories)
@@ -90,7 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     baseInsert["tags"] = tagsArray.filter(Boolean);
   }
 
-  // första försöket: med 'summary'
+  // fÃ¶rsta fÃ¶rsÃ¶ket: med 'summary'
   if (typeof b.summary === "string" || b.summary === null) {
     baseInsert["summary"] = b.summary ?? null;
   }
@@ -107,7 +110,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (error) throw error;
     tripId = data?.id || null;
   } catch (e: any) {
-    // om fel pga kolumn "summary" inte finns, försök igen med 'description'
+    // om fel pga kolumn "summary" inte finns, fÃ¶rsÃ¶k igen med 'description'
     const msg: string = e?.message || "";
     if (/column .*summary.* does not exist/i.test(msg)) {
       useSummaryColumn = false;
@@ -134,13 +137,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!tripId) return res.status(500).json({ ok: false, error: "Kunde inte skapa resa (saknar id)." });
 
-  // 2) Insert avgångar i trip_departures.date
+  // 2) Insert avgÃ¥ngar i trip_departures.date
   const dates = parseDepartureDates(b.departures);
   if (dates.length) {
     const rows = dates.map((d) => ({ trip_id: tripId, date: d }));
     const { error: depErr } = await supabase.from("trip_departures").insert(rows);
     if (depErr) {
-      // skriv varning men fall tillbaka till ok (kan hända om tabellen saknas)
+      // skriv varning men fall tillbaka till ok (kan hÃ¤nda om tabellen saknas)
       console.warn("create: could not insert departures:", depErr.message || depErr);
     }
   }
@@ -152,3 +155,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     departures_saved: dates.length,
   });
 }
+

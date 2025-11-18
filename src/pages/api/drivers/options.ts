@@ -2,6 +2,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
+
+
+
 type DriverRow = {
   id: string;
   first_name: string | null;
@@ -39,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const options = (data as DriverRow[] | null | undefined)?.map((d) => ({
       id: d.id,
-      label: [d.first_name, d.last_name].filter(Boolean).join(" ").trim() || d.email || "Chaufför",
+      label: [d.first_name, d.last_name].filter(Boolean).join(" ").trim() || d.email || "ChauffÃ¶r",
       email: d.email ?? null,
       phone: d.phone ?? null,
       active: !!d.active,
@@ -48,7 +51,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ options });
   } catch (e: any) {
     console.error("/api/drivers/options error:", e?.message || e);
-    // Skicka tom lista hellre än 500 så UI inte bryts
+    // Skicka tom lista hellre Ã¤n 500 sÃ¥ UI inte bryts
     return res.status(200).json({ options: [] });
   }
 }
+

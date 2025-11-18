@@ -1,7 +1,9 @@
-﻿// src/pages/api/offers/send-proposal.ts
+// src/pages/api/offers/send-proposal.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import supabase from "@/lib/supabaseAdmin";
 import { sendOfferMail } from "@/lib/sendMail";
+
+
 
 // ===== Typ som matchar dina kolumner =====
 type OfferRow = {
@@ -18,8 +20,8 @@ type OfferRow = {
   departure_date: string | null;
   departure_time: string | null;
 
-  via: string | null;   // ✅ nya fältet
-  stop: string | null;  // ✅ nya fältet
+  via: string | null;
+  stop: string | null;
   passengers?: number | null;
 
   return_departure: string | null;
@@ -50,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       via?: string | null;
       stop?: string | null;
       notes?: string | null;
-      onboard_contact?: string | null;   // ← vi skickar inte detta som egen prop, vi lägger in i notes
+      onboard_contact?: string | null; // vi lägger in i notes
       return_departure?: string | null;
       return_destination?: string | null;
       return_date?: string | null;
@@ -102,12 +104,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       offer.status = "besvarad";
     }
 
-    // Bygg notes där vi klistrar in "Kontakt ombord" om det skickats in
+    // Bygg notes där vi klistrar in "Kontakt ombord" + ev. telefonnummer
     let outNotes = input.notes ?? offer.notes ?? null;
+    const extras: string[] = [];
     if (input.onboard_contact && String(input.onboard_contact).trim() !== "") {
-      outNotes = [outNotes?.toString().trim() || "", `Kontakt ombord: ${input.onboard_contact}`]
-        .filter(Boolean)
-        .join("\n");
+      extras.push(`Kontakt ombord: ${input.onboard_contact}`);
+    }
+    if (offer.customer_phone && String(offer.customer_phone).trim() !== "") {
+      extras.push(`Telefon: ${offer.customer_phone}`);
+    }
+    if (extras.length) {
+      outNotes = [outNotes?.toString().trim() || "", ...extras].filter(Boolean).join("\n");
     }
 
     // Tillåt att via/stop/retur-fält kan matas in i POST:en för att maila korrekt info
@@ -119,21 +126,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const retDate = input.return_date        ?? offer.return_date        ?? null;
     const retTime = input.return_time        ?? offer.return_time        ?? null;
 
-    // Skicka “besvarad”-mail (sendMail väljer/hanterar mallar)
+    // Skicka “besvarad”-mail
     await sendOfferMail({
       offerId: String(offer.id),
       offerNumber: String(offer.offer_number),
 
       customerEmail: U(offer.customer_email),
       customerName: U(offer.contact_person),
-      customerPhone: U(offer.customer_phone),
 
       from: U(offer.departure_place),
       to: U(offer.destination),
       date: U(offer.departure_date),
       time: U(offer.departure_time),
-      via: U(viaOut),     // ✅
-      stop: U(stopOut),   // ✅
+      via: U(viaOut),
+      stop: U(stopOut),
       passengers: typeof offer.passengers === "number" ? offer.passengers : undefined,
 
       return_from: U(retFrom),

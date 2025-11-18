@@ -1,4 +1,4 @@
-﻿// src/components/offers/OfferBesvarad.tsx
+// src/components/offers/OfferBesvarad.tsx
 import Image from "next/image";
 import { useState } from "react";
 

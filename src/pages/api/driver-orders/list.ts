@@ -1,5 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
+
+
+
 const supabase = (admin as any).supabaseAdmin || (admin as any).supabase || (admin as any).default;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -37,6 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ rows: data ?? [], page, pageSize, total: count ?? 0 });
   } catch (e: any) {
     console.error("/api/driver-orders/list error:", e?.message || e);
-    return res.status(500).json({ error: "Kunde inte hämta körordrar" });
+    return res.status(500).json({ error: "Kunde inte hÃ¤mta kÃ¶rordrar" });
   }
 }
+

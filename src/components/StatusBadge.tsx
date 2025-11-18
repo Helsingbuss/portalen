@@ -1,4 +1,4 @@
-﻿// src/components/StatusBadge.tsx
+// src/components/StatusBadge.tsx
 import { CheckCircle, XCircle, Clock, FileText } from "lucide-react";
 
 interface StatusBadgeProps {

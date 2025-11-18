@@ -1,6 +1,9 @@
-﻿// src/pages/api/drivers/list.ts
+// src/pages/api/drivers/list.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/lib/supabaseAdmin"; // service_role-klienten
+
+
+
 
 type DriverRow = {
   id: string;
@@ -65,7 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const drv = (drivers || []) as DriverRow[];
     const ids = drv.map((d) => d.id);
 
-    // Dokument (minsta utgångsdatum per driver)
+    // Dokument (minsta utgÃ¥ngsdatum per driver)
     let minExpByDriver: Record<string, string | null> = {};
     if (ids.length) {
       const { data: docs } = await supabaseAdmin
@@ -89,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         !minExpires
           ? { tag: "saknas", days: Infinity }
           : dd < 0
-          ? { tag: "utgånget", days: dd }
+          ? { tag: "utgÃ¥nget", days: dd }
           : dd <= 30
           ? { tag: "snart (<=30d)", days: dd }
           : dd <= 60
@@ -106,9 +109,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         id: d.id,
         first_name: first,
         last_name: last,
-        name: full || "—",
-        phone: d.phone ?? "—",
-        email: d.email ?? "—",
+        name: full || "â€”",
+        phone: d.phone ?? "â€”",
+        email: d.email ?? "â€”",
         license_classes: Array.isArray(d.license_classes) ? d.license_classes : [],
         active: Boolean(d.active),
         updated_at: d.updated_at,
@@ -128,7 +131,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (e: any) {
     console.error("/api/drivers/list error:", e?.message || e);
-    return res.status(500).json({ error: "Kunde inte hämta chaufförer" });
+    return res.status(500).json({ error: "Kunde inte hÃ¤mta chauffÃ¶rer" });
   }
 }
+
 

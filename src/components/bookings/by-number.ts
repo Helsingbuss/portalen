@@ -1,4 +1,4 @@
-﻿// src/pages/api/bookings/by-number.ts
+// src/pages/api/bookings/by-number.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabase } from "@/lib/supabaseClient";
 

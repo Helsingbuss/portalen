@@ -1,4 +1,4 @@
-﻿// src/lib/storage.ts
+// src/lib/storage.ts
 import { supabase } from "@/lib/supabaseClient";
 
 /** Ladda upp profilbild till drivers-bucket (privat). Returnerar filens path i bucketen. */

@@ -1,7 +1,9 @@
-﻿import type { NextApiRequest, NextApiResponse } from "next";
+import type { NextApiRequest, NextApiResponse } from "next";
 import { Resend } from "resend";
 
-export const config = { runtime: "nodejs" };
+
+
+
 
 function fromFor(to: string) {
   const primary = process.env.MAIL_FROM || "Helsingbuss <info@helsingbuss.se>";
@@ -29,8 +31,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     from,
     to,
     subject: "TEST: Helsingbuss Portal (email-ping)",
-    html: `<p>Hej! Detta är ett test från API:t.<br/><a href="${base}/start">Öppna Admin</a></p>`,
-    text: `Hej! Detta är ett test från API:t.\n${base}/start`,
+    html: `<p>Hej! Detta Ã¤r ett test frÃ¥n API:t.<br/><a href="${base}/start">Ã–ppna Admin</a></p>`,
+    text: `Hej! Detta Ã¤r ett test frÃ¥n API:t.\n${base}/start`,
   } as any);
 
   if ((r as any)?.error) {
@@ -38,3 +40,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   return res.status(200).json({ ok: true, result: r });
 }
+

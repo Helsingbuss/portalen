@@ -2,7 +2,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 
-// Få en admin-klient oavsett hur du exponerar den i lib
+
+
+
+// FÃ¥ en admin-klient oavsett hur du exponerar den i lib
 const supabase =
   (admin as any).supabaseAdmin ||
   (admin as any).supabase ||
@@ -11,7 +14,7 @@ const supabase =
 type BookingRow = {
   id: string;
 
-  // vanliga fält
+  // vanliga fÃ¤lt
   booking_number?: string | null;   // BK25xxxx (om du har denna)
   contact_person?: string | null;
   customer_email?: string | null;
@@ -30,7 +33,7 @@ type BookingRow = {
   return_date?: string | null;
   return_time?: string | null;
 
-  // ibland kan folk råka heta annorlunda
+  // ibland kan folk rÃ¥ka heta annorlunda
   from?: string | null;
   to?: string | null;
   date?: string | null;
@@ -83,7 +86,7 @@ function toOption(b: BookingRow): BookingOption {
   const labelParts = [
     num,
     out_date ? `${out_date} ${out_time}`.trim() : null,
-    out_from && out_to ? `${out_from} → ${out_to}` : out_from || out_to,
+    out_from && out_to ? `${out_from} â†’ ${out_to}` : out_from || out_to,
     b.passengers ? `${b.passengers} pax` : null,
   ].filter(Boolean);
 
@@ -107,7 +110,7 @@ function toOption(b: BookingRow): BookingOption {
 
   return {
     id: String(b.id),
-    label: labelParts.join(" — "),
+    label: labelParts.join(" â€” "),
     autofill,
   };
 }
@@ -126,15 +129,15 @@ export default async function handler(
       return res.status(200).json({ options: [] });
     }
 
-    // Bas-selekt – välj alla fält vi använder (några kan saknas i din DB, det gör inget)
+    // Bas-selekt â€“ vÃ¤lj alla fÃ¤lt vi anvÃ¤nder (nÃ¥gra kan saknas i din DB, det gÃ¶r inget)
     const selectCols =
       "id, booking_number, contact_person, customer_email, customer_phone, passengers, notes, " +
       "departure_place, destination, departure_date, departure_time, " +
       "return_departure, return_destination, return_date, return_time, " +
       "from, to, date, time";
 
-    // Försök med en bred OR-sökning (de kolumner som finns kommer matchas; om någon kolumn saknas
-    // kan Postgres ge 42703 – då gör vi en fallback-sökning utan den kolumnen).
+    // FÃ¶rsÃ¶k med en bred OR-sÃ¶kning (de kolumner som finns kommer matchas; om nÃ¥gon kolumn saknas
+    // kan Postgres ge 42703 â€“ dÃ¥ gÃ¶r vi en fallback-sÃ¶kning utan den kolumnen).
     const tryQuery = async (orExpr: string) => {
       return supabase
         .from("bookings")
@@ -149,7 +152,7 @@ export default async function handler(
       `booking_number.ilike.%${q}%,contact_person.ilike.%${q}%,customer_email.ilike.%${q}%,customer_phone.ilike.%${q}%,departure_place.ilike.%${q}%,destination.ilike.%${q}%`,
       // fallback 1: utan phone
       `booking_number.ilike.%${q}%,contact_person.ilike.%${q}%,customer_email.ilike.%${q}%,departure_place.ilike.%${q}%,destination.ilike.%${q}%`,
-      // fallback 2: endast num + från/till
+      // fallback 2: endast num + frÃ¥n/till
       `booking_number.ilike.%${q}%,departure_place.ilike.%${q}%,destination.ilike.%${q}%`,
       // fallback 3: endast num
       `booking_number.ilike.%${q}%`,
@@ -164,7 +167,7 @@ export default async function handler(
         data = (d as BookingRow[]) || [];
         break;
       }
-      // Om det är "kolumn saknas" – prova nästa variant
+      // Om det Ã¤r "kolumn saknas" â€“ prova nÃ¤sta variant
       const missingCol =
         error.code === "42703" ||
         /column .* does not exist/i.test(error.message || "");
@@ -189,3 +192,4 @@ export default async function handler(
     return res.status(500).json({ error: "Internt fel" });
   }
 }
+

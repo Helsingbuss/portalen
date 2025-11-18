@@ -1,4 +1,4 @@
-﻿// src/components/dashboard/OffersBarChart.tsx
+// src/components/dashboard/OffersBarChart.tsx
 import React, { useMemo, useState } from "react";
 
 export type Series = {

@@ -1,4 +1,4 @@
-﻿// src/components/drivers/DriverStatusPill.tsx
+// src/components/drivers/DriverStatusPill.tsx
 import React from "react";
 
 export type DocTag =

@@ -1,4 +1,4 @@
-﻿// src/lib/offerJwt.ts
+// src/lib/offerJwt.ts
 import { SignJWT, jwtVerify } from "jose";
 
 function secretKey(): Uint8Array {

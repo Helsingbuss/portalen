@@ -1,5 +1,8 @@
-﻿import type { NextApiRequest, NextApiResponse } from "next";
+import type { NextApiRequest, NextApiResponse } from "next";
 import db from "@/lib/supabaseAdmin";
+
+
+
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -48,5 +51,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(500).json({ ok: false, error: e.message });
   }
 }
+
 
 

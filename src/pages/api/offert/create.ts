@@ -3,6 +3,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import supabase from "@/lib/supabaseAdmin";
 import { sendOfferMail, sendCustomerReceipt } from "@/lib/sendMail";
 
+
+
 type ApiOk = { ok: true; offer: any };
 type ApiErr = { error: string };
 
@@ -10,11 +12,13 @@ const S = (v: any) => (v == null ? null : String(v).trim() || null);
 const U = <T extends string | number | null | undefined>(v: T) =>
   (v == null ? undefined : (v as Exclude<T, null>));
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<ApiOk | ApiErr>
+) {
   try {
     if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-    // Expect the payload coming from your form
     const body = req.body || {};
     const row = {
       status: "inkommen",
@@ -44,55 +48,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       notes: S(body.notes),
     };
 
-    // Insert
     const { data, error } = await supabase.from("offers").insert(row).select("*").single();
-    if (error) {
-      // duplicate key offer_number etc. get bubbled up here
-      return res.status(500).json({ error: error.message });
-    }
-    if (!data) return res.status(500).json({ error: "Insert failed" });
+    if (error) return res.status(500).json({ error: error.message });
+    if (!data)  return res.status(500).json({ error: "Insert failed" });
 
     const offer = data;
 
-    // Mail to admin + customer receipt (if email present)
+    // 1) Admin-mail
     try {
       await sendOfferMail({
         offerId: String(offer.id),
         offerNumber: String(offer.offer_number || "HB25???"),
 
         customerEmail: U(S(offer.customer_email)),
-        customerName: U(S(offer.contact_person)),
-        customerPhone: U(S(offer.customer_phone)),
+        customerName:  U(S(offer.contact_person)),
 
         from: U(S(offer.departure_place)),
-        to: U(S(offer.destination)),
+        to:   U(S(offer.destination)),
         date: U(S(offer.departure_date)),
         time: U(S(offer.departure_time)),
-
-        via: U(S(offer.via)),
+        via:  U(S(offer.via)),
         stop: U(S(offer.stop)),
         passengers: typeof offer.passengers === "number" ? offer.passengers : undefined,
 
         return_from: U(S(offer.return_departure)),
-        return_to: U(S(offer.return_destination)),
+        return_to:   U(S(offer.return_destination)),
         return_date: U(S(offer.return_date)),
         return_time: U(S(offer.return_time)),
 
         notes: U(S(offer.notes)),
-        // subject optional
       });
     } catch (e: any) {
-      // Do not fail the API on mail; log only
       console.error("[offert/create] sendOfferMail failed:", e?.message || e);
     }
 
+    // 2) Kund-kvittens
     try {
       const to = S(offer.customer_email);
       if (to && to.includes("@")) {
         await sendCustomerReceipt({
           to,
           offerNumber: String(offer.offer_number || "HB25???"),
-          message: "Vi har mottagit din offertfofragan. Vi aterkommer inom kort.",
+          from: U(S(offer.departure_place)) || undefined,
+          toPlace: U(S(offer.destination)) || undefined,   // <— uppdaterat namn
+          date: U(S(offer.departure_date)) || undefined,
+          time: U(S(offer.departure_time)) || undefined,
+          passengers: typeof offer.passengers === "number" ? offer.passengers : undefined,
         });
       }
     } catch (e: any) {

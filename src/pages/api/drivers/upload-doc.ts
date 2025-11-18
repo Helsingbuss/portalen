@@ -1,10 +1,11 @@
-﻿// src/pages/api/drivers/upload-doc.ts
+// src/pages/api/drivers/upload-doc.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import formidable, { File } from "formidable";
 import fs from "node:fs/promises";
 
 export const config = {
+  runtime: "nodejs",
   api: { bodyParser: false },
 };
 
@@ -21,16 +22,14 @@ function parseForm(
 ): Promise<{ fields: Record<string, string | string[]>; files: Record<string, File | File[]> }> {
   const form = formidable({ multiples: false, keepExtensions: true });
   return new Promise((resolve, reject) => {
-    form.parse(
-      req,
-      (err: any, flds: any, fls: any) => {
-        if (err) return reject(err);
-        resolve({
-          fields: flds as Record<string, string | string[]>,
-          files: fls as Record<string, File | File[]>,
-        });
-      }
-    );
+    // <-- typa callback-parametrar för att slippa noImplicitAny-fel
+    form.parse(req, (err: any, flds: any, fls: any) => {
+      if (err) return reject(err);
+      resolve({
+        fields: flds as Record<string, string | string[]>,
+        files: fls as Record<string, File | File[]>,
+      });
+    });
   });
 }
 
@@ -48,7 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const type = String((fields as any).type || "övrigt");
     const expiresAt = (fields as any).expires_at ? String((fields as any).expires_at) : null;
 
-    const cand = files.doc || files.file || files.document;
+    const cand = (files as any).doc || (files as any).file || (files as any).document;
     const doc: File | undefined = Array.isArray(cand) ? cand[0] : cand;
     if (!doc) return res.status(400).json({ error: "Saknar doc" });
 
@@ -61,10 +60,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const storagePath = `driver_${driverId}/${Date.now()}_${safeName}`;
 
     const up = await supabaseAdmin.storage.from("driver-docs").upload(storagePath, buf, {
-      contentType: (doc as any).mimetype || "application/octet-stream", // <-- cast för TS
+      contentType: (doc as any).mimetype || "application/octet-stream",
       upsert: false,
     });
-    if (up.error) throw up.error;
+    if ((up as any).error) throw (up as any).error;
 
     const { data: pub } = supabaseAdmin.storage.from("driver-docs").getPublicUrl(storagePath);
     const fileUrl = pub?.publicUrl ?? null;

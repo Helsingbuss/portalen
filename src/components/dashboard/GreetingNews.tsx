@@ -1,4 +1,4 @@
-﻿// src/components/dashboard/GreetingNews.tsx
+// src/components/dashboard/GreetingNews.tsx
 import React from "react";
 import { Newspaper, ArrowRight, ChevronRight } from "lucide-react";
 

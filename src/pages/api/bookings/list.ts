@@ -1,6 +1,9 @@
 // src/pages/api/bookings/list.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
+
+
+
 const supabase =
   (admin as any).supabaseAdmin ||
   (admin as any).supabase ||
@@ -9,7 +12,7 @@ const supabase =
 type AnyRow = Record<string, any>;
 
 function normalizeBooking(r: AnyRow) {
-  // Tillåt olika kolumnnamn
+  // TillÃ¥t olika kolumnnamn
   const booking_number =
     r.booking_number ?? r.booking_no ?? r.number ?? r.offer_number ?? null;
 
@@ -53,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const rangeFrom = (page - 1) * pageSize;
     const rangeTo = rangeFrom + pageSize - 1;
 
-    // Försök selektera nyckelfält – annars fallback till *
+    // FÃ¶rsÃ¶k selektera nyckelfÃ¤lt â€“ annars fallback till *
     let sel =
       "id, booking_number, status, customer_reference, contact_email, created_at, departure_place, destination, departure_date, departure_time, return_departure, return_destination, return_date, return_time";
 
@@ -77,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     let resp = await q.range(rangeFrom, rangeTo);
     if (resp.error) {
-      // Tolerant fallback om kolumnnamn saknas – hämta * och filtrera i appen
+      // Tolerant fallback om kolumnnamn saknas â€“ hÃ¤mta * och filtrera i appen
       const fallback = await supabase
         .from("bookings")
         .select("*", { count: "exact" })
@@ -86,7 +89,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       if (fallback.error) throw fallback.error;
       const rows = (fallback.data as AnyRow[]).map(normalizeBooking);
-      // enklare text-sök (client-ish) om status/sök satt:
+      // enklare text-sÃ¶k (client-ish) om status/sÃ¶k satt:
       const filtered = rows.filter((r) => {
         const okStatus = status ? (r.status || "").toLowerCase() === status : true;
         const s = search.toLowerCase();
@@ -114,6 +117,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (e: any) {
     console.error("/api/bookings/list error:", e?.message || e);
-    return res.status(500).json({ error: "Kunde inte hämta bokningar" });
+    return res.status(500).json({ error: "Kunde inte hÃ¤mta bokningar" });
   }
 }
+

@@ -1,5 +1,8 @@
-﻿import type { NextApiRequest, NextApiResponse } from "next";
+import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
+
+
+
 
 const supabase =
   (admin as any).supabaseAdmin ||
@@ -113,7 +116,7 @@ export default async function handler(
         .gte("created_at", from.toISOString())
         .lte("created_at", to.toISOString());
       if (error) {
-        // Om kolumnnamn skiljer sig, försök snäll fallback
+        // Om kolumnnamn skiljer sig, fÃ¶rsÃ¶k snÃ¤ll fallback
         const { data: d2 } = await supabase.from("offers").select("*").limit(1000);
         offers = d2 || [];
       } else {
@@ -125,7 +128,7 @@ export default async function handler(
       const created = o.created_at ?? o.offer_date ?? null;
       const st = String(o.status ?? "").toLowerCase();
       if (!created) continue;
-      const isAnswered = st === "besvarad" || st === "godkand" || st === "godkänd";
+      const isAnswered = st === "besvarad" || st === "godkand" || st === "godkÃ¤nd";
       if (isAnswered) pushToBucket(created, weeks, series.offer_answered);
       else pushToBucket(created, weeks, series.offer_unanswered);
     }
@@ -151,7 +154,7 @@ export default async function handler(
       if (!created) continue;
       const st = String(b.status ?? "").toLowerCase();
       const isDone =
-        st.includes("slutf") || // slutförd
+        st.includes("slutf") || // slutfÃ¶rd
         st.includes("klar") ||
         st.includes("done") ||
         st.includes("completed");
@@ -160,7 +163,7 @@ export default async function handler(
     }
 
     const payload: Payload = {
-      range: `${from.toISOString().slice(0, 10)} – ${to.toISOString().slice(0, 10)}`,
+      range: `${from.toISOString().slice(0, 10)} â€“ ${to.toISOString().slice(0, 10)}`,
       series,
       totals: {
         offer_answered: series.offer_answered.reduce((a, b) => a + b, 0),
@@ -170,7 +173,7 @@ export default async function handler(
       },
     };
 
-    // CORS och cache (bra även för WP-widget-sidor om du visar detta där)
+    // CORS och cache (bra Ã¤ven fÃ¶r WP-widget-sidor om du visar detta dÃ¤r)
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
     res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=300");
@@ -181,3 +184,4 @@ export default async function handler(
     return res.status(500).json({ error: "Internt fel" });
   }
 }
+

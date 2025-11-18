@@ -1,4 +1,4 @@
-﻿// src/components/offers/OfferInkommen.tsx
+// src/components/offers/OfferInkommen.tsx
 import Image from "next/image";
 import OfferTopBar from "@/components/offers/OfferTopBar";
 import TripLegGrid from "@/components/offers/TripLegGrid";

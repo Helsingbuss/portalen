@@ -1,4 +1,4 @@
-﻿// src/components/AdminMenu.tsx
+// src/components/AdminMenu.tsx
 import { useState } from "react";
 import Link from "next/link";
 import {

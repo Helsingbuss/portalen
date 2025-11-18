@@ -1,4 +1,4 @@
-﻿// src/components/offers/OfferCalculator.tsx
+// src/components/offers/OfferCalculator.tsx
 import { useEffect, useMemo, useState } from "react";
 
 /** Props som krÃ¤vs fÃ¶r att kunna skicka */

@@ -1,5 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
+
+
+
 const supabase =
   (admin as any).supabaseAdmin || (admin as any).supabase || (admin as any).default;
 
@@ -8,17 +11,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { data, error } = await supabase
       .from("trips")
       .select(`id,title,subtitle,trip_kind,badge,country,year,price_from,published,hero_image`)
-      .order("created_at", { ascending: false } as any); // tolereras även om kolumnen saknas
+      .order("created_at", { ascending: false } as any); // tolereras Ã¤ven om kolumnen saknas
 
     if (error) throw error;
 
-    // Hämta “nästa avgång” per resa (från trip_departures)
+    // HÃ¤mta â€œnÃ¤sta avgÃ¥ngâ€ per resa (frÃ¥n trip_departures)
     const ids = (data || []).map((t: any) => t.id);
     let next: Record<string, string | null> = {};
     if (ids.length) {
       const { data: dep, error: depErr } = await supabase
         .from("trip_departures")
-        .select("trip_id, depart_date, date") // 'date' finns vissa miljöer – vi använder första som finns
+        .select("trip_id, depart_date, date") // 'date' finns vissa miljÃ¶er â€“ vi anvÃ¤nder fÃ¶rsta som finns
         .in("trip_id", ids);
 
       if (!depErr && dep) {
@@ -51,3 +54,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(500).json({ ok: false, error: "Server error" });
   }
 }
+

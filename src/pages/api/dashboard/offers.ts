@@ -1,8 +1,7 @@
-﻿// src/pages/api/dashboard/offers.ts
-import type {
-  NextApiRequest as NextApiRequestT,
-  NextApiResponse as NextApiResponseT,
-} from "next";
+// src/pages/api/dashboard/offers.ts
+
+
+import type { NextApiRequest, NextApiResponse } from "next";
 import { requireAdmin } from "@/lib/supabaseAdmin";
 
 const db = requireAdmin();
@@ -31,11 +30,12 @@ function fmtDate(d?: string | null) {
   return d; // antar YYYY-MM-DD i DB
 }
 
-export default async function handler(
-  req: NextApiRequestT,
-  res: NextApiResponseT
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
+    if (req.method !== "GET") {
+      return res.status(405).json({ error: "Method not allowed" });
+    }
+
     const since = new Date();
     since.setDate(since.getDate() - 30);
     const sinceISO = since.toISOString().slice(0, 10);
@@ -65,7 +65,6 @@ export default async function handler(
 
     if (error) throw error;
 
-    // Casta bort Supabase-unionen (data | PostgrestError)
     const rows = (data ?? []) as unknown as Row[];
 
     const byDay: Record<string, { inkommen: number; besvarad: number }> = {};
@@ -75,10 +74,10 @@ export default async function handler(
       const day = (rr.offer_date ?? "").slice(0, 10) || "okänd";
       if (!byDay[day]) byDay[day] = { inkommen: 0, besvarad: 0 };
       byDay[day].inkommen += 1;
-      if (rr.status === "besvarad") byDay[day].besvarad += 1;
+      if ((rr.status ?? "").toLowerCase() === "besvarad") byDay[day].besvarad += 1;
 
       // obesvarade
-      if (rr.status !== "besvarad") {
+      if ((rr.status ?? "").toLowerCase() !== "besvarad") {
         const hasReturn =
           Boolean(
             rr.return_departure ||
@@ -98,7 +97,7 @@ export default async function handler(
     const inkommen = dates.map((d) => byDay[d].inkommen);
     const besvarad = dates.map((d) => byDay[d].besvarad);
 
-    const payload = {
+    return res.status(200).json({
       series: { dates, inkommen, besvarad },
       totals: {
         inkommen: inkommen.reduce((a, b) => a + b, 0),
@@ -114,11 +113,9 @@ export default async function handler(
         departure_date: fmtDate(r.departure_date),
         departure_time: r.departure_time,
       })),
-    };
-
-    return res.status(200).json(payload);
+    });
   } catch (e: any) {
     console.error("API /dashboard/offers error:", e);
-    return res.status(500).json({ error: e.message ?? "Serverfel" });
+    return res.status(500).json({ error: e?.message ?? "Serverfel" });
   }
 }

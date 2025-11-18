@@ -2,6 +2,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 
+
+
+
 const supabase: any =
   (admin as any).supabaseAdmin || (admin as any).supabase || (admin as any).default;
 
@@ -20,7 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const limit = Math.max(1, Math.min(24, Number(req.query.limit || 6)));
 
   try {
-    // Läs ENDAST kolumner som finns i din "trips"
+    // LÃ¤s ENDAST kolumner som finns i din "trips"
     const { data: trips, error: tripsErr } = await supabase
       .from("trips")
       .select(
@@ -51,14 +54,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const out: any[] = [];
 
     for (const t of trips || []) {
-      // Hämta avgångar för denna resa
+      // HÃ¤mta avgÃ¥ngar fÃ¶r denna resa
       const { data: deps, error: depsErr } = await supabase
         .from("trip_departures")
         .select("depart_date, dep_date, departure_date")
         .eq("trip_id", t.id)
         .limit(200);
 
-      // Plocka fram första framtida datumet
+      // Plocka fram fÃ¶rsta framtida datumet
       const dates: Date[] = [];
       for (const row of deps || []) {
         const cand = [row.depart_date, row.dep_date, row.departure_date]
@@ -75,17 +78,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         id: t.id,
         title: t.title || "",
         subtitle: t.subtitle || "",
-        image: t.hero_image || null,      // widget-fält
+        image: t.hero_image || null,      // widget-fÃ¤lt
         ribbon: t.ribbon || null,
-        badge: t.badge || null,           // kvar för bakåtkomp
-        trip_kind: t.trip_kind || null,   // primär kategori
-        categories: [],                   // DB-kolumn saknas → tom array (framtidssäkert)
+        badge: t.badge || null,           // kvar fÃ¶r bakÃ¥tkomp
+        trip_kind: t.trip_kind || null,   // primÃ¤r kategori
+        categories: [],                   // DB-kolumn saknas â†’ tom array (framtidssÃ¤kert)
         city: t.city || null,
         country: t.country || null,
         price_from: t.price_from ?? null,
         year: t.year ?? null,
         external_url: t.external_url || null,
-        summary: t.summary || "",         // “Kort om resan”
+        summary: t.summary || "",         // â€œKort om resanâ€
         next_date,
       });
     }
@@ -96,3 +99,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ ok: false, error: "Server error" });
   }
 }
+

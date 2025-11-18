@@ -1,4 +1,4 @@
-﻿export default function Footer() {
+export default function Footer() {
   return (
     <footer className="w-full border-t mt-10 py-4 text-center text-sm text-gray-600">
       <p>

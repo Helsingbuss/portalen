@@ -2,6 +2,9 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 import { sendDriverOrderMail } from "@/lib/sendDriverMail";
 
+
+
+
 const supabase = (admin as any).supabaseAdmin || (admin as any).supabase || (admin as any).default;
 
 function pickYmd(v?: string | null) {
@@ -69,7 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ret_time: b.ret_time ?? null,
     };
 
-    // Om booking_id är satt men inga fält skickas – prova autofill från "bookings"
+    // Om booking_id Ã¤r satt men inga fÃ¤lt skickas â€“ prova autofill frÃ¥n "bookings"
     if (payload.booking_id && !payload.out_from && !payload.out_to) {
       try {
         const bk = await supabase
@@ -98,7 +101,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const ins = await supabase.from("driver_orders").insert(payload).select("*").single();
-    if (ins.error) return res.status(500).json({ ok: false, error: ins.error.message || "Kunde inte skapa körorder" });
+    if (ins.error) return res.status(500).json({ ok: false, error: ins.error.message || "Kunde inte skapa kÃ¶rorder" });
 
     const order = ins.data;
 
@@ -130,3 +133,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ ok: false, error: e?.message || "Internt fel" });
   }
 }
+

@@ -2,7 +2,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 
-// samma “fallback” som i dina andra API-filer
+
+
+
+// samma â€œfallbackâ€ som i dina andra API-filer
 const supabase =
   // @ts-ignore
   (admin as any).supabaseAdmin ||
@@ -11,7 +14,7 @@ const supabase =
   // @ts-ignore
   (admin as any).default;
 
-// Helper: säkra sträng
+// Helper: sÃ¤kra strÃ¤ng
 function s(x: any, fallback = ""): string {
   if (x === null || x === undefined) return fallback;
   return String(x);
@@ -21,8 +24,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const search = s((req.query.search as string | undefined)?.trim() ?? "");
 
-    // Basfråga – hämta de fält vi behöver för label + autofill
-    // (Vi exkluderar “avbojd/makulerad” men i övrigt öppet så du hittar dina 3 st)
+    // BasfrÃ¥ga â€“ hÃ¤mta de fÃ¤lt vi behÃ¶ver fÃ¶r label + autofill
+    // (Vi exkluderar â€œavbojd/makuleradâ€ men i Ã¶vrigt Ã¶ppet sÃ¥ du hittar dina 3 st)
     let q = supabase
       .from("offers")
       .select(
@@ -51,12 +54,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           "return_time",
         ].join(",")
       )
-      .not("status", "in", '("avbojd","makulerad")') // tål att status inte finns
+      .not("status", "in", '("avbojd","makulerad")') // tÃ¥l att status inte finns
       .order("created_at", { ascending: false })
       .limit(20);
 
     if (search) {
-      // Sök på offertnummer, kund, e-post, från/till
+      // SÃ¶k pÃ¥ offertnummer, kund, e-post, frÃ¥n/till
       const term = search.replace(/%/g, ""); // enkel sanering
       q = q.or(
         [
@@ -86,13 +89,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const labelParts = [
           num ? `${num}` : "",
           d || t ? `${[d, t].filter(Boolean).join(" ")}` : "",
-          [from, to].filter(Boolean).join(" → "),
+          [from, to].filter(Boolean).join(" â†’ "),
           pax ? `(${pax} p)` : "",
         ].filter(Boolean);
 
         return {
           id: String(o.id),
-          label: labelParts.join(" — "),
+          label: labelParts.join(" â€” "),
           autofill: {
             contact_person: o.contact_person ?? null,
             contact_email: o.contact_email ?? o.customer_email ?? null,
@@ -119,3 +122,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ options: [] });
   }
 }
+

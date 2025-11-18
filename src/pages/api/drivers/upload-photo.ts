@@ -1,10 +1,11 @@
-﻿// src/pages/api/drivers/upload-photo.ts
+// src/pages/api/drivers/upload-photo.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import formidable, { File } from "formidable";
 import fs from "node:fs/promises";
 
 export const config = {
+  runtime: "nodejs",
   api: { bodyParser: false },
 };
 
@@ -29,16 +30,13 @@ function parseForm(
 ): Promise<{ fields: Record<string, string | string[]>; files: Record<string, File | File[]> }> {
   const form = formidable({ multiples: false, keepExtensions: true });
   return new Promise((resolve, reject) => {
-    form.parse(
-      req,
-      (err: any, flds: any, fls: any) => {
-        if (err) return reject(err);
-        resolve({
-          fields: flds as Record<string, string | string[]>,
-          files: fls as Record<string, File | File[]>,
-        });
-      }
-    );
+    form.parse(req, (err: any, flds: any, fls: any) => {
+      if (err) return reject(err);
+      resolve({
+        fields: flds as Record<string, string | string[]>,
+        files: fls as Record<string, File | File[]>,
+      });
+    });
   });
 }
 
@@ -53,7 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const driverId = String((fields as any).driver_id || "");
     if (!driverId) return res.status(400).json({ error: "Saknar driver_id" });
 
-    const cand = files.photo || files.file || files.avatar;
+    const cand = (files as any).photo || (files as any).file || (files as any).avatar;
     const photo: File | undefined = Array.isArray(cand) ? cand[0] : cand;
     if (!photo) return res.status(400).json({ error: "Saknar photo" });
 
@@ -61,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!filepath) return res.status(400).json({ error: "Uppladdad fil saknar filepath" });
 
     const fileBuf = await fs.readFile(filepath);
-    const mime = (photo as any).mimetype || "application/octet-stream"; // <-- cast för TS
+    const mime = (photo as any).mimetype || "application/octet-stream";
     const ext = extFromMime(mime);
     const filePath = `profiles/${driverId}.${ext}`;
 
@@ -69,7 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       contentType: mime,
       upsert: true,
     });
-    if (up.error) throw up.error;
+    if ((up as any).error) throw (up as any).error;
 
     try {
       const { data: pub } = supabaseAdmin.storage.from("drivers").getPublicUrl(filePath);

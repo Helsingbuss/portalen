@@ -1,4 +1,4 @@
-﻿// src/components/trips/DeparturesEditor.tsx
+// src/components/trips/DeparturesEditor.tsx
 import React from "react";
 
 export type DepartureRow = {

@@ -1,5 +1,8 @@
-﻿import type { NextApiRequest, NextApiResponse } from "next";
+import type { NextApiRequest, NextApiResponse } from "next";
 import db from "@/lib/supabaseAdmin";
+
+
+
 
 export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
   res.setHeader("Cache-Control", "no-store");
@@ -31,5 +34,6 @@ export default async function handler(_req: NextApiRequest, res: NextApiResponse
     res.status(500).json({ ok: false, error: err?.message ?? String(err) });
   }
 }
+
 
 

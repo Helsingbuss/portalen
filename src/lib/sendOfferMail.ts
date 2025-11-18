@@ -1,4 +1,4 @@
-﻿// src/lib/sendOfferMail.ts
+// src/lib/sendOfferMail.ts
 export {
   sendOfferMail,
   sendCustomerReceipt,

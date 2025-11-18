@@ -1,4 +1,4 @@
-﻿// src/lib/pricing.ts
+// src/lib/pricing.ts
 export type LegInput = {
   isDomestic: boolean;   // true = Sverige (6% moms), false = utland (0%)
   km: number;            // antal kilometer

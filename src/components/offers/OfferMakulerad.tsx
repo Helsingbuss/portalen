@@ -1,4 +1,4 @@
-﻿// src/components/offers/OfferMakulerad.tsx
+// src/components/offers/OfferMakulerad.tsx
 import Image from "next/image";
 import OfferTopBar from "@/components/offers/OfferTopBar";
 import OfferLeftSidebar from "@/components/offers/OfferLeftSidebar";

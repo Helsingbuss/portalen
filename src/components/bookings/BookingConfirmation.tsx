@@ -1,4 +1,4 @@
-﻿// src/components/bookings/BookingConfirmation.tsx
+// src/components/bookings/BookingConfirmation.tsx
 import Image from "next/image";
 
 type Booking = {

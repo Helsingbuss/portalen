@@ -1,4 +1,4 @@
-﻿// src/components/bookings/BookingBekraftelse.tsx
+// src/components/bookings/BookingBekraftelse.tsx
 import Image from "next/image";
 import StatusBadge from "@/components/StatusBadge";
 

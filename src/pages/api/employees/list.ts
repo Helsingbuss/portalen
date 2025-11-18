@@ -1,6 +1,9 @@
-﻿// src/pages/api/employees/list.ts
+// src/pages/api/employees/list.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabase } from "@/lib/supabaseAdmin";
+
+
+
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -29,5 +32,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ ok: false, error: "Server error" });
   }
 }
+
 
 

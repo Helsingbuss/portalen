@@ -1,4 +1,4 @@
-﻿// src/components/dashboard/EconomyCard.tsx
+// src/components/dashboard/EconomyCard.tsx
 import { useEffect, useMemo, useState } from "react";
 
 export type EconomySummary = {

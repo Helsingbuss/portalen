@@ -2,13 +2,16 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabase } from "@/lib/supabaseClient";
 
+
+
+
 // Antagen orders-tabell. Vi normaliserar olika namngivningar.
 type RawOrder = {
   id: string;
   order_number?: string | null;
   booking_id?: string | null;
 
-  status?: string | null; // t.ex. "planerad" | "pågående" | "avslutad" | "annullerad"
+  status?: string | null; // t.ex. "planerad" | "pÃ¥gÃ¥ende" | "avslutad" | "annullerad"
   driver_id?: string | null;
   vehicle_id?: string | null;
 
@@ -60,12 +63,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    // Basfråga
+    // BasfrÃ¥ga
     let q = supabase
       .from("orders")
       .select("*", { count: "exact" });
 
-    // Filter för kommande
+    // Filter fÃ¶r kommande
     if (scope === "upcoming") {
       // from idag och status ej avslutad/annullerad
       const today = ymd(new Date());
@@ -91,6 +94,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (e: any) {
     console.error("/api/orders/list error:", e?.message || e);
-    return res.status(500).json({ error: "Kunde inte hämta körordrar" });
+    return res.status(500).json({ error: "Kunde inte hÃ¤mta kÃ¶rordrar" });
   }
 }
+

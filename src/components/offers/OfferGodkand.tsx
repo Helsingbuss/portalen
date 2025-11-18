@@ -1,4 +1,4 @@
-﻿// src/components/offers/OfferGodkand.tsx
+// src/components/offers/OfferGodkand.tsx
 import Image from "next/image";
 import StatusBadge from "@/components/StatusBadge";
 import { useRouter } from "next/router";

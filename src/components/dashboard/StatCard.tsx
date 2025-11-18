@@ -1,4 +1,4 @@
-﻿type Props = { title: string; value: string | number; sub?: string };
+type Props = { title: string; value: string | number; sub?: string };
 export default function StatCard({ title, value, sub }: Props) {
   return (
     <div className="bg-white rounded-xl shadow p-4">

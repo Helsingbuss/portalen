@@ -1,4 +1,4 @@
-﻿// src/components/offers/LegCalcCard.tsx
+// src/components/offers/LegCalcCard.tsx
 import React from "react";
 import type { LegInput } from "@/lib/pricing";
 

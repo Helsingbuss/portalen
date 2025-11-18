@@ -1,7 +1,10 @@
-﻿import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
 import list from './list';
 import resources from './resources';
 import upsert from './upsert';
+
+
+
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const url = new URL(req.url ?? '', 'http://localhost');
@@ -16,5 +19,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   return res.status(405).json({ error: 'Method not allowed' });
 }
+
 
 

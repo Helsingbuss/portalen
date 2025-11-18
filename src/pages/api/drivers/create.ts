@@ -1,6 +1,9 @@
-﻿// src/pages/api/drivers/create.ts
+// src/pages/api/drivers/create.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+
+
+
 
 function toYmd(s?: string | null) {
   if (!s) return null;
@@ -19,7 +22,7 @@ function parseClasses(v: unknown): string[] {
   return [];
 }
 
-/** Försök att inserta, och om PostgREST säger "kolumn X finns inte" tar vi bort den och provar igen. */
+/** FÃ¶rsÃ¶k att inserta, och om PostgREST sÃ¤ger "kolumn X finns inte" tar vi bort den och provar igen. */
 async function insertWithFallback(initialRow: Record<string, any>) {
   let row = { ...initialRow };
   for (let attempt = 0; attempt < 6; attempt++) {
@@ -28,7 +31,7 @@ async function insertWithFallback(initialRow: Record<string, any>) {
     if (!ins.error) return { ok: true, id: ins.data!.id };
 
     const msg = ins.error.message || "";
-    // fånga "Could not find the 'notes' column..." eller "column notes does not exist"
+    // fÃ¥nga "Could not find the 'notes' column..." eller "column notes does not exist"
     const m1 = msg.match(/Could not find the '([a-z0-9_]+)'\s+column/i);
     const m2 = msg.match(/column\s+"?([a-z0-9_]+)"?\s+does not exist/i);
     const missingCol = (m1?.[1] || m2?.[1]) as string | undefined;
@@ -43,7 +46,7 @@ async function insertWithFallback(initialRow: Record<string, any>) {
 
     if (missingCol && row.hasOwnProperty(missingCol)) {
       row = { ...row };
-      delete row[missingCol]; // ta bort okänd kolumn och prova igen
+      delete row[missingCol]; // ta bort okÃ¤nd kolumn och prova igen
       continue;
     }
 
@@ -62,7 +65,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const first_name = (b.first_name ?? b.firstname ?? "").toString().trim();
     const last_name  = (b.last_name  ?? b.lastname  ?? "").toString().trim();
     if (!first_name || !last_name) {
-      return res.status(400).json({ error: "Fyll i förnamn och efternamn." });
+      return res.status(400).json({ error: "Fyll i fÃ¶rnamn och efternamn." });
     }
 
     const row: Record<string, any> = {
@@ -94,3 +97,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: e?.message || "Internt fel." });
   }
 }
+

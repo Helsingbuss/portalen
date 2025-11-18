@@ -2,6 +2,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Resend } from "resend";
 
+
+
+
 const strip = (s?: string | null) => (s ?? "").toString().trim().replace(/^["']|["']$/g, "");
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -18,7 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const r = await resend.emails.send({
       from,
       to,
-      subject: "🔧 email-ping",
+      subject: "ðŸ”§ email-ping",
       html: `<pre>from=${from}</pre>`,
     });
 
@@ -28,3 +31,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: e?.message || "error" });
   }
 }
+

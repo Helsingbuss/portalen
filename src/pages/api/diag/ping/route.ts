@@ -1,6 +1,9 @@
 // src/app/api/diag/ping/route.ts
 import { NextResponse } from "next/server";
 
+
+
+
 export const dynamic = "force-dynamic"; // undvik cache
 export const runtime = "nodejs";
 
@@ -30,3 +33,4 @@ export async function POST() {
     { headers: corsHeaders() }
   );
 }
+

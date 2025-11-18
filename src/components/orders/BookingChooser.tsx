@@ -1,4 +1,4 @@
-﻿// src/components/orders/BookingChooser.tsx
+// src/components/orders/BookingChooser.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export type PickedBooking = {

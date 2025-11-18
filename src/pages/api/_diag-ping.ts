@@ -1,10 +1,12 @@
 // src/pages/api/diag/ping.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 
-export const config = { runtime: "nodejs" };
+
+
+
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  // ÖPPEN CORS (endast för diagnos)
+  // Ã–PPEN CORS (endast fÃ¶r diagnos)
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -18,3 +20,4 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     host: req.headers.host || null,
   });
 }
+

@@ -1,4 +1,4 @@
-﻿// src/pages/admin/bookings/index.tsx
+// src/pages/admin/bookings/index.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";

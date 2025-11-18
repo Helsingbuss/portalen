@@ -2,6 +2,9 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 import { Resend } from "resend";
 
+
+
+
 const supabase = (admin as any).supabaseAdmin || (admin as any).supabase || (admin as any).default;
 
 const BASE = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "") || "http://localhost:3000";
@@ -31,12 +34,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await resend.emails.send({
         from: process.env.MAIL_FROM || "Helsingbuss <info@helsingbuss.se>",
         to: ADMIN_TO,
-        subject: `✏️ Ändringsförfrågan på offert ${offer.offer_number || offer.id}`,
+        subject: `âœï¸ Ã„ndringsfÃ¶rfrÃ¥gan pÃ¥ offert ${offer.offer_number || offer.id}`,
         html: `
-          <p>Kunden har begärt ändringar på en offert.</p>
+          <p>Kunden har begÃ¤rt Ã¤ndringar pÃ¥ en offert.</p>
           <p><strong>Offert:</strong> ${offer.offer_number || offer.id}</p>
           ${message ? `<p><strong>Meddelande:</strong> ${message}</p>` : ""}
-          <p><a href="${BASE}/admin/offers/${offer.id}">Öppna i Admin</a></p>
+          <p><a href="${BASE}/admin/offers/${offer.id}">Ã–ppna i Admin</a></p>
         `,
       });
     }
@@ -46,3 +49,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: e?.message || "Server error" });
   }
 }
+

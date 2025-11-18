@@ -2,12 +2,15 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
+
+
+
 type VehicleRow = {
   id: string;
   reg_no: string | null;   // anpassa om din kolumn heter t.ex. regnr/regno
   name: string | null;
   call_sign: string | null;
-  // seats/capacity etc kan läggas till vid behov
+  // seats/capacity etc kan lÃ¤ggas till vid behov
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -15,7 +18,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const search = (req.query.search as string | undefined)?.trim() || "";
 
     let q = supabaseAdmin
-      .from("vehicles") // byt tabellnamn här om din flotta heter något annat
+      .from("vehicles") // byt tabellnamn hÃ¤r om din flotta heter nÃ¥got annat
       .select("id, reg_no, name, call_sign")
       .order("reg_no", { ascending: true })
       .limit(100);
@@ -35,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const options = (data as VehicleRow[] | null | undefined)?.map((v) => {
       const parts = [v.name, v.reg_no, v.call_sign].filter(Boolean);
-      return { id: v.id, label: (parts[0] || "Fordon") + (parts[1] ? ` – ${parts[1]}` : "") };
+      return { id: v.id, label: (parts[0] || "Fordon") + (parts[1] ? ` â€“ ${parts[1]}` : "") };
     }) ?? [];
 
     return res.status(200).json({ options });
@@ -44,3 +47,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ options: [] });
   }
 }
+

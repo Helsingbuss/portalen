@@ -2,7 +2,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 
-// Fungerar både där du exporterar som supabaseAdmin eller default
+
+
+
+// Fungerar bÃ¥de dÃ¤r du exporterar som supabaseAdmin eller default
 const supabase =
   (admin as any).supabaseAdmin ||
   (admin as any).supabase ||
@@ -67,20 +70,20 @@ export default async function handler(
       offerId,
       offerNumber,
 
-      // ev. tilldelningar från admin
+      // ev. tilldelningar frÃ¥n admin
       assigned_vehicle_id,
       assigned_driver_id,
 
-      // möjlighet att override’a noteringar
+      // mÃ¶jlighet att overrideâ€™a noteringar
       notes,
     } = (req.body ?? {}) as Record<string, any>;
 
     if (!offerId && !offerNumber) {
-      return res.status(400).json({ error: "Du måste ange offerId eller offerNumber" });
+      return res.status(400).json({ error: "Du mÃ¥ste ange offerId eller offerNumber" });
     }
 
-    // ----- 1) HÄMTA OFFERT -----
-    // Matchar nya fältnamn (jfr /api/offers/options)
+    // ----- 1) HÃ„MTA OFFERT -----
+    // Matchar nya fÃ¤ltnamn (jfr /api/offers/options)
     const selectCols = [
       "id",
       "offer_number",
@@ -139,13 +142,13 @@ export default async function handler(
     }
 
     // ----- 2) BYGG BOOKING-PAYLOAD -----
-    // Mappar direkt till bookings-tabellens nya fält
+    // Mappar direkt till bookings-tabellens nya fÃ¤lt
     const customer_phone_raw =
       off.contact_phone ?? off.customer_phone ?? null;
     const customer_phone = customer_phone_raw ? stripSpacesDashes(customer_phone_raw) : null;
 
     const payloadBase = {
-      // status – sätt "bokad" för att matcha admin-listans färgkodning
+      // status â€“ sÃ¤tt "bokad" fÃ¶r att matcha admin-listans fÃ¤rgkodning
       status: "bokad",
 
       // Kund
@@ -181,14 +184,14 @@ export default async function handler(
       assigned_vehicle_id: trimOrNull(assigned_vehicle_id),
       assigned_driver_id: trimOrNull(assigned_driver_id),
 
-      // Övrigt (override om notes skickas med)
+      // Ã–vrigt (override om notes skickas med)
       notes: trimOrNull(notes ?? off.notes),
 
       // Knyt tillbaka till offerten (om kolumner finns i DB)
       offer_id: off.id ?? null,
       offer_number: off.offer_number ?? null,
 
-      // tidsstämplar (om DB inte sätter default)
+      // tidsstÃ¤mplar (om DB inte sÃ¤tter default)
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     } as Record<string, any>;
@@ -245,7 +248,7 @@ export default async function handler(
 
       const msg = String(error?.message || "");
       if (error?.code === "23505" || /duplicate key|unique constraint/i.test(msg)) {
-        // kolliderade på uniknyckel -> försök igen med nytt nr
+        // kolliderade pÃ¥ uniknyckel -> fÃ¶rsÃ¶k igen med nytt nr
         lastErr = error;
         continue;
       }
@@ -256,7 +259,7 @@ export default async function handler(
     }
 
     if (!created) {
-      throw lastErr || new Error("Kunde inte skapa bokning (okänt fel).");
+      throw lastErr || new Error("Kunde inte skapa bokning (okÃ¤nt fel).");
     }
 
     // (valfritt) uppdatera offertstatus -> "godkand"
@@ -275,3 +278,4 @@ export default async function handler(
     return res.status(500).json({ error: e?.message || "Serverfel" });
   }
 }
+

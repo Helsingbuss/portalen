@@ -1,4 +1,4 @@
-﻿// src/components/drivers/AvatarUpload.tsx
+// src/components/drivers/AvatarUpload.tsx
 import { useRef, useState } from "react";
 import { uploadDriverAvatar } from "@/lib/uploadDriver";
 

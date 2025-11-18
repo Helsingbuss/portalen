@@ -1,10 +1,13 @@
-﻿// src/pages/api/vehicles/list.ts
+// src/pages/api/vehicles/list.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabase } from "@/lib/supabaseAdmin";
 
+
+
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    // Justera kolumner/tabellnamn vid behov â€“ detta Ã¤r safe default
+    // Justera kolumner/tabellnamn vid behov Ã¢â‚¬â€œ detta ÃƒÂ¤r safe default
     const { data, error } = await supabase
       .from("vehicles")
       .select("*")
@@ -18,5 +21,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ ok: false, error: "Server error" });
   }
 }
+
 
 

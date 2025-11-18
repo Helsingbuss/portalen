@@ -1,4 +1,4 @@
-﻿// src/lib/uploadDriver.ts
+// src/lib/uploadDriver.ts
 import { supabase } from "@/lib/supabaseClient";
 
 /** Enkel extension-plockare med fallback */

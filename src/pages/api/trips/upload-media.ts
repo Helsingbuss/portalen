@@ -1,93 +1,48 @@
 // src/pages/api/trips/upload-media.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import formidable from "formidable";
-import fs from "node:fs/promises";
+import { createClient } from "@supabase/supabase-js";
+import fs from "node:fs";
 import path from "node:path";
-import * as admin from "@/lib/supabaseAdmin";
 
-const supabase =
-  (admin as any).supabaseAdmin || (admin as any).supabase || (admin as any).default;
+export const config = { api: { bodyParser: false } };
 
-export const config = {
-  api: { bodyParser: false }, // required for formidable
-};
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const serviceKey = process.env.SUPABASE_SERVICE_KEY!;
+const BUCKET = "trip-media";
 
-type ApiOk = { ok: true; file: { url: string; path: string } };
-type ApiErr = { ok: false; error: string };
-type ApiResp = ApiOk | ApiErr;
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (!url || !serviceKey) return res.status(500).json({ error: "Saknas Supabase-inställningar." });
 
-function setCORS(res: NextApiResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-}
-
-/** Parse multipart/form-data with formidable (typed to avoid implicit-any on Vercel) */
-function parseForm(
-  req: NextApiRequest
-): Promise<{ fields: Record<string, any>; files: Record<string, any> }> {
-  const form = formidable({
-    multiples: false,
-    maxFileSize: 10 * 1024 * 1024,
-    keepExtensions: true,
-  });
-  return new Promise((resolve, reject) => {
-    form.parse(req, (err: unknown, fields: any, files: any) =>
-      err ? reject(err) : resolve({ fields, files })
-    );
-  });
-}
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<ApiResp>
-) {
-  setCORS(res);
-  if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "Method not allowed" });
-  }
+  const formidable: any = require("formidable");
+  const form = formidable({ multiples: false, keepExtensions: true });
 
   try {
-    const { fields, files } = await parseForm(req);
+    const { files } = await new Promise<any>((resolve, reject) => {
+      form.parse(req, (err: any, _fields: any, fls: any) => (err ? reject(err) : resolve({ files: fls })));
+    });
 
-    // file can come as File or File[]
-    let f: any =
-      files.file && Array.isArray(files.file) ? files.file[0] : files.file;
-    if (!f) return res.status(400).json({ ok: false, error: "No file received" });
+    // stöd både 'file' och 'image'
+    const file: any = files?.file || files?.image;
+    if (!file) return res.status(400).json({ error: "Ingen fil mottagen." });
 
-    // derive extension
-    const original = String(f.originalFilename || "");
-    const ext = (path.extname(original) || "").replace(/^\./, "") || "bin";
+    const supabase = createClient(url, serviceKey);
 
-    // cover/gallery switch (defaults to cover)
-    const kind = String(fields.kind || "cover").toLowerCase();
-    const folder = kind === "gallery" ? "gallery" : "cover";
+    try { await supabase.storage.createBucket(BUCKET, { public: true }); } catch {}
 
-    const bucket = "trip-media"; // ensure this bucket exists in Supabase
-    const key = `${folder}/${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2)}.${ext}`;
+    const buffer = fs.readFileSync(file.filepath ?? file.path);
+    const ext = path.extname(file.originalFilename || file.newFilename || "") || ".bin";
+    const key = `media/${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
 
-    // read tmp file to buffer and upload
-    const buf = await fs.readFile(f.filepath);
-    const contentType = String(f.mimetype || "application/octet-stream");
-
-    const { error: upErr } = await supabase.storage
-      .from(bucket)
-      .upload(key, buf, { contentType, upsert: false });
+    const { error: upErr } = await supabase.storage.from(BUCKET).upload(key, buffer, {
+      contentType: file.mimetype || "application/octet-stream",
+      upsert: false,
+    });
     if (upErr) throw upErr;
 
-    const { data: pub } = supabase.storage.from(bucket).getPublicUrl(key);
-    const url = pub?.publicUrl || "";
-
-    if (!url) throw new Error("No public URL returned from storage");
-
-    return res.status(200).json({ ok: true, file: { url, path: key } });
+    const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(key);
+    return res.status(200).json({ url: pub?.publicUrl ?? null, path: key });
   } catch (e: any) {
-    console.error("upload-media:", e?.message || e);
-    return res
-      .status(500)
-      .json({ ok: false, error: e?.message || "Upload failed" });
+    return res.status(500).json({ error: e?.message || "Uppladdningen misslyckades." });
   }
 }

@@ -1,5 +1,8 @@
-﻿import type { NextApiRequest, NextApiResponse } from "next";
+import type { NextApiRequest, NextApiResponse } from "next";
 import supabase from "@/lib/supabaseAdmin";
+
+
+
 
 /**
  * Normaliserar (date, time) till "YYYY-MM-DD HH:mm:00+00" (UTC)
@@ -9,7 +12,7 @@ const toTz = (dateIn?: any, timeIn?: any) => {
   let d = s(dateIn);
   let t = s(timeIn);
 
-  // Stöd även ISO i date eller time
+  // StÃ¶d Ã¤ven ISO i date eller time
   const m =
     (d && d.match(/^(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}):(\d{2}))/)) ||
     (t && t.match(/^(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}):(\d{2}))/));
@@ -41,7 +44,7 @@ export default async function upsert(req: NextApiRequest, res: NextApiResponse) 
 
   try {
     const {
-      id, // valfritt (för uppdatering)
+      id, // valfritt (fÃ¶r uppdatering)
       start_date, start_time,
       end_date,   end_time,
       from_place, to_place,
@@ -49,7 +52,7 @@ export default async function upsert(req: NextApiRequest, res: NextApiResponse) 
       status,     note,
     } = (typeof req.body === "string" ? JSON.parse(req.body) : req.body) ?? {};
 
-    // Basfält som alltid kan sparas
+    // BasfÃ¤lt som alltid kan sparas
     const base: any = {
       from_place: from_place ?? null,
       to_place:   to_place   ?? null,
@@ -69,7 +72,7 @@ export default async function upsert(req: NextApiRequest, res: NextApiResponse) 
 
     let resp = await supabase.from("schedule").upsert(A).select("id").single();
     if (resp.error) {
-      // Om kolumn saknas i schema-cachen -> gå över till variant B
+      // Om kolumn saknas i schema-cachen -> gÃ¥ Ã¶ver till variant B
       const msg = `${resp.error.message || ""}`.toLowerCase();
       const missingTsCols =
         resp.error.code === "PGRST204" ||
@@ -78,7 +81,7 @@ export default async function upsert(req: NextApiRequest, res: NextApiResponse) 
         msg.includes("schema cache");
 
       if (!missingTsCols) {
-        // Annan typ av fel – bubbla upp
+        // Annan typ av fel â€“ bubbla upp
         throw resp.error;
       }
 
@@ -100,5 +103,6 @@ export default async function upsert(req: NextApiRequest, res: NextApiResponse) 
     return res.status(400).json({ ok:false, error: e?.message ?? String(e) });
   }
 }
+
 
 

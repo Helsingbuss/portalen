@@ -2,6 +2,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { allowCors } from "@/lib/cors";
 
+
+
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!allowCors(req, res)) return;
   if (req.method !== "GET" && req.method !== "POST") {
@@ -15,3 +18,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     time: new Date().toISOString(),
   });
 }
+

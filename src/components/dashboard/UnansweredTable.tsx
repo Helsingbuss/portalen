@@ -1,4 +1,4 @@
-﻿// src/components/dashboard/UnansweredTable.tsx
+// src/components/dashboard/UnansweredTable.tsx
 import React, { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/router";
 // âš ï¸ togs bort: import av supabaseClient (den anvÃ¤ndes inte)

@@ -2,7 +2,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 
-// Tålig import – funkar oavsett export-sätt i din supabaseAdmin
+
+
+
+// TÃ¥lig import â€“ funkar oavsett export-sÃ¤tt i din supabaseAdmin
 const supabase =
   (admin as any).supabaseAdmin ||
   (admin as any).supabase ||
@@ -49,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const rangeFrom = (page - 1) * pageSize;
     const rangeTo = rangeFrom + pageSize - 1;
 
-    // Primärt: server-side filter (snabbast)
+    // PrimÃ¤rt: server-side filter (snabbast)
     let q = supabase
       .from("offers")
       .select(
@@ -113,6 +116,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (e: any) {
     console.error("/api/offers/list error:", e?.message || e);
-    return res.status(500).json({ error: "Kunde inte hämta offerter" });
+    return res.status(500).json({ error: "Kunde inte hÃ¤mta offerter" });
   }
 }
+

@@ -2,6 +2,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireAdmin } from "@/lib/supabaseAdmin";
 
+
+
+
 /**
  * GET /api/bookings/by-number?no=BK25XXXX
  * Returnerar { booking } eller 404
@@ -37,3 +40,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: e?.message || "Serverfel" });
   }
 }
+
