@@ -12,8 +12,34 @@ const S = (v: any) => (v == null ? null : String(v).trim() || null);
 const U = <T extends string | number | null | undefined>(v: T) =>
   (v == null ? undefined : (v as Exclude<T, null>));
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiOk | ApiErr>) {
-  // CORS – låt hemsidan (annan origin) posta hit
+/** Hämta nästa offertnummer för aktuellt år. Format: HB{YY}{NNNN}, minsta N=0009 */
+async function nextOfferNumber(): Promise<string> {
+  const yy = new Date().toISOString().slice(2, 4); // "25"
+  const prefix = `HB${yy}`;
+  // Hämta högsta existerande i år
+  const { data, error } = await supabase
+    .from("offers")
+    .select("offer_number")
+    .ilike("offer_number", `${prefix}%`)
+    .order("offer_number", { ascending: false })
+    .limit(1);
+
+  let current = 8; // så att nästa blir 9 (HB{yy}0009)
+  if (!error && Array.isArray(data) && data.length > 0) {
+    const on = String(data[0].offer_number || "");
+    const tail = on.slice(prefix.length);         // "0022"
+    const n = parseInt(tail, 10);
+    if (!Number.isNaN(n)) current = Math.max(current, n);
+  }
+  const next = current + 1;
+  return `${prefix}${String(next).padStart(4, "0")}`;
+}
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<ApiOk | ApiErr>
+) {
+  // CORS (externa formulär)
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -26,7 +52,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
   try {
     const b = req.body || {};
-    const row = {
+
+    // Skapa offertrad
+    const row: Record<string, any> = {
       status: "inkommen",
 
       contact_person:     S(b.contact_person),
@@ -50,25 +78,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return_date:        S(b.return_date),
       return_time:        S(b.return_time),
 
-      passengers: typeof b.passengers === "number"
-        ? b.passengers
-        : Number(b.passengers || 0) || null,
+      passengers:
+        typeof b.passengers === "number" ? b.passengers : Number(b.passengers || 0) || null,
 
       notes: S(b.notes),
     };
 
-    // Insert i Supabase
-    const { data, error } = await supabase.from("offers").insert(row).select("*").single();
-    if (error)   return res.status(500).json({ error: error.message });
-    if (!data)   return res.status(500).json({ error: "Insert failed" });
+    // Tilldela nästa offertnummer (HB25 0009, 0010, …)
+    row.offer_number = await nextOfferNumber();
+
+    // Spara
+    const { data, error } = await supabase
+      .from("offers")
+      .insert(row)
+      .select("*")
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+    if (!data)  return res.status(500).json({ error: "Insert failed" });
 
     const offer = data;
 
-    // Mail till admin + kvittens till kund (dina mallar)
+    // ADMIN-mail + kundkvitto
     try {
       await sendOfferMail({
         offerId:     String(offer.id),
-        offerNumber: String(offer.offer_number || "HB25???"),
+        offerNumber: String(offer.offer_number),
 
         customerEmail: U(S(offer.customer_email)),
         customerName:  U(S(offer.contact_person)),
@@ -86,9 +121,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         return_to:   U(S(offer.return_destination)),
         return_date: U(S(offer.return_date)),
         return_time: U(S(offer.return_time)),
+
         notes: U(S(offer.notes)),
       });
-    } catch (e: any) {
+    } catch (e:any) {
       console.error("[offert/create] sendOfferMail failed:", e?.message || e);
     }
 
@@ -97,15 +133,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       if (to && to.includes("@")) {
         await sendCustomerReceipt({
           to,
-          offerNumber: String(offer.offer_number || "HB25???"),
+          offerNumber: String(offer.offer_number),
         });
       }
-    } catch (e: any) {
+    } catch (e:any) {
       console.error("[offert/create] sendCustomerReceipt failed:", e?.message || e);
     }
 
     return res.status(200).json({ ok: true, offer });
-  } catch (e: any) {
+  } catch (e:any) {
     console.error("[offert/create] error:", e?.message || e);
     return res.status(500).json({ error: e?.message || "Server error" });
   }

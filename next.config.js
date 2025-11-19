@@ -2,43 +2,48 @@
 const nextConfig = {
   reactStrictMode: true,
 
+  // INTE output:'export' – API-routes kräver server
+  // output: undefined,
+
   experimental: {
-    // Lämna som det är om du inte använder appDir
+    // Lämna av om du kör "pages/" (vilket du gör)
     // appDir: true,
   },
 
-  // ✅ Tillåt externa bildkällor för <Image />
   images: {
     remotePatterns: [
-      // Demo/placeholder-bilder
+      // Demo/placeholder
       { protocol: 'https', hostname: 'images.unsplash.com' },
 
       // Dina domäner
       { protocol: 'https', hostname: 'login.helsingbuss.se' },
       { protocol: 'https', hostname: 'kund.helsingbuss.se' },
 
-      // Supabase Storage (alla projekt)
-      { protocol: 'https', hostname: '*.supabase.co' },
+      // Supabase Storage – exakt projekt
+      { protocol: 'https', hostname: 'meotcdztoehulrirqzxn.supabase.co' },
 
-      // T.ex. Google-avatarer
+      // (Fallback) – vissa Next-versioner stödjer wildcard så här.
+      // Om builden klagar: ta bort denna rad och behåll den exakta ovan.
+      { protocol: 'https', hostname: '**.supabase.co' },
+
+      // Google-avatarer
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
     ],
   },
 
-  // ✅ Ersätter "middleware som proxy" → använd rewrites i stället
   async rewrites() {
     return [
-      // Serva widget-skript och tillgångar via din app utan att ha egen route
-      { source: '/widget/:path*', destination: 'https://login.helsingbuss.se/widget/:path*' },
+      // Varning: Din app kör på login.helsingbuss.se
+      // Att rewrita /widget/* -> https://login.helsingbuss.se/widget/* skapar loop.
+      // Om du har ett EXTERNT widget-ursprung (CDN), peka dit här.
+      // Exempel (aktivera när du har ett separat ursprung):
+      // { source: '/widget/:path*', destination: 'https://cdn.helsingbuss.se/widget/:path*' },
 
-      // Exempel (lämna avkommenterad om/ tills du behöver den):
-      // Skicka /offert/* vidare till kund-domänen om du kör allt från samma deployment.
-      // OBS: Om kund.helsingbuss.se är ett eget Vercel-projekt, länka direkt dit i mail i stället.
+      // Om /offert/* ska servas av kund-projektet (separerad deploy), kan du aktivera denna:
       // { source: '/offert/:path*', destination: 'https://kund.helsingbuss.se/offert/:path*' },
     ];
   },
 
-  // ✅ Valfria headers för widget (CORS + cache)
   async headers() {
     return [
       {

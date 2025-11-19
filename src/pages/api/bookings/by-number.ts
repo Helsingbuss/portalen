@@ -1,43 +1,58 @@
 // src/pages/api/bookings/by-number.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireAdmin } from "@/lib/supabaseAdmin";
+import supabase from "@/lib/supabaseAdmin";
 
+export const config = { runtime: "nodejs" };
 
+type ApiOk = { ok: true; booking: any };
+type ApiErr = { error: string };
 
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<ApiOk | ApiErr>
+) {
+  // Tillåt preflight om något anropar med OPTIONS
+  if (req.method === "OPTIONS") {
+    res.setHeader("Allow", "GET,OPTIONS");
+    return res.status(204).end();
+  }
 
-/**
- * GET /api/bookings/by-number?no=BK25XXXX
- * Returnerar { booking } eller 404
- */
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "GET") {
+    res.setHeader("Allow", "GET,OPTIONS");
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
   try {
-    if (req.method !== "GET") {
-      return res.status(405).json({ error: "Method not allowed" });
-    }
-
+    // Stöd både ?no=BK25XXXX och ?number=... som input
     const no =
-      String(req.query.no ?? req.query.number ?? req.query.booking_number ?? "").trim();
+      (typeof req.query.no === "string" && req.query.no.trim()) ||
+      (typeof req.query.number === "string" && req.query.number.trim()) ||
+      (typeof req.query.id === "string" && req.query.id.trim()) ||
+      "";
 
-    if (!no) {
-      return res.status(400).json({ error: "Saknar bokningsnummer (?no=BK25XXXX)" });
-    }
+    if (!no) return res.status(400).json({ error: "Saknar parameter 'no' (booking number)" });
 
-    const db = requireAdmin();
-
-    // Justera kolumnnamn om din tabell heter annorlunda (t.ex. booking_number)
-    const { data, error } = await db
+    const { data, error } = await supabase
       .from("bookings")
       .select("*")
       .eq("booking_number", no)
-      .maybeSingle();
+      .single();
 
-    if (error) throw error;
-    if (!data) return res.status(404).json({ error: "Bokningen hittades inte" });
+    if (error) {
+      // 406/425 etc -> behandla som ej hittad om det är "No rows"
+      if ((error as any).code === "PGRST116" /* No rows */) {
+        return res.status(404).json({ error: "Hittar ingen bokning med detta nummer" });
+      }
+      return res.status(500).json({ error: error.message });
+    }
 
-    return res.status(200).json({ booking: data });
+    if (!data) {
+      return res.status(404).json({ error: "Hittar ingen bokning med detta nummer" });
+    }
+
+    return res.status(200).json({ ok: true, booking: data });
   } catch (e: any) {
-    console.error("bookings/by-number error:", e?.message || e);
+    console.error("[bookings/by-number] error:", e?.message || e);
     return res.status(500).json({ error: e?.message || "Serverfel" });
   }
 }
-

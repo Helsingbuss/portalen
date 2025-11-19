@@ -1,52 +1,37 @@
 // src/lib/supabaseAdmin.ts
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL =
-  process.env.SUPABASE_URL ||
+const URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.SUPABASE_URL || // fallback om du råkat döpa den så
   "";
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || "";
 
-/**
- * Skapa en admin-klient. Kastar INTE vid import.
- * Om env saknas loggar vi bara en varning; då kastar requireAdmin() senare.
- */
-let _admin: SupabaseClient | null = null;
+const SERVICE_KEY =
+  process.env.SUPABASE_SERVICE_KEY ||            // vanligast
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||       // alternativt
+  "";
 
-function initAdmin(): SupabaseClient {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    // Kasta först NÄR någon verkligen försöker använda klienten.
-    throw new Error("Supabase-konfiguration saknas (.env.local?)");
-  }
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { "X-Client-Source": "helsingbuss-portal-admin" } },
-  });
+if (!URL || !SERVICE_KEY) {
+  throw new Error(
+    "Supabase admin saknar miljövariabler. Sätt NEXT_PUBLIC_SUPABASE_URL och SUPABASE_SERVICE_KEY."
+  );
 }
 
-/** Bakåtkompatibel helper: anropa där gamla koden förväntar sig en funktion */
+const client: SupabaseClient = createClient(URL, SERVICE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
+  global: { headers: { "X-Client-Info": "helsingbuss-portal/admin" } },
+});
+
+// ✅ default export (import supabaseAdmin from "@/lib/supabaseAdmin")
+export default client;
+
+// ✅ named export (import { supabaseAdmin } from "@/lib/supabaseAdmin")
+export const supabaseAdmin = client;
+
+// ✅ legacy alias (import { supabase } from "@/lib/supabaseAdmin")
+export const supabase = client;
+
+// ✅ helper (import { requireAdmin } from "@/lib/supabaseAdmin")
 export function requireAdmin(): SupabaseClient {
-  if (_admin) return _admin;
-  _admin = initAdmin();
-  return _admin;
+  return client;
 }
-
-/** För de filer som gör `import supabase from "@/lib/supabaseAdmin"` */
-const supabaseAdmin: SupabaseClient = (() => {
-  try {
-    return requireAdmin();
-  } catch {
-    // Skapa en "no-op" klient med tomma värden så att import inte spränger build;
-    // första riktiga queryn kommer ändå kasta från servern om env saknas.
-    return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-  }
-})();
-
-/** Alias för annan gammal importstil: `import { supabase } from "@/lib/supabaseAdmin"` */
-export const supabase = supabaseAdmin;
-
-/** Named + default export så ALLA varianter funkar */
-export { supabaseAdmin };
-export default supabaseAdmin;
