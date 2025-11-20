@@ -8,6 +8,7 @@ import OffersBarChart, {
 } from "@/components/dashboard/OffersBarChart";
 import UnansweredTable from "@/components/dashboard/UnansweredTable";
 import GreetingNews from "@/components/dashboard/GreetingNews";
+import EconomyCard from "@/components/dashboard/EconomyCard";
 import { AdjustmentsHorizontalIcon } from "@heroicons/react/24/outline";
 
 /* ---------- Typer för dashboard ---------- */
@@ -342,7 +343,7 @@ export default function Start() {
           {/* RAD 2 */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
             <section className="lg:col-span-2">
-              <div className="bg-white rounded-xl shadow">
+              <div className="bg-white rounded-xl shadow min-h-[420px]">
                 {loadingUnanswered ? (
                   <div className="p-6 text-[#194C66]/70">Laddar…</div>
                 ) : (
@@ -352,23 +353,13 @@ export default function Start() {
             </section>
 
             <aside>
-              <div className="bg-white rounded-xl shadow p-4 h-[478px]">
-                <div className="text-[#194C66] font-semibold mb-2">
-                  Sållda biljetter, antal bokade och intäkter
-                </div>
-                <div className="text-sm text-[#194C66]/70 space-y-2">
-                  <p>
-                    I nästa steg kopplar vi på integration mot Visma eEkonomi /
-                    annat ekonomisystem och visar staplar för periodens
-                    resultat.
-                  </p>
-                  <p>
-                    Här kommer du kunna se samma typ av stapeldiagram som i
-                    skissen, med länkar vidare till detaljerade rapporter under{" "}
-                    <strong>Reports</strong>.
-                  </p>
-                </div>
-              </div>
+              <EconomyCard
+                from={from}
+                to={to}
+                totals={stats.apiTotals}
+                loading={loadingStats}
+                heightClass="h-[420px]"
+              />
             </aside>
           </div>
         </main>
