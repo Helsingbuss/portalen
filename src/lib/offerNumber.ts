@@ -1,37 +1,28 @@
-// src/lib/offerNumber.ts
+// Genererar nästa offertnummer. Start ska vara HB25 009.
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-/**
- * HB{YY}{NNN} med 3-siffrig löpdel. Första ska bli HB25 007.
- * Vi sätter baseline på 6, så första next blir 7.
- */
-export async function nextOfferNumberHB3(supabase: SupabaseClient): Promise<string> {
-  const yy = new Date().getFullYear().toString().slice(-2); // "25"
-  const prefix = `HB${yy}`; // "HB25"
+export async function nextOfferNumber(db: SupabaseClient): Promise<string> {
+  const year2 = new Date().getFullYear().toString().slice(-2); // "25"
+  const prefix = `HB${year2}`;
 
-  // Hämta senaste poster som matchar årets HB-prefix
-  const { data } = await supabase
+  const { data, error } = await db
     .from("offers")
-    .select("offer_number, created_at")
+    .select("offer_number")
     .ilike("offer_number", `${prefix}%`)
-    .order("created_at", { ascending: false })
-    .limit(200);
+    .order("offer_number", { ascending: false })
+    .limit(100);
 
-  // max startar på 6 -> next = 7 (=> HB25007)
-  let maxSeq = 6;
+  if (error) throw error;
 
-  for (const r of data || []) {
-    const raw = String((r as any).offer_number || "").replace(/\s+/g, "");
-    // matcha exakt HB{YY}{NNN} (3-siffrig)
-    const m = raw.match(/^HB(\d{2})(\d{3})$/i);
-    if (!m) continue;
-    const yyRow = m[1];
-    const seq = parseInt(m[2], 10);
-    if (yyRow === yy && Number.isFinite(seq)) {
-      if (seq > maxSeq) maxSeq = seq;
+  let maxSeq = 8; // så att första blir 009
+  for (const row of data ?? []) {
+    const no = String((row as any).offer_number || "");
+    const m = no.match(/^HB\d{2}(\d+)$/);
+    if (m && m[1]) {
+      const n = parseInt(m[1], 10);
+      if (Number.isFinite(n) && n > maxSeq) maxSeq = n;
     }
   }
-
-  const next = maxSeq + 1; // minst 7
-  return `${prefix}${String(next).padStart(3, "0")}`;
+  const next = (maxSeq + 1).toString().padStart(3, "0");
+  return `${prefix}${next}`;
 }

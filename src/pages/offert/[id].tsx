@@ -36,6 +36,10 @@ type OfferRow = {
   return_time?: string | null;
 
   notes?: string | null;
+
+  // ✅ Kundens godkännande (för “Godkänd”-läget)
+  customer_approved?: boolean | null;
+  customer_approved_at?: string | null;
 };
 
 type Props = {
@@ -45,7 +49,30 @@ type Props = {
 };
 
 const Page: NextPage<Props> = ({ offer, auth, viewOverride }) => {
-  const statusRaw = (viewOverride || offer?.status || "").toLowerCase();
+  // 🔹 Här bygger vi en “effektiv” status som tar hänsyn till kundens godkännande
+  const statusRaw = (() => {
+    const base = (viewOverride || offer?.status || "").toLowerCase();
+
+    if (!offer) return base;
+
+    const isCancelled =
+      base === "makulerad" ||
+      base === "avböjd" ||
+      base === "avbojd";
+
+    const isBookingConfirmed =
+      base === "bokningsbekräftelse" ||
+      base === "bokningsbekraftelse";
+
+    // 🔹 Om kunden har godkänt offerten, men den inte är makulerad/avböjd
+    //    och inte redan i bokningsbekräftelse-läge – visa “Godkänd offert”-layout.
+    if (offer.customer_approved && !isCancelled && !isBookingConfirmed) {
+      return "godkänd";
+    }
+
+    // 🔹 Annars använd status som den är (inkl. ev. viewOverride)
+    return base;
+  })();
 
   const renderByStatus = () => {
     if (!auth.ok) {
@@ -72,19 +99,25 @@ const Page: NextPage<Props> = ({ offer, auth, viewOverride }) => {
     switch (statusRaw) {
       case "inkommen":
         return <OfferInkommen offer={offer} />;
+
       case "besvarad":
         return <OfferBesvarad offer={offer} />;
+
       case "godkänd":
       case "godkand":
         return <OfferGodkand offer={offer} />;
+
       case "avböjd":
       case "avbojd":
         return <OfferAvbojd offer={offer} />;
+
       case "makulerad":
         return <OfferMakulerad offer={offer} />;
+
       case "bokningsbekräftelse":
       case "bokningsbekraftelse":
         return <OfferBokningsbekraftelse offer={offer} />;
+
       default:
         // Fallback: visa “inkommen” om okänt statusvärde
         return <OfferInkommen offer={offer} />;
@@ -121,7 +154,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   // ✅ Tokenvalidering – säkert och utan null-problem
   let payload: OfferTokenPayload | null = null;
   try {
-    // verifyOfferToken kan vara sync eller async – await funkar i båda fallen
     payload = await verifyOfferToken(token);
   } catch {
     payload = null;
@@ -138,7 +170,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     return { props: { offer: null, auth: { ok: false, reason: "forbidden" }, viewOverride } };
   }
 
-  // ✅ Hämta offerten via id ELLER offer_number (utan generics som bråkar)
+  // ✅ Hämta offerten via id ELLER offer_number
   const { data, error } = await supabase
     .from("offers")
     .select(
@@ -146,21 +178,30 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         "id",
         "offer_number",
         "status",
+
         "contact_person",
         "customer_email",
         "customer_phone",
+
         "departure_place",
         "destination",
         "departure_date",
         "departure_time",
-        "via",   // ✅
-        "stop",  // ✅
+
+        "via",
+        "stop",
         "passengers",
+
         "return_departure",
         "return_destination",
         "return_date",
         "return_time",
+
         "notes",
+
+        // 🔹 ta med kundens godkännande till sidan
+        "customer_approved",
+        "customer_approved_at",
       ].join(",")
     )
     .or(`id.eq.${slug},offer_number.eq.${slug}`)
