@@ -37,22 +37,56 @@ function toYMD(d: Date) {
 function isoWeekNumber(dateLike: string | Date): number {
   const d =
     typeof dateLike === "string" ? new Date(dateLike) : new Date(dateLike);
+
   const target = new Date(
     Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())
   );
   const dayNr = (target.getUTCDay() + 6) % 7; // må=0..sön=6
   target.setUTCDate(target.getUTCDate() - dayNr + 3);
+
   const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
   const firstThursdayDayNr = (firstThursday.getUTCDay() + 6) % 7;
   firstThursday.setUTCDate(
     firstThursday.getUTCDate() - firstThursdayDayNr + 3
   );
+
   const week =
     1 +
     Math.round(
       (+target - +firstThursday) / (7 * 24 * 3600 * 1000)
     );
   return week;
+}
+
+/** Bygger en veckolista (svenska veckor) utifrån from/to-datum */
+function buildWeeksForRange(from: string, to: string): string[] {
+  const start = new Date(from);
+  const end = new Date(to);
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return [];
+
+  // säkerställ att start <= end
+  if (start > end) {
+    const tmp = start.getTime();
+    (start as any) = end;
+    (end as any) = new Date(tmp);
+  }
+
+  const seen = new Set<number>();
+  const weeks: number[] = [];
+
+  // gå framåt med 7 dagar i taget
+  const d = new Date(start);
+  while (d <= end) {
+    const w = isoWeekNumber(d);
+    if (!seen.has(w)) {
+      seen.add(w);
+      weeks.push(w);
+    }
+    d.setDate(d.getDate() + 7);
+  }
+
+  return weeks.map((n) => String(n));
 }
 
 export default async function handler(
@@ -63,7 +97,7 @@ export default async function handler(
     const url = new URL(req.url ?? "", "http://x");
     const from = url.searchParams.get("from") || toYMD(new Date());
     const to = url.searchParams.get("to") || "2025-12-31";
-    const mode = url.searchParams.get("mode") || "week"; // används ev. senare
+    const mode = url.searchParams.get("mode") || "week"; // ev. användning senare
 
     // -------------------------
     // 1) DATA FÖR STAPELDIAGRAM
@@ -83,22 +117,15 @@ export default async function handler(
     const offers = Array.isArray(offersRes.data) ? offersRes.data : [];
     const bookings = Array.isArray(bookingsRes.data) ? bookingsRes.data : [];
 
-    // Samla veckor som förekommer
-    const weekSet = new Set<number>();
+    // Veckolista utifrån datumintervallet (inte bara där det finns data)
+    const weeks = buildWeeksForRange(from, to);
+
+    // Hjälpfunktion: ge vecka för en rad
     const weekOf = (created_at?: string | null) => {
       const day = created_at ? String(created_at).slice(0, 10) : null;
       if (!day) return null;
-      const w = isoWeekNumber(day);
-      weekSet.add(w);
-      return w;
+      return isoWeekNumber(day);
     };
-
-    offers.forEach((o: any) => weekOf(o.created_at));
-    bookings.forEach((b: any) => weekOf(b.created_at));
-
-    const weeks = Array.from(weekSet)
-      .sort((a, b) => a - b)
-      .map((n) => String(n));
 
     // Räknare per vecka
     const mapAnswered = new Map<string, number>();
@@ -116,11 +143,7 @@ export default async function handler(
       const s = String(o.status ?? "").toLowerCase();
 
       // allt som inte är "inkommen" räknas som besvarad i diagrammet
-      if (
-        s === "inkommen" ||
-        s === "pending" ||
-        s === "ny"
-      ) {
+      if (s === "inkommen" || s === "pending" || s === "ny") {
         inc(mapUnanswered, wk);
       } else {
         inc(mapAnswered, wk);
@@ -228,7 +251,7 @@ export default async function handler(
 
       if (s === "bokad" || s === "booked") {
         totals.booking_booked_count += 1;
-        // totals.booking_booked_amount += Number(row.total_price ?? 0) || 0; // när du har prisfält
+        // totals.booking_booked_amount += Number(row.total_price ?? 0) || 0; // när vi får prisfält
       } else if (
         s === "klar" ||
         s === "genomförd" ||
@@ -237,7 +260,7 @@ export default async function handler(
         s === "completed"
       ) {
         totals.booking_done_count += 1;
-        // totals.booking_done_amount += Number(row.total_price ?? 0) || 0;  // när du har prisfält
+        // totals.booking_done_amount += Number(row.total_price ?? 0) || 0;  // när vi får prisfält
       }
     }
 

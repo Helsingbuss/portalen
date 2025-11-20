@@ -14,7 +14,14 @@ import { AdjustmentsHorizontalIcon } from "@heroicons/react/24/outline";
 type StatsData = {
   range: string;
   series: ChartSeries;
-  totals: StatsTotals;
+  // dessa totals används bara om du vill ha något mer lokalt senare
+  totals: {
+    offer_answered: number;
+    offer_unanswered: number;
+    booking_in: number;
+    booking_done: number;
+  };
+  apiTotals?: StatsTotals; // totals från API:t (per år)
 };
 
 type UnansweredRow = {
@@ -38,22 +45,16 @@ const EMPTY_SERIES: ChartSeries = {
   booking_in: [],
   booking_done: [],
 };
-
-const EMPTY_TOTALS: StatsTotals = {
-  offer_answered_count: 0,
-  offer_answered_amount: 0,
-  offer_approved_count: 0,
-  offer_approved_amount: 0,
-  booking_booked_count: 0,
-  booking_booked_amount: 0,
-  booking_done_count: 0,
-  booking_done_amount: 0,
-};
-
 const EMPTY_STATS: StatsData = {
   range: "",
   series: EMPTY_SERIES,
-  totals: EMPTY_TOTALS,
+  totals: {
+    offer_answered: 0,
+    offer_unanswered: 0,
+    booking_in: 0,
+    booking_done: 0,
+  },
+  apiTotals: undefined,
 };
 
 function ymd(d: Date) {
@@ -87,34 +88,38 @@ export default function Start() {
       const u = new URL("/api/dashboard/series", window.location.origin);
       u.searchParams.set("from", f);
       u.searchParams.set("to", t);
-      u.searchParams.set("mode", g); // API kan ignorera om det inte används
+      u.searchParams.set("mode", g);
 
       const res = await fetch(u.toString());
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const raw = await res.json();
 
-      // plocka ut serierna från svaret
-      const s: ChartSeries = {
-        weeks: raw.weeks ?? [],
-        offer_answered: raw.offer_answered ?? [],
-        offer_unanswered: raw.offer_unanswered ?? [],
-        booking_in: raw.booking_in ?? [],
-        booking_done: raw.booking_done ?? [],
+      // payload = serien + totals
+      const payload = (await res.json()) as ChartSeries & {
+        totals?: StatsTotals;
       };
 
-      // plocka ut totals (antal + belopp) från svaret
-      const totals: StatsTotals = {
-        ...EMPTY_TOTALS,
-        ...(raw.totals ?? {}),
+      const s: ChartSeries = {
+        weeks: payload.weeks ?? [],
+        offer_answered: payload.offer_answered ?? [],
+        offer_unanswered: payload.offer_unanswered ?? [],
+        booking_in: payload.booking_in ?? [],
+        booking_done: payload.booking_done ?? [],
+      };
+
+      const totalsCounts = {
+        offer_answered: (s.offer_answered || []).reduce((a, b) => a + b, 0),
+        offer_unanswered: (s.offer_unanswered || []).reduce((a, b) => a + b, 0),
+        booking_in: (s.booking_in || []).reduce((a, b) => a + b, 0),
+        booking_done: (s.booking_done || []).reduce((a, b) => a + b, 0),
       };
 
       setStats({
         range: `${f} – ${t}`,
-        series: s,
-        totals,
+        series: s || EMPTY_SERIES,
+        totals: totalsCounts,
+        apiTotals: payload.totals,
       });
     } catch (e: any) {
-      console.error("loadStats error:", e);
       setStats(EMPTY_STATS);
       setErrorMsg(e?.message || "Kunde inte hämta data.");
     } finally {
@@ -173,15 +178,11 @@ export default function Start() {
       <div className="min-h-screen bg-[#f5f4f0] lg:pl-64 pt-16">
         <Header />
 
-        <main className="px-6 pb-6">
-          <h1 className="text-xl font-semibold text-[#194C66] mb-4">
-            Översikt
-          </h1>
-
+        <main className="px-6 pt-6 pb-6">
           {/* RAD 1: Vänster = diagram, Höger = nyheter */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <section className="lg:col-span-2">
-              <div className="bg-white rounded-xl shadow px-5 py-4 relative">
+              <div className="bg-white rounded-xl shadow px-5 py-4 relative min-h-[420px] h-full flex flex-col">
                 {/* Titel + filterikon + datumrad */}
                 <div className="flex items-start justify-between mb-2">
                   <div>
@@ -212,21 +213,21 @@ export default function Start() {
 
                 {/* Diagram */}
                 {loadingStats ? (
-                  <div className="h-[320px] flex items-center justify-center text-[#194C66]/70">
+                  <div className="flex-1 flex items-center justify-center text-[#194C66]/70">
                     Laddar…
                   </div>
                 ) : stats.series.weeks.length === 0 ? (
-                  <div className="h-[320px] flex items-center justify-center text-[#194C66]/60">
+                  <div className="flex-1 flex items-center justify-center text-[#194C66]/60">
                     Inga data att visa ännu
                   </div>
                 ) : (
                   <OffersBarChart
                     series={stats.series}
-                    totals={stats.totals}
+                    totals={stats.apiTotals}
                   />
                 )}
 
-                {/* Filter-panel – ovanpå kortet */}
+                {/* Filter-panel */}
                 {filterOpen && (
                   <form
                     onSubmit={applyRange}

@@ -22,17 +22,14 @@ export type StatsTotals = {
 
 type Props = {
   series: Series;
-  totals?: StatsTotals; // 👈 nya totals från API
+  totals?: StatsTotals; // totals från API
 };
-
-// Veckorna låsta enligt din skiss
-const FIXED_WEEKS = ["46", "47", "48", "49", "50", "51", "52", "1"];
 
 const COLORS = {
   offer_answered: "#2E7D32", // grön
   offer_unanswered: "#A5D6A7", // ljusgrön
   booking_in: "#C62828", // röd
-  booking_done: "#F48FB1", // rosa (antal sålda biljetter)
+  booking_done: "#F48FB1", // rosa
 };
 
 const LABELS: Record<keyof Series, string> = {
@@ -40,7 +37,7 @@ const LABELS: Record<keyof Series, string> = {
   offer_answered: "Besvarade offerter",
   offer_unanswered: "Obesvarade offerter",
   booking_in: "Inkomna bokningar",
-  booking_done: "Antal sålda biljetter",
+  booking_done: "Genomförda bokningar",
 };
 
 function buildTicks(max: number): number[] {
@@ -62,12 +59,6 @@ type Tip = {
   value: number;
 };
 
-// Fyll upp data så vi alltid har värden för veckorna 46–52,1
-function padToWeeks(source?: number[]): number[] {
-  const arr = source ?? [];
-  return FIXED_WEEKS.map((_, i) => arr[i] ?? 0);
-}
-
 const formatAmount = (value: number) =>
   value.toLocaleString("sv-SE", {
     minimumFractionDigits: 2,
@@ -75,12 +66,17 @@ const formatAmount = (value: number) =>
   });
 
 export default function OffersBarChart({ series, totals }: Props) {
-  // 🔹 Stapel-data (alltid veckor 46-52,1 visuellt)
-  const weeks = FIXED_WEEKS;
-  const offerAnswered = padToWeeks(series.offer_answered);
-  const offerUnanswered = padToWeeks(series.offer_unanswered);
-  const bookingIn = padToWeeks(series.booking_in);
-  const bookingDone = padToWeeks(series.booking_done);
+  // 🔹 Veckor från API – ändras när du byter intervall
+  const weeks = series.weeks && series.weeks.length ? series.weeks : ["1"];
+
+  // Säker plockning (om arrayerna är olika långa)
+  const safe = (arr: number[] | undefined, i: number) =>
+    (arr && arr[i]) ?? 0;
+
+  const offerAnswered = series.offer_answered ?? [];
+  const offerUnanswered = series.offer_unanswered ?? [];
+  const bookingIn = series.booking_in ?? [];
+  const bookingDone = series.booking_done ?? [];
 
   // 🔹 Max Y för diagrammet
   const maxY = useMemo(
@@ -96,18 +92,18 @@ export default function OffersBarChart({ series, totals }: Props) {
   );
   const ticks = useMemo(() => buildTicks(maxY), [maxY]);
 
-  // 🔹 Totala antal från staplar (fallback om totals saknas)
+  // 🔹 Totala antal från serien (fallback)
   const countFromSeries = useMemo(
     () => ({
-      offer_answered: offerAnswered.reduce((a, b) => a + b, 0),
-      offer_unanswered: offerUnanswered.reduce((a, b) => a + b, 0),
-      booking_in: bookingIn.reduce((a, b) => a + b, 0),
-      booking_done: bookingDone.reduce((a, b) => a + b, 0),
+      offer_answered: (offerAnswered || []).reduce((a, b) => a + b, 0),
+      offer_unanswered: (offerUnanswered || []).reduce((a, b) => a + b, 0),
+      booking_in: (bookingIn || []).reduce((a, b) => a + b, 0),
+      booking_done: (bookingDone || []).reduce((a, b) => a + b, 0),
     }),
     [offerAnswered, offerUnanswered, bookingIn, bookingDone]
   );
 
-  // 🔹 Riktiga totals från API (med fallback)
+  // 🔹 Riktiga totals från API (per år), med fallback till serien
   const answeredCount =
     totals?.offer_answered_count ?? countFromSeries.offer_answered;
   const approvedCount = totals?.offer_approved_count ?? 0;
@@ -122,7 +118,7 @@ export default function OffersBarChart({ series, totals }: Props) {
     offers_approved: totals?.offer_approved_amount ?? 0,
     bookings_booked: totals?.booking_booked_amount ?? 0,
     bookings_done: totals?.booking_done_amount ?? 0,
-    tickets_sold: 0, // vi har ingen ticket-tabell ännu
+    tickets_sold: 0, // separat sen när vi har ticket-tabell
   };
 
   // SVG layout
@@ -201,22 +197,22 @@ export default function OffersBarChart({ series, totals }: Props) {
           {groups.map(({ week, gx }, i) => {
             const bars = [
               {
-                v: bookingDone[i] || 0,
+                v: safe(bookingDone, i),
                 c: COLORS.booking_done,
                 key: "booking_done" as const,
               },
               {
-                v: bookingIn[i] || 0,
+                v: safe(bookingIn, i),
                 c: COLORS.booking_in,
                 key: "booking_in" as const,
               },
               {
-                v: offerAnswered[i] || 0,
+                v: safe(offerAnswered, i),
                 c: COLORS.offer_answered,
                 key: "offer_answered" as const,
               },
               {
-                v: offerUnanswered[i] || 0,
+                v: safe(offerUnanswered, i),
                 c: COLORS.offer_unanswered,
                 key: "offer_unanswered" as const,
               },
@@ -255,7 +251,7 @@ export default function OffersBarChart({ series, totals }: Props) {
                   );
                 })}
 
-                {/* Veckonummer 46, 47, 48, 49, 50, 51, 52, 1 */}
+                {/* Veckonummer från API (svensk ISO-vecka) */}
                 <text
                   x={gx + groupWidth / 2}
                   y={height - 10}
@@ -303,7 +299,7 @@ export default function OffersBarChart({ series, totals }: Props) {
           )}
         </svg>
 
-        {/* Legend – som i din skiss */}
+        {/* Legend */}
         <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
           <LegendDot
             color={COLORS.offer_answered}
@@ -319,65 +315,69 @@ export default function OffersBarChart({ series, totals }: Props) {
           />
           <LegendDot
             color={COLORS.booking_done}
-            label="Antal sålda biljetter"
+            label="Genomförda bokningar"
           />
         </div>
       </div>
 
-      {/* HÖGER: OFFERTER / BOKNINGAR / BILJETTER – enligt bilden */}
-      <div className="flex flex-col justify-start text-sm text-[#111827]">
+      {/* HÖGER: OFFERTER / BOKNINGAR / BILJETTER – lite tajtare spacing */}
+      <div className="flex flex-col self-start pt-1 text-sm text-[#111827] space-y-4">
         {/* Offerter */}
-        <div className="mb-8">
+        <div>
           <div className="font-semibold text-base mb-2">Offerter</div>
-          <div className="grid grid-cols-2 gap-x-12 gap-y-1">
+          <div className="grid grid-cols-2 gap-x-10 gap-y-2">
             <div>
-              <div className="text-xs text-[#6B7280]">
+              <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF]">
                 Besvarade, {answeredCount} st
               </div>
-              <div className="text-lg font-semibold">
-                {formatAmount(amountTotals.offers_answered)}
+              <div className="mt-1 text-xl font-semibold">
+                {formatAmount(amountTotals.offers_answered)} SEK
               </div>
             </div>
-            <div>
-              <div className="text-xs text-[#6B7280]">
+            <div className="text-right">
+              <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF]">
                 Godkända, {approvedCount} st
               </div>
-              <div className="text-lg font-semibold">
-                {formatAmount(amountTotals.offers_approved)}
+              <div className="mt-1 text-xl font-semibold">
+                {formatAmount(amountTotals.offers_approved)} SEK
               </div>
             </div>
           </div>
         </div>
 
         {/* Bokningar */}
-        <div className="mb-8">
+        <div>
           <div className="font-semibold text-base mb-2">Bokningar</div>
-          <div className="grid grid-cols-2 gap-x-12 gap-y-1">
+          <div className="grid grid-cols-2 gap-x-10 gap-y-2">
             <div>
-              <div className="text-xs text-[#6B7280]">
+              <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF]">
                 Bokade, {bookedCount} st
               </div>
-              <div className="text-lg font-semibold">
-                {formatAmount(amountTotals.bookings_booked)}
+              <div className="mt-1 text-xl font-semibold">
+                {formatAmount(amountTotals.bookings_booked)} SEK
               </div>
             </div>
-            <div>
-              <div className="text-xs text-[#6B7280]">
+            <div className="text-right">
+              <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF]">
                 Genomförda, {doneCount} st
               </div>
-              <div className="text-lg font-semibold">
-                {formatAmount(amountTotals.bookings_done)}
+              <div className="mt-1 text-xl font-semibold">
+                {formatAmount(amountTotals.bookings_done)} SEK
               </div>
             </div>
           </div>
         </div>
 
-        {/* Biljetter – placeholder tills vi får riktig ticket-tabell */}
+        {/* Biljetter */}
         <div>
           <div className="font-semibold text-base mb-2">Biljetter</div>
-          <div className="text-xs text-[#6B7280]">Köpta, 0 st</div>
-          <div className="text-lg font-semibold">
-            {formatAmount(amountTotals.tickets_sold)}
+          <div className="flex items-baseline justify-between">
+            <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF]">
+              Köpta, 0 st
+            </div>
+            <div className="text-xl font-semibold">
+              {formatAmount(amountTotals.tickets_sold)} SEK
+            </div>
           </div>
         </div>
       </div>
@@ -415,7 +415,9 @@ export function StatCard({
   return (
     <div className="bg-white rounded-xl shadow p-4">
       <div className="text-sm text-[#194C66]/70">{title}</div>
-      <div className="text-2xl font-semibold text-[#194C66] mt-1">{value}</div>
+      <div className="text-2xl font-semibold text-[#194C66] mt-1">
+        {value}
+      </div>
       {sub && (
         <div className="text-xs text-[#194C66]/60 mt-1">{sub}</div>
       )}
