@@ -2,9 +2,12 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { withCors } from "@/lib/cors";
-import { sendOfferMail, sendCustomerReceipt } from "@/lib/sendOfferMail";
+import {
+  sendOfferMail,
+  sendCustomerReceipt,
+} from "@/lib/sendOfferMail";
 
-/** Plocka första icke-tomma värdet från flera nycklar */
+/** Hjälpfunktion: plocka första icke-tomma värdet från flera keys */
 function pick(body: any, ...keys: string[]): string | undefined {
   for (const k of keys) {
     const v = body?.[k];
@@ -76,8 +79,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       pick(rawBody, "customer_phone", "telefon", "phone") || null;
 
     const company =
-      pick(rawBody, "foretag_forening", "företag_förening", "company") ||
-      null;
+      pick(
+        rawBody,
+        "foretag_forening",
+        "företag_förening",
+        "company",
+        "företag_förening"
+      ) || null;
 
     const orgNumber =
       pick(rawBody, "org_number", "orgnr", "org_nummer") || null;
@@ -134,11 +142,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     /** ===== INSERT: ENDAST KOLUMNER SOM FINNS I TABELLEN ===== */
     const insertPayload: any = {
       offer_number: offerNumber,
-      // status: lämnas till DB default (så offers_status_check inte klagar)
 
       // kund
       contact_person: contactPerson,
-      Namn_efternamn: contactPerson, // om kolumnen finns
+      Namn_efternamn: contactPerson,
       customer_email: customerEmail,
       customer_phone: customerPhone,
       foretag_forening: company,
@@ -233,5 +240,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 }
 
-// VIKTIGT: dekorera med CORS-wrapper
 export default withCors(handler);

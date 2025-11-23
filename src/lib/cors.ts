@@ -1,40 +1,68 @@
 // src/lib/cors.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 
+/**
+ * Läser ALLOWED_ORIGINS från env
+ * - Ex: "https://helsingbuss.se,https://www.helsingbuss.se,https://login.helsingbuss.se"
+ * - Om ALLOWED_ORIGINS är tomt eller "*" => tillåt alla origins (inte rekommenderat i produktion)
+ */
 function parseAllowed(): string[] {
-  const raw = process.env.ALLOWED_ORIGINS || "";
+  const raw = (process.env.ALLOWED_ORIGINS || "").trim();
+
+  if (!raw || raw === "*") {
+    // "allow all" läge – använd med försiktighet
+    return ["*"];
+  }
+
   return raw
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
 }
 
+/**
+ * Försöker plocka ut origin (scheme + host) från request:
+ * - Origin-header (vanligt från webbläsare)
+ * - Referer (om Origin saknas)
+ */
 function originFromReq(req: NextApiRequest): string {
-  // PowerShell/curl etc kan sakna Origin
-  const o = (req.headers.origin || req.headers.referer || "") as string;
+  const candidate =
+    (req.headers.origin as string | undefined) ||
+    (req.headers.referer as string | undefined) ||
+    "";
+
+  if (!candidate) return "";
+
   try {
-    if (!o) return "";
-    const u = new URL(o);
-    return `${u.protocol}//${u.host}`;
+    const u = new URL(candidate);
+    return `${u.protocol}//${u.host}`; // t.ex. "https://helsingbuss.se"
   } catch {
     return "";
   }
 }
 
 /**
- * Sätter CORS-headrar och kollar om origin är tillåten.
- * Returnerar false om requesten redan är hanterad (OPTIONS / blockad).
+ * Sätter CORS-headrar och returnerar true/false om requesten får fortsätta.
+ * - OPTIONS hanteras här (preflight).
+ * - Vid blockering returneras 403.
  */
-export function allowCors(req: NextApiRequest, res: NextApiResponse): boolean {
+export function allowCors(
+  req: NextApiRequest,
+  res: NextApiResponse
+): boolean {
   const allowed = parseAllowed();
   const origin = originFromReq(req);
 
-  const isAllowed = !origin || allowed.includes(origin);
+  const allowAll = allowed.includes("*");
+  const isAllowed = allowAll || !origin || allowed.includes(origin);
 
-  // sätt alltid basic headers så webben funkar
+  // Sätt alltid bas-headrar
   if (origin && isAllowed) {
     res.setHeader("Access-Control-Allow-Origin", origin);
+  } else if (allowAll) {
+    res.setHeader("Access-Control-Allow-Origin", "*");
   }
+
   res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader(
@@ -57,14 +85,14 @@ export function allowCors(req: NextApiRequest, res: NextApiResponse): boolean {
     res.status(403).json({ error: "CORS origin not allowed" });
     return false;
   }
+
   return true;
 }
 
 /**
- * Wrapper för att dekorera en API-handler med CORS.
- * Använd:
- *   async function handler(req,res) { ... }
- *   export default withCors(handler);
+ * Wrapper: använd så här i API-routes:
+ *
+ *   export default withCors(handler)
  */
 export function withCors<
   T extends (req: NextApiRequest, res: NextApiResponse) => any
