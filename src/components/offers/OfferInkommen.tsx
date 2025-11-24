@@ -1,4 +1,5 @@
 // src/components/offers/OfferInkommen.tsx
+import type { ReactNode } from "react";
 import Image from "next/image";
 import OfferTopBar from "@/components/offers/OfferTopBar";
 import TripLegGrid from "@/components/offers/TripLegGrid";
@@ -42,8 +43,8 @@ function fmtTime(v?: any, dash = "—") {
 
 function fmtDateSv(iso?: any, dash = "—") {
   const s = typeof iso === "string" ? iso : String(iso ?? "");
-  if (!/^\d{4}-\d{2}-\d{2}/.test(s)) return dash;
-  const dt = new Date(s.length === 10 ? `${s}T00:00:00` : s);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return dash;
+  const dt = new Date(`${s}T00:00:00`);
   if (isNaN(dt.getTime())) return dash;
   try {
     return new Intl.DateTimeFormat("sv-SE", { dateStyle: "medium" }).format(dt);
@@ -106,36 +107,39 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
 
   const trips = secondLeg ? [firstLeg, secondLeg] : [firstLeg];
 
-  // -------- Kunduppgifter (höger ruta) --------
-
-  // Offertdatum = offer_date eller created_at
-  const offerDate =
-    offer?.offer_date || offer?.created_at
-      ? fmtDateSv(offer.offer_date || offer.created_at, "—")
-      : "—";
-
-  // Er referens = beställaren (kontaktperson / företag)
-  const erReferens =
-    offer?.contact_person ||
-    offer?.foretag_forening ||
-    offer?.customer_reference ||
+  // ---- Kunduppgifter / högerkolumn ----
+  // Offertdatum = offer_date, annars fallback till created_at
+  const offerDateIso =
+    (offer?.offer_date as string | null | undefined) ||
+    (offer?.created_at as string | null | undefined) ||
     null;
 
-  // Vår referens = intern referens (sätts när någon hos er svarar på offerten)
-  const varReferens =
-    offer?.internal_reference || offer?.var_referens || null;
+  // Er referens = beställaren / kontaktperson
+  const customerRef =
+    (offer?.customer_reference as string | null | undefined) ||
+    (offer?.contact_person as string | null | undefined) ||
+    null;
 
-  // Telefon / e-post – ta kundfält först, fallback till äldre fält
+  // Vår referens = intern handläggare (senare kan vi sätta utifrån inloggad användare)
+  const ourRef =
+    (offer?.internal_reference as string | null | undefined) ||
+    (offer?.handled_by_name as string | null | undefined) ||
+    null;
+
+  // Telefon / e-post från de fält vi faktiskt använder
   const phone =
-    offer?.customer_phone ||
-    offer?.contact_phone ||
-    offer?.telefon ||
+    (offer?.contact_phone as string | null | undefined) ||
+    (offer?.customer_phone as string | null | undefined) ||
     null;
 
   const email =
-    offer?.customer_email ||
-    offer?.contact_email ||
-    offer?.email ||
+    (offer?.contact_email as string | null | undefined) ||
+    (offer?.customer_email as string | null | undefined) ||
+    null;
+
+  const displayName =
+    (offer?.contact_person as string | null | undefined) ||
+    (offer?.foretag_forening as string | null | undefined) ||
     null;
 
   return (
@@ -181,15 +185,21 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
                   <p>
                     Hej!
                     <br />
-                    Tack för förtroendet. Vi har tagit emot er förfrågan och går nu igenom
-                    detaljerna. Nedan kan ni dubbelkolla uppgifterna ni skickade in. Utifrån dessa
-                    återkommer vi med en skräddarsydd offert med tydliga tider, bussmodell och pris.
-                    Behöver ni ändra antal resenärer, hållplatser, bagage, barnstol/tillgänglighet
-                    eller service ombord? Maila oss på{" "}
-                    <a className="underline" href="mailto:kundteam@helsingbuss.se">
+                    Tack för förtroendet. Vi har tagit emot er förfrågan och
+                    går nu igenom detaljerna. Nedan kan ni dubbelkolla
+                    uppgifterna ni skickade in. Utifrån dessa återkommer vi med
+                    en skräddarsydd offert med tydliga tider, bussmodell och
+                    pris. Behöver ni ändra antal resenärer, hållplatser,
+                    bagage, barnstol/tillgänglighet eller service ombord? Maila
+                    oss på{" "}
+                    <a
+                      className="underline"
+                      href="mailto:kundteam@helsingbuss.se"
+                    >
                       kundteam@helsingbuss.se
                     </a>{" "}
-                    så uppdaterar vi direkt. Luta er tillbaka – vi tar hand om resten.
+                    så uppdaterar vi direkt. Luta er tillbaka – vi tar hand om
+                    resten.
                   </p>
                 </div>
 
@@ -217,16 +227,19 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
                   style={{ lineHeight: LINE_HEIGHT }}
                 >
                   <p>
-                    Vid eventuell ändring av uppdragstiden eller körsträckan utöver det som anges i
-                    offerten tillkommer tilläggs debitering. Vi reserverar oss för flertalet frågor
-                    samt eventuella ändringar eller pålagor som ligger utanför vår kontroll. Vid
-                    behov av ombokning ansvarar beställaren för att ombokningstid följer.
+                    Vid eventuell ändring av uppdragstiden eller körsträckan
+                    utöver det som anges i offerten tillkommer tilläggs
+                    debitering. Vi reserverar oss för flertalet frågor samt
+                    eventuella ändringar eller pålagor som ligger utanför vår
+                    kontroll. Vid behov av ombokning ansvarar beställaren för
+                    att ombokningstid följer.
                   </p>
                   <p className="mt-3">
-                    Har du frågor, funderingar eller vill bekräfta bokningen? Tveka inte att
-                    kontakta oss på <strong>010–405 38 38</strong> (vardagar kl. 08.00–17.00). För
-                    akuta ärenden utanför kontorstid når du vår jourtelefon på{" "}
-                    <strong>010–777 21 58</strong>.
+                    Har du frågor, funderingar eller vill bekräfta bokningen?
+                    Tveka inte att kontakta oss på{" "}
+                    <strong>010–405 38 38</strong> (vardagar kl. 08.00–17.00).
+                    För akuta ärenden utanför kontorstid når du vår jourtelefon
+                    på <strong>010–777 21 58</strong>.
                   </p>
                   <p className="mt-4 uppercase text-[12px] tracking-wide font-semibold">
                     OBS! detta är endast en offert, välkommen med din bokning!
@@ -265,24 +278,24 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
 
                 <dl className="mt-4 grid grid-cols-[auto,1fr] gap-x-6 gap-y-1 text-[14px] text-[#0f172a] leading-tight">
                   <DT>Offertdatum:</DT>
-                  <DD>{offerDate}</DD>
+                  <DD>{fmtDateSv(offerDateIso, "—")}</DD>
 
                   <DT>Er referens:</DT>
-                  <DD>{v(erReferens)}</DD>
+                  <DD>{v(customerRef, "—")}</DD>
 
                   <DT>Vår referens:</DT>
-                  <DD>{v(varReferens)}</DD>
+                  <DD>{v(ourRef, "Helsingbuss")}</DD>
 
                   <DT>Namn:</DT>
-                  <DD>{v(offer?.contact_person, "—")}</DD>
+                  <DD>{v(displayName, "—")}</DD>
 
-                  {/* Adress borttagen */}
+                  {/* Adress borttagen enligt önskemål */}
 
                   <DT>Telefon:</DT>
-                  <DD>{v(phone)}</DD>
+                  <DD>{v(phone, "—")}</DD>
 
                   <DT>E-post:</DT>
-                  <DD>{v(email)}</DD>
+                  <DD>{v(email, "—")}</DD>
                 </dl>
               </div>
 
@@ -295,13 +308,14 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
   );
 }
 
-function DT({ children }: { children: React.ReactNode }) {
+function DT({ children }: { children: ReactNode }) {
   return (
     <dt className="font-semibold text-[#0f172a]/70 whitespace-nowrap">
       {children}
     </dt>
   );
 }
-function DD({ children }: { children: React.ReactNode }) {
+
+function DD({ children }: { children: ReactNode }) {
   return <dd className="text-[#0f172a] break-words">{children}</dd>;
 }

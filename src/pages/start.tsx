@@ -126,16 +126,18 @@ export default function Start() {
     try {
       setLoadingUnanswered(true);
 
-      // 🔹 HÄR BYTER VI TILL /api/dashboard/offers
       const res = await fetch("/api/dashboard/offers");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        console.error("loadUnanswered: HTTP", res.status);
+        setUnanswered([]);
+        return;
+      }
 
       const json = await res.json();
       const rows = (json?.unanswered ?? []) as UnansweredRow[];
-
       setUnanswered(rows);
-    } catch (e) {
-      console.error("loadUnanswered error:", e);
+    } catch (err) {
+      console.error("loadUnanswered error:", err);
       setUnanswered([]);
     } finally {
       setLoadingUnanswered(false);
