@@ -4,7 +4,7 @@ import Head from "next/head";
 import supabase from "@/lib/supabaseAdmin";
 import { verifyOfferToken, type OfferTokenPayload } from "@/lib/offerToken";
 
-// Kundkomponenter (behåll dina befintliga)
+// Kundkomponenter
 import OfferInkommen from "@/components/offers/OfferInkommen";
 import OfferBesvarad from "@/components/offers/OfferBesvarad";
 import OfferGodkand from "@/components/offers/OfferGodkand";
@@ -17,17 +17,25 @@ type OfferRow = {
   offer_number: string;
   status?: string | null;
 
+  // datum / metadata
+  offer_date?: string | null;
+  created_at?: string | null;
+
+  // kunduppgifter / referenser
   contact_person?: string | null;
   customer_email?: string | null;
   customer_phone?: string | null;
+  customer_reference?: string | null;   // Er referens
+  internal_reference?: string | null;   // Vår referens
 
+  // resa
   departure_place?: string | null;
   destination?: string | null;
   departure_date?: string | null;
   departure_time?: string | null;
 
-  via?: string | null;   // ✅ nya namnet
-  stop?: string | null;  // ✅ nya namnet
+  via?: string | null;
+  stop?: string | null;
   passengers?: number | null;
 
   return_departure?: string | null;
@@ -37,7 +45,7 @@ type OfferRow = {
 
   notes?: string | null;
 
-  // ✅ Kundens godkännande (för “Godkänd”-läget)
+  // kundens godkännande
   customer_approved?: boolean | null;
   customer_approved_at?: string | null;
 };
@@ -49,7 +57,6 @@ type Props = {
 };
 
 const Page: NextPage<Props> = ({ offer, auth, viewOverride }) => {
-  // 🔹 Här bygger vi en “effektiv” status som tar hänsyn till kundens godkännande
   const statusRaw = (() => {
     const base = (viewOverride || offer?.status || "").toLowerCase();
 
@@ -64,13 +71,10 @@ const Page: NextPage<Props> = ({ offer, auth, viewOverride }) => {
       base === "bokningsbekräftelse" ||
       base === "bokningsbekraftelse";
 
-    // 🔹 Om kunden har godkänt offerten, men den inte är makulerad/avböjd
-    //    och inte redan i bokningsbekräftelse-läge – visa “Godkänd offert”-layout.
     if (offer.customer_approved && !isCancelled && !isBookingConfirmed) {
       return "godkänd";
     }
 
-    // 🔹 Annars använd status som den är (inkl. ev. viewOverride)
     return base;
   })();
 
@@ -80,17 +84,24 @@ const Page: NextPage<Props> = ({ offer, auth, viewOverride }) => {
         <div className="min-h-[60vh] flex items-center justify-center p-8">
           <div className="max-w-lg rounded-2xl border bg-white p-6 text-center shadow">
             <h1 className="text-xl font-semibold text-[#194C66] mb-2">Åtkomst nekad</h1>
-            <p className="text-gray-600">Ogiltig eller saknad token för visning av offert.</p>
+            <p className="text-gray-600">
+              Ogiltig eller saknad token för visning av offert.
+            </p>
           </div>
         </div>
       );
     }
+
     if (!offer) {
       return (
         <div className="min-h-[60vh] flex items-center justify-center p-8">
           <div className="max-w-lg rounded-2xl border bg-white p-6 text-center shadow">
-            <h1 className="text-xl font-semibold text-[#194C66] mb-2">Offert saknas</h1>
-            <p className="text-gray-600">Vi kunde inte hitta någon offert med angivet ID/nummer.</p>
+            <h1 className="text-xl font-semibold text-[#194C66] mb-2">
+              Offert saknas
+            </h1>
+            <p className="text-gray-600">
+              Vi kunde inte hitta någon offert med angivet ID/nummer.
+            </p>
           </div>
         </div>
       );
@@ -119,7 +130,6 @@ const Page: NextPage<Props> = ({ offer, auth, viewOverride }) => {
         return <OfferBokningsbekraftelse offer={offer} />;
 
       default:
-        // Fallback: visa “inkommen” om okänt statusvärde
         return <OfferInkommen offer={offer} />;
     }
   };
@@ -134,9 +144,7 @@ const Page: NextPage<Props> = ({ offer, auth, viewOverride }) => {
         <title>{title}</title>
         <meta name="robots" content="noindex" />
       </Head>
-      <main className="bg-[#f5f4f0] min-h-screen">
-        {renderByStatus()}
-      </main>
+      <main className="bg-[#f5f4f0] min-h-screen">{renderByStatus()}</main>
     </>
   );
 };
@@ -144,14 +152,24 @@ const Page: NextPage<Props> = ({ offer, auth, viewOverride }) => {
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const slug = String(ctx.params?.id ?? "");
   const q = ctx.query || {};
-  const token = typeof q.token === "string" ? q.token : typeof q.t === "string" ? q.t : "";
+  const token =
+    typeof q.token === "string"
+      ? q.token
+      : typeof q.t === "string"
+      ? q.t
+      : "";
   const viewOverride = typeof q.view === "string" ? q.view : null;
 
   if (!slug) {
-    return { props: { offer: null, auth: { ok: false, reason: "missing-id" }, viewOverride } };
+    return {
+      props: {
+        offer: null,
+        auth: { ok: false, reason: "missing-id" },
+        viewOverride,
+      },
+    };
   }
 
-  // ✅ Tokenvalidering – säkert och utan null-problem
   let payload: OfferTokenPayload | null = null;
   try {
     payload = await verifyOfferToken(token);
@@ -160,17 +178,28 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   }
 
   if (!payload) {
-    return { props: { offer: null, auth: { ok: false, reason: "forbidden" }, viewOverride } };
+    return {
+      props: {
+        offer: null,
+        auth: { ok: false, reason: "forbidden" },
+        viewOverride,
+      },
+    };
   }
 
   const matchesNo = !!payload.no && String(payload.no) === slug;
   const matchesId = !!payload.id && String(payload.id) === slug;
 
   if (!matchesNo && !matchesId) {
-    return { props: { offer: null, auth: { ok: false, reason: "forbidden" }, viewOverride } };
+    return {
+      props: {
+        offer: null,
+        auth: { ok: false, reason: "forbidden" },
+        viewOverride,
+      },
+    };
   }
 
-  // ✅ Hämta offerten via id ELLER offer_number
   const { data, error } = await supabase
     .from("offers")
     .select(
@@ -179,10 +208,18 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         "offer_number",
         "status",
 
+        // datum
+        "offer_date",
+        "created_at",
+
+        // kunduppgifter / referenser
         "contact_person",
         "customer_email",
         "customer_phone",
+        "customer_reference",
+        "internal_reference",
 
+        // resa
         "departure_place",
         "destination",
         "departure_date",
@@ -199,7 +236,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
 
         "notes",
 
-        // 🔹 ta med kundens godkännande till sidan
+        // kundens godkännande
         "customer_approved",
         "customer_approved_at",
       ].join(",")
@@ -208,7 +245,13 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     .maybeSingle();
 
   if (error) {
-    return { props: { offer: null, auth: { ok: false, reason: "db" }, viewOverride } };
+    return {
+      props: {
+        offer: null,
+        auth: { ok: false, reason: "db" },
+        viewOverride,
+      },
+    };
   }
 
   return {
