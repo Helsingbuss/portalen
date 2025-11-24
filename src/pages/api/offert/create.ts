@@ -113,7 +113,21 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const returnDate = pick(rawBody, "return_date") || null;
     const returnTime = pick(rawBody, "return_time") || null;
 
-    const behoverBuss = pick(rawBody, "behover_buss") || null;
+    // --- FIX: behover_buss "Ja"/"Nej" -> boolean ---
+    const behoverBussRaw = pick(rawBody, "behover_buss") || null;
+    let behoverBuss: boolean | null = null;
+    if (behoverBussRaw) {
+      const v = behoverBussRaw.toString().trim().toLowerCase();
+      if (["ja", "yes", "true", "1", "on"].includes(v)) {
+        behoverBuss = true;
+      } else if (["nej", "no", "false", "0", "off"].includes(v)) {
+        behoverBuss = false;
+      } else {
+        behoverBuss = null; // oväntat värde, spara hellre null än att krascha
+      }
+    }
+    // -----------------------------------------------
+
     const notisPaPlats = pick(rawBody, "notis_pa_plats") || null;
     const basplatsPaDestination =
       pick(rawBody, "basplats_pa_destination") || null;
@@ -164,7 +178,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       final_destination: finalDestination,
       return_date: returnDate,
       return_time: returnTime,
-      behover_buss: behoverBuss,
       notis_pa_plats: notisPaPlats,
       basplats_pa_destination: basplatsPaDestination,
       end_time: endTime,
@@ -174,6 +187,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       passengers,
       notes,
     };
+
+    // sätt bara behover_buss om vi har lyckats tolka det till boolean/null
+    if (behoverBuss !== null) {
+      insertPayload.behover_buss = behoverBuss;
+    }
 
     const { data, error } = await supabaseAdmin
       .from("offers")
