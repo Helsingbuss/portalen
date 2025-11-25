@@ -121,8 +121,8 @@ export default function UnansweredTable({
             }}
             className="border border-gray-300 rounded-lg px-2 py-1 text-sm bg-white"
           >
+            <option value={5}>5</option>
             <option value={10}>10</option>
-            <option value={15}>15</option>
             <option value={20}>20</option>
             <option value="all">Alla</option>
           </select>

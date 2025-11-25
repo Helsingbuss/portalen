@@ -14,6 +14,9 @@ type Offer = {
   customer_reference: string | null;
   contact_email: string | null;
   contact_phone: string | null;
+  company_name: string | null;
+  po_reference: string | null;
+  org_number: string | null;
 
   // Utresa
   departure_place: string | null;
@@ -30,8 +33,8 @@ type Offer = {
   // Nya fält (formuläret)
   passengers: number | null;
   stopover_places: string | null; // via / stopp
-  extra_stops: string | null; // separat "stop"
-  trip_kind: string | null; // enkel_tur_retur
+  extra_stops: string | null;
+  trip_kind: string | null; // enkel / tur_ret
   final_destination: string | null;
   need_bus_on_site: string | null;
   site_notes: string | null;
@@ -41,13 +44,10 @@ type Offer = {
   local_runs: string | null;
   standby_hours: string | null;
   parking: string | null;
-  company_name: string | null;
-  po_reference: string | null;
-  org_number: string | null;
   onboard_contact: string | null;
   more_trip_info: string | null;
 
-  notes: string | null;
+  notes: string | null; // legacy
 };
 
 function toIntOrNull(v: any): number | null {
@@ -72,19 +72,19 @@ function normalizeOffer(o: any | null | undefined): Offer | null {
       o.customer_reference ?? o.reference ?? o.contact_person ?? null,
     contact_email: o.contact_email ?? o.customer_email ?? o.email ?? null,
     contact_phone: o.contact_phone ?? o.customer_phone ?? o.phone ?? null,
+    company_name: o.company_name ?? o.foretag_forening ?? null,
+    po_reference: o.po_reference ?? o.referens_po_nummer ?? null,
+    org_number: o.org_number ?? null,
 
     // Utresa
-    departure_place:
-      o.departure_place ?? o.from ?? o.departure_location ?? null,
+    departure_place: o.departure_place ?? o.from ?? o.departure_location ?? null,
     destination: o.destination ?? o.to ?? o.destination_location ?? null,
     departure_date: o.departure_date ?? o.date ?? null,
     departure_time: o.departure_time ?? o.time ?? null,
 
     // Retur
-    return_departure:
-      o.return_departure ?? o.return_from ?? o.ret_from ?? null,
-    return_destination:
-      o.return_destination ?? o.return_to ?? o.ret_to ?? null,
+    return_departure: o.return_departure ?? o.return_from ?? o.ret_from ?? null,
+    return_destination: o.return_destination ?? o.return_to ?? o.ret_to ?? null,
     return_date: o.return_date ?? o.ret_date ?? null,
     return_time: o.return_time ?? o.ret_time ?? null,
 
@@ -102,9 +102,6 @@ function normalizeOffer(o: any | null | undefined): Offer | null {
     local_runs: o.local_runs ?? o.local_kor ?? null,
     standby_hours: o.standby_hours ?? o.standby ?? null,
     parking: o.parking ?? null,
-    company_name: o.company_name ?? o.foretag_forening ?? null,
-    po_reference: o.po_reference ?? o.referens_po_nummer ?? null,
-    org_number: o.org_number ?? null,
     onboard_contact: o.onboard_contact ?? null,
     more_trip_info: o.more_trip_info ?? o.contact_person ?? null,
 
@@ -159,13 +156,12 @@ export default function AdminOfferDetail() {
 
   const titleSuffix = offer?.offer_number ? ` (${offer.offer_number})` : "";
   const hasReturn =
-    !!(
-      offer?.return_departure ||
+    !!(offer?.return_departure ||
       offer?.return_destination ||
       offer?.return_date ||
-      offer?.return_time
-    );
+      offer?.return_time);
 
+  // OfferCalculator behöver dessa tre:
   const calculatorProps =
     offer && offer.contact_email
       ? {
@@ -204,285 +200,308 @@ export default function AdminOfferDetail() {
       <div className="min-h-screen bg-[#f5f4f0] lg:pl-64">
         <Header />
 
-        <main className="px-4 py-6 lg:px-8">
-          <div className="mx-auto max-w-6xl space-y-5">
-            {/* Titelrad */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h1 className="text-xl font-semibold text-[#194C66]">
-                  Besvara offert{titleSuffix}
-                </h1>
-                {offer?.status && (
-                  <p className="text-sm text-slate-600">
-                    Status: <span className="font-medium">{offer.status}</span>
-                  </p>
-                )}
-              </div>
+        <main className="p-6 space-y-6">
+          {/* Titelrad – samma stil som Skapa offert */}
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-semibold text-[#194C66]">
+              Besvara offert
+              <span className="text-[#194C66]/60 font-normal">
+                {titleSuffix}
+              </span>
+            </h1>
 
-              {offer && (
-                <button
-                  onClick={createBookingFromOffer}
-                  disabled={creating}
-                  className={`px-4 py-2 rounded-full text-sm font-medium text-white ${
-                    creating ? "bg-gray-400 cursor-not-allowed" : "bg-[#194C66]"
-                  }`}
-                >
-                  {creating ? "Skapar…" : "Skapa bokning"}
-                </button>
-              )}
-            </div>
-
-            {/* Fel / laddning */}
-            {loading && (
-              <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-                Laddar offert…
-              </div>
-            )}
-
-            {!loading && error && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                Fel: {error}
-              </div>
-            )}
-
-            {!loading && !error && !offer && (
-              <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-                Ingen offert hittades.
-              </div>
-            )}
-
-            {!loading && offer && (
-              <>
-                {/* Översta infokorten – liknande stil som skapa offert */}
-                <div className="grid gap-4 md:grid-cols-2">
-                  {/* Offert-info */}
-                  <section className="rounded-xl bg-white p-5 shadow-sm">
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-[#194C66]/70">
-                      Offert
-                    </h2>
-                    <dl className="mt-3 space-y-1 text-sm text-[#194C66]">
-                      <div className="flex gap-2">
-                        <dt className="w-32 font-medium">Offert-ID:</dt>
-                        <dd>{offer.offer_number || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-32 font-medium">Typ av resa:</dt>
-                        <dd>{offer.trip_kind || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-32 font-medium">Passagerare:</dt>
-                        <dd>{offer.passengers ?? "—"}</dd>
-                      </div>
-                    </dl>
-                  </section>
-
-                  {/* Kund-info */}
-                  <section className="rounded-xl bg-white p-5 shadow-sm">
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-[#194C66]/70">
-                      Kund
-                    </h2>
-                    <dl className="mt-3 space-y-1 text-sm text-[#194C66]">
-                      <div className="flex gap-2">
-                        <dt className="w-40 font-medium">Kontakt:</dt>
-                        <dd>{offer.customer_reference || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-40 font-medium">E-post:</dt>
-                        <dd>{offer.contact_email || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-40 font-medium">Telefon:</dt>
-                        <dd>{offer.contact_phone || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-40 font-medium">
-                          Företag / förening:
-                        </dt>
-                        <dd>{offer.company_name || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-40 font-medium">Ref / PO-nummer:</dt>
-                        <dd>{offer.po_reference || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-40 font-medium">
-                          Organisationsnummer:
-                        </dt>
-                        <dd>{offer.org_number || "—"}</dd>
-                      </div>
-                    </dl>
-                  </section>
-                </div>
-
-                {/* Reseinfo + plats/logistik */}
-                <div className="grid gap-4 md:grid-cols-2">
-                  {/* Reseinformation */}
-                  <section className="rounded-xl bg-white p-5 shadow-sm">
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-[#194C66]/70">
-                      Reseinformation
-                    </h2>
-                    <dl className="mt-3 space-y-1 text-sm text-[#194C66]">
-                      <div className="flex gap-2">
-                        <dt className="w-32 font-medium">Från:</dt>
-                        <dd>{offer.departure_place || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-32 font-medium">Till:</dt>
-                        <dd>{offer.destination || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-32 font-medium">Slutmål:</dt>
-                        <dd>{offer.final_destination || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-32 font-medium">Datum:</dt>
-                        <dd>{offer.departure_date || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-32 font-medium">Tid:</dt>
-                        <dd>{offer.departure_time || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-32 font-medium">Via / stopp:</dt>
-                        <dd>{offer.stopover_places || offer.extra_stops || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-32 font-medium">Kontakt ombord:</dt>
-                        <dd>{offer.onboard_contact || "—"}</dd>
-                      </div>
-                    </dl>
-                  </section>
-
-                  {/* Plats & logistik */}
-                  <section className="rounded-xl bg-white p-5 shadow-sm">
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-[#194C66]/70">
-                      Plats & logistik
-                    </h2>
-                    <dl className="mt-3 space-y-1 text-sm text-[#194C66]">
-                      <div className="flex gap-2">
-                        <dt className="w-44 font-medium">
-                          Behöver ni bussen på plats?
-                        </dt>
-                        <dd>{offer.need_bus_on_site || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-44 font-medium">Notis på plats:</dt>
-                        <dd>{offer.site_notes || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-44 font-medium">
-                          Basplats på destinationen:
-                        </dt>
-                        <dd>{offer.base_at_destination || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-44 font-medium">
-                          Sista dagen (på plats):
-                        </dt>
-                        <dd>{offer.last_day_on_site || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-44 font-medium">Sluttid:</dt>
-                        <dd>{offer.end_time || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-44 font-medium">Lokala körningar:</dt>
-                        <dd>{offer.local_runs || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-44 font-medium">
-                          Väntetid / standby (timmar):
-                        </dt>
-                        <dd>{offer.standby_hours || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-44 font-medium">
-                          Parkering & tillstånd:
-                        </dt>
-                        <dd>{offer.parking || "—"}</dd>
-                      </div>
-                    </dl>
-                  </section>
-                </div>
-
-                {/* Returinfo */}
-                {hasReturn && (
-                  <section className="rounded-xl bg-white p-5 shadow-sm">
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-[#194C66]/70">
-                      Retur
-                    </h2>
-                    <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm text-[#194C66] md:grid-cols-2">
-                      <div className="flex gap-2">
-                        <dt className="w-28 font-medium">Från:</dt>
-                        <dd>{offer.return_departure || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-28 font-medium">Till:</dt>
-                        <dd>{offer.return_destination || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-28 font-medium">Datum:</dt>
-                        <dd>{offer.return_date || "—"}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-28 font-medium">Tid:</dt>
-                        <dd>{offer.return_time || "—"}</dd>
-                      </div>
-                    </dl>
-                  </section>
-                )}
-
-                {/* Övrig info */}
-                <div className="grid gap-4 md:grid-cols-2">
-                  <section className="rounded-xl bg-white p-5 shadow-sm">
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-[#194C66]/70">
-                      Övrig information
-                    </h2>
-                    <p className="mt-3 whitespace-pre-wrap text-sm text-[#194C66]">
-                      {offer.notes || "Ingen information."}
-                    </p>
-                  </section>
-
-                  <section className="rounded-xl bg-white p-5 shadow-sm">
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-[#194C66]/70">
-                      Mer om resplanen
-                    </h2>
-                    <p className="mt-3 whitespace-pre-wrap text-sm text-[#194C66]">
-                      {offer.more_trip_info || "—"}
-                    </p>
-                  </section>
-                </div>
-
-                {/* Kalkyl – hela kortet liknar “Skapa offert” */}
-                <section className="rounded-xl bg-white p-5 shadow-sm">
-                  <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-                    <div>
-                      <h2 className="text-base font-semibold text-[#194C66]">
-                        Kalkyl & prisförslag
-                      </h2>
-                      <p className="text-sm text-slate-600">
-                        Räkna fram pris, spara utkast och skicka prisförslag
-                        direkt till kunden.
-                      </p>
-                    </div>
-                  </div>
-
-                  {calculatorProps ? (
-                    <OfferCalculator
-                      offerId={calculatorProps.offerId}
-                      offerNumber={calculatorProps.offerNumber}
-                      customerEmail={calculatorProps.customerEmail}
-                    />
-                  ) : (
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                      Kunde inte hitta kundens e-postadress. Fyll i e-post på
-                      offerten innan du skickar prisförslag.
-                    </div>
-                  )}
-                </section>
-              </>
+            {offer && (
+              <button
+                onClick={createBookingFromOffer}
+                disabled={creating}
+                className={`px-4 py-2 rounded-[25px] text-sm text-white ${
+                  creating
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-[#111827] hover:bg-black"
+                }`}
+              >
+                {creating ? "Skapar…" : "Skapa bokning"}
+              </button>
             )}
           </div>
+
+          {/* Felmeddelanden / laddning */}
+          {loading && (
+            <div className="rounded-lg bg-white shadow p-4 text-sm text-[#194C66]">
+              Laddar offert…
+            </div>
+          )}
+
+          {!loading && error && (
+            <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 p-3 text-sm">
+              Fel: {error}
+            </div>
+          )}
+
+          {!loading && !error && !offer && (
+            <div className="rounded-lg bg-white shadow p-4 text-sm text-[#194C66]">
+              Ingen offert hittades.
+            </div>
+          )}
+
+          {!loading && offer && (
+            <>
+              {/* Övre rader – Offert / Kund / Reseinfo / Plats & logistik */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Offert – vänster kort */}
+                <section className="bg-white rounded-xl shadow p-4 space-y-2">
+                  <div className="mb-1">
+                    <span className="inline-block px-3 py-1 rounded-full bg-[#111827] text-white text-[11px]">
+                      Offert
+                    </span>
+                  </div>
+                  <div className="text-sm text-[#194C66] space-y-1">
+                    <div>
+                      <span className="font-semibold">Offert-ID:</span>{" "}
+                      {offer.offer_number || "—"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Status:</span>{" "}
+                      {offer.status || "inkommen"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Typ av resa:</span>{" "}
+                      {offer.trip_kind || (hasReturn ? "Tur & retur" : "Enkel")}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Passagerare:</span>{" "}
+                      {offer.passengers ?? "—"}
+                    </div>
+                  </div>
+                </section>
+
+                {/* Kund – höger kort uppe */}
+                <section className="bg-white rounded-xl shadow p-4 space-y-2 lg:col-span-2">
+                  <div className="mb-1">
+                    <span className="inline-block px-3 py-1 rounded-full bg-[#111827] text-white text-[11px]">
+                      Kund
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1 text-sm text-[#194C66]">
+                    <div>
+                      <div>
+                        <span className="font-semibold">Kontakt:</span>{" "}
+                        {offer.customer_reference || "—"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">E-post:</span>{" "}
+                        {offer.contact_email || "—"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Telefon:</span>{" "}
+                        {offer.contact_phone || "—"}
+                      </div>
+                    </div>
+                    <div>
+                      <div>
+                        <span className="font-semibold">
+                          Företag / förening:
+                        </span>{" "}
+                        {offer.company_name || "—"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Ref / PO-nummer:</span>{" "}
+                        {offer.po_reference || "—"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">
+                          Organisationsnummer:
+                        </span>{" "}
+                        {offer.org_number || "—"}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              {/* Reseinfo + plats & logistik */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Reseinformation */}
+                <section className="bg-white rounded-xl shadow p-4 space-y-2">
+                  <div className="mb-1">
+                    <span className="inline-block px-3 py-1 rounded-full bg-[#111827] text-white text-[11px]">
+                      Reseinformation
+                    </span>
+                  </div>
+                  <div className="text-sm text-[#194C66] space-y-1">
+                    <div>
+                      <span className="font-semibold">Från:</span>{" "}
+                      {offer.departure_place || "—"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Till:</span>{" "}
+                      {offer.destination || "—"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Slutmål:</span>{" "}
+                      {offer.final_destination || "—"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Datum:</span>{" "}
+                      {offer.departure_date || "—"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Tid:</span>{" "}
+                      {offer.departure_time || "—"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Via / stopp:</span>{" "}
+                      {offer.stopover_places || offer.extra_stops || "—"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Kontakt ombord:</span>{" "}
+                      {offer.onboard_contact || "—"}
+                    </div>
+                  </div>
+                </section>
+
+                {/* Plats & logistik */}
+                <section className="bg-white rounded-xl shadow p-4 space-y-2">
+                  <div className="mb-1">
+                    <span className="inline-block px-3 py-1 rounded-full bg-[#111827] text-white text-[11px]">
+                      Plats & logistik
+                    </span>
+                  </div>
+                  <div className="text-sm text-[#194C66] space-y-1">
+                    <div>
+                      <span className="font-semibold">
+                        Behöver ni bussen på plats?
+                      </span>{" "}
+                      {offer.need_bus_on_site || "—"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Notis på plats:</span>{" "}
+                      {offer.site_notes || "—"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">
+                        Basplats på destinationen:
+                      </span>{" "}
+                      {offer.base_at_destination || "—"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">
+                        Sista dagen (på plats):
+                      </span>{" "}
+                      {offer.last_day_on_site || "—"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Sluttid:</span>{" "}
+                      {offer.end_time || "—"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Lokala körningar:</span>{" "}
+                      {offer.local_runs || "—"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">
+                        Väntetid / standby (timmar):
+                      </span>{" "}
+                      {offer.standby_hours || "—"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">
+                        Parkering & tillstånd:
+                      </span>{" "}
+                      {offer.parking || "—"}
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              {/* Returinfo + övrigt */}
+              {hasReturn && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Retur */}
+                  <section className="bg-white rounded-xl shadow p-4 space-y-2">
+                    <div className="mb-1">
+                      <span className="inline-block px-3 py-1 rounded-full bg-[#111827] text-white text-[11px]">
+                        Retur
+                      </span>
+                    </div>
+                    <div className="text-sm text-[#194C66] space-y-1">
+                      <div>
+                        <span className="font-semibold">Från:</span>{" "}
+                        {offer.return_departure || "—"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Till:</span>{" "}
+                        {offer.return_destination || "—"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Datum:</span>{" "}
+                        {offer.return_date || "—"}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Tid:</span>{" "}
+                        {offer.return_time || "—"}
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Extra card för spacing eller annan info */}
+                  <section className="bg-white rounded-xl shadow p-4 space-y-2">
+                    <div className="mb-1">
+                      <span className="inline-block px-3 py-1 rounded-full bg-[#111827] text-white text-[11px]">
+                        Mer om resplanen
+                      </span>
+                    </div>
+                    <div className="text-sm text-[#194C66] whitespace-pre-wrap">
+                      {offer.more_trip_info || "—"}
+                    </div>
+                  </section>
+                </div>
+              )}
+
+              {/* Övrig information */}
+              <section className="bg-white rounded-xl shadow p-4">
+                <div className="mb-1">
+                  <span className="inline-block px-3 py-1 rounded-full bg-[#111827] text-white text-[11px]">
+                    Övrig information
+                  </span>
+                </div>
+                <div className="text-sm text-[#194C66] whitespace-pre-wrap">
+                  {offer.notes || "Ingen information."}
+                </div>
+              </section>
+
+              {/* Kalkyl & prisförslag – ny, mer designad box */}
+              <section className="bg-white rounded-xl shadow p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="mb-1">
+                      <span className="inline-block px-3 py-1 rounded-full bg-[#111827] text-white text-[11px]">
+                        Kalkyl & prisförslag
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#194C66]/70 max-w-xl">
+                      Räkna fram pris, spara som utkast eller skicka ett färdigt
+                      prisförslag direkt till kunden. Uppgifterna nedan
+                      sparas på offerten och används även i offertsidan som
+                      kunden ser.
+                    </p>
+                  </div>
+                </div>
+
+                {calculatorProps ? (
+                  <OfferCalculator
+                    offerId={calculatorProps.offerId}
+                    offerNumber={calculatorProps.offerNumber}
+                    customerEmail={calculatorProps.customerEmail}
+                  />
+                ) : (
+                  <div className="text-sm text-[#194C66]/70">
+                    Saknar kundens e-postadress – komplettera offerten först.
+                  </div>
+                )}
+              </section>
+            </>
+          )}
         </main>
       </div>
     </>

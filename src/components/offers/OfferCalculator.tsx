@@ -3,9 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 
 /** Props som krävs för att kunna skicka */
 type Props = {
-  offerId: string;       // t.ex. "4b6acc7f-..." (UUID i offers.id)
-  offerNumber: string;   // t.ex. "HB25007"
-  customerEmail: string; // kundens e-post
+  offerId: string;        // t.ex. "4b6acc7f-..." (UUID i offers.id)
+  offerNumber: string;    // t.ex. "HB25007"
+  customerEmail: string;  // kundens e-post
 };
 
 function sek(n: number) {
@@ -13,6 +13,7 @@ function sek(n: number) {
 }
 
 type LegInput = { km: number; hDay: number; hEve: number; hWknd: number };
+type TripDomain = "se" | "foreign"; // se = Sverige, foreign = utomlands
 
 export default function OfferCalculator({
   offerId,
@@ -26,11 +27,9 @@ export default function OfferCalculator({
   const [hourWknd, setHourWknd] = useState<number>(395);
   const [serviceFee, setServiceFee] = useState<number>(1800);
   const [includeServiceFee, setIncludeServiceFee] = useState<boolean>(true);
-  const [serviceFeeMode, setServiceFeeMode] = useState<"once" | "perLeg">(
-    "once"
-  );
+  const [serviceFeeMode, setServiceFeeMode] = useState<"once" | "perLeg">("once");
 
-  // Moms + intern notering
+  // Moms + anteckning
   const [vatRate, setVatRate] = useState<number>(0.06);
   const [note, setNote] = useState<string>("");
 
@@ -49,13 +48,17 @@ export default function OfferCalculator({
     hWknd: 0,
   });
 
+  // Markering Sverige / utomlands per ben (påverkar inte momssiffror än)
+  const [leg1Domain, setLeg1Domain] = useState<TripDomain>("se");
+  const [leg2Domain, setLeg2Domain] = useState<TripDomain>("se");
+
+  // Debug
   useEffect(() => {
-    // bra vid felsökning
     // eslint-disable-next-line no-console
     console.log("[OfferCalculator] props", { offerId, offerNumber, customerEmail });
   }, [offerId, offerNumber, customerEmail]);
 
-  // Kostnad per ben
+  // Kostnadsfunktion per ben
   const legCost = (L: LegInput) => {
     const base =
       L.km * kmPrice +
@@ -69,11 +72,14 @@ export default function OfferCalculator({
 
   // Beräkningar
   const exLeg1 = useMemo(
-    () => legCost(leg1),
+    () =>
+      legCost(leg1),
     [leg1, kmPrice, hourDay, hourEve, hourWknd, includeServiceFee, serviceFeeMode, serviceFee]
   );
+
   const exLeg2 = useMemo(
-    () => (includeReturn ? legCost(leg2) : 0),
+    () =>
+      includeReturn ? legCost(leg2) : 0,
     [includeReturn, leg2, kmPrice, hourDay, hourEve, hourWknd, includeServiceFee, serviceFeeMode, serviceFee]
   );
 
@@ -84,10 +90,12 @@ export default function OfferCalculator({
     () => exLeg1 + exLeg2 + extraOnceFee,
     [exLeg1, exLeg2, extraOnceFee]
   );
+
   const vat = useMemo(
     () => Math.round(exVat * vatRate * 100) / 100,
     [exVat, vatRate]
   );
+
   const total = useMemo(() => exVat + vat, [exVat, vat]);
 
   const canSend = Boolean(offerId && offerNumber && customerEmail);
@@ -95,12 +103,13 @@ export default function OfferCalculator({
   function copyLeg1ToLeg2() {
     setLeg2(leg1);
     setIncludeReturn(true);
+    setLeg2Domain(leg1Domain);
   }
 
-  async function saveDraft() {
-    if (!offerId) return;
+  /* ============= API-hjälpare ============= */
 
-    const input = {
+  function buildInputPayload() {
+    return {
       pricing: {
         kmPrice,
         hourDay,
@@ -111,16 +120,27 @@ export default function OfferCalculator({
         serviceFeeMode,
         vatRate,
       },
-      leg1,
-      leg2: includeReturn ? leg2 : null,
+      leg1: {
+        ...leg1,
+        domain: leg1Domain, // Sverige / utland
+      },
+      leg2: includeReturn
+        ? {
+            ...leg2,
+            domain: leg2Domain,
+          }
+        : null,
       note,
     };
+  }
 
+  function buildBreakdown() {
+    const leg1Vat = Math.round(exLeg1 * vatRate * 100) / 100;
     const legs = [
       {
         subtotExVat: exLeg1,
-        vat: Math.round(exLeg1 * vatRate * 100) / 100,
-        total: exLeg1 + Math.round(exLeg1 * vatRate * 100) / 100,
+        vat: leg1Vat,
+        total: exLeg1 + leg1Vat,
       },
     ] as { subtotExVat: number; vat: number; total: number }[];
 
@@ -129,13 +149,20 @@ export default function OfferCalculator({
       legs.push({ subtotExVat: exLeg2, vat: v2, total: exLeg2 + v2 });
     }
 
-    const breakdown = {
+    return {
       grandExVat: exVat,
       grandVat: vat,
       grandTotal: total,
       serviceFeeExVat: includeServiceFee ? serviceFee : 0,
       legs,
     };
+  }
+
+  async function saveDraft() {
+    if (!offerId) return;
+
+    const input = buildInputPayload();
+    const breakdown = buildBreakdown();
 
     const res = await fetch(`/api/offers/${offerId}/quote`, {
       method: "POST",
@@ -156,44 +183,10 @@ export default function OfferCalculator({
       return;
     }
 
-    const input = {
-      pricing: {
-        kmPrice,
-        hourDay,
-        hourEve,
-        hourWknd,
-        serviceFee,
-        includeServiceFee,
-        serviceFeeMode,
-        vatRate,
-      },
-      leg1,
-      leg2: includeReturn ? leg2 : null,
-      note,
-    };
+    const input = buildInputPayload();
+    const breakdown = buildBreakdown();
 
-    const legs = [
-      {
-        subtotExVat: exLeg1,
-        vat: Math.round(exLeg1 * vatRate * 100) / 100,
-        total: exLeg1 + Math.round(exLeg1 * vatRate * 100) / 100,
-      },
-    ] as { subtotExVat: number; vat: number; total: number }[];
-
-    if (includeReturn) {
-      const v2 = Math.round(exLeg2 * vatRate * 100) / 100;
-      legs.push({ subtotExVat: exLeg2, vat: v2, total: exLeg2 + v2 });
-    }
-
-    const breakdown = {
-      grandExVat: exVat,
-      grandVat: vat,
-      grandTotal: total,
-      serviceFeeExVat: includeServiceFee ? serviceFee : 0,
-      legs,
-    };
-
-    // 1) Uppdatera offerten
+    // 1) Uppdatera offerten med kalkylen + markera skickad
     {
       const res = await fetch(`/api/offers/${offerId}/quote`, {
         method: "POST",
@@ -207,7 +200,7 @@ export default function OfferCalculator({
       }
     }
 
-    // 2) Skicka mail till kund
+    // 2) Skicka mail
     {
       const res = await fetch(`/api/offers/send-proposal`, {
         method: "POST",
@@ -227,7 +220,7 @@ export default function OfferCalculator({
             serviceFeeMode,
             vatRate,
           },
-          input: { leg1, leg2: includeReturn ? leg2 : null, note },
+          input,
         }),
       });
       if (!res.ok) {
@@ -240,10 +233,12 @@ export default function OfferCalculator({
     alert("Prisförslag skickat ✅");
   }
 
+  /* ============= RENDER ============= */
+
   return (
-    <div className="space-y-5">
-      {/* Översta raden: prisinställningar */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+    <div className="space-y-4">
+      {/* Rad 1 – grundpriser */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
         <LabeledNumber
           label="Kilometerpris (kr/km)"
           value={kmPrice}
@@ -271,6 +266,7 @@ export default function OfferCalculator({
         />
       </div>
 
+      {/* Rad 2 – toggles */}
       <div className="flex flex-wrap items-center gap-3 text-sm text-[#194C66]">
         <label className="inline-flex items-center gap-2">
           <input
@@ -284,7 +280,7 @@ export default function OfferCalculator({
         <label className="inline-flex items-center gap-2">
           Lägg på:
           <select
-            className="rounded border px-2 py-1"
+            className="border rounded px-2 py-1"
             value={serviceFeeMode}
             onChange={(e) =>
               setServiceFeeMode(e.target.value as "once" | "perLeg")
@@ -296,10 +292,10 @@ export default function OfferCalculator({
           </select>
         </label>
 
-        <div className="ml-4 flex items-center gap-2">
-          Moms:
+        <div className="ml-0 md:ml-4 flex items-center gap-2">
+          <span>Moms:</span>
           <select
-            className="rounded border px-2 py-1"
+            className="border rounded px-2 py-1"
             value={vatRate}
             onChange={(e) => setVatRate(parseFloat(e.target.value))}
           >
@@ -308,7 +304,7 @@ export default function OfferCalculator({
           </select>
         </div>
 
-        <label className="ml-6 inline-flex items-center gap-2">
+        <label className="inline-flex items-center gap-2 md:ml-6">
           <input
             type="checkbox"
             checked={includeReturn}
@@ -320,21 +316,23 @@ export default function OfferCalculator({
         <button
           type="button"
           onClick={copyLeg1ToLeg2}
-          className="rounded border px-3 py-1 text-sm"
+          className="px-3 py-1 rounded border text-sm bg-white hover:bg-[#f3f4f6]"
           title="Kopiera tider/km från utresan till returen"
         >
           Kopiera utresa → retur
         </button>
       </div>
 
-      {/* Inmatning per ben */}
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Ben-kort */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <LegCard
           title="Utresa"
           value={leg1}
           onChange={setLeg1}
           exVat={exLeg1}
           vat={Math.round(exLeg1 * vatRate * 100) / 100}
+          domain={leg1Domain}
+          onDomainChange={setLeg1Domain}
         />
         {includeReturn && (
           <LegCard
@@ -343,6 +341,8 @@ export default function OfferCalculator({
             onChange={setLeg2}
             exVat={exLeg2}
             vat={Math.round(exLeg2 * vatRate * 100) / 100}
+            domain={leg2Domain}
+            onDomainChange={setLeg2Domain}
           />
         )}
       </div>
@@ -355,20 +355,21 @@ export default function OfferCalculator({
         </div>
       )}
 
+      {/* Intern anteckning */}
       <div>
-        <label className="mb-1 block text-sm text-[#194C66]/80">
+        <label className="block text-sm text-[#194C66]/80 mb-1">
           Intern anteckning (valfritt)
         </label>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="w-full rounded border px-2 py-2 text-sm"
+          className="w-full border rounded px-2 py-2 text-sm min-h-[70px]"
           placeholder='T.ex. "Önskar toalett ombord" eller annan notering för prisförslaget'
         />
       </div>
 
       {/* Summering */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <KPI label="Pris exkl. moms" value={exVat} />
         <KPI label="Moms" value={vat} />
         <KPI label="Totalsumma" value={total} />
@@ -378,7 +379,7 @@ export default function OfferCalculator({
       <div className="mt-3 flex flex-wrap gap-3">
         <button
           onClick={saveDraft}
-          className="rounded-full bg-[#E5EEF3] px-4 py-2 text-sm font-medium text-[#194C66]"
+          className="px-4 py-2 rounded-[25px] bg-[#E5EEF3] text-[#194C66] text-sm font-medium hover:bg-[#d7e4ee]"
         >
           Spara utkast
         </button>
@@ -386,12 +387,16 @@ export default function OfferCalculator({
         <button
           onClick={sendProposal}
           disabled={!canSend}
-          className={`rounded-full px-4 py-2 text-sm font-medium ${
+          className={`px-4 py-2 rounded-[25px] text-sm font-medium ${
             canSend
-              ? "bg-[#194C66] text-white"
-              : "cursor-not-allowed bg-gray-300 text-gray-600"
+              ? "bg-[#111827] text-white hover:bg-black"
+              : "bg-gray-300 text-gray-600 cursor-not-allowed"
           }`}
-          title={canSend ? "" : "Offert-ID, nummer och e-post måste finnas"}
+          title={
+            canSend
+              ? ""
+              : "Offert-ID, nummer och e-post måste finnas"
+          }
         >
           Skicka prisförslag
         </button>
@@ -399,6 +404,8 @@ export default function OfferCalculator({
     </div>
   );
 }
+
+/* ====== Små komponenter ====== */
 
 function LabeledNumber({
   label,
@@ -411,13 +418,13 @@ function LabeledNumber({
 }) {
   return (
     <label className="text-sm text-[#194C66]/80">
-      <span className="mb-1 block">{label}</span>
+      <span className="block mb-1">{label}</span>
       <input
         type="number"
         step="1"
         value={Number.isFinite(value) ? value : 0}
         onChange={(e) => onChange(Number(e.target.value) || 0)}
-        className="w-full rounded border px-2 py-1"
+        className="w-full border rounded px-2 py-1 text-sm"
       />
     </label>
   );
@@ -425,7 +432,7 @@ function LabeledNumber({
 
 function KPI({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg bg-[#f9fafb] p-3">
+    <div className="bg-[#f9fafb] rounded-lg p-3">
       <div className="text-xs text-[#194C66]/70">{label}</div>
       <div className="text-lg font-semibold text-[#194C66]">
         {sek(value)}
@@ -440,19 +447,37 @@ function LegCard({
   onChange,
   exVat,
   vat,
+  domain,
+  onDomainChange,
 }: {
   title: string;
   value: LegInput;
   onChange: (v: LegInput) => void;
   exVat: number;
   vat: number;
+  domain: TripDomain;
+  onDomainChange: (d: TripDomain) => void;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 p-4">
-      <div className="mb-2 text-base font-semibold text-[#194C66]">
-        {title}
+    <div className="border rounded-lg p-3 bg-[#f9fafb]">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-[#194C66] font-semibold">{title}</div>
+        <div className="flex items-center gap-2 text-xs text-[#194C66]/80">
+          <span>Resa:</span>
+          <select
+            className="border rounded px-2 py-1"
+            value={domain}
+            onChange={(e) =>
+              onDomainChange(e.target.value as TripDomain)
+            }
+          >
+            <option value="se">Bussresa inom Sverige</option>
+            <option value="foreign">Bussresa utomlands</option>
+          </select>
+        </div>
       </div>
-      <div className="grid gap-3 md:grid-cols-4">
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <LabeledNumber
           label="Kilometer"
           value={value.km}
@@ -474,6 +499,7 @@ function LegCard({
           onChange={(v) => onChange({ ...value, hWknd: v })}
         />
       </div>
+
       <div className="mt-3 grid grid-cols-3 gap-3">
         <KPI label="Ben exkl. moms" value={exVat} />
         <KPI label="Moms (ben)" value={vat} />
