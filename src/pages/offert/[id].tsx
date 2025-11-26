@@ -21,14 +21,18 @@ type OfferRow = {
   offer_date?: string | null;
   created_at?: string | null;
 
+  // *** NYA PRISFÄLT ***
+  amount_ex_vat?: number | null;
+  vat_amount?: number | null;
+  total_amount?: number | null;
+  vat_breakdown?: any | null;
+
   // kunduppgifter / referenser
   contact_person?: string | null;
   customer_email?: string | null;
   customer_phone?: string | null;
   customer_reference?: string | null;   // Er referens
   internal_reference?: string | null;   // Vår referens
-  customer_address?: string | null;     // NYTT – används i OfferBesvarad
-  customer_number?: string | null;      // NYTT – kundnummer i topbar
 
   // resa
   departure_place?: string | null;
@@ -44,17 +48,6 @@ type OfferRow = {
   return_destination?: string | null;
   return_date?: string | null;
   return_time?: string | null;
-
-  // pris / kalkyl (NYTT)
-  amount_ex_vat?: number | null;
-  vat_amount?: number | null;
-  total_amount?: number | null;
-  vat_breakdown?: any | null;
-
-  // typ av resa (NYTT – används i OfferBesvarad)
-  trip_type?: string | null;    // sverige / utrikes etc
-  round_trip?: boolean | null;  // om du har detta fält i tabellen
-
   notes?: string | null;
 
   // kundens godkännande
@@ -223,7 +216,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   }
 
   // Här släpper vi nu igenom ÄVEN när det inte finns token alls
-  const { data, error } = await supabase
+   const { data, error } = await supabase
     .from("offers")
     .select(
       [
@@ -234,6 +227,12 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         // datum
         "offer_date",
         "created_at",
+
+        // *** PRISFÄLT ***
+        "amount_ex_vat",
+        "vat_amount",
+        "total_amount",
+        "vat_breakdown",
 
         // kunduppgifter / referenser
         "contact_person",
