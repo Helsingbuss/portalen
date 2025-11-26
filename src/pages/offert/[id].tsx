@@ -27,6 +27,8 @@ type OfferRow = {
   customer_phone?: string | null;
   customer_reference?: string | null;   // Er referens
   internal_reference?: string | null;   // Vår referens
+  customer_address?: string | null;     // NYTT – används i OfferBesvarad
+  customer_number?: string | null;      // NYTT – kundnummer i topbar
 
   // resa
   departure_place?: string | null;
@@ -42,6 +44,16 @@ type OfferRow = {
   return_destination?: string | null;
   return_date?: string | null;
   return_time?: string | null;
+
+  // pris / kalkyl (NYTT)
+  amount_ex_vat?: number | null;
+  vat_amount?: number | null;
+  total_amount?: number | null;
+  vat_breakdown?: any | null;
+
+  // typ av resa (NYTT – används i OfferBesvarad)
+  trip_type?: string | null;    // sverige / utrikes etc
+  round_trip?: boolean | null;  // om du har detta fält i tabellen
 
   notes?: string | null;
 
@@ -202,7 +214,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
 
   const { data, error } = await supabase
     .from("offers")
-    .select(
+     .select(
       [
         "id",
         "offer_number",
@@ -218,6 +230,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         "customer_phone",
         "customer_reference",
         "internal_reference",
+        "customer_address",
+        "customer_number",
 
         // resa
         "departure_place",
@@ -233,6 +247,16 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         "return_destination",
         "return_date",
         "return_time",
+
+        // pris & kalkyl
+        "amount_ex_vat",
+        "vat_amount",
+        "total_amount",
+        "vat_breakdown",
+
+        // typ av resa
+        "trip_type",
+        "round_trip",
 
         "notes",
 

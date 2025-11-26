@@ -1,6 +1,6 @@
 // src/pages/api/offers/[id]/quote.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import supabase from "@/lib/supabaseAdmin";          // <-- BYTT till admin-klient
+import supabase from "@/lib/supabaseAdmin";
 import { sendOfferMail } from "@/lib/sendMail";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -26,8 +26,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const idOrNumber = String(id);
 
   try {
-    // 1) Hämta offerten (matcha både på id och offer_number – samma som i /api/offers/[id])
-    const { data: offer, error: fetchErr } = await supabase
+    // ----- 1. Hämta offerten -----
+    // HBxxxx => sök på offer_number, annars på id (UUID)
+    let query = supabase
       .from("offers")
       .select(
         `
@@ -41,19 +42,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           departure_date,
           departure_time,
           passengers,
-          pax,
           status
         `
-      )
-      .or(`id.eq.${idOrNumber},offer_number.eq.${idOrNumber}`)
-      .maybeSingle();
+      );
+
+    if (idOrNumber.startsWith("HB")) {
+      query = query.eq("offer_number", idOrNumber);
+    } else {
+      query = query.eq("id", idOrNumber);
+    }
+
+    const { data: offer, error: fetchErr } = await query.maybeSingle();
 
     if (fetchErr || !offer) {
-      console.error("quote.ts – fetch error:", fetchErr);
+      console.error("quote.ts – fetch error:", fetchErr, "idOrNumber:", idOrNumber);
       return res.status(404).json({ error: "Offert hittades inte" });
     }
 
-    // 2) Spara kalkyl / totals / metadata
+    // ----- 2. Spara kalkyl / totalsummor -----
     const patch: any = {
       amount_ex_vat: breakdown?.grandExVat ?? null,
       vat_amount: breakdown?.grandVat ?? null,
@@ -64,7 +70,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
 
     if (mode === "send") {
-      // Markera som besvarad när vi skickar prisförslag
       patch.status = "besvarad";
       patch.sent_at = new Date().toISOString();
     }
@@ -72,14 +77,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { error: updErr } = await supabase
       .from("offers")
       .update(patch)
-      .eq("id", offer.id); // använd det faktiska id:t vi hittade
+      .eq("id", offer.id);
 
     if (updErr) {
       console.error("quote.ts – update error:", updErr);
       throw updErr;
     }
 
-    // 3) Skicka mail endast när vi skickar prisförslag
+    // ----- 3. Skicka mail när prisförslag skickas -----
     if (mode === "send" && offer.offer_number) {
       try {
         const customerEmail: string | undefined =
@@ -88,11 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           undefined;
 
         const passengers =
-          typeof offer.passengers === "number"
-            ? offer.passengers
-            : typeof offer.pax === "number"
-            ? offer.pax
-            : undefined;
+          typeof offer.passengers === "number" ? offer.passengers : undefined;
 
         await sendOfferMail({
           offerId: String(offer.id),
@@ -108,7 +109,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       } catch (mailErr) {
         console.error("sendOfferMail failed:", mailErr);
-        // Ignorera mailfel – kalkylen är ändå sparad
+        // Kalkylen är sparad ändå
       }
     }
 
