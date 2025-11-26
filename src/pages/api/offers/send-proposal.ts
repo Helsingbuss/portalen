@@ -44,44 +44,62 @@ function isOfferRow(d: any): d is OfferRow {
 const U = <T extends string | number | null | undefined>(v: T) =>
   v == null ? undefined : (v as Exclude<T, null>);
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  try {
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method not allowed" });
-    }
+// Kolla om strängen ser ut som en UUID
+function looksLikeUuid(v: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    v
+  );
+}
 
-    // Body kan t.ex. komma från kalkylatorn i admin
-    const input = (req.body || {}) as {
-      offer_id?: string;
-      offerId?: string;
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  try {
+    if (req.method !== "POST")
+      return res.status(405).json({ error: "Method not allowed" });
+
+    // Body kommer från OfferCalculator.sendProposal
+    const body = (req.body || {}) as {
+      offerId?: string; // kan vara UUID eller HB-nummer
       offerNumber?: string;
-      customerEmail?: string;
-      // fält som kan komma från formuläret (valfria):
+      totals?: {
+        exVat: number;
+        vat: number;
+        total: number;
+      };
+      pricing?: any;
+      input?: {
+        via?: string | null;
+        stop?: string | null;
+        note?: string | null;
+        leg1?: { domain?: string };
+        leg2?: { domain?: string } | null;
+      };
+      // extra fält om du vill mata in retur osv senare
       via?: string | null;
       stop?: string | null;
       notes?: string | null;
-      onboard_contact?: string | null; // vi lägger in i notes
+      onboard_contact?: string | null;
       return_departure?: string | null;
       return_destination?: string | null;
       return_date?: string | null;
       return_time?: string | null;
     };
 
-    // Stöd både gammalt offer_id och nytt offerId + ev. query.id
-    const idOrNumber = String(
-      input.offer_id ||
-        input.offerId ||
-        req.query.id ||
-        input.offerNumber ||
-        ""
-    );
+    // Vi accepterar både UUID och offertnummer
+    const idOrNoRaw =
+      (body.offerId || body.offerNumber || (req.query.id as string) || "")
+        .toString()
+        .trim();
 
-    if (!idOrNumber) {
-      return res.status(400).json({ error: "Saknar offert-id" });
-    }
+    if (!idOrNoRaw)
+      return res.status(400).json({ error: "Saknar offert-id/nummer" });
 
-    // Hämta offerten – matcha både på id OCH offer_number
-    const { data, error } = await supabase
+    const useUuid = looksLikeUuid(idOrNoRaw);
+
+    // Hämta offerten – välj rätt kolumn beroende på om det är UUID eller HB-nummer
+    let query = supabase
       .from("offers")
       .select(
         [
@@ -105,38 +123,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           "notes",
         ].join(",")
       )
-      .or(`id.eq.${idOrNumber},offer_number.eq.${idOrNumber}`)
-      .maybeSingle();
+      .limit(1);
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    if (useUuid) {
+      query = query.eq("id", idOrNoRaw);
+    } else {
+      query = query.eq("offer_number", idOrNoRaw);
     }
-    if (!isOfferRow(data)) {
+
+    const { data, error } = await query.single();
+
+    if (error) return res.status(500).json({ error: error.message });
+    if (!isOfferRow(data))
       return res
         .status(500)
         .json({ error: "Dataparsning misslyckades (OfferRow)" });
-    }
 
     const offer = data;
 
-    // Sätt status "besvarad" om inte redan (extra säkerhet, även om quote.ts gör detta)
+    // Sätt status "besvarad" om inte redan
     const current = String(offer.status ?? "").toLowerCase();
     if (current !== "besvarad") {
       const { error: uerr } = await supabase
         .from("offers")
         .update({ status: "besvarad" })
         .eq("id", offer.id);
-      if (uerr) {
-        return res.status(500).json({ error: uerr.message });
-      }
+      if (uerr) return res.status(500).json({ error: uerr.message });
       offer.status = "besvarad";
     }
 
     // Bygg notes där vi klistrar in "Kontakt ombord" + ev. telefonnummer
-    let outNotes = input.notes ?? offer.notes ?? null;
+    let outNotes = body.notes ?? offer.notes ?? null;
     const extras: string[] = [];
-    if (input.onboard_contact && String(input.onboard_contact).trim() !== "") {
-      extras.push(`Kontakt ombord: ${input.onboard_contact}`);
+    if (body.onboard_contact && String(body.onboard_contact).trim() !== "") {
+      extras.push(`Kontakt ombord: ${body.onboard_contact}`);
     }
     if (offer.customer_phone && String(offer.customer_phone).trim() !== "") {
       extras.push(`Telefon: ${offer.customer_phone}`);
@@ -147,33 +167,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .join("\n");
     }
 
-    // Tillåt att via/stop/retur-fält kan matas in i POST:en för att maila korrekt info
-    const viaOut = input.via ?? offer.via ?? null;
-    const stopOut = input.stop ?? offer.stop ?? null;
+    // via/stop/retur för mailet – ta från body om de finns, annars från offerten
+    const viaOut = body.via ?? body.input?.via ?? offer.via ?? null;
+    const stopOut = body.stop ?? body.input?.stop ?? offer.stop ?? null;
 
-    const retFrom = input.return_departure ?? offer.return_departure ?? null;
+    const retFrom =
+      body.return_departure ?? offer.return_departure ?? null;
     const retTo =
-      input.return_destination ?? offer.return_destination ?? null;
-    const retDate = input.return_date ?? offer.return_date ?? null;
-    const retTime = input.return_time ?? offer.return_time ?? null;
-
-    // Bestäm vilken e-postadress vi ska använda:
-    const emailFromBody =
-      typeof input.customerEmail === "string" && input.customerEmail.trim()
-        ? input.customerEmail.trim()
-        : undefined;
-
-    const emailToUse =
-      emailFromBody ||
-      (offer.customer_email && offer.customer_email.trim()) ||
-      undefined;
+      body.return_destination ?? offer.return_destination ?? null;
+    const retDate = body.return_date ?? offer.return_date ?? null;
+    const retTime = body.return_time ?? offer.return_time ?? null;
 
     // Skicka “besvarad”-mail
     await sendOfferMail({
       offerId: String(offer.id),
       offerNumber: String(offer.offer_number),
 
-      customerEmail: emailToUse,
+      customerEmail: U(offer.customer_email),
       customerName: U(offer.contact_person),
 
       from: U(offer.departure_place),
@@ -191,13 +201,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return_time: U(retTime),
 
       notes: U(outNotes),
+      // du kan även skicka med totals/pricing/body.input om din mall använder det
     });
 
     return res.status(200).json({ ok: true });
   } catch (e: any) {
     console.error("[offers/send-proposal] error:", e?.message || e);
-    return res
-      .status(500)
-      .json({ error: e?.message || "Serverfel" });
+    return res.status(500).json({ error: e?.message || "Serverfel" });
   }
 }

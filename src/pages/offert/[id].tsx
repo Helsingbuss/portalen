@@ -164,12 +164,14 @@ const Page: NextPage<Props> = ({ offer, auth, viewOverride }) => {
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const slug = String(ctx.params?.id ?? "");
   const q = ctx.query || {};
+
   const token =
     typeof q.token === "string"
       ? q.token
       : typeof q.t === "string"
       ? q.t
       : "";
+
   const viewOverride = typeof q.view === "string" ? q.view : null;
 
   if (!slug) {
@@ -182,14 +184,19 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     };
   }
 
+  const hasToken = token.length > 0;
+
   let payload: OfferTokenPayload | null = null;
-  try {
-    payload = await verifyOfferToken(token);
-  } catch {
-    payload = null;
+  if (hasToken) {
+    try {
+      payload = await verifyOfferToken(token);
+    } catch {
+      payload = null;
+    }
   }
 
-  if (!payload) {
+  // Bara neka om det faktiskt finns en token men den är ogiltig
+  if (hasToken && !payload) {
     return {
       props: {
         offer: null,
@@ -199,22 +206,26 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     };
   }
 
-  const matchesNo = !!payload.no && String(payload.no) === slug;
-  const matchesId = !!payload.id && String(payload.id) === slug;
+  // Om token finns måste den matcha id eller offertnummer
+  if (hasToken && payload) {
+    const matchesNo = !!payload.no && String(payload.no) === slug;
+    const matchesId = !!payload.id && String(payload.id) === slug;
 
-  if (!matchesNo && !matchesId) {
-    return {
-      props: {
-        offer: null,
-        auth: { ok: false, reason: "forbidden" },
-        viewOverride,
-      },
-    };
+    if (!matchesNo && !matchesId) {
+      return {
+        props: {
+          offer: null,
+          auth: { ok: false, reason: "forbidden" },
+          viewOverride,
+        },
+      };
+    }
   }
 
+  // Här släpper vi nu igenom ÄVEN när det inte finns token alls
   const { data, error } = await supabase
     .from("offers")
-     .select(
+    .select(
       [
         "id",
         "offer_number",
@@ -230,8 +241,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         "customer_phone",
         "customer_reference",
         "internal_reference",
-        "customer_address",
-        "customer_number",
 
         // resa
         "departure_place",
@@ -247,16 +256,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         "return_destination",
         "return_date",
         "return_time",
-
-        // pris & kalkyl
-        "amount_ex_vat",
-        "vat_amount",
-        "total_amount",
-        "vat_breakdown",
-
-        // typ av resa
-        "trip_type",
-        "round_trip",
 
         "notes",
 
