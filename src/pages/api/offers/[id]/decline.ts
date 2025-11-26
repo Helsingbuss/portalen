@@ -1,12 +1,9 @@
 // src/pages/api/offers/[id]/quote.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import supabase from "@/lib/supabaseAdmin"; // admin-klient (service key)
+import supabase from "@/lib/supabaseAdmin";
 import { sendOfferMail } from "@/lib/sendMail";
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -29,45 +26,40 @@ export default async function handler(
   const idOrNumber = String(id);
 
   try {
-    // ==== 1) Hämta offerten ====
-    // Stöder både UUID (id) och offertnummer (offer_number)
-    const looksLikeUuid =
-      idOrNumber.includes("-") && idOrNumber.length >= 30; // väldigt enkel check
-
+    // ----- 1. Hämta offerten -----
+    // HBxxxx => sök på offer_number, annars på id (UUID)
     let query = supabase
       .from("offers")
       .select(
         `
-        id,
-        offer_number,
-        contact_email,
-        contact_person,
-        customer_email,
-        departure_place,
-        destination,
-        departure_date,
-        departure_time,
-        passengers,
-        pax,
-        status
-      `
-      )
-      .limit(1);
+          id,
+          offer_number,
+          contact_email,
+          contact_person,
+          customer_email,
+          departure_place,
+          destination,
+          departure_date,
+          departure_time,
+          passengers,
+          status
+        `
+      );
 
-    if (looksLikeUuid) {
-      query = query.eq("id", idOrNumber);
-    } else {
+    if (idOrNumber.startsWith("HB")) {
       query = query.eq("offer_number", idOrNumber);
+    } else {
+      query = query.eq("id", idOrNumber);
     }
 
     const { data: offer, error: fetchErr } = await query.maybeSingle();
 
     if (fetchErr || !offer) {
-      console.error("quote.ts – fetch error:", fetchErr, "idOrNumber=", idOrNumber);
+      console.error("quote.ts – fetch error:", fetchErr, "idOrNumber:", idOrNumber);
       return res.status(404).json({ error: "Offert hittades inte" });
     }
 
-    // ==== 2) Spara kalkyl / totals / metadata ====
+    // ----- 2. Spara kalkyl / totalsummor -----
     const patch: any = {
       amount_ex_vat: breakdown?.grandExVat ?? null,
       vat_amount: breakdown?.grandVat ?? null,
@@ -78,7 +70,6 @@ export default async function handler(
     };
 
     if (mode === "send") {
-      // Markera som besvarad när vi skickar prisförslag
       patch.status = "besvarad";
       patch.sent_at = new Date().toISOString();
     }
@@ -86,14 +77,14 @@ export default async function handler(
     const { error: updErr } = await supabase
       .from("offers")
       .update(patch)
-      .eq("id", offer.id); // använd alltid verkliga UUID:t från raden
+      .eq("id", offer.id);
 
     if (updErr) {
       console.error("quote.ts – update error:", updErr);
       throw updErr;
     }
 
-    // ==== 3) Skicka mail endast vid "send" ====
+    // ----- 3. Skicka mail när prisförslag skickas -----
     if (mode === "send" && offer.offer_number) {
       try {
         const customerEmail: string | undefined =
@@ -102,31 +93,23 @@ export default async function handler(
           undefined;
 
         const passengers =
-          typeof offer.passengers === "number"
-            ? offer.passengers
-            : typeof offer.pax === "number"
-            ? offer.pax
-            : undefined;
+          typeof offer.passengers === "number" ? offer.passengers : undefined;
 
         await sendOfferMail({
           offerId: String(offer.id),
           offerNumber: offer.offer_number ?? String(offer.id),
           customerEmail,
-          customerName:
-            (offer.contact_person as string | undefined) || undefined,
-          from:
-            (offer.departure_place as string | undefined) ?? undefined,
+          customerName: (offer.contact_person as string | undefined) || undefined,
+          from: (offer.departure_place as string | undefined) ?? undefined,
           to: (offer.destination as string | undefined) ?? undefined,
-          date:
-            (offer.departure_date as string | undefined) ?? undefined,
-          time:
-            (offer.departure_time as string | undefined) ?? undefined,
+          date: (offer.departure_date as string | undefined) ?? undefined,
+          time: (offer.departure_time as string | undefined) ?? undefined,
           passengers,
           subject: `Offert ${offer.offer_number} har besvarats`,
         });
       } catch (mailErr) {
         console.error("sendOfferMail failed:", mailErr);
-        // Ignorera mailfel – kalkylen är ändå sparad
+        // Kalkylen är sparad ändå
       }
     }
 
