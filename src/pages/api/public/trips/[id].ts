@@ -35,7 +35,6 @@ export default async function handler(
   }
 
   try {
-    // Hämta själva resan (inkl. slug)
     const { data: trip, error: tripErr } = await supabase
       .from("trips")
       .select(
@@ -55,6 +54,7 @@ export default async function handler(
           "summary",
           "published",
           "slug",
+          "departures_coming_soon",
         ].join(",")
       )
       .eq("id", id)
@@ -67,12 +67,11 @@ export default async function handler(
         .json({ ok: false, error: "Trip not found" });
     }
 
-    // Hämta alla avgångar kopplade till resan
     const { data: deps, error: depsErr } = await supabase
       .from("trip_departures")
-      .select("id, dep_date, dep_time, line_name, stops")
+      .select("id, date, dep_date, dep_time, line_name, stops")
       .eq("trip_id", id)
-      .order("dep_date", { ascending: true })
+      .order("date", { ascending: true })
       .limit(500);
 
     if (depsErr) throw depsErr;

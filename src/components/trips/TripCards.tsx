@@ -1,134 +1,164 @@
-import React from "react";
+// src/components/trips/TripCard.tsx
+import Image from "next/image";
+import Link from "next/link";
+import clsx from "clsx";
 
-/* ===== Typer ===== */
+/** Typ för ett kort (matchar vad widget/API mappar till) */
 export type TripCardProps = {
   id: string;
-  image: string;                  // URL till huvudbilden
-  title: string;                  // "GekÃ¥s Ullared"
-  subtitle?: string;              // ex. â€œFynda stort, res bekvÃ¤mtâ€
-  location?: string;              // ex. â€œSverigeâ€
-  tripKind?: "flerdagar" | "dagsresa" | "shopping";
-  tripKindLabel?: string;         // skriv Ã¶ver pillens text om du vill
-  year?: number;                  // 2025, 2026, 2027
-
-  priceFrom?: number | string;    // ex. 295
-  currency?: string;              // default "SEK"
-
-  // valfritt Ã¶vrigt
-  ribbon?: { text: string; color?: string; textColor?: string; angle?: number };
-
-  // lÃ¤nk ska peka till det du sparar i admin (extern lÃ¤nk/slug)
-  ctaHref?: string;
+  title: string;
+  subtitle?: string;
+  image?: string | null;
+  ribbon?: string | null; // röd banderoll (valfri)
+  badge?: "shopping" | "dagsresa" | "flerdagar" | string | null; // kategori-pille
+  city?: string | null;
+  country?: string | null;
+  year?: number | null; // för pillen "2025"
+  price_from?: number | null;
+  next_date?: string | null; // valfritt, visas ej om du inte skickar
+  href?: string; // länk (extern/slug från admin)
+  departures_coming_soon?: boolean | null; // visar text istället för datum
 };
 
-function kindLabel(kind?: TripCardProps["tripKind"], override?: string) {
-  if (override) return override;
-  switch (kind) {
-    case "flerdagar": return "flerdagar";
-    case "dagsresa":  return "dagsresa";
-    case "shopping":  return "shopping";
-    default:          return "";
-  }
+function money(n?: number | null) {
+  if (n == null) return "";
+  return new Intl.NumberFormat("sv-SE", {
+    style: "currency",
+    currency: "SEK",
+    maximumFractionDigits: 0,
+  }).format(n); // "295 kr"
 }
 
-function formatPriceKr(v?: number | string, currency = "SEK") {
-  if (v === undefined || v === null || v === "") return "";
-  const n = typeof v === "string" ? Number(v) : v;
-  if (!Number.isFinite(n)) return String(v);
-  // matcha admin-preview: "fr. 295 kr"
-  return n.toLocaleString("sv-SE") + (currency === "SEK" ? " kr" : ` ${currency}`);
-}
-
-/* ===== TripCard i â€œpreviewâ€-stil ===== */
-export function TripCard(props: TripCardProps) {
-  const {
-    image, title, subtitle, location, tripKind, tripKindLabel, year,
-    priceFrom, currency = "SEK",
-    ctaHref = "#",
-    ribbon,
-  } = props;
-
-  const priceText = priceFrom ? `fr. ${formatPriceKr(priceFrom, currency)}` : "";
-  const badge = kindLabel(tripKind, tripKindLabel);
-  const ribbonBg = ribbon?.color || "#ef4444";
-  const ribbonFg = ribbon?.textColor || "#fff";
-  const angle = ribbon?.angle ?? -10;
+/** Ett kort i samma stil som admin-preview */
+function TripCard({
+  id,
+  title,
+  subtitle,
+  image,
+  ribbon,
+  badge,
+  city,
+  country,
+  year,
+  price_from,
+  next_date,
+  href,
+  departures_coming_soon,
+}: TripCardProps) {
+  const Wrapper: any = href ? Link : "div";
+  const wrapperProps = href
+    ? { href, className: "block", "aria-label": title }
+    : { className: "block" };
 
   return (
-    <a
-      href={ctaHref}
-      className="group relative block rounded-2xl border bg-white shadow-sm overflow-hidden transition hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#194C66]/40"
-    >
-      {/* Bild â€“ 600x390 aspect */}
-      <div className="relative bg-[#f3f4f6] aspect-[600/390]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={image} alt={title} className="absolute inset-0 h-full w-full object-cover" />
+    <Wrapper key={id} {...wrapperProps}>
+      <article className="relative overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:shadow-md">
+        {/* Bild 600x390 */}
+        <div className="relative bg-[#f3f4f6] aspect-[600/390]">
+          {image && (
+            <Image
+              src={image}
+              alt={title}
+              fill
+              sizes="(min-width: 1024px) 33vw, 100vw"
+              className="object-cover"
+            />
+          )}
 
-        {/* Diagonal banderoll (valfri) */}
-        {!!ribbon?.text && (
-          <div className="absolute left-3 top-3"
-               style={{ transform: `rotate(${angle}deg)` }}>
-            <span
-              className="inline-block px-3 py-1 text-sm font-semibold"
+          {/* Diagonal röd banderoll (valfri) */}
+          {ribbon && (
+            <div
+              className="absolute left-3 top-3 text-white text-sm font-semibold px-3 py-1 rounded-md"
               style={{
-                background: ribbonBg,
-                color: ribbonFg,
-                borderRadius: 6,
+                background: "#ef4444",
+                transform: "rotate(-10deg)",
                 boxShadow: "0 2px 8px rgba(0,0,0,.15)",
               }}
             >
-              {ribbon.text}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Textyta */}
-      <div className="p-4">
-        {/* smÃ¥ piller som i admin-preview */}
-        <div className="flex flex-wrap gap-2 text-xs">
-          {badge && <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{badge}</span>}
-          {location && <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{location}</span>}
-          {year && <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{year}</span>}
-        </div>
-
-        <div className="mt-2 text-lg font-semibold text-[#0f172a]">{title}</div>
-        {subtitle && <div className="text-sm text-[#0f172a]/70">{subtitle}</div>}
-
-        {/* bottrad â€“ pris till hÃ¶ger i grÃ¥ â€œchipâ€ */}
-        <div className="mt-3 flex items-center justify-between">
-          {/* vÃ¤nstersida: lÃ¤mnas tom eller fylls med ev. datum/linje i framtiden */}
-          <span className="text-sm text-[#0f172a]/60"></span>
-
-          {priceText && (
-            <span className="text-sm font-semibold px-3 py-2 bg-[#eef2f7] rounded-full whitespace-nowrap">
-              {priceText}
-            </span>
+              {ribbon}
+            </div>
           )}
         </div>
-      </div>
 
-      {/* GÃ¶r hela kortet klickbart utan extra knapp */}
-      <span className="absolute inset-0" aria-hidden />
-    </a>
+        {/* Innehåll */}
+        <div className="p-4">
+          {/* Piller som i preview */}
+          <div className="flex flex-wrap gap-2 text-xs">
+            {badge && (
+              <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                {badge}
+              </span>
+            )}
+            {country && (
+              <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                {country}
+              </span>
+            )}
+            {year && (
+              <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                {year}
+              </span>
+            )}
+          </div>
+
+          <div className="mt-2 text-lg font-semibold text-[#0f172a]">
+            {title}
+          </div>
+          {subtitle && (
+            <div className="text-sm text-[#0f172a]/70">{subtitle}</div>
+          )}
+
+          <div className="mt-3 flex items-center justify-between">
+            <div className="text-sm text-[#0f172a]/60">
+              {departures_coming_soon ? (
+                <>Avgångsorter och datum kommer inom kort.</>
+              ) : next_date ? (
+                <>
+                  Nästa avgång: <b>{next_date}</b>
+                </>
+              ) : city ? (
+                <>{city}</>
+              ) : null}
+            </div>
+
+            {price_from != null && (
+              <span className="text-sm font-semibold px-3 py-2 bg-[#eef2f7] rounded-full whitespace-nowrap">
+                fr. {money(price_from)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* klick-overlay för bättre a11y */}
+        {href && <span className="absolute inset-0" aria-hidden />}
+      </article>
+    </Wrapper>
   );
 }
 
-/* ===== Grid ===== */
-export function TripGrid({ items, cols = 3 }: { items: TripCardProps[]; cols?: 3 | 4 | 5 }) {
-  const map: Record<3 | 4 | 5, string> = {
-    3: "sm:grid-cols-2 lg:grid-cols-3",
-    4: "sm:grid-cols-2 lg:grid-cols-4",
-    5: "sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5",
-  };
+/** Grid-komponent – används på testsidan och ev. widget */
+export function TripGrid({
+  items,
+  columns = 3,
+}: {
+  items: TripCardProps[];
+  columns?: 3 | 4 | 5;
+}) {
+  const gridCls = clsx(
+    "grid gap-6",
+    "grid-cols-1 sm:grid-cols-2",
+    columns === 3 && "lg:grid-cols-3",
+    columns === 4 && "lg:grid-cols-4",
+    columns === 5 && "lg:grid-cols-5"
+  );
+
   return (
-    <div className={`grid grid-cols-1 gap-6 ${map[cols]}`}>
-      {items.map((it) => (
-        <TripCard key={it.id} {...it} />
+    <div className={gridCls}>
+      {items.map((p) => (
+        <TripCard key={p.id} {...p} />
       ))}
     </div>
   );
 }
 
-export default TripGrid;
-
+export default TripCard;

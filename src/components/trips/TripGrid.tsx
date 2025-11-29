@@ -1,21 +1,23 @@
+//src/components/trips/TripGrid.tsx
 import Image from "next/image";
 import Link from "next/link";
 import clsx from "clsx";
 
-/** Typ fÃ¶r ett kort (matchar vad widget/API mappar till) */
+/** Typ för ett kort (matchar vad widget/API mappar till) */
 export type TripCardProps = {
   id: string;
   title: string;
   subtitle?: string;
   image?: string | null;
-  ribbon?: string | null; // rÃ¶d banderoll (valfri)
+  ribbon?: string | null; // röd banderoll (valfri)
   badge?: "shopping" | "dagsresa" | "flerdagar" | string | null; // kategori-pille
   city?: string | null;
   country?: string | null;
-  year?: number | null;   // NYTT â€“ fÃ¶r pillen "2025"
+  year?: number | null;   // för pillen "2025"
   price_from?: number | null;
   next_date?: string | null; // valfritt, visas ej om du inte skickar
-  href?: string; // lÃ¤nk (extern/slug frÃ¥n admin)
+  href?: string; // länk (extern/slug från admin)
+  departures_coming_soon?: boolean | null; // NYTT: visar text istället för datum
 };
 
 function money(n?: number | null) {
@@ -41,9 +43,12 @@ function TripCard({
   price_from,
   next_date,
   href,
+  departures_coming_soon,
 }: TripCardProps) {
   const Wrapper: any = href ? Link : "div";
-  const wrapperProps = href ? { href, className: "block", "aria-label": title } : { className: "block" };
+  const wrapperProps = href
+    ? { href, className: "block", "aria-label": title }
+    : { className: "block" };
 
   return (
     <Wrapper key={id} {...wrapperProps}>
@@ -60,7 +65,7 @@ function TripCard({
             />
           )}
 
-          {/* Diagonal rÃ¶d banderoll (valfri) */}
+          {/* Diagonal röd banderoll (valfri) */}
           {ribbon && (
             <div
               className="absolute left-3 top-3 text-white text-sm font-semibold px-3 py-1 rounded-md"
@@ -75,24 +80,44 @@ function TripCard({
           )}
         </div>
 
-        {/* InnehÃ¥ll */}
+        {/* Innehåll */}
         <div className="p-4">
           {/* Piller som i preview */}
           <div className="flex flex-wrap gap-2 text-xs">
-            {badge && <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{badge}</span>}
-            {country && <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{country}</span>}
-            {year && <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{year}</span>}
+            {badge && (
+              <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                {badge}
+              </span>
+            )}
+            {country && (
+              <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                {country}
+              </span>
+            )}
+            {year && (
+              <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                {year}
+              </span>
+            )}
           </div>
 
-          <div className="mt-2 text-lg font-semibold text-[#0f172a]">{title}</div>
-          {subtitle && <div className="text-sm text-[#0f172a]/70">{subtitle}</div>}
+          <div className="mt-2 text-lg font-semibold text-[#0f172a]">
+            {title}
+          </div>
+          {subtitle && (
+            <div className="text-sm text-[#0f172a]/70">{subtitle}</div>
+          )}
 
           <div className="mt-3 flex items-center justify-between">
             <div className="text-sm text-[#0f172a]/60">
-              {/* Visa nÃ¤sta avgÃ¥ng om du skickar in ett formatert datum (valfritt) */}
-              {next_date ? <>NÃ¤sta avgÃ¥ng: <b>{next_date}</b></> : null}
-              {/* Om du vill visa stad ocksÃ¥ (valfritt) */}
-              {!next_date && city ? <>{city}</> : null}
+              {/* Visa texten istället för datum om flaggan är satt */}
+              {departures_coming_soon ? (
+                <>Avgångsorter och datum kommer inom kort.</>
+              ) : next_date ? (
+                <>Nästa avgång: <b>{next_date}</b></>
+              ) : city ? (
+                <>{city}</>
+              ) : null}
             </div>
 
             {price_from != null && (
@@ -103,14 +128,14 @@ function TripCard({
           </div>
         </div>
 
-        {/* klick-overlay fÃ¶r bÃ¤ttre a11y */}
+        {/* klick-overlay för bättre a11y */}
         {href && <span className="absolute inset-0" aria-hidden />}
       </article>
     </Wrapper>
   );
 }
 
-/** Grid-komponent â€“ anvÃ¤nds pÃ¥ testsidan och ev. widget */
+/** Grid-komponent – används på testsidan och ev. widget */
 export function TripGrid({
   items,
   columns = 3,
@@ -136,4 +161,3 @@ export function TripGrid({
 }
 
 export default TripCard;
-
