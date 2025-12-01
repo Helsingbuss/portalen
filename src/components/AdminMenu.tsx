@@ -132,12 +132,22 @@ export default function AdminMenu() {
                 </Link>
               </li>
               <li>
-                <Link href="#" className={subLink}>
+                <Link href="/admin/tickets/book" className={subLink}>
                   Boka biljett
                 </Link>
               </li>
-              <li>
-                <Link href="#" className={subLink}>
+               <li>
+                <Link href="/admin/ticket-types" className={subLink}>
+                  Biljettyper
+                </Link>
+              </li>
+               <li>
+                <Link href="/admin/pricing" className={subLink}>
+                  Prissättning
+                </Link>
+              </li>
+                <li>
+                <Link href="/admin/tickets/passengers" className={subLink}>
                   Passagerarlista
                 </Link>
               </li>
