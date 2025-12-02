@@ -19,7 +19,6 @@ export default async function handler(
   res: NextApiResponse
 ) {
   setCORS(res);
-
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "GET") {
     return res
@@ -29,9 +28,7 @@ export default async function handler(
 
   const { id } = req.query;
   if (!id || Array.isArray(id)) {
-    return res
-      .status(400)
-      .json({ ok: false, error: "Missing id" });
+    return res.status(400).json({ ok: false, error: "Saknar id." });
   }
 
   try {
@@ -42,50 +39,52 @@ export default async function handler(
           "id",
           "title",
           "subtitle",
-          "hero_image",
-          "ribbon",
-          "badge",
           "trip_kind",
+          "badge",
+          "ribbon",
           "city",
           "country",
           "price_from",
-          "year",
-          "external_url",
-          "summary",
+          "hero_image",
           "published",
+          "external_url",
+          "year",
+          "summary",
           "slug",
           "departures_coming_soon",
+          "lines", // 👈 viktig
         ].join(",")
       )
       .eq("id", id)
       .single();
 
-    if (tripErr) throw tripErr;
-    if (!trip) {
-      return res
-        .status(404)
-        .json({ ok: false, error: "Trip not found" });
+    if (tripErr || !trip) {
+      throw tripErr || new Error("Resa hittades inte.");
     }
 
     const { data: deps, error: depsErr } = await supabase
       .from("trip_departures")
-      .select("id, date, dep_date, dep_time, line_name, stops")
-      .eq("trip_id", id)
-      .order("date", { ascending: true })
-      .limit(500);
+      .select("date")
+      .eq("trip_id", trip.id)
+      .order("date", { ascending: true });
 
     if (depsErr) throw depsErr;
 
-    const out = {
-      ...trip,
-      departures: deps || [],
-    };
+    const departures = (deps || []).map((d: any) => ({
+      date: d.date,
+    }));
 
-    return res.status(200).json({ ok: true, trip: out });
+    return res.status(200).json({
+      ok: true,
+      trip: {
+        ...trip,
+        departures,
+      },
+    });
   } catch (e: any) {
     console.error("/api/public/trips/[id] error:", e?.message || e);
     return res
-      .status(200)
+      .status(500)
       .json({ ok: false, error: "Server error" });
   }
 }

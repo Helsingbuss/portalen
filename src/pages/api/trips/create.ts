@@ -17,7 +17,18 @@ type DepartureRow = {
   datum?: string;
   day?: string;
   when?: string;
+  depart_date?: string;
   departure_date?: string;
+};
+
+type LineStopPayload = {
+  name: string;
+  time?: string | null;
+};
+
+type LinePayload = {
+  title: string;
+  stops: LineStopPayload[];
 };
 
 type Body = {
@@ -38,8 +49,9 @@ type Body = {
   categories?: string[] | null;
   tags?: string[] | null;
   departures?: DepartureRow[];
-  departures_coming_soon?: boolean | null; // avgångar kommer inom kort
-  slug?: string | null; // 👈 NYTT – kan komma från frontend
+  departures_coming_soon?: boolean | null;
+  slug?: string | null;
+  lines?: LinePayload[] | null; // 👈 linjer & hållplatser
 };
 
 function setCORS(res: NextApiResponse) {
@@ -76,7 +88,7 @@ function slugify(title: string): string {
   const base = (title || "")
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // ta bort accent-tecken
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
@@ -95,14 +107,30 @@ export default async function handler(
 
   const b = (req.body || {}) as Body;
 
-  // Basic validering
   if (!b?.title || !b?.hero_image) {
     return res
       .status(400)
       .json({ ok: false, error: "Titel och bild krävs." });
   }
 
-  // Bygg insert/update-objekt
+  // --- Rensa/sanera lines ---
+  let linesClean: LinePayload[] | null = null;
+  if (Array.isArray(b.lines)) {
+    linesClean = b.lines
+      .map((ln) => ({
+        title: String(ln?.title || "").trim(),
+        stops: Array.isArray(ln?.stops)
+          ? ln.stops
+              .map((st) => ({
+                name: String(st?.name || "").trim(),
+                time: st?.time ? String(st.time) : null,
+              }))
+              .filter((st) => st.name || st.time)
+          : [],
+      }))
+      .filter((ln) => ln.title || ln.stops.length > 0);
+  }
+
   const tagsArray = Array.isArray(b.tags)
     ? b.tags
     : Array.isArray(b.categories)
@@ -124,7 +152,6 @@ export default async function handler(
     year: b.year ?? null,
     summary: typeof b.summary === "string" ? b.summary : b.summary ?? null,
     departures_coming_soon: !!b.departures_coming_soon,
-    // 👇 använd slug från frontend om den finns, annars generera från titel
     slug:
       (b.slug && String(b.slug).trim()) ||
       slugify(b.title || ""),
@@ -132,6 +159,13 @@ export default async function handler(
 
   if (tagsArray) {
     base["tags"] = tagsArray.filter(Boolean);
+  }
+
+  // 👇 SPARA LINES I trips.lines (jsonb)
+  if (linesClean) {
+    base["lines"] = linesClean;
+  } else {
+    base["lines"] = null;
   }
 
   const dates = parseDepartureDates(b.departures);
@@ -174,9 +208,8 @@ export default async function handler(
       .json({ ok: false, error: "Kunde inte spara resa (saknar id)." });
   }
 
-  // Uppdatera avgångar: rensa gamla + spara nya
+  // --- Uppdatera avgångar ---
   try {
-    // radera gamla avgångar för denna resa
     await supabase.from("trip_departures").delete().eq("trip_id", tripId);
 
     if (dates.length) {
@@ -196,7 +229,6 @@ export default async function handler(
       "create/update: departures update failed:",
       e?.message || e
     );
-    // men vi låter resan vara sparad ändå
   }
 
   return res.status(200).json({
