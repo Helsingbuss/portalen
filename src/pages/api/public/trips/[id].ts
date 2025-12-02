@@ -28,62 +28,50 @@ export default async function handler(
 
   const { id } = req.query;
   if (!id || Array.isArray(id)) {
-    return res.status(400).json({ ok: false, error: "Saknar id." });
+    return res.status(400).json({ ok: false, error: "Missing id/slug" });
   }
 
-  try {
-    const { data: trip, error: tripErr } = await supabase
-      .from("trips")
-      .select(
-        [
-          "id",
-          "title",
-          "subtitle",
-          "trip_kind",
-          "badge",
-          "ribbon",
-          "city",
-          "country",
-          "price_from",
-          "hero_image",
-          "published",
-          "external_url",
-          "year",
-          "summary",
-          "slug",
-          "departures_coming_soon",
-          "lines", // linjer & hållplatser
-        ].join(",")
-      )
-      .eq("id", id)
-      .single();
+  const key = String(id);
 
-    if (tripErr || !trip) {
-      throw tripErr || new Error("Resa hittades inte.");
+  try {
+    // 🔎 hämta resa via id ELLER slug
+    const { data: tripRow, error: tripErr } = await supabase
+      .from("trips")
+      .select("*")
+      .or(`id.eq.${key},slug.eq.${key}`)
+      .maybeSingle();
+
+    if (tripErr) throw tripErr;
+    if (!tripRow) {
+      return res
+        .status(404)
+        .json({ ok: false, error: "Resan hittades inte." });
     }
 
-    const { data: deps, error: depsErr } = await supabase
+    // 🔁 hämta avgångar
+    const { data: depRows, error: depErr } = await supabase
       .from("trip_departures")
-      .select("date, dep_time, line_name, stops")
-      .eq("trip_id", trip.id)
+      .select("id, date, dep_time, line_name, stops")
+      .eq("trip_id", tripRow.id)
       .order("date", { ascending: true });
 
-    if (depsErr) throw depsErr;
+    if (depErr) throw depErr;
 
-    const departures = (deps || []).map((d: any) => ({
-      dep_date: d.date,
-      dep_time: d.dep_time || "",
-      line_name: d.line_name || "",
-      stops: Array.isArray(d.stops) ? d.stops : [],
-    }));
+    const departures =
+      (depRows || []).map((d: any) => ({
+        dep_date: d.date ? String(d.date).slice(0, 10) : "",
+        dep_time: d.dep_time || "",
+        line_name: d.line_name || "",
+        stops: Array.isArray(d.stops) ? d.stops : [],
+      })) || [];
 
-    return res.status(200).json({
-      ok: true,
-      trip: {
-        ...trip,
-        departures,
-      },
-    });
+    const trip = {
+      ...tripRow,
+      departures,
+      lines: tripRow.lines || [],
+    };
+
+    return res.status(200).json({ ok: true, trip });
   } catch (e: any) {
     console.error("/api/public/trips/[id] error:", e?.message || e);
     return res

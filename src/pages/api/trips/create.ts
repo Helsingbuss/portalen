@@ -11,7 +11,8 @@ type DepartureRow = {
   dep_date?: string;
   dep_time?: string;
   line_name?: string;
-  stops?: string[];
+  stops?: string[] | string;
+
   // fallback-fält om något gammalt UI skickar andra namn
   date?: string;
   datum?: string;
@@ -21,18 +22,8 @@ type DepartureRow = {
   departure_date?: string;
 };
 
-type LineStopPayload = {
-  name: string;
-  time?: string | null;
-};
-
-type LinePayload = {
-  title: string;
-  stops: LineStopPayload[];
-};
-
 type Body = {
-  id?: string; // om satt: uppdatera befintlig resa
+  id?: string; // finns = uppdatera, annars skapa ny
   title: string;
   subtitle?: string | null;
   trip_kind?: "flerdagar" | "dagsresa" | "shopping" | string | null;
@@ -50,8 +41,8 @@ type Body = {
   tags?: string[] | null;
   departures?: DepartureRow[];
   departures_coming_soon?: boolean | null;
+  lines?: any[] | null;
   slug?: string | null;
-  lines?: LinePayload[] | null; // linjer & hållplatser
 };
 
 function setCORS(res: NextApiResponse) {
@@ -64,11 +55,55 @@ function slugify(title: string): string {
   const base = (title || "")
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // ta bort accent-tecken
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
   return base || "resa";
+}
+
+// bygger rader för tabellen trip_departures
+function buildDepartureRows(tripId: string, src: DepartureRow[] | undefined | null) {
+  if (!tripId || !src || !Array.isArray(src)) return [] as any[];
+
+  const rows: any[] = [];
+
+  for (const r of src) {
+    const rawDate =
+      r.dep_date ||
+      r.date ||
+      r.depart_date ||
+      r.departure_date ||
+      r.datum ||
+      r.day ||
+      r.when ||
+      null;
+
+    if (!rawDate) continue;
+
+    const dateStr = String(rawDate).slice(0, 10); // YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
+
+    let stopsArr: string[] = [];
+    if (Array.isArray(r.stops)) {
+      stopsArr = r.stops.filter(Boolean).map((s) => String(s).trim());
+    } else if (typeof r.stops === "string") {
+      stopsArr = r.stops
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+
+    rows.push({
+      trip_id: tripId,
+      date: dateStr,
+      dep_time: r.dep_time || null,
+      line_name: r.line_name || null,
+      stops: stopsArr,
+    });
+  }
+
+  return rows;
 }
 
 export default async function handler(
@@ -83,29 +118,11 @@ export default async function handler(
 
   const b = (req.body || {}) as Body;
 
-  // Grundvalidering
+  // Basic validering
   if (!b?.title || !b?.hero_image) {
     return res
       .status(400)
       .json({ ok: false, error: "Titel och bild krävs." });
-  }
-
-  // --- Rensa/sanera lines ---
-  let linesClean: LinePayload[] | null = null;
-  if (Array.isArray(b.lines)) {
-    linesClean = b.lines
-      .map((ln) => ({
-        title: String(ln?.title || "").trim(),
-        stops: Array.isArray(ln?.stops)
-          ? ln.stops
-              .map((st) => ({
-                name: String(st?.name || "").trim(),
-                time: st?.time ? String(st.time) : null,
-              }))
-              .filter((st) => st.name || st.time)
-          : [],
-      }))
-      .filter((ln) => ln.title || ln.stops.length > 0);
   }
 
   const tagsArray = Array.isArray(b.tags)
@@ -127,30 +144,23 @@ export default async function handler(
     published: !!b.published,
     external_url: b.external_url ?? null,
     year: b.year ?? null,
-    summary: typeof b.summary === "string" ? b.summary : b.summary ?? null,
+    summary: b.summary ?? null,
     departures_coming_soon: !!b.departures_coming_soon,
-    slug:
-      (b.slug && String(b.slug).trim()) ||
-      slugify(b.title || ""),
+    lines: Array.isArray(b.lines) ? b.lines : null,
+    slug: (b.slug && b.slug.trim()) || slugify(b.title || ""),
   };
 
   if (tagsArray) {
     base["tags"] = tagsArray.filter(Boolean);
   }
 
-  // spara lines i trips.lines (jsonb)
-  if (linesClean) {
-    base["lines"] = linesClean;
-  } else {
-    base["lines"] = null;
-  }
+  const departuresInput = Array.isArray(b.departures) ? b.departures : [];
 
-  let tripId: string | null = b.id || null;
+  let tripId: string | null = null;
 
-  // --- Skapa eller uppdatera resa ---
   try {
+    // 🔁 UPDATE om id finns, annars INSERT
     if (b.id) {
-      // uppdatera befintlig resa
       const { data, error } = await supabase
         .from("trips")
         .update(base)
@@ -161,7 +171,6 @@ export default async function handler(
       if (error) throw error;
       tripId = data?.id || b.id;
     } else {
-      // skapa ny resa
       const { data, error } = await supabase
         .from("trips")
         .insert(base)
@@ -182,44 +191,15 @@ export default async function handler(
   if (!tripId) {
     return res
       .status(500)
-      .json({ ok: false, error: "Kunde inte spara resa (saknar id)." });
+      .json({ ok: false, error: "Kunde inte skapa/uppdatera resa (saknar id)." });
   }
 
-  // --- Uppdatera avgångar (turlista) ---
-  let departuresSaved = 0;
-
+  // 🚌 Uppdatera Turlista / avgångar
   try {
-    // ta bort gamla avgångar för denna resa
+    // Ta bort tidigare avgångar för resan
     await supabase.from("trip_departures").delete().eq("trip_id", tripId);
 
-    const depRows: any[] = [];
-
-    if (Array.isArray(b.departures)) {
-      for (const r of b.departures) {
-        const rawDate =
-          r?.date ||
-          r?.datum ||
-          r?.day ||
-          r?.when ||
-          r?.dep_date ||
-          r?.depart_date ||
-          r?.departure_date ||
-          null;
-
-        if (!rawDate) continue;
-
-        const s = String(rawDate).slice(0, 10); // YYYY-MM-DD
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) continue;
-
-        depRows.push({
-          trip_id: tripId,
-          date: s,
-          dep_time: r?.dep_time || null,
-          line_name: r?.line_name || null,
-          stops: Array.isArray(r?.stops) ? r.stops : null,
-        });
-      }
-    }
+    const depRows = buildDepartureRows(tripId, departuresInput);
 
     if (depRows.length) {
       const { error: depErr } = await supabase
@@ -227,24 +207,19 @@ export default async function handler(
         .insert(depRows);
       if (depErr) {
         console.warn(
-          "create/update: could not insert departures:",
+          "create: could not insert departures:",
           depErr.message || depErr
         );
-      } else {
-        departuresSaved = depRows.length;
       }
     }
   } catch (e: any) {
-    console.warn(
-      "create/update: departures update failed:",
-      e?.message || e
-    );
-    // men vi låter resan vara sparad ändå
+    console.warn("create: departures update failed:", e?.message || e);
+    // resan är ändå sparad, så vi låter svaret vara ok
   }
 
   return res.status(200).json({
     ok: true,
     id: tripId,
-    departures_saved: departuresSaved,
+    departures_saved: departuresInput.length,
   });
 }
