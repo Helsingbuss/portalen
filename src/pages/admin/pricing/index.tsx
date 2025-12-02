@@ -12,11 +12,10 @@ type Trip = {
 };
 
 type Departure = {
-  trip_id: string | null;
-  date: string | null;
-  depart_date?: string | null;
-  dep_date?: string | null;
-  departure_date?: string | null;
+  id: string;
+  trip_id: string;
+  depart_date: string | null;
+  return_date?: string | null;
 };
 
 type TicketType = {
@@ -32,8 +31,8 @@ type PricingRow = {
   departure_date: string | null;
   price: number;
   currency: string;
-  sales_valid_from?: string | null;
-  sales_valid_to?: string | null;
+  valid_from?: string | null;
+  valid_until?: string | null;
 };
 
 type LoadResponse = {
@@ -69,12 +68,11 @@ export default function PricingPage() {
   const [selectedTicketTypeId, setSelectedTicketTypeId] =
     useState<number | null>(null);
   const [selectedDepartureDate, setSelectedDepartureDate] =
-    useState<string>("");
-  const [priceInput, setPriceInput] = useState<string>("");
+    useState<string>(""); // tom = standardpris
 
-  // Early Bird / kampanjperiod
-  const [salesFrom, setSalesFrom] = useState<string>("");
-  const [salesTo, setSalesTo] = useState<string>("");
+  const [priceInput, setPriceInput] = useState<string>("");
+  const [validFrom, setValidFrom] = useState<string>("");
+  const [validUntil, setValidUntil] = useState<string>("");
 
   useEffect(() => {
     let cancelled = false;
@@ -83,10 +81,10 @@ export default function PricingPage() {
       try {
         setLoading(true);
         setError(null);
+
         const res = await fetch("/api/admin/pricing/load");
         const json: LoadResponse = await res.json();
-        if (!json.ok)
-          throw new Error(json.error || "Kunde inte läsa prissättning.");
+        if (!json.ok) throw new Error(json.error || "Kunde inte läsa prissättning.");
 
         if (cancelled) return;
 
@@ -133,33 +131,14 @@ export default function PricingPage() {
     [tripOptions, selectedTripId]
   );
 
-  // 👇 AVGÅNGAR FÖR RESA (med fallback om trip_id inte matchar)
   const departuresForTrip = useMemo(() => {
-    if (!departures.length) return [];
-
-    let rows: Departure[] = [];
-
-    if (selectedTripId) {
-      rows = departures.filter(
-        (d) => String(d.trip_id || "") === String(selectedTripId)
-      );
-    }
-
-    // Fallback: om inget matchar trip_id → använd alla avgångar vi har
-    if (!rows.length) {
-      rows = departures;
-    }
-
+    if (!selectedTripId) return [];
+    const rows = departures.filter((d) => d.trip_id === selectedTripId);
     const uniqueDates = new Set<string>();
     const out: string[] = [];
 
     for (const row of rows) {
-      const raw =
-        row.date ||
-        row.depart_date ||
-        row.dep_date ||
-        row.departure_date ||
-        null;
+      const raw = row.depart_date || null;
       if (!raw) continue;
       const s = String(raw).slice(0, 10);
       if (/^\d{4}-\d{2}-\d{2}$/.test(s) && !uniqueDates.has(s)) {
@@ -186,6 +165,9 @@ export default function PricingPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
+    setMessage(null);
+
     if (!selectedTripId) {
       setError("Välj en resa.");
       return;
@@ -202,16 +184,14 @@ export default function PricingPage() {
 
     try {
       setSaving(true);
-      setError(null);
-      setMessage(null);
 
       const body = {
         trip_id: selectedTripId,
         ticket_type_id: selectedTicketTypeId,
         departure_date: selectedDepartureDate || null,
         price,
-        sales_valid_from: salesFrom || null,
-        sales_valid_to: salesTo || null,
+        valid_from: validFrom || null,
+        valid_until: validUntil || null,
       };
 
       const res = await fetch("/api/admin/pricing/save", {
@@ -339,8 +319,7 @@ export default function PricingPage() {
                     )}
                   </select>
                   <div className="text-[11px] text-slate-500 mt-1">
-                    Datum hämtas från tabellen{" "}
-                    <code>trip_departures</code>.
+                    Datum hämtas från tabellen <code>trip_departures</code>.
                   </div>
                 </div>
 
@@ -357,38 +336,31 @@ export default function PricingPage() {
                       setPriceInput(e.target.value.replace(/[^\d]/g, ""))
                     }
                   />
-                  <div className="text-[11px] text-slate-500 mt-1">
-                    Endast hela kronor. Valutan sparas som SEK.
-                  </div>
+                </div>
+              </div>
 
-                  <div className="grid grid-cols-2 gap-2 mt-3">
-                    <div>
-                      <div className="text-[11px] font-medium text-[#194C66]/80 mb-1">
-                        Gäller från (valfritt)
-                      </div>
-                      <input
-                        type="date"
-                        className="border rounded-xl px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-[#194C66]/30"
-                        value={salesFrom}
-                        onChange={(e) => setSalesFrom(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-medium text-[#194C66]/80 mb-1">
-                        Gäller till (Early Bird t.o.m.)
-                      </div>
-                      <input
-                        type="date"
-                        className="border rounded-xl px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-[#194C66]/30"
-                        value={salesTo}
-                        onChange={(e) => setSalesTo(e.target.value)}
-                      />
-                    </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <div className="text-xs font-medium text-[#194C66]/80 mb-1">
+                    Gäller från (valfritt)
                   </div>
-                  <div className="text-[11px] text-slate-500 mt-1">
-                    Lämna tomt om priset ska gälla tills vidare. Fyll i
-                    <b> Gäller till</b> för Early Bird-kampanjer.
+                  <input
+                    type="date"
+                    className="border rounded-xl px-3 py-2.5 w-full text-sm focus:outline-none focus:ring-2 focus:ring-[#194C66]/30"
+                    value={validFrom}
+                    onChange={(e) => setValidFrom(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-[#194C66]/80 mb-1">
+                    Gäller till (Early Bird t.o.m.)
                   </div>
+                  <input
+                    type="date"
+                    className="border rounded-xl px-3 py-2.5 w-full text-sm focus:outline-none focus:ring-2 focus:ring-[#194C66]/30"
+                    value={validUntil}
+                    onChange={(e) => setValidUntil(e.target.value)}
+                  />
                 </div>
               </div>
 
@@ -451,7 +423,10 @@ export default function PricingPage() {
                           Biljett-typ
                         </th>
                         <th className="text-left px-2 py-2 font-medium text-slate-600">
-                          Avgång / kampanjperiod
+                          Avgång
+                        </th>
+                        <th className="text-left px-2 py-2 font-medium text-slate-600">
+                          Gäller
                         </th>
                         <th className="text-right px-2 py-2 font-medium text-slate-600">
                           Pris
@@ -465,22 +440,20 @@ export default function PricingPage() {
                         );
                         const depLabel =
                           row.departure_date || "Standardpris (alla avgångar)";
-                        const from = row.sales_valid_from || "";
-                        const to = row.sales_valid_to || "";
+                        const periodLabel =
+                          row.valid_from || row.valid_until
+                            ? `${row.valid_from || "–"} → ${
+                                row.valid_until || "tills vidare"
+                              }`
+                            : "Tills vidare";
+
                         return (
                           <tr key={row.id} className="border-b last:border-0">
                             <td className="px-2 py-2">
                               {tt ? tt.name : `#${row.ticket_type_id}`}
                             </td>
-                            <td className="px-2 py-2">
-                              <div>{depLabel}</div>
-                              {(from || to) && (
-                                <div className="text-[11px] text-slate-500">
-                                  {from && <>Från {from} </>}
-                                  {to && <>t.o.m. {to}</>}
-                                </div>
-                              )}
-                            </td>
+                            <td className="px-2 py-2">{depLabel}</td>
+                            <td className="px-2 py-2">{periodLabel}</td>
                             <td className="px-2 py-2 text-right">
                               {money(row.price)}
                             </td>

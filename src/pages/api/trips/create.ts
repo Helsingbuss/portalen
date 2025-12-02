@@ -12,7 +12,6 @@ type DepartureRow = {
   dep_time?: string;
   line_name?: string;
   stops?: string[];
-  // fallback-fält om något gammalt UI skickar andra namn
   date?: string;
   datum?: string;
   day?: string;
@@ -21,7 +20,7 @@ type DepartureRow = {
 };
 
 type Body = {
-  id?: string; // används vid uppdatering
+  id?: string;
   title: string;
   subtitle?: string | null;
   trip_kind?: "flerdagar" | "dagsresa" | "shopping" | string | null;
@@ -37,11 +36,9 @@ type Body = {
   summary?: string | null;
   categories?: string[] | null;
   tags?: string[] | null;
-
-  // NYTT – sparas både i trips (jsonb) och används för trip_departures
-  departures?: DepartureRow[] | null;
+  departures?: DepartureRow[];
   departures_coming_soon?: boolean | null;
-  lines?: any[] | null; // Linjer & hållplatser (jsonb i trips)
+  lines?: any[] | null;
 };
 
 function setCORS(res: NextApiResponse) {
@@ -78,7 +75,7 @@ function slugify(title: string): string {
   const base = (title || "")
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // ta bort accent-tecken
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
@@ -97,7 +94,6 @@ export default async function handler(
 
   const b = (req.body || {}) as Body;
 
-  // Basic validering
   if (!b?.title || !b?.hero_image) {
     return res
       .status(400)
@@ -110,7 +106,6 @@ export default async function handler(
     ? b.categories
     : null;
 
-  // Platta fält som sparas direkt i tabellen "trips"
   const base: Record<string, any> = {
     title: (b.title || "").trim(),
     subtitle: b.subtitle ?? null,
@@ -124,13 +119,9 @@ export default async function handler(
     published: !!b.published,
     external_url: b.external_url ?? null,
     year: b.year ?? null,
-    summary:
-      typeof b.summary === "string" ? b.summary : b.summary ?? null,
+    summary: typeof b.summary === "string" ? b.summary : b.summary ?? null,
     departures_coming_soon: !!b.departures_coming_soon,
     slug: slugify(b.title || ""),
-
-    // Viktigt: spara linjer + turlista i resan som JSON
-    departures: b.departures ?? null,
     lines: b.lines ?? null,
   };
 
@@ -138,35 +129,32 @@ export default async function handler(
     base["tags"] = tagsArray.filter(Boolean);
   }
 
-  // Datumlista för trip_departures
-  const dates = parseDepartureDates(b.departures || undefined);
-
+  const dates = parseDepartureDates(b.departures);
   let tripId: string | null = b.id || null;
 
-  // ---------- Skapa eller uppdatera resa ----------
   try {
-    let data: any;
-    let error: any;
-
     if (tripId) {
-      // Uppdatera befintlig resa
-      ({ data, error } = await supabase
+      // 🔁 Uppdatera befintlig resa
+      const { data, error } = await supabase
         .from("trips")
         .update(base)
         .eq("id", tripId)
         .select("id")
-        .single());
+        .single();
+
+      if (error) throw error;
+      tripId = data?.id || tripId;
     } else {
-      // Skapa ny resa
-      ({ data, error } = await supabase
+      // ➕ Skapa ny resa
+      const { data, error } = await supabase
         .from("trips")
         .insert(base)
         .select("id")
-        .single());
-    }
+        .single();
 
-    if (error) throw error;
-    tripId = data?.id || tripId;
+      if (error) throw error;
+      tripId = data?.id || null;
+    }
   } catch (e: any) {
     console.error("create trip failed:", e);
     return res.status(500).json({
@@ -181,22 +169,15 @@ export default async function handler(
       .json({ ok: false, error: "Kunde inte spara resa (saknar id)." });
   }
 
-  // ---------- Uppdatera avgångar i trip_departures ----------
+  // Uppdatera avgångar
   try {
-    // radera gamla rader för den här resan
     await supabase.from("trip_departures").delete().eq("trip_id", tripId);
 
     if (dates.length) {
-      const rows = dates.map((d) => ({
-        trip_id: tripId,
-        // Viktigt: rätt kolumnnamn
-        depart_date: d, // YYYY-MM-DD
-      }));
-
+      const rows = dates.map((d) => ({ trip_id: tripId, date: d }));
       const { error: depErr } = await supabase
         .from("trip_departures")
         .insert(rows);
-
       if (depErr) {
         console.warn(
           "create: could not insert departures:",
@@ -205,11 +186,7 @@ export default async function handler(
       }
     }
   } catch (e: any) {
-    console.warn(
-      "create: departures update failed:",
-      e?.message || e
-    );
-    // men vi låter resan vara sparad ändå
+    console.warn("create: departures update failed:", e?.message || e);
   }
 
   return res.status(200).json({

@@ -224,7 +224,7 @@ export default function TripsIndexPage() {
                           <Link
                             href={{
                               pathname: "/admin/trips/new",
-                              query: { id: r.id },
+                              query: { id: r.id }, // 👈 detta är rätt – skickar trip-id
                             }}
                             className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300"
                             title="Redigera"

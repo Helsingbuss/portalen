@@ -22,8 +22,11 @@ type TicketType = {
 };
 
 type Departure = {
-  trip_id: string | null;
+  trip_id: string;
   date: string | null;
+  depart_date?: string | null;
+  dep_date?: string | null;
+  departure_date?: string | null;
 };
 
 type PricingRow = {
@@ -35,7 +38,7 @@ type PricingRow = {
   currency: string;
 };
 
-type LoadResponse = {
+type Resp = {
   ok: boolean;
   trips: Trip[];
   ticket_types: TicketType[];
@@ -44,10 +47,18 @@ type LoadResponse = {
   error?: string;
 };
 
+function setCORS(res: NextApiResponse) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+}
+
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<LoadResponse>
+  res: NextApiResponse<Resp>
 ) {
+  setCORS(res);
+  if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "GET") {
     return res
       .status(405)
@@ -55,59 +66,52 @@ export default async function handler(
   }
 
   try {
-    const [tripsRes, ticketTypesRes, departuresRes, pricingRes] =
-      await Promise.all([
-        // Alla resor
-        supabase
-          .from("trips")
-          .select("id,title,year,published,slug")
-          .order("title", { ascending: true }),
+    // 1) Resor
+    const { data: trips, error: tripsErr } = await supabase
+      .from("trips")
+      .select("id, title, year, slug, published")
+      .order("title", { ascending: true });
 
-        // Alla biljetttyper
-        supabase
-          .from("ticket_types")
-          .select("id,name,code")
-          .order("id", { ascending: true }),
+    if (tripsErr) throw tripsErr;
 
-        // Alla avgångar – endast trip_id + date
-        supabase
-          .from("trip_departures")
-          .select("trip_id,date")
-          .order("date", { ascending: true }),
+    // 2) Biljetttyper
+    const { data: ticketTypes, error: ttErr } = await supabase
+      .from("ticket_types")
+      .select("id, name, code")
+      .order("name", { ascending: true });
 
-        // Prissättning (om du redan har rader där)
-        supabase
-          .from("trip_ticket_pricing")
-          .select("id,trip_id,ticket_type_id,departure_date,price,currency")
-          .order("trip_id", { ascending: true }),
-      ]);
+    if (ttErr) throw ttErr;
 
-    if (tripsRes.error) throw tripsRes.error;
-    if (ticketTypesRes.error) throw ticketTypesRes.error;
-    if (departuresRes.error) throw departuresRes.error;
-    if (pricingRes.error) throw pricingRes.error;
+    // 3) Avgångar
+    const { data: departures, error: depErr } = await supabase
+      .from("trip_departures")
+      .select("trip_id, date, depart_date, dep_date, departure_date");
 
-    const trips = (tripsRes.data || []) as Trip[];
-    const ticket_types = (ticketTypesRes.data || []) as TicketType[];
-    const departures = (departuresRes.data || []) as Departure[];
-    const pricing = (pricingRes.data || []) as PricingRow[];
+    if (depErr) throw depErr;
+
+    // 4) Priser
+    const { data: pricing, error: prErr } = await supabase
+      .from("trip_ticket_pricing")
+      .select("id, trip_id, ticket_type_id, departure_date, price, currency");
+
+    if (prErr) throw prErr;
 
     return res.status(200).json({
       ok: true,
-      trips,
-      ticket_types,
-      departures,
-      pricing,
+      trips: trips || [],
+      ticket_types: ticketTypes || [],
+      departures: departures || [],
+      pricing: pricing || [],
     });
   } catch (e: any) {
-    console.error("pricing/load failed:", e);
+    console.error("pricing/load error", e);
     return res.status(500).json({
       ok: false,
       trips: [],
       ticket_types: [],
       departures: [],
       pricing: [],
-      error: e?.message || "Tekniskt fel vid läsning.",
+      error: e?.message || "Tekniskt fel.",
     });
   }
 }

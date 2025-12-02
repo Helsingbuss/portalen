@@ -1,207 +1,413 @@
 // src/pages/widget/departures/[slug].tsx
-import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { GetServerSideProps } from "next";
+import Head from "next/head";
+import { useState } from "react";
+import * as admin from "@/lib/supabaseAdmin";
 
-type TripInfo = {
+const supabase: any =
+  (admin as any).supabaseAdmin ||
+  (admin as any).supabase ||
+  (admin as any).default;
+
+type RawDeparture = {
+  dep_date?: string;
+  depart_date?: string;
+  date?: string;
+  day?: string;
+  when?: string;
+  dep_time?: string;
+  time?: string;
+  line_name?: string;
+  line?: string;
+  stops?: string[] | string | null;
+};
+
+type TripRow = {
   id: string;
   title: string;
   subtitle?: string | null;
+  price_from?: number | null;
+  departures?: RawDeparture[] | string | null;
+  departures_coming_soon?: boolean | null;
 };
 
-type DepartureRow = {
+type SeatsRow = {
+  depart_date: string | null;
+  seats_total: number | null;
+  seats_reserved: number | null;
+};
+
+type WidgetDeparture = {
   id: string;
-  dateLabel: string;      // "2025-12-06 Lör"
-  lineLabel?: string;     // "Linje 1"
-  title: string;          // "Dagstur Ullared Shopping 07.30" (kan vara bara trip-titel)
-  priceLabel?: string;    // "295:-"
-  seatsLabel: string;     // ">8", "Slut", "Väntelista"
-  status: "available" | "full" | "waitlist";
-  stopsText?: string;     // Hållplatser + tider
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM
+  line: string;
+  stops: string[];
+  avresaLabel: string; // "2026-02-07 Lör"
+  priceLabel: string;  // "295:-"
+  seatsLabel: string;  // "Slut" | ">8" | "5" | "–"
+  isFull: boolean;
 };
 
-type ApiResponse = {
-  ok: boolean;
-  trip?: TripInfo;
-  departures?: DepartureRow[];
-  error?: string;
+type Props = {
+  slug: string;
+  tripTitle: string;
+  priceFromLabel: string;
+  departuresComingSoon: boolean;
+  departures: WidgetDeparture[];
 };
 
-export default function DeparturesWidgetPage() {
-  const router = useRouter();
-  const { slug } = router.query;
+function formatAvresaLabel(dateStr: string): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return dateStr;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const base = `${y}-${m}-${day}`;
 
-  const [trip, setTrip] = useState<TripInfo | null>(null);
-  const [rows, setRows] = useState<DepartureRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [openInfoId, setOpenInfoId] = useState<string | null>(null);
+  const weekday = d.toLocaleDateString("sv-SE", {
+    weekday: "short",
+  });
+  const w =
+    weekday.length > 0
+      ? weekday.charAt(0).toUpperCase() + weekday.slice(1)
+      : "";
+  return `${base} ${w}`;
+}
 
-  useEffect(() => {
-    if (!router.isReady) return;
-    if (!slug || Array.isArray(slug)) return;
+function normalizeStops(stops: RawDeparture["stops"]): string[] {
+  if (!stops) return [];
+  if (Array.isArray(stops)) {
+    return stops.map((s) => String(s).trim()).filter(Boolean);
+  }
+  return String(stops)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
-    const s = String(slug);
-    let cancelled = false;
+export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
+  const slug = String(ctx.params?.slug || "").trim();
+  if (!slug) {
+    return { notFound: true };
+  }
 
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
+  // Hämta resa
+  const { data: trip, error } = await supabase
+    .from("trips")
+    .select(
+      "id, title, subtitle, price_from, departures, departures_coming_soon"
+    )
+    .eq("slug", slug)
+    .eq("published", true)
+    .single();
 
-        const res = await fetch(
-          `/api/public/widget/departures/${encodeURIComponent(s)}`
-        );
-        const json: ApiResponse = await res.json();
+  if (error || !trip) {
+    console.error("widget slug not found:", error);
+    return { notFound: true };
+  }
 
-        if (!res.ok || json.ok === false) {
-          throw new Error(json.error || "Kunde inte läsa avgångar.");
-        }
+  const t = trip as TripRow;
 
-        if (cancelled) return;
-        setTrip(json.trip ?? null);
-        setRows(json.departures ?? []);
-      } catch (e: any) {
-        console.error(e);
-        if (!cancelled) {
-          setError(e?.message || "Tekniskt fel.");
-          setTrip(null);
-          setRows([]);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  // Hämta kapacitet per datum
+  const { data: seatRows } = await supabase
+    .from("trip_departures")
+    .select("depart_date, seats_total, seats_reserved")
+    .eq("trip_id", t.id);
+
+  const seatsMap = new Map<string, { label: string; isFull: boolean }>();
+  (seatRows as SeatsRow[] | null | undefined)?.forEach((row) => {
+    const date = row.depart_date
+      ? String(row.depart_date).slice(0, 10)
+      : "";
+    if (!date) return;
+
+    const total = row.seats_total ?? 0;
+    const reserved = row.seats_reserved ?? 0;
+
+    if (total <= 0) {
+      seatsMap.set(date, { label: "–", isFull: false });
+      return;
     }
 
-    load();
+    const remaining = Math.max(total - reserved, 0);
+    if (remaining <= 0) {
+      seatsMap.set(date, { label: "Slut", isFull: true });
+    } else if (remaining > 8) {
+      seatsMap.set(date, { label: ">8", isFull: false });
+    } else {
+      seatsMap.set(date, { label: String(remaining), isFull: false });
+    }
+  });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [router.isReady, slug]);
+  // Normalisera departures från trips.departures (JSONB)
+  let rawDepartures: RawDeparture[] = [];
+  if (Array.isArray(t.departures)) {
+    rawDepartures = t.departures as RawDeparture[];
+  } else if (typeof t.departures === "string") {
+    try {
+      const parsed = JSON.parse(t.departures);
+      if (Array.isArray(parsed)) rawDepartures = parsed as RawDeparture[];
+    } catch {
+      // ignore
+    }
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().slice(0, 10);
+
+  const priceFromLabel =
+    t.price_from != null
+      ? `${Math.round(Number(t.price_from)).toLocaleString("sv-SE")}:-`
+      : "—";
+
+  const departures: WidgetDeparture[] = rawDepartures
+    .map((r, idx) => {
+      const date =
+        (r.dep_date ||
+          r.depart_date ||
+          r.date ||
+          r.day ||
+          r.when ||
+          "") as string;
+      const d = String(date).slice(0, 10);
+      if (!d) return null;
+
+      const time = String(r.dep_time || r.time || "").slice(0, 5);
+      const line = String(r.line_name || r.line || "").trim();
+      const stops = normalizeStops(r.stops);
+
+      const seats = seatsMap.get(d) || { label: ">8", isFull: false };
+
+      return {
+        id: `${d}-${time || "00:00"}-${idx}`,
+        date: d,
+        time,
+        line,
+        stops,
+        avresaLabel: formatAvresaLabel(d),
+        priceLabel: priceFromLabel,
+        seatsLabel: seats.label,
+        isFull: seats.isFull,
+      } as WidgetDeparture;
+    })
+    .filter(Boolean) as WidgetDeparture[];
+
+  // Sortera och filtrera kommande
+  departures.sort((a, b) => {
+    const aKey = `${a.date}T${a.time || "00:00"}`;
+    const bKey = `${b.date}T${b.time || "00:00"}`;
+    return aKey.localeCompare(bKey);
+  });
+
+  const upcoming = departures.filter((d) => d.date >= todayStr);
+
+  return {
+    props: {
+      slug,
+      tripTitle: t.title,
+      priceFromLabel,
+      departuresComingSoon: !!t.departures_coming_soon,
+      departures: upcoming,
+    },
+  };
+};
+
+export default function WidgetDeparturesPage(props: Props) {
+  const { tripTitle, departures, departuresComingSoon, priceFromLabel } = props;
+  const [info, setInfo] = useState<{
+    title: string;
+    stops: string[];
+  } | null>(null);
 
   return (
-    <div className="hb-widget font-sans text-[14px] text-slate-900">
-      <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white">
-        {/* Header */}
-        <div className="px-4 py-3 border-b bg-slate-50">
-          <div className="text-sm font-semibold text-slate-800">
-            {trip ? `Kommande avgångar – ${trip.title}` : "Kommande avgångar"}
+    <>
+      <Head>
+        <title>{tripTitle} – avgångar | Helsingbuss</title>
+      </Head>
+      <div className="min-h-screen bg-[#f5f4f0] py-8 px-4">
+        <div className="max-w-5xl mx-auto bg-white/90 rounded-2xl shadow border border-slate-200">
+          <div className="px-4 sm:px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+            <div>
+              <h1 className="text-base sm:text-lg font-semibold text-slate-900">
+                Kommande avgångar
+              </h1>
+              <p className="text-xs text-slate-500 mt-0.5">{tripTitle}</p>
+            </div>
+            {priceFromLabel && priceFromLabel !== "—" && (
+              <div className="hidden sm:block text-xs text-slate-500">
+                Pris från{" "}
+                <span className="font-semibold text-slate-900">
+                  {priceFromLabel}
+                </span>
+              </div>
+            )}
           </div>
+
+          {departuresComingSoon && departures.length === 0 && (
+            <div className="px-4 sm:px-6 py-6 text-sm text-slate-700">
+              Avgångsorter och datum kommer inom kort.
+            </div>
+          )}
+
+          {!departuresComingSoon && departures.length === 0 && (
+            <div className="px-4 sm:px-6 py-6 text-sm text-slate-700">
+              Inga kommande avgångar är upplagda för den här resan ännu.
+            </div>
+          )}
+
+          {departures.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                    <th className="px-3 py-2 text-left w-10">
+                      <span className="sr-only">Info</span>
+                    </th>
+                    <th className="px-3 py-2 text-left whitespace-nowrap">
+                      Avresa
+                    </th>
+                    <th className="px-3 py-2 text-left whitespace-nowrap">
+                      Linje
+                    </th>
+                    <th className="px-3 py-2 text-left whitespace-nowrap">
+                      Resmål
+                    </th>
+                    <th className="px-3 py-2 text-right whitespace-nowrap">
+                      Pris från
+                    </th>
+                    <th className="px-3 py-2 text-center whitespace-nowrap">
+                      Platser kvar
+                    </th>
+                    <th className="px-3 py-2 text-right w-32"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {departures.map((d, idx) => {
+                    const resmal =
+                      d.time && d.time.length
+                        ? `${tripTitle} ${d.time}`
+                        : tripTitle;
+
+                    const isFull = d.isFull;
+                    const buttonLabel = isFull ? "Väntelista" : "Boka";
+
+                    return (
+                      <tr
+                        key={d.id}
+                        className={`border-b last:border-0 ${
+                          idx % 2 === 0 ? "bg-white" : "bg-slate-50/60"
+                        } hover:bg-slate-100/80 transition-colors`}
+                      >
+                        {/* Info-ikon */}
+                        <td className="px-3 py-3 align-middle">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setInfo({
+                                title: `${d.avresaLabel} – ${
+                                  d.time || ""
+                                }`,
+                                stops: d.stops,
+                              })
+                            }
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#0056A3] text-white text-xs font-semibold shadow-sm hover:bg-[#00427c] focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#0056A3]"
+                            aria-label="Visa påstigningsplatser"
+                          >
+                            i
+                          </button>
+                        </td>
+
+                        {/* Avresa */}
+                        <td className="px-3 py-3 align-middle whitespace-nowrap text-slate-900">
+                          {d.avresaLabel}
+                        </td>
+
+                        {/* Linje */}
+                        <td className="px-3 py-3 align-middle whitespace-nowrap text-slate-900">
+                          {d.line || "–"}
+                        </td>
+
+                        {/* Resmål */}
+                        <td className="px-3 py-3 align-middle text-slate-900">
+                          {resmal}
+                        </td>
+
+                        {/* Pris från */}
+                        <td className="px-3 py-3 align-middle text-right text-slate-900 font-semibold">
+                          {d.priceLabel}
+                        </td>
+
+                        {/* Platser kvar */}
+                        <td className="px-3 py-3 align-middle text-center text-slate-900">
+                          {d.seatsLabel}
+                        </td>
+
+                        {/* Boka / Väntelista */}
+                        <td className="px-3 py-3 align-middle text-right">
+                          <button
+                            type="button"
+                            className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full text-sm font-semibold shadow-sm transition-colors ${
+                              isFull
+                                ? "bg-amber-500 hover:bg-amber-600 text-white"
+                                : "bg-[#0066CC] hover:bg-[#0052a3] text-white"
+                            }`}
+                          >
+                            {buttonLabel}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        {/* Innehåll */}
-        {loading ? (
-          <div className="p-4 text-sm text-slate-500">Laddar avgångar…</div>
-        ) : error ? (
-          <div className="p-4 text-sm text-red-700 bg-red-50 border-t border-red-200">
-            {error}
-          </div>
-        ) : !rows.length ? (
-          <div className="p-4 text-sm text-slate-500">
-            Inga kommande avgångar är upplagda för den här resan.
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-200">
-            {/* Tabell-header (desktop) */}
-            <div className="hidden md:grid grid-cols-[auto,1.1fr,2fr,1fr,1.3fr] gap-4 px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-50">
-              <div className="pl-6">Avresa</div>
-              <div>Linje</div>
-              <div>Resmål</div>
-              <div className="text-right">Pris från</div>
-              <div className="text-right">Platser kvar</div>
-            </div>
-
-            {/* Rader */}
-            {rows.map((row) => {
-              const isFull = row.status === "full";
-              const isWait = row.status === "waitlist";
-
-              const buttonLabel = isWait ? "Väntelista" : "Boka";
-              const buttonClasses = isWait
-                ? "bg-[#f97316] hover:bg-[#ea580c]"
-                : "bg-[#0055b8] hover:bg-[#00479a]";
-
-              const seatsText = row.seatsLabel || "";
-
-              return (
-                <div key={row.id} className="group">
-                  {/* Huvudrad */}
-                  <div className="grid grid-cols-1 md:grid-cols-[auto,1.1fr,2fr,1fr,1.3fr] gap-3 px-4 py-3 items-center">
-                    {/* Avresa + info-ikon */}
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        aria-label="Visa hållplatser"
-                        onClick={() =>
-                          setOpenInfoId((prev) =>
-                            prev === row.id ? null : row.id
-                          )
-                        }
-                        className="flex items-center justify-center w-6 h-6 rounded-full border border-slate-300 text-[11px] text-slate-700 bg-white hover:bg-slate-50 shrink-0"
-                      >
-                        i
-                      </button>
-                      <div className="text-sm font-medium text-slate-900">
-                        {row.dateLabel}
-                      </div>
-                    </div>
-
-                    {/* Linje */}
-                    <div className="text-sm text-slate-800 md:text-left">
-                      {row.lineLabel || "Linje"}
-                    </div>
-
-                    {/* Resmål */}
-                    <div className="text-sm text-slate-900">{row.title}</div>
-
-                    {/* Pris */}
-                    <div className="text-sm font-medium text-slate-900 md:text-right">
-                      {row.priceLabel}
-                    </div>
-
-                    {/* Platser + knapp */}
-                    <div className="flex items-center justify-between md:justify-end gap-3">
-                      <div className="text-sm text-slate-800">{seatsText}</div>
-                      <button
-                        type="button"
-                        disabled={isFull}
-                        className={`px-4 py-1.5 rounded-full text-sm font-semibold text-white whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed ${buttonClasses}`}
-                      >
-                        {buttonLabel}
-                      </button>
-                    </div>
+        {/* Popup med hållplatser */}
+        {info && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full mx-4 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">
+                    Påstigningsplatser
                   </div>
-
-                  {/* Popup med hållplatser */}
-                  {openInfoId === row.id && (
-                    <div className="px-4 pb-3">
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                        <div className="font-semibold mb-1">
-                          Påstigningsplatser &amp; tider
-                        </div>
-                        {row.stopsText ? (
-                          <div>{row.stopsText}</div>
-                        ) : (
-                          <div>
-                            Information om hållplatser kommer senare.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  <div className="text-xs text-slate-500 mt-0.5">
+                    {info.title}
+                  </div>
                 </div>
-              );
-            })}
+                <button
+                  type="button"
+                  onClick={() => setInfo(null)}
+                  className="text-slate-500 hover:text-slate-800 text-xl leading-none px-1"
+                  aria-label="Stäng"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="px-5 py-4 text-sm text-slate-700">
+                {info.stops.length === 0 && (
+                  <p>Inga hållplatser registrerade för denna avgång.</p>
+                )}
+                {info.stops.length > 0 && (
+                  <ul className="space-y-1">
+                    {info.stops.map((s, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="mt-[6px] w-1.5 h-1.5 rounded-full bg-[#194C66]" />
+                        <span>{s}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
-
-      {/* Lite global styling för att widgeten ska funka fint i WordPress mm */}
-      <style jsx global>{`
-        .hb-widget * {
-          box-sizing: border-box;
-        }
-      `}</style>
-    </div>
+    </>
   );
 }

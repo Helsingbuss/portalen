@@ -7,24 +7,35 @@ const supabase: any =
   (admin as any).supabase ||
   (admin as any).default;
 
+type SaveBody = {
+  trip_id: string;
+  ticket_type_id: number;
+  departure_date: string | null;
+  price: number;
+};
+
+type PricingRow = {
+  id: number;
+  trip_id: string;
+  ticket_type_id: number;
+  departure_date: string | null;
+  price: number;
+  currency: string;
+};
+
+type Resp =
+  | { ok: true; row: PricingRow }
+  | { ok: false; error: string };
+
 function setCORS(res: NextApiResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
-type SaveBody = {
-  trip_id: string;
-  ticket_type_id: number;
-  departure_date: string | null;
-  price: number;
-  sales_valid_from?: string | null;
-  sales_valid_to?: string | null;
-};
-
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse<Resp>
 ) {
   setCORS(res);
   if (req.method === "OPTIONS") return res.status(200).end();
@@ -34,66 +45,90 @@ export default async function handler(
       .json({ ok: false, error: "Method not allowed" });
   }
 
-  const b = (req.body || {}) as SaveBody;
-
-  if (!b.trip_id) {
-    return res.status(400).json({ ok: false, error: "Saknar trip_id." });
-  }
-  if (!b.ticket_type_id) {
-    return res
-      .status(400)
-      .json({ ok: false, error: "Saknar ticket_type_id." });
-  }
-  if (!b.price || isNaN(Number(b.price))) {
-    return res
-      .status(400)
-      .json({ ok: false, error: "Ogiltigt pris." });
-  }
-
-  const depDate =
-    b.departure_date && b.departure_date.length >= 10
-      ? b.departure_date.slice(0, 10)
-      : null;
-
-  const salesFrom =
-    b.sales_valid_from && b.sales_valid_from.length >= 10
-      ? b.sales_valid_from.slice(0, 10)
-      : null;
-
-  const salesTo =
-    b.sales_valid_to && b.sales_valid_to.length >= 10
-      ? b.sales_valid_to.slice(0, 10)
-      : null;
-
   try {
-    const { data, error } = await supabase
+    const body = req.body as SaveBody;
+
+    if (!body.trip_id) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "Saknar trip_id." });
+    }
+    if (!body.ticket_type_id) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "Saknar ticket_type_id." });
+    }
+    if (!body.price || isNaN(body.price)) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "Ogiltigt pris." });
+    }
+
+    const depDate = body.departure_date || null;
+
+    // Försök hitta befintlig rad för (resa + biljett + datum)
+    let query = supabase
       .from("trip_ticket_pricing")
-      .upsert(
-        {
-          trip_id: b.trip_id,
-          ticket_type_id: b.ticket_type_id,
-          departure_date: depDate,
-          price: Number(b.price),
+      .select("id, trip_id, ticket_type_id, departure_date, price, currency");
+
+    query = query.eq("trip_id", body.trip_id).eq("ticket_type_id", body.ticket_type_id);
+
+    if (depDate) {
+      query = query.eq("departure_date", depDate);
+    } else {
+      query = query.is("departure_date", null);
+    }
+
+    const { data: existing, error: existingErr } = await query.limit(1);
+
+    if (existingErr) throw existingErr;
+
+    let saved: PricingRow | null = null;
+
+    if (existing && existing.length > 0) {
+      // UPDATE
+      const id = existing[0].id;
+      const { data, error } = await supabase
+        .from("trip_ticket_pricing")
+        .update({
+          price: body.price,
           currency: "SEK",
-          sales_valid_from: salesFrom,
-          sales_valid_to: salesTo,
-        },
-        {
-          onConflict: "trip_id,ticket_type_id,departure_date",
-        }
-      )
-      .select(
-        "id,trip_id,ticket_type_id,departure_date,price,currency,sales_valid_from,sales_valid_to"
-      )
-      .single();
+          departure_date: depDate,
+        })
+        .eq("id", id)
+        .select("id, trip_id, ticket_type_id, departure_date, price, currency")
+        .single();
 
-    if (error) throw error;
+      if (error) throw error;
+      saved = data;
+    } else {
+      // INSERT
+      const { data, error } = await supabase
+        .from("trip_ticket_pricing")
+        .insert({
+          trip_id: body.trip_id,
+          ticket_type_id: body.ticket_type_id,
+          departure_date: depDate,
+          price: body.price,
+          currency: "SEK",
+        })
+        .select("id, trip_id, ticket_type_id, departure_date, price, currency")
+        .single();
 
-    return res.status(200).json({ ok: true, row: data });
+      if (error) throw error;
+      saved = data;
+    }
+
+    if (!saved) {
+      throw new Error("Kunde inte spara prisraden.");
+    }
+
+    return res.status(200).json({ ok: true, row: saved });
   } catch (e: any) {
-    console.error("/api/admin/pricing/save error:", e);
-    return res
-      .status(500)
-      .json({ ok: false, error: e?.message || "Serverfel vid sparande." });
+    console.error("pricing/save error", e);
+    return res.status(500).json({
+      ok: false,
+      error: e?.message || "Tekniskt fel vid sparande.",
+    });
   }
 }
