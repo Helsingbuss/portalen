@@ -217,19 +217,47 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
 
 export default function WidgetDeparturesPage(props: Props) {
   const { tripTitle, departures, departuresComingSoon, priceFromLabel } = props;
+
   const [info, setInfo] = useState<{
     title: string;
     stops: string[];
   } | null>(null);
+
+  const [activeLine, setActiveLine] = useState<string>("ALL");
+
+  // unika linjenamn för filterknapparna
+  const lineNames = Array.from(
+    new Set(
+      departures
+        .map((d) => d.line)
+        .filter((x): x is string => !!x && x.trim().length > 0)
+    )
+  ).sort();
+
+  const filteredDepartures =
+    activeLine === "ALL"
+      ? departures
+      : departures.filter((d) => d.line === activeLine);
+
+  const buttonClass = (value: string) =>
+    [
+      "px-3 py-1.5 rounded-full text-xs font-medium border transition",
+      value === activeLine
+        ? "bg-[#194C66] text-white border-[#194C66]"
+        : "bg-transparent text-[#194C66] border-slate-300 hover:bg-slate-100",
+    ].join(" ");
 
   return (
     <>
       <Head>
         <title>{tripTitle} – avgångar | Helsingbuss</title>
       </Head>
-      <div className="min-h-screen bg-[#f5f4f0] py-8 px-4">
-        <div className="max-w-5xl mx-auto bg-white/90 rounded-2xl shadow border border-slate-200">
-          <div className="px-4 sm:px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+
+      {/* HEL sida vit, ingen beige bakgrund, inget stort kort */}
+      <div className="min-h-screen bg-white py-8 px-4">
+        <div className="max-w-5xl mx-auto">
+          {/* Header över tabellen */}
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
             <div>
               <h1 className="text-base sm:text-lg font-semibold text-slate-900">
                 Kommande avgångar
@@ -237,7 +265,7 @@ export default function WidgetDeparturesPage(props: Props) {
               <p className="text-xs text-slate-500 mt-0.5">{tripTitle}</p>
             </div>
             {priceFromLabel && priceFromLabel !== "—" && (
-              <div className="hidden sm:block text-xs text-slate-500">
+              <div className="text-xs sm:text-sm text-slate-600">
                 Pris från{" "}
                 <span className="font-semibold text-slate-900">
                   {priceFromLabel}
@@ -246,124 +274,147 @@ export default function WidgetDeparturesPage(props: Props) {
             )}
           </div>
 
+          {/* Info om att datum kommer senare / inga avgångar */}
           {departuresComingSoon && departures.length === 0 && (
-            <div className="px-4 sm:px-6 py-6 text-sm text-slate-700">
+            <div className="py-4 text-sm text-slate-700">
               Avgångsorter och datum kommer inom kort.
             </div>
           )}
 
           {!departuresComingSoon && departures.length === 0 && (
-            <div className="px-4 sm:px-6 py-6 text-sm text-slate-700">
+            <div className="py-4 text-sm text-slate-700">
               Inga kommande avgångar är upplagda för den här resan ännu.
             </div>
           )}
 
           {departures.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                    <th className="px-3 py-2 text-left w-10">
-                      <span className="sr-only">Info</span>
-                    </th>
-                    <th className="px-3 py-2 text-left whitespace-nowrap">
-                      Avresa
-                    </th>
-                    <th className="px-3 py-2 text-left whitespace-nowrap">
-                      Linje
-                    </th>
-                    <th className="px-3 py-2 text-left whitespace-nowrap">
-                      Resmål
-                    </th>
-                    <th className="px-3 py-2 text-right whitespace-nowrap">
-                      Pris från
-                    </th>
-                    <th className="px-3 py-2 text-center whitespace-nowrap">
-                      Platser kvar
-                    </th>
-                    <th className="px-3 py-2 text-right w-32"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {departures.map((d, idx) => {
-                    const resmal =
-                      d.time && d.time.length
-                        ? `${tripTitle} ${d.time}`
-                        : tripTitle;
+            <>
+              {/* Knappar: Visa alla + Linje 1, Linje 2, ... */}
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className={buttonClass("ALL")}
+                  onClick={() => setActiveLine("ALL")}
+                >
+                  Visa alla resor
+                </button>
+                {lineNames.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    className={buttonClass(name)}
+                    onClick={() => setActiveLine(name)}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
 
-                    const isFull = d.isFull;
-                    const buttonLabel = isFull ? "Väntelista" : "Boka";
+              {/* Själva tabellen – utan kortbakgrund, bara rader */}
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                      <th className="px-3 py-2 text-left w-10">
+                        <span className="sr-only">Info</span>
+                      </th>
+                      <th className="px-3 py-2 text-left whitespace-nowrap">
+                        Avresa
+                      </th>
+                      <th className="px-3 py-2 text-left whitespace-nowrap">
+                        Linje
+                      </th>
+                      <th className="px-3 py-2 text-left whitespace-nowrap">
+                        Resmål
+                      </th>
+                      <th className="px-3 py-2 text-right whitespace-nowrap">
+                        Pris från
+                      </th>
+                      <th className="px-3 py-2 text-right whitespace-nowrap">
+                        Platser kvar
+                      </th>
+                      <th className="px-3 py-2 text-right w-32"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredDepartures.map((d, idx) => {
+                      const resmal =
+                        d.time && d.time.length
+                          ? `${tripTitle} ${d.time}`
+                          : tripTitle;
 
-                    return (
-                      <tr
-                        key={d.id}
-                        className={`border-b last:border-0 ${
-                          idx % 2 === 0 ? "bg-white" : "bg-slate-50/60"
-                        } hover:bg-slate-100/80 transition-colors`}
-                      >
-                        {/* Info-ikon */}
-                        <td className="px-3 py-3 align-middle">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setInfo({
-                                title: `${d.avresaLabel} – ${
-                                  d.time || ""
-                                }`,
-                                stops: d.stops,
-                              })
-                            }
-                            className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#0056A3] text-white text-xs font-semibold shadow-sm hover:bg-[#00427c] focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#0056A3]"
-                            aria-label="Visa påstigningsplatser"
-                          >
-                            i
-                          </button>
-                        </td>
+                      const isFull = d.isFull;
+                      const buttonLabel = isFull ? "Väntelista" : "Boka";
 
-                        {/* Avresa */}
-                        <td className="px-3 py-3 align-middle whitespace-nowrap text-slate-900">
-                          {d.avresaLabel}
-                        </td>
+                      return (
+                        <tr
+                          key={d.id}
+                          className="border-b last:border-0 bg-white hover:bg-slate-50/80 transition-colors"
+                        >
+                          {/* Info-ikon */}
+                          <td className="px-3 py-3 align-middle">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setInfo({
+                                  title: `${d.avresaLabel}${
+                                    d.time ? ` – ${d.time}` : ""
+                                  }`,
+                                  stops: d.stops,
+                                })
+                              }
+                              className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#0056A3] text-white text-xs font-semibold shadow-sm hover:bg-[#00427c] focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#0056A3]"
+                              aria-label="Visa påstigningsplatser"
+                            >
+                              i
+                            </button>
+                          </td>
 
-                        {/* Linje */}
-                        <td className="px-3 py-3 align-middle whitespace-nowrap text-slate-900">
-                          {d.line || "–"}
-                        </td>
+                          {/* Avresa */}
+                          <td className="px-3 py-3 align-middle whitespace-nowrap text-slate-900">
+                            {d.avresaLabel}
+                          </td>
 
-                        {/* Resmål */}
-                        <td className="px-3 py-3 align-middle text-slate-900">
-                          {resmal}
-                        </td>
+                          {/* Linje */}
+                          <td className="px-3 py-3 align-middle whitespace-nowrap text-slate-900">
+                            {d.line || "–"}
+                          </td>
 
-                        {/* Pris från */}
-                        <td className="px-3 py-3 align-middle text-right text-slate-900 font-semibold">
-                          {d.priceLabel}
-                        </td>
+                          {/* Resmål */}
+                          <td className="px-3 py-3 align-middle text-slate-900">
+                            {resmal}
+                          </td>
 
-                        {/* Platser kvar */}
-                        <td className="px-3 py-3 align-middle text-center text-slate-900">
-                          {d.seatsLabel}
-                        </td>
+                          {/* Pris från */}
+                          <td className="px-3 py-3 align-middle text-right text-slate-900 font-semibold">
+                            {d.priceLabel}
+                          </td>
 
-                        {/* Boka / Väntelista */}
-                        <td className="px-3 py-3 align-middle text-right">
-                          <button
-                            type="button"
-                            className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full text-sm font-semibold shadow-sm transition-colors ${
-                              isFull
-                                ? "bg-amber-500 hover:bg-amber-600 text-white"
-                                : "bg-[#0066CC] hover:bg-[#0052a3] text-white"
-                            }`}
-                          >
-                            {buttonLabel}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          {/* Platser kvar */}
+                          <td className="px-3 py-3 align-middle text-right text-slate-900">
+                            {d.seatsLabel}
+                          </td>
+
+                          {/* Boka / Väntelista */}
+                          <td className="px-3 py-3 align-middle text-right">
+                            <button
+                              type="button"
+                              className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full text-sm font-semibold shadow-sm transition-colors ${
+                                isFull
+                                  ? "bg-amber-500 hover:bg-amber-600 text-white"
+                                  : "bg-[#0066CC] hover:bg-[#0052a3] text-white"
+                              }`}
+                            >
+                              {buttonLabel}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
 
