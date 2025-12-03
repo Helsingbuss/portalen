@@ -13,20 +13,13 @@ type Trip = {
   year: number | null;
   slug?: string | null;
   published: boolean;
+  departures?: any; // JSONB med turlista
 };
 
 type TicketType = {
   id: number;
   name: string;
   code?: string | null;
-};
-
-type Departure = {
-  trip_id: string;
-  date: string | null;
-  depart_date?: string | null;
-  dep_date?: string | null;
-  departure_date?: string | null;
 };
 
 type PricingRow = {
@@ -42,7 +35,6 @@ type Resp = {
   ok: boolean;
   trips: Trip[];
   ticket_types: TicketType[];
-  departures: Departure[];
   pricing: PricingRow[];
   error?: string;
 };
@@ -60,16 +52,20 @@ export default async function handler(
   setCORS(res);
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "GET") {
-    return res
-      .status(405)
-      .json({ ok: false, trips: [], ticket_types: [], departures: [], pricing: [], error: "Method not allowed" });
+    return res.status(405).json({
+      ok: false,
+      trips: [],
+      ticket_types: [],
+      pricing: [],
+      error: "Method not allowed",
+    });
   }
 
   try {
-    // 1) Resor
+    // 1) Resor – OBS: ingen next_date här!
     const { data: trips, error: tripsErr } = await supabase
       .from("trips")
-      .select("id, title, year, slug, published")
+      .select("id, title, year, slug, published, departures")
       .order("title", { ascending: true });
 
     if (tripsErr) throw tripsErr;
@@ -82,14 +78,7 @@ export default async function handler(
 
     if (ttErr) throw ttErr;
 
-    // 3) Avgångar
-    const { data: departures, error: depErr } = await supabase
-      .from("trip_departures")
-      .select("trip_id, date, depart_date, dep_date, departure_date");
-
-    if (depErr) throw depErr;
-
-    // 4) Priser
+    // 3) Priser
     const { data: pricing, error: prErr } = await supabase
       .from("trip_ticket_pricing")
       .select("id, trip_id, ticket_type_id, departure_date, price, currency");
@@ -100,7 +89,6 @@ export default async function handler(
       ok: true,
       trips: trips || [],
       ticket_types: ticketTypes || [],
-      departures: departures || [],
       pricing: pricing || [],
     });
   } catch (e: any) {
@@ -109,7 +97,6 @@ export default async function handler(
       ok: false,
       trips: [],
       ticket_types: [],
-      departures: [],
       pricing: [],
       error: e?.message || "Tekniskt fel.",
     });
