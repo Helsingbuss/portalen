@@ -2,6 +2,7 @@
 import { GetServerSideProps } from "next";
 import Head from "next/head";
 import { useState } from "react";
+import { useRouter } from "next/router";
 import * as admin from "@/lib/supabaseAdmin";
 
 const supabase: any =
@@ -32,6 +33,7 @@ type TripRow = {
 };
 
 type SeatsRow = {
+  id?: string; // viktigt för /kassa
   depart_date: string | null;
   seats_total: number | null;
   seats_reserved: number | null;
@@ -110,13 +112,17 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
 
   const t = trip as TripRow;
 
-  // Hämta kapacitet per datum
+  // Hämta kapacitet per datum (inkl. id)
   const { data: seatRows } = await supabase
     .from("trip_departures")
-    .select("depart_date, seats_total, seats_reserved")
+    .select("id, depart_date, seats_total, seats_reserved")
     .eq("trip_id", t.id);
 
-  const seatsMap = new Map<string, { label: string; isFull: boolean }>();
+  const seatsMap = new Map<
+    string,
+    { label: string; isFull: boolean; departureId?: string }
+  >();
+
   (seatRows as SeatsRow[] | null | undefined)?.forEach((row) => {
     const date = row.depart_date
       ? String(row.depart_date).slice(0, 10)
@@ -125,19 +131,26 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
 
     const total = row.seats_total ?? 0;
     const reserved = row.seats_reserved ?? 0;
+    const common = {
+      departureId: row.id ? String(row.id) : undefined,
+    };
 
     if (total <= 0) {
-      seatsMap.set(date, { label: "–", isFull: false });
+      seatsMap.set(date, { ...common, label: "–", isFull: false });
       return;
     }
 
     const remaining = Math.max(total - reserved, 0);
     if (remaining <= 0) {
-      seatsMap.set(date, { label: "Slut", isFull: true });
+      seatsMap.set(date, { ...common, label: "Slut", isFull: true });
     } else if (remaining > 8) {
-      seatsMap.set(date, { label: ">8", isFull: false });
+      seatsMap.set(date, { ...common, label: ">8", isFull: false });
     } else {
-      seatsMap.set(date, { label: String(remaining), isFull: false });
+      seatsMap.set(date, {
+        ...common,
+        label: String(remaining),
+        isFull: false,
+      });
     }
   });
 
@@ -179,10 +192,17 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
       const line = String(r.line_name || r.line || "").trim();
       const stops = normalizeStops(r.stops);
 
-      const seats = seatsMap.get(d) || { label: ">8", isFull: false };
+      const seats =
+        (seatsMap.get(d) as {
+          label: string;
+          isFull: boolean;
+          departureId?: string;
+        }) || { label: ">8", isFull: false };
 
       return {
-        id: `${d}-${time || "00:00"}-${idx}`,
+        id:
+          seats.departureId ||
+          `${d}-${time || "00:00"}-${idx}`, // använd riktiga id om det finns
         date: d,
         time,
         line,
@@ -218,6 +238,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
 export default function WidgetDeparturesPage(props: Props) {
   const { tripTitle, departures, departuresComingSoon, priceFromLabel } = props;
 
+  const router = useRouter();
+
   const [info, setInfo] = useState<{
     title: string;
     stops: string[];
@@ -246,6 +268,14 @@ export default function WidgetDeparturesPage(props: Props) {
         ? "bg-[#194C66] text-white border-[#194C66]"
         : "bg-transparent text-[#194C66] border-slate-300 hover:bg-slate-100",
     ].join(" ");
+
+  function handleBook(departureId: string, isFull: boolean) {
+    // vi kan lägga väntelista-logik senare, nu bara ignorera fulla avgångar
+    if (isFull) return;
+    router.push(
+      `/kassa?departure_id=${encodeURIComponent(departureId)}`
+    );
+  }
 
   return (
     <>
@@ -399,6 +429,7 @@ export default function WidgetDeparturesPage(props: Props) {
                           <td className="px-3 py-3 align-middle text-right">
                             <button
                               type="button"
+                              onClick={() => handleBook(d.id, isFull)}
                               className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full text-sm font-semibold shadow-sm transition-colors ${
                                 isFull
                                   ? "bg-amber-500 hover:bg-amber-600 text-white"
