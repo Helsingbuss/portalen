@@ -33,21 +33,23 @@ type TripRow = {
 };
 
 type SeatsRow = {
-  id?: string; // viktigt för /kassa
+  id: string | number;
   depart_date: string | null;
+  dep_time: string | null;
+  line_name: string | null;
   seats_total: number | null;
   seats_reserved: number | null;
 };
 
 type WidgetDeparture = {
-  id: string;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM
+  id: string;               // används nu som departure_id till /kassa
+  date: string;             // YYYY-MM-DD
+  time: string;             // HH:MM
   line: string;
   stops: string[];
-  avresaLabel: string; // "2026-02-07 Lör"
-  priceLabel: string;  // "295:-"
-  seatsLabel: string;  // "Slut" | ">8" | "5" | "–"
+  avresaLabel: string;      // "2026-02-07 Lör"
+  priceLabel: string;       // "295:-"
+  seatsLabel: string;       // "Slut" | ">8" | "5" | "–"
   isFull: boolean;
 };
 
@@ -89,6 +91,17 @@ function normalizeStops(stops: RawDeparture["stops"]): string[] {
     .filter(Boolean);
 }
 
+// Nyckel för att matcha kapacitetsrad mot avgång (datum + tid + linje)
+function seatKey(
+  date: string,
+  time?: string | null,
+  line?: string | null
+): string {
+  const t = (time || "").slice(0, 5);
+  const l = (line || "").trim();
+  return `${date}|${t}|${l}`;
+}
+
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const slug = String(ctx.params?.slug || "").trim();
   if (!slug) {
@@ -112,15 +125,17 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
 
   const t = trip as TripRow;
 
-  // Hämta kapacitet per datum (inkl. id)
+  // Hämta kapacitet / id per avgång
   const { data: seatRows } = await supabase
     .from("trip_departures")
-    .select("id, depart_date, seats_total, seats_reserved")
+    .select(
+      "id, depart_date, dep_time, line_name, seats_total, seats_reserved"
+    )
     .eq("trip_id", t.id);
 
   const seatsMap = new Map<
     string,
-    { label: string; isFull: boolean; departureId?: string }
+    { label: string; isFull: boolean; id?: string }
   >();
 
   (seatRows as SeatsRow[] | null | undefined)?.forEach((row) => {
@@ -131,27 +146,28 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
 
     const total = row.seats_total ?? 0;
     const reserved = row.seats_reserved ?? 0;
-    const common = {
-      departureId: row.id ? String(row.id) : undefined,
-    };
 
-    if (total <= 0) {
-      seatsMap.set(date, { ...common, label: "–", isFull: false });
-      return;
+    let label = "–";
+    let isFull = false;
+
+    if (total > 0) {
+      const remaining = Math.max(total - reserved, 0);
+      if (remaining <= 0) {
+        label = "Slut";
+        isFull = true;
+      } else if (remaining > 8) {
+        label = ">8";
+      } else {
+        label = String(remaining);
+      }
     }
 
-    const remaining = Math.max(total - reserved, 0);
-    if (remaining <= 0) {
-      seatsMap.set(date, { ...common, label: "Slut", isFull: true });
-    } else if (remaining > 8) {
-      seatsMap.set(date, { ...common, label: ">8", isFull: false });
-    } else {
-      seatsMap.set(date, {
-        ...common,
-        label: String(remaining),
-        isFull: false,
-      });
-    }
+    const key = seatKey(date, row.dep_time, row.line_name);
+    seatsMap.set(key, {
+      label,
+      isFull,
+      id: row.id != null ? String(row.id) : undefined,
+    });
   });
 
   // Normalisera departures från trips.departures (JSONB)
@@ -192,17 +208,11 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
       const line = String(r.line_name || r.line || "").trim();
       const stops = normalizeStops(r.stops);
 
-      const seats =
-        (seatsMap.get(d) as {
-          label: string;
-          isFull: boolean;
-          departureId?: string;
-        }) || { label: ">8", isFull: false };
+      const key = seatKey(d, time, line);
+      const seats = seatsMap.get(key) || { label: ">8", isFull: false };
 
       return {
-        id:
-          seats.departureId ||
-          `${d}-${time || "00:00"}-${idx}`, // använd riktiga id om det finns
+        id: seats.id || `${d}-${time || "00:00"}-${idx}`, // riktiga departure_id om det finns
         date: d,
         time,
         line,
@@ -269,12 +279,10 @@ export default function WidgetDeparturesPage(props: Props) {
         : "bg-transparent text-[#194C66] border-slate-300 hover:bg-slate-100",
     ].join(" ");
 
-  function handleBook(departureId: string, isFull: boolean) {
-    // vi kan lägga väntelista-logik senare, nu bara ignorera fulla avgångar
-    if (isFull) return;
-    router.push(
-      `/kassa?departure_id=${encodeURIComponent(departureId)}`
-    );
+  // KLICK PÅ BOKA → vidare till /kassa
+  function handleBookClick(d: WidgetDeparture) {
+    if (d.isFull) return; // ingen redirect om fullsatt (senare: väntelista)
+    router.push(`/kassa?departure_id=${encodeURIComponent(d.id)}`);
   }
 
   return (
@@ -429,7 +437,7 @@ export default function WidgetDeparturesPage(props: Props) {
                           <td className="px-3 py-3 align-middle text-right">
                             <button
                               type="button"
-                              onClick={() => handleBook(d.id, isFull)}
+                              onClick={() => handleBookClick(d)}
                               className={`inline-flex items-center justify-center px-4 py-1.5 rounded-full text-sm font-semibold shadow-sm transition-colors ${
                                 isFull
                                   ? "bg-amber-500 hover:bg-amber-600 text-white"
