@@ -28,14 +28,27 @@ type BookingDeparture = {
   seats_left: number;
 };
 
+type BookingTicketCampaign = {
+  id: string;
+  label: string | null;
+  type: string; // PERCENT / FIXED / TWO_FOR_ONE / TWO_FOR_FIXED ...
+  value: number | null;
+  start_date: string;
+  end_date: string;
+  promo_code?: string | null;
+  min_quantity?: number | null;
+  max_quantity?: number | null;
+};
+
 type BookingTicket = {
   id: number;
-  ticket_type_id: number;
+  ticket_type_id: number; // samma som tidigare – vi ändrar inte formen här
   name: string;
   code: string | null;
   price: number;
   currency: string;
   departure_date: string | null;
+  campaign?: BookingTicketCampaign | null;
 };
 
 type BookingInitResponse = {
@@ -57,6 +70,22 @@ type RawDeparture = {
   time?: string;
   line_name?: string;
   line?: string;
+};
+
+type DiscountCampaign = {
+  id: string;
+  name: string;
+  label: string | null;
+  type: string;
+  value: number | null;
+  start_date: string;
+  end_date: string;
+  active: boolean;
+  trip_id?: string | null;
+  ticket_type_id?: string | null;
+  min_quantity?: number | null;
+  max_quantity?: number | null;
+  promo_code?: string | null;
 };
 
 export default async function handler(
@@ -176,7 +205,74 @@ export default async function handler(
       (capacityRow && (capacityRow as any).seats_reserved) ?? 0;
     const left = Math.max(total - reserved, 0);
 
-    // --- 4) Hämta priser för datumet (eller standardpris) ---
+    // --- 4) Hämta ev. kampanjer för denna resa & datum ---
+    const { data: campaignRows, error: campaignErr } = await supabase
+      .from("discount_campaigns")
+      .select(
+        "id, name, label, type, value, start_date, end_date, active, trip_id, ticket_type_id, min_quantity, max_quantity, promo_code"
+      )
+      .eq("active", true)
+      .lte("start_date", dateOnly)
+      .gte("end_date", dateOnly)
+      .or(`trip_id.is.null,trip_id.eq.${tripId}`);
+
+    if (campaignErr) {
+      console.error("booking/init campaignErr", campaignErr);
+    }
+
+    const campaigns: DiscountCampaign[] = (campaignRows || []).map(
+      (row: any) => ({
+        id: row.id,
+        name: row.name,
+        label: row.label ?? null,
+        type: row.type,
+        value: row.value != null ? Number(row.value) : null,
+        start_date: row.start_date,
+        end_date: row.end_date,
+        active: !!row.active,
+        trip_id: row.trip_id ?? null,
+        ticket_type_id: row.ticket_type_id ?? null,
+        min_quantity:
+          row.min_quantity !== undefined ? row.min_quantity : null,
+        max_quantity:
+          row.max_quantity !== undefined ? row.max_quantity : null,
+        promo_code: row.promo_code ?? null,
+      })
+    );
+
+    // enkel lookup: först specifik ticket_type, annars en generell kampanj
+    const campaignsByTicket = new Map<string, DiscountCampaign>();
+
+    for (const c of campaigns) {
+      if (c.ticket_type_id) {
+        const key = String(c.ticket_type_id);
+        if (!campaignsByTicket.has(key)) {
+          campaignsByTicket.set(key, c);
+        }
+      } else {
+        // generisk kampanj (gäller alla biljetttyper)
+        if (!campaignsByTicket.has("ALL")) {
+          campaignsByTicket.set("ALL", c);
+        }
+      }
+    }
+
+    const pickCampaign = (
+      ticketTypeId: string | null
+    ): DiscountCampaign | null => {
+      if (ticketTypeId) {
+        const key = String(ticketTypeId);
+        if (campaignsByTicket.has(key)) {
+          return campaignsByTicket.get(key)!;
+        }
+      }
+      if (campaignsByTicket.has("ALL")) {
+        return campaignsByTicket.get("ALL")!;
+      }
+      return null;
+    };
+
+    // --- 5) Hämta priser för datumet (eller standardpris) ---
     const { data: priceRows, error: priceErr } = await supabase
       .from("trip_ticket_pricing")
       .select(
@@ -188,19 +284,39 @@ export default async function handler(
 
     if (priceErr) throw priceErr;
 
-    const tickets: BookingTicket[] = (priceRows || []).map((row: any) => ({
-      id: row.id,
-      ticket_type_id: row.ticket_type_id,
-      name: row.ticket_types?.name || "Biljett",
-      code: row.ticket_types?.code || null,
-      price: Number(row.price),
-      currency: row.currency || "SEK",
-      departure_date: row.departure_date
-        ? String(row.departure_date).slice(0, 10)
-        : null,
-    }));
+    const tickets: BookingTicket[] = (priceRows || []).map((row: any) => {
+      const ttypeIdStr = row.ticket_type_id
+        ? String(row.ticket_type_id)
+        : null;
+      const campaign = pickCampaign(ttypeIdStr);
 
-    // --- 5) Svar tillbaka till kassa-sidan ---
+      return {
+        id: row.id,
+        ticket_type_id: row.ticket_type_id,
+        name: row.ticket_types?.name || "Biljett",
+        code: row.ticket_types?.code || null,
+        price: Number(row.price),
+        currency: row.currency || "SEK",
+        departure_date: row.departure_date
+          ? String(row.departure_date).slice(0, 10)
+          : null,
+        campaign: campaign
+          ? {
+              id: campaign.id,
+              label: campaign.label ?? campaign.name ?? null,
+              type: campaign.type,
+              value: campaign.value,
+              start_date: campaign.start_date,
+              end_date: campaign.end_date,
+              promo_code: campaign.promo_code ?? null,
+              min_quantity: campaign.min_quantity ?? null,
+              max_quantity: campaign.max_quantity ?? null,
+            }
+          : null,
+      };
+    });
+
+    // --- 6) Svar tillbaka till kassa-sidan ---
     return res.status(200).json({
       ok: true,
       trip: {
