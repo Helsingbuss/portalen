@@ -89,6 +89,9 @@ export default function KassaPage() {
   // Resenärer
   const [passengers, setPassengers] = useState<PassengerForm[]>([]);
 
+  // Stripe-betalning pågår?
+  const [paying, setPaying] = useState(false);
+
   useEffect(() => {
     if (!router.isReady) return;
 
@@ -215,12 +218,48 @@ export default function KassaPage() {
     setStep(3);
   }
 
-  function handleConfirm(e: React.FormEvent) {
+  // NYTT: koppla steg 3 till Stripe Checkout
+  async function handleConfirm(e: React.FormEvent) {
     e.preventDefault();
-    // Här kommer vi senare lägga in:
-    // - skapa bokning i DB
-    // - redirect till betalning
-    alert("Här kopplar vi betalning och färdig bokning i nästa steg 🙂");
+
+    if (!trip || !departure || !selectedTicket) {
+      setErr("Tekniskt fel: saknar reseinformation.");
+      return;
+    }
+
+    try {
+      setPaying(true);
+      setErr(null);
+
+      const r = await fetch("/api/payments/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trip_id: trip.id,
+          date: departure.date,
+          quantity,
+          ticket_id: selectedTicket.id,
+          customer: {
+            name: contactName,
+            email: contactEmail,
+            phone: contactPhone,
+          },
+        }),
+      });
+
+      const j = await r.json();
+      if (!r.ok || !j.ok || !j.url) {
+        throw new Error(j.error || "Kunde inte starta betalning.");
+      }
+
+      // Skicka kunden till Stripe Checkout
+      window.location.href = j.url as string;
+    } catch (error: any) {
+      console.error(error);
+      setErr(error?.message || "Tekniskt fel vid betalning.");
+    } finally {
+      setPaying(false);
+    }
   }
 
   function handlePassengerChange(
@@ -390,9 +429,7 @@ export default function KassaPage() {
                       <div className="pt-3 flex items-center justify-between gap-3">
                         <button
                           type="button"
-                          onClick={() =>
-                            router.back()
-                          }
+                          onClick={() => router.back()}
                           className="text-xs sm:text-sm px-4 py-2 rounded-full border border-slate-300 text-slate-700 bg-white hover:bg-slate-50"
                         >
                           Avbryt
@@ -764,9 +801,12 @@ export default function KassaPage() {
                         </button>
                         <button
                           type="submit"
-                          className="text-xs sm:text-sm px-5 py-2 rounded-full bg-[#194C66] text-white font-semibold shadow-sm hover:bg-[#163b4d]"
+                          disabled={paying}
+                          className="text-xs sm:text-sm px-5 py-2 rounded-full bg-[#194C66] text-white font-semibold shadow-sm hover:bg-[#163b4d] disabled:opacity-60"
                         >
-                          Boka och betala
+                          {paying
+                            ? "Skickar till betalning…"
+                            : "Boka och betala"}
                         </button>
                       </div>
                     </form>
