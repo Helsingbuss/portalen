@@ -42,7 +42,7 @@ type BookingTicketCampaign = {
 
 type BookingTicket = {
   id: number;
-  ticket_type_id: number; // samma som tidigare – vi ändrar inte formen här
+  ticket_type_id: number;
   name: string;
   code: string | null;
   price: number;
@@ -57,6 +57,7 @@ type BookingInitResponse = {
   trip?: BookingTrip;
   departure?: BookingDeparture;
   tickets?: BookingTicket[];
+  boarding_stops?: string[];
 };
 
 // samma struktur som i widgeten
@@ -112,11 +113,11 @@ export default async function handler(
   const departDate = String(date).slice(0, 10); // YYYY-MM-DD
 
   try {
-    // --- 1) Hämta resa (inkl. departures JSON + bussmodell) ---
+    // --- 1) Hämta resa (inkl. departures + lines JSON) ---
     const { data: trip, error: tripErr } = await supabase
       .from("trips")
       .select(
-        "id, title, subtitle, summary, city, country, hero_image, slug, departures, operator_id, bus_model_id"
+        "id, title, subtitle, summary, city, country, hero_image, slug, departures, lines"
       )
       .eq("id", tripId)
       .single();
@@ -155,7 +156,6 @@ export default async function handler(
     });
 
     if (!matching) {
-      // nu ÄR det faktiskt ingen avgång för det datumet
       return res.status(404).json({
         ok: false,
         error: "Hittade ingen avgång för det datumet.",
@@ -177,31 +177,58 @@ export default async function handler(
     const lineName: string | null =
       (matching.line_name || matching.line || null) as string | null;
 
-    // --- 3) Kapacitet från bussmodell (om satt på resan) ---
-    let busCapacity: number | null = null;
-
-    if (trip.bus_model_id) {
-      try {
-        const { data: busModel, error: busErr } = await supabase
-          .from("bus_models")
-          .select("capacity")
-          .eq("id", trip.bus_model_id)
-          .single();
-
-        if (busErr) {
-          console.error("booking/init busErr", busErr);
-        } else if (
-          busModel &&
-          typeof (busModel as any).capacity === "number"
-        ) {
-          busCapacity = (busModel as any).capacity as number;
+    // --- 2b) Plocka ut hållplatser för dropdown i kassan ---
+    let boardingStops: string[] = [];
+    try {
+      let rawLines: any[] = [];
+      if (Array.isArray((trip as any).lines)) {
+        rawLines = (trip as any).lines;
+      } else if (typeof (trip as any).lines === "string") {
+        try {
+          const parsed = JSON.parse((trip as any).lines);
+          if (Array.isArray(parsed)) rawLines = parsed;
+        } catch {
+          // ignorera
         }
-      } catch (e) {
-        console.error("booking/init busModel fetch error", e);
       }
+
+      if (rawLines.length > 0) {
+        let relevantLines = rawLines;
+
+        if (lineName) {
+          const found = rawLines.find((l: any) => {
+            const title = String(l.title || l.name || "").toLowerCase();
+            return title === String(lineName).toLowerCase();
+          });
+          if (found) {
+            relevantLines = [found];
+          }
+        }
+
+        const seen = new Set<string>();
+        for (const ln of relevantLines) {
+          const stopsArr = Array.isArray(ln.stops) ? ln.stops : [];
+          for (const st of stopsArr) {
+            const name =
+              typeof st === "string"
+                ? st
+                : typeof st?.name === "string"
+                ? st.name
+                : null;
+            if (!name) continue;
+            const trimmed = name.trim();
+            if (trimmed && !seen.has(trimmed)) {
+              seen.add(trimmed);
+              boardingStops.push(trimmed);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("booking/init: kunde inte tolka lines/hållplatser", e);
     }
 
-    // --- 4) Försök läsa kapacitet ur trip_departures (om det finns något) ---
+    // --- 3) Försök läsa kapacitet ur trip_departures (om det finns något) ---
     const { data: depRows, error: depErr } = await supabase
       .from("trip_departures")
       .select("seats_total, seats_reserved")
@@ -221,8 +248,7 @@ export default async function handler(
 
     const capacityRow = depRows && depRows[0];
 
-    // default: använd bussens kapacitet om den finns, annars 50
-    const defaultCapacity = busCapacity ?? 50;
+    const defaultCapacity = 50;
 
     const total =
       (capacityRow && (capacityRow as any).seats_total) ?? defaultCapacity;
@@ -230,7 +256,7 @@ export default async function handler(
       (capacityRow && (capacityRow as any).seats_reserved) ?? 0;
     const left = Math.max(total - reserved, 0);
 
-    // --- 5) Hämta ev. kampanjer för denna resa & datum ---
+    // --- 4) Hämta ev. kampanjer för denna resa & datum ---
     const { data: campaignRows, error: campaignErr } = await supabase
       .from("discount_campaigns")
       .select(
@@ -265,7 +291,6 @@ export default async function handler(
       })
     );
 
-    // enkel lookup: först specifik ticket_type, annars en generell kampanj
     const campaignsByTicket = new Map<string, DiscountCampaign>();
 
     for (const c of campaigns) {
@@ -275,7 +300,6 @@ export default async function handler(
           campaignsByTicket.set(key, c);
         }
       } else {
-        // generisk kampanj (gäller alla biljetttyper)
         if (!campaignsByTicket.has("ALL")) {
           campaignsByTicket.set("ALL", c);
         }
@@ -297,7 +321,7 @@ export default async function handler(
       return null;
     };
 
-    // --- 6) Hämta priser för datumet (eller standardpris) ---
+    // --- 5) Hämta priser för datumet (eller standardpris) ---
     const { data: priceRows, error: priceErr } = await supabase
       .from("trip_ticket_pricing")
       .select(
@@ -341,7 +365,7 @@ export default async function handler(
       };
     });
 
-    // --- 7) Svar tillbaka till kassa-sidan ---
+    // --- 6) Svar tillbaka till kassa-sidan ---
     return res.status(200).json({
       ok: true,
       trip: {
@@ -364,6 +388,7 @@ export default async function handler(
         seats_left: left,
       },
       tickets,
+      boarding_stops: boardingStops,
     });
   } catch (e: any) {
     console.error("booking/init error", e);

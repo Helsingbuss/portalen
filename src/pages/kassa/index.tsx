@@ -40,6 +40,7 @@ type BookingInitResponse = {
   trip?: BookingTrip;
   departure?: BookingDeparture;
   tickets?: BookingTicket[];
+  boarding_stops?: string[]; // NYTT – kommer från API:t
 };
 
 type PassengerForm = {
@@ -69,6 +70,7 @@ export default function KassaPage() {
   const [trip, setTrip] = useState<BookingTrip | null>(null);
   const [departure, setDeparture] = useState<BookingDeparture | null>(null);
   const [tickets, setTickets] = useState<BookingTicket[]>([]);
+  const [boardingStops, setBoardingStops] = useState<string[]>([]); // NYTT
 
   const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
@@ -91,7 +93,6 @@ export default function KassaPage() {
 
   // Stripe-betalning pågår?
   const [paying, setPaying] = useState(false);
-  const [payErr, setPayErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -116,6 +117,7 @@ export default function KassaPage() {
             tripId
           )}&date=${encodeURIComponent(departDate)}`
         );
+
         const j: BookingInitResponse = await r.json();
         if (!r.ok || !j.ok) {
           throw new Error(j.error || "Kunde inte läsa reseinformation.");
@@ -124,6 +126,7 @@ export default function KassaPage() {
         setTrip(j.trip || null);
         setDeparture(j.departure || null);
         setTickets(j.tickets || []);
+        setBoardingStops(j.boarding_stops || []);
 
         if (j.tickets && j.tickets.length > 0) {
           setSelectedTicketId(j.tickets[0].id);
@@ -211,7 +214,6 @@ export default function KassaPage() {
       alert("Fyll i kontaktuppgifter (namn, e-post och telefon).");
       return;
     }
-    // enkel koll: första resenären ska ha namn
     if (!passengers[0]?.firstName || !passengers[0]?.lastName) {
       alert("Fyll i uppgifter för minst en resenär.");
       return;
@@ -219,72 +221,57 @@ export default function KassaPage() {
     setStep(3);
   }
 
-  // NYTT: koppla steg 3 till Stripe Checkout
+  // NYTT: tryggare JSON-hantering + koppling till Stripe
   async function handleConfirm(e: React.FormEvent) {
     e.preventDefault();
 
     if (!trip || !departure || !selectedTicket) {
-      setPayErr("Tekniskt fel: saknar reseinformation.");
-      return;
-    }
-
-    if (!contactName || !contactEmail) {
-      setPayErr("Saknar uppgifter för bokningsansvarig (namn och e-post).");
-      return;
-    }
-
-    if (quantity < 1) {
-      setPayErr("Välj minst 1 resenär.");
+      setErr("Tekniskt fel: saknar reseinformation.");
       return;
     }
 
     try {
       setPaying(true);
-      setPayErr(null);
-
-      const body = {
-        trip_id: trip.id,
-        // vi skickar båda fälten så API:t kan använda det som passar
-        departure_date: departure.date,
-        date: departure.date,
-        line_name: departure.line_name,
-        quantity,
-        ticket: {
-          id: selectedTicket.id,
-          name: selectedTicket.name,
-          price: selectedTicket.price,
-          currency: selectedTicket.currency,
-        },
-        contact: {
-          name: contactName,
-          email: contactEmail,
-          phone: contactPhone,
-        },
-        passengers,
-        discount_code: contactDiscountCode || null,
-      };
+      setErr(null);
 
       const r = await fetch("/api/payments/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          trip_id: trip.id,
+          date: departure.date,
+          quantity,
+          ticket_id: selectedTicket.id,
+          customer: {
+            name: contactName,
+            email: contactEmail,
+            phone: contactPhone,
+          },
+        }),
       });
 
-      const j = (await r.json()) as {
-        ok: boolean;
-        url?: string;
-        error?: string;
-      };
-
-      if (!r.ok || !j.ok || !j.url) {
-        throw new Error(j.error || "Kunde inte starta betalning.");
+      const text = await r.text();
+      let j: any = null;
+      try {
+        j = text ? JSON.parse(text) : null;
+      } catch (parseErr) {
+        console.error(
+          "Kunde inte parsa svar från betalnings-API:",
+          text
+        );
+        throw new Error(
+          "Tekniskt fel: kunde inte tolka svar från betalningsleverantören."
+        );
       }
 
-      // Skicka kunden till Stripe Checkout
+      if (!r.ok || !j || j.ok === false || !j.url) {
+        throw new Error(j?.error || "Kunde inte starta betalning.");
+      }
+
       window.location.href = j.url as string;
     } catch (error: any) {
       console.error(error);
-      setPayErr(error?.message || "Tekniskt fel vid betalning.");
+      setErr(error?.message || "Tekniskt fel vid betalning.");
     } finally {
       setPaying(false);
     }
@@ -334,7 +321,7 @@ export default function KassaPage() {
               </p>
             </div>
 
-            {/* Steg-indikator (enkel, men i din stil) */}
+            {/* Steg-indikator */}
             <div className="flex flex-wrap gap-2 text-xs font-semibold">
               {steps.map((s, idx) => {
                 const active = s.id === step;
@@ -422,8 +409,7 @@ export default function KassaPage() {
                             >
                               {tickets.map((t) => (
                                 <option key={t.id} value={t.id}>
-                                  {t.name} –{" "}
-                                  {money(t.price, t.currency)}
+                                  {t.name} – {money(t.price, t.currency)}
                                 </option>
                               ))}
                             </select>
@@ -677,16 +663,37 @@ export default function KassaPage() {
                                   <label className="block text-[13px] font-medium text-[#194C66]/80 mb-1">
                                     Påstigningsplats
                                   </label>
-                                  <input
-                                    className="border rounded-xl px-3 py-2.5 w-full text-sm focus:outline-none focus:ring-2 focus:ring-[#194C66]/30"
-                                    placeholder="Ex. Helsingborg C"
-                                    value={p.boardingStop}
-                                    onChange={(e) =>
-                                      handlePassengerChange(idx, {
-                                        boardingStop: e.target.value,
-                                      })
-                                    }
-                                  />
+                                  {boardingStops.length > 0 ? (
+                                    <select
+                                      className="border rounded-xl px-3 py-2.5 w-full text-sm focus:outline-none focus:ring-2 focus:ring-[#194C66]/30"
+                                      value={p.boardingStop}
+                                      onChange={(e) =>
+                                        handlePassengerChange(idx, {
+                                          boardingStop: e.target.value,
+                                        })
+                                      }
+                                    >
+                                      <option value="">
+                                        Välj påstigningsplats…
+                                      </option>
+                                      {boardingStops.map((stop) => (
+                                        <option key={stop} value={stop}>
+                                          {stop}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <input
+                                      className="border rounded-xl px-3 py-2.5 w-full text-sm focus:outline-none focus:ring-2 focus:ring-[#194C66]/30"
+                                      placeholder="Ex. Helsingborg C"
+                                      value={p.boardingStop}
+                                      onChange={(e) =>
+                                        handlePassengerChange(idx, {
+                                          boardingStop: e.target.value,
+                                        })
+                                      }
+                                    />
+                                  )}
                                 </div>
                                 <div>
                                   <label className="block text-[13px] font-medium text-[#194C66]/80 mb-1">
@@ -752,13 +759,6 @@ export default function KassaPage() {
                         att du hinner tillbaka till bussen.
                       </div>
 
-                      {/* Betalningsfel, om något gått snett */}
-                      {payErr && (
-                        <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                          {payErr}
-                        </div>
-                      )}
-
                       {/* Bokningsansvarig – read only */}
                       <div>
                         <div className="text-sm font-semibold text-[#194C66] mb-2">
@@ -820,9 +820,9 @@ export default function KassaPage() {
                       {/* Villkor */}
                       <div className="border-t border-slate-200 pt-3 space-y-2 text-xs text-slate-700">
                         <p>
-                          När du bokar resan godkänner du våra
-                          resevillkor. Kontrollera att alla uppgifter stämmer
-                          innan du går vidare till betalning.
+                          När du bokar resan godkänner du våra resevillkor.
+                          Kontrollera att alla uppgifter stämmer innan du går
+                          vidare till betalning.
                         </p>
                       </div>
 
