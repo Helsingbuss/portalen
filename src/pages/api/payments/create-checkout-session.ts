@@ -3,30 +3,71 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 import * as admin from "@/lib/supabaseAdmin";
 
-type ApiResponse = {
-  ok: boolean;
-  url?: string;
-  error?: string;
-};
-
-const stripeSecret = process.env.STRIPE_SECRET_KEY;
-
-// Enda som verkligen krävs för Stripe Checkout är hemliga nyckeln
-let stripe: Stripe | null = null;
-if (stripeSecret) {
-  stripe = new Stripe(stripeSecret, {
-    apiVersion: "2023-10-16" as Stripe.LatestApiVersion,
-  });
-}
-
 const supabase: any =
   (admin as any).supabaseAdmin ||
   (admin as any).supabase ||
   (admin as any).default;
 
+const stripeSecret = process.env.STRIPE_SECRET_KEY;
+const stripeCurrency = process.env.NEXT_PUBLIC_STRIPE_CURRENCY || "SEK";
+
+let stripe: Stripe | null = null;
+
+if (stripeSecret) {
+  stripe = new Stripe(stripeSecret, {
+    // matchar den API-version som Stripe-SDK:t förväntar sig hos dig
+    apiVersion: "2025-11-17.clover",
+  });
+}
+
+type CreateSessionBody = {
+  trip_id: string;
+  date: string; // YYYY-MM-DD
+  quantity: number;
+  ticket_id: number;
+  customer: {
+    name: string;
+    email: string;
+    phone?: string;
+  };
+};
+
+type CreateSessionResponse = {
+  ok: boolean;
+  url?: string;
+  error?: string;
+};
+
+// Säkerställ att vi alltid har en FULL URL med https:// osv
+function ensureBaseUrl(): string {
+  const raw =
+    (process.env.NEXT_PUBLIC_BASE_URL ||
+      process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL ||
+      process.env.CUSTOMER_BASE_URL ||
+      "").trim();
+
+  if (!raw) {
+    return "http://localhost:3000";
+  }
+
+  let url = raw;
+
+  // lägg på https:// om den saknas
+  if (!/^https?:\/\//i.test(url)) {
+    url = "https://" + url.replace(/^\/+/, "");
+  }
+
+  // ta bort ev. avslutande /
+  if (url.endsWith("/")) {
+    url = url.slice(0, -1);
+  }
+
+  return url;
+}
+
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<ApiResponse>
+  res: NextApiResponse<CreateSessionResponse>
 ) {
   if (req.method !== "POST") {
     return res
@@ -34,8 +75,8 @@ export default async function handler(
       .json({ ok: false, error: "Method not allowed (use POST)." });
   }
 
-  if (!stripeSecret || !stripe) {
-    console.error("Stripe secret key saknas", {
+  if (!stripe) {
+    console.error("create-checkout-session | Stripe secret key saknas", {
       hasSecret: !!stripeSecret,
     });
     return res.status(500).json({
@@ -45,91 +86,83 @@ export default async function handler(
   }
 
   try {
-    const { trip_id, date, quantity, ticket_id, customer } = req.body || {};
+    const body = req.body as CreateSessionBody;
 
-    if (!trip_id || !date || !ticket_id || !quantity) {
+    if (!body.trip_id || !body.ticket_id || !body.date || !body.quantity) {
       return res.status(400).json({
         ok: false,
-        error: "Saknar uppgifter för betalning.",
+        error: "Saknar nödvändig information (resa, biljett eller datum).",
       });
     }
 
-    // Hämta korrekt biljettpris från databasen (litar inte på klienten)
+    // Hämta priset för vald biljettrad
     const { data: priceRow, error: priceErr } = await supabase
       .from("trip_ticket_pricing")
-      .select(
-        "id, trip_id, ticket_type_id, price, currency, ticket_types(name)"
-      )
-      .eq("id", ticket_id)
-      .eq("trip_id", trip_id)
+      .select("price, currency")
+      .eq("id", body.ticket_id)
       .single();
 
     if (priceErr || !priceRow) {
-      console.error("create-checkout-session priceErr", priceErr);
-      return res
-        .status(404)
-        .json({ ok: false, error: "Kunde inte hitta biljettpris." });
+      console.error("create-checkout-session | priceErr", priceErr);
+      return res.status(400).json({
+        ok: false,
+        error: "Kunde inte hitta pris för vald biljett.",
+      });
     }
 
-    const quantityInt = Math.max(
-      1,
-      parseInt(String(quantity), 10) || 1
-    );
+    const currency: string = priceRow.currency || stripeCurrency;
+    const unitAmount = Math.round(Number(priceRow.price) * 100);
 
-    const currency: string =
-      priceRow.currency ||
-      process.env.NEXT_PUBLIC_STRIPE_CURRENCY ||
-      "SEK";
+    const baseUrl = ensureBaseUrl();
+    const successUrl = `${baseUrl}/kassa/success?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${baseUrl}/kassa/cancel`;
 
-    const lineItemName =
-      priceRow.ticket_types?.name || "Bussbiljett – Helsingbuss";
-
-    const baseUrl =
-      process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL ||
-      process.env.NEXT_PUBLIC_BASE_URL ||
-      "http://localhost:3000";
-
-    const successUrl = `${baseUrl}/tack?status=success`;
-    const cancelUrl = `${baseUrl}/kassa/avbruten`;
+    console.log("create-checkout-session | urls", {
+      baseUrl,
+      successUrl,
+      cancelUrl,
+    });
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      payment_method_types: ["card", "klarna", "link"],
-      customer_email: customer?.email || undefined,
-      metadata: {
-        trip_id: String(trip_id),
-        departure_date: String(date),
-        ticket_pricing_id: String(priceRow.id),
-        quantity: String(quantityInt),
-      },
+      payment_method_types: ["card", "klarna", "link"], // Apple/Google Pay ingår i "card"
+      locale: "sv",
       line_items: [
         {
-          quantity: quantityInt,
+          quantity: body.quantity,
           price_data: {
-            currency: currency.toLowerCase(),
-            unit_amount: Math.round(Number(priceRow.price) * 100),
+            currency,
+            unit_amount: unitAmount,
             product_data: {
-              name: lineItemName,
-              description: `Resa med Helsingbuss – ${date}`,
+              name: "Bussresa",
+              description: `Avgång ${body.date}`,
             },
           },
         },
       ],
+      customer_email: body.customer?.email,
+      metadata: {
+        trip_id: body.trip_id,
+        date: body.date,
+        ticket_id: String(body.ticket_id),
+        quantity: String(body.quantity),
+        customer_name: body.customer?.name || "",
+        customer_phone: body.customer?.phone || "",
+      },
       success_url: successUrl,
       cancel_url: cancelUrl,
     });
 
-    return res.status(200).json({
-      ok: true,
-      url: session.url || undefined,
-    });
-  } catch (error: any) {
-    console.error("create-checkout-session error", error);
+    if (!session.url) {
+      throw new Error("Stripe skapade ingen checkout-URL.");
+    }
+
+    return res.status(200).json({ ok: true, url: session.url });
+  } catch (e: any) {
+    console.error("create-checkout-session error", e);
     return res.status(500).json({
       ok: false,
-      error:
-        error?.message ||
-        "Tekniskt fel vid skapande av betalning. Försök igen.",
+      error: e?.message || "Tekniskt fel vid betalning.",
     });
   }
 }

@@ -258,10 +258,10 @@ export default async function handler(
 
     // --- 4) Hämta ev. kampanjer för denna resa & datum ---
     const { data: campaignRows, error: campaignErr } = await supabase
-      .from("discount_campaigns")
-      .select(
-        "id, name, label, type, value, start_date, end_date, active, trip_id, ticket_type_id, min_quantity, max_quantity, promo_code"
-      )
+  .from("discount_campaigns")
+  .select(
+    "id, name, type, value, start_date, end_date, active, trip_id, ticket_type_id, min_quantity, max_quantity, promo_code"
+  )
       .eq("active", true)
       .lte("start_date", dateOnly)
       .gte("end_date", dateOnly)
