@@ -29,6 +29,16 @@ type CreateSessionBody = {
     email?: string;
     phone?: string;
   };
+
+  // Extra metadata om resan – kan skickas från frontend senare
+  trip_meta?: {
+    trip_title?: string;
+    line_name?: string;
+    operator_name?: string;
+    departure_time?: string;   // HH:MM
+    return_time?: string;      // HH:MM
+    departure_stop?: string;   // t.ex. "Malmö C (Läge k)"
+  };
 };
 
 type CreateSessionResponse = {
@@ -109,6 +119,46 @@ export default async function handler(
       });
     }
 
+    // Försök hämta resans titel från trips-tabellen
+    let tripTitleFromDb: string | undefined;
+
+    try {
+      const { data: tripRow, error: tripErr } = await supabase
+        .from("trips")
+        .select("title")
+        .eq("id", body.trip_id)
+        .single();
+
+      if (tripErr) {
+        console.warn(
+          "create-checkout-session | kunde inte läsa trips.title",
+          tripErr
+        );
+      } else if (tripRow?.title) {
+        tripTitleFromDb = tripRow.title as string;
+      }
+    } catch (e) {
+      console.warn(
+        "create-checkout-session | oväntat fel vid hämtning av trips.title",
+        e
+      );
+    }
+
+    // Trip-metadata – frontend kan skicka in egna värden,
+    // annars använder vi DB-titel som rubrik.
+    const extraMeta = body.trip_meta || {};
+
+    const tripTitle =
+      extraMeta.trip_title ||
+      tripTitleFromDb ||
+      "Bussresa";
+
+    const lineName = extraMeta.line_name || "";           // "Linje 1 Helsingbuss" osv – fylls senare
+    const operatorName = extraMeta.operator_name || "";   // "Norra Skåne Buss AB / Bergkvara" – fylls senare
+    const departureTime = extraMeta.departure_time || ""; // HH:MM – fylls senare
+    const returnTime = extraMeta.return_time || "";       // HH:MM – fylls senare
+    const departureStop = extraMeta.departure_stop || ""; // t.ex. "Malmö C (Läge k)" – fylls senare
+
     const currency: string = (priceRow.currency ||
       stripeCurrencyEnv).toLowerCase();
     const unitAmount = Math.round(Number(priceRow.price) * 100);
@@ -135,7 +185,7 @@ export default async function handler(
             currency,
             unit_amount: unitAmount,
             product_data: {
-              name: "Bussresa",
+              name: tripTitle || "Bussresa",
               description: `Avgång ${body.date}`,
             },
           },
@@ -149,6 +199,14 @@ export default async function handler(
         quantity: String(body.quantity),
         customer_name: body.customer?.name || "",
         customer_phone: body.customer?.phone || "",
+
+        // Ny metadata till e-biljetten / webhooken
+        trip_title: tripTitle,
+        line_name: lineName,
+        operator_name: operatorName,
+        departure_time: departureTime,
+        return_time: returnTime,
+        departure_stop: departureStop,
       },
       success_url: successUrl,
       cancel_url: cancelUrl,
