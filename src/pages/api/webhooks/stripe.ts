@@ -23,12 +23,6 @@ const stripeSecret = process.env.STRIPE_SECRET_KEY;
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const resendApiKey = process.env.RESEND_API_KEY;
 
-// 🔹 Ny, tydlig FROM-konstant (så den aldrig blir tom eller fel format)
-const FROM_EMAIL =
-  process.env.RESEND_FROM_EMAIL ||
-  process.env.MAIL_FROM ||
-  "Helsingbuss Biljetter <onboarding@resend.dev>";
-
 const supabase: any =
   (admin as any).supabaseAdmin ||
   (admin as any).supabase ||
@@ -36,6 +30,9 @@ const supabase: any =
 
 const stripe = stripeSecret ? new Stripe(stripeSecret) : null;
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
+
+// ✅ HÅRDKODAD, GARANTERAT GILTIG FROM-ADRESS FÖR RESEND
+const FROM_EMAIL = "Helsingbuss Biljetter <onboarding@resend.dev>";
 
 // Läser rå body från request (för Stripe-signatur)
 async function readRawBody(req: NextApiRequest): Promise<Buffer> {
@@ -386,11 +383,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   </html>
   `;
 
+  console.log("📧 Skickar e-biljett från:", FROM_EMAIL);
+
   await resend.emails.send({
-    from: FROM_EMAIL,          // 🔹 använder nya säkra from-värdet
+    from: FROM_EMAIL,
     to: customerEmail,
     subject,
-    text, // fallback för enkla mailklienter
+    text,
     html,
     attachments: [
       {
