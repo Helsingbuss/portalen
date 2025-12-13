@@ -207,6 +207,9 @@ export default async function handler(
         departure_time: departureTime,
         return_time: returnTime,
         departure_stop: departureStop,
+
+        // Extra: spara kundens e-post även i metadata
+        customer_email: body.customer?.email || "",
       },
       success_url: successUrl,
       cancel_url: cancelUrl,

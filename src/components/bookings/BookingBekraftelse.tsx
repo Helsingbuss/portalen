@@ -90,7 +90,7 @@ export default function BookingBekraftelse({ booking }: { booking: any }) {
 
         {/* Titel */}
         <h1 className="mt-2 text-2xl font-semibold text-[#0f172a]">
-          BokningsbekrÃ¤ftelse
+          Bokningsbekräftelse
         </h1>
 
         {/* Ã–vre kort â€“ order och kund */}
