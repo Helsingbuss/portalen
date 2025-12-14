@@ -1,0 +1,179 @@
+/* src/styles/account.css */
+
+.hb-account-root {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+  font-family: "Open Sans", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+}
+
+/* Header högst upp */
+.hb-account-header {
+  background-color: #1d2937;
+  color: #ffffff;
+  padding: 10px 0;
+}
+
+.hb-account-header-inner {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hb-account-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hb-logo-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 2px solid #ffffff;
+}
+
+.hb-logo-text {
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  font-size: 16px;
+}
+
+.hb-account-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.hb-account-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background-color: #047857;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+/* Layout under header */
+.hb-account-main {
+  padding: 40px 16px 60px;
+}
+
+.hb-account-layout {
+  max-width: 1160px;
+  margin: 0 auto;
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+/* Vänster-meny */
+.hb-account-sidebar {
+  width: 220px;
+}
+
+.hb-account-sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hb-account-navlink {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 4px;
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 14px;
+  color: #111827;
+  cursor: pointer;
+}
+
+.hb-account-navlink--active {
+  background-color: #edf7f5;
+  color: #065f46;
+  font-weight: 600;
+}
+
+.hb-account-navlink--logout {
+  color: #b91c1c;
+}
+
+.hb-account-nav-logout {
+  margin-top: 12px;
+}
+
+/* Innehållsdel */
+.hb-account-content {
+  flex: 1;
+}
+
+/* Dashboard */
+.hb-dashboard-title {
+  font-size: 20px;
+  margin-bottom: 20px;
+  color: #111827;
+}
+
+.hb-dashboard-cards {
+  background-color: #f5f5f5;
+  padding: 24px;
+  border-radius: 12px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 24px;
+}
+
+.hb-dashboard-card {
+  background-color: #f4f4f4;
+  border-radius: 12px;
+  padding: 0;
+}
+
+.hb-dashboard-card h2 {
+  font-size: 16px;
+  font-weight: 600;
+  padding: 16px 20px;
+  margin: 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.hb-dashboard-card-body {
+  padding: 16px 20px;
+  font-size: 14px;
+  color: #111827;
+}
+
+.hb-dashboard-card-body--center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Mobile ungefär */
+@media (max-width: 768px) {
+  .hb-account-layout {
+    flex-direction: column;
+  }
+
+  .hb-account-sidebar {
+    width: 100%;
+  }
+
+  .hb-dashboard-cards {
+    grid-template-columns: 1fr;
+  }
+}

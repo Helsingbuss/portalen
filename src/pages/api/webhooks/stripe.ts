@@ -25,7 +25,7 @@ const resendApiKey = process.env.RESEND_API_KEY;
 const mailFrom =
   process.env.MAIL_FROM || "Helsingbuss <info@helsingbuss.se>";
 
-// ✅ Ny env-variabel för admin-notiser
+// ✅ Env-variabel för admin-notiser
 const ticketsInbox =
   process.env.TICKETS_INBOX ||
   process.env.ADMIN_ALERT_EMAIL ||
@@ -272,6 +272,7 @@ async function handleCheckoutCompleted(
     return;
   }
 
+  // ✅ Bas-URL för "Mitt konto"
   const accountBaseUrl =
     process.env.NEXT_PUBLIC_ACCOUNT_BASE_URL ||
     process.env.ACCOUNT_BASE_URL ||
@@ -280,13 +281,21 @@ async function handleCheckoutCompleted(
 
   const manageUrl = `${accountBaseUrl}/mina-bokningar`;
 
-  const subject = `Din e-biljett – ${ticketData.tripTitle} (${ticketData.departureDate})`;
+  // ✅ Länk för att skapa konto / fortsätta registrering
+  const encodedEmail = encodeURIComponent(customerEmail || "");
+  const encodedBooking = encodeURIComponent(ticketNumber);
+  const createAccountUrl = `${accountBaseUrl}/konto/skapa?email=${encodedEmail}&booking=${encodedBooking}`;
+
+  // ✅ Ny subject: bokningsbekräftelse + biljett
+  const subject = `Bokningsbekräftelse & e-biljett – ${ticketData.tripTitle} (${ticketData.departureDate})`;
 
   const text = [
     `Hej ${ticketData.customerName || ""}!`.trim(),
     "",
     "Tack för din bokning hos Helsingbuss.",
     "I detta mail hittar du din e-biljett som PDF-bilaga.",
+    "",
+    `Bokningsnummer: ${ticketNumber}`,
     "",
     "Visa biljetten i mobilen eller utskriven vid påstigning.",
     "",
@@ -297,7 +306,10 @@ async function handleCheckoutCompleted(
     "",
     `Totalt pris: ${Math.round(ticketData.totalAmount)} SEK`,
     "",
-    `Du kan också se dina bokningar på: ${manageUrl}`,
+    "Skapa ett konto hos Helsingbuss för att samla dina bokningar:",
+    createAccountUrl,
+    "",
+    `Du kan också se dina bokningar på: ${manageUrl} (när du är inloggad)`,
     "",
     "Vänliga hälsningar",
     "Helsingbuss",
@@ -326,7 +338,7 @@ async function handleCheckoutCompleted(
                         Helsingbuss
                       </td>
                       <td align="right" style="font-size:12px;">
-                        E-biljett
+                        Bokningsbekräftelse & e-biljett
                       </td>
                     </tr>
                   </table>
@@ -340,10 +352,17 @@ async function handleCheckoutCompleted(
                     Hej ${ticketData.customerName || ""}!
                   </p>
 
-                  <p style="margin:0 0 12px 0; font-size:14px; color:#111827;">
+                  <p style="margin:0 0 8px 0; font-size:14px; color:#111827;">
                     Tack för att du reser med <strong>Helsingbuss</strong>.
-                    I detta mail hittar du din <strong>e-biljett som PDF-bilaga</strong>.
+                  </p>
+
+                  <p style="margin:0 0 12px 0; font-size:14px; color:#111827;">
+                    Din <strong>e-biljett</strong finns bifogad som <strong>PDF</strong>.
                     Visa biljetten i mobilen eller utskriven vid påstigning.
+                  </p>
+
+                  <p style="margin:0 0 16px 0; font-size:13px; color:#4b5563;">
+                    <strong>Bokningsnummer:</strong> ${ticketNumber}
                   </p>
 
                   <table cellpadding="0" cellspacing="0" style="margin:16px 0; font-size:14px; color:#111827;">
@@ -382,22 +401,36 @@ async function handleCheckoutCompleted(
                     </tr>
                   </table>
 
+                  <!-- Block: Skapa konto -->
+                  <div style="margin:20px 0; padding:16px; background-color:#f9fafb; border-radius:8px; border:1px solid #e5e7eb;">
+                    <p style="margin:0 0 8px 0; font-size:14px; font-weight:600; color:#111827;">
+                      Skapa konto och samla dina bokningar
+                    </p>
+                    <p style="margin:0 0 12px 0; font-size:13px; color:#4b5563;">
+                      Genom att skapa ett konto hos Helsingbuss kan du enkelt se dina kommande resor,
+                      ladda ner biljetter igen och hantera dina uppgifter.
+                    </p>
+
+                    <table cellpadding="0" cellspacing="0" style="margin:0 0 8px 0;">
+                      <tr>
+                        <td>
+                          <a href="${createAccountUrl}"
+                             style="display:inline-block; padding:10px 18px; background-color:#1d2937; color:#ffffff; text-decoration:none; border-radius:4px; font-size:14px; font-weight:600;">
+                            Skapa konto & koppla din bokning
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <p style="margin:0; font-size:12px; color:#6b7280;">
+                      När du är inloggad hittar du dina resor under <strong>"Mina bokningar"</strong>.
+                    </p>
+                  </div>
+
                   <p style="margin:16px 0 20px 0; font-size:13px; color:#4b5563;">
                     Om du har valt till <strong>SMS-biljett</strong> eller
-                    <strong>avbeställningsskydd</strong> ser du det på din
-                    e-biljett.
+                    <strong>avbeställningsskydd</strong> ser du det på din e-biljett.
                   </p>
-
-                  <table cellpadding="0" cellspacing="0" style="margin:0 0 24px 0;">
-                    <tr>
-                      <td>
-                        <a href="${manageUrl}"
-                           style="display:inline-block; padding:10px 18px; background-color:#1d2937; color:#ffffff; text-decoration:none; border-radius:4px; font-size:14px; font-weight:600;">
-                          Visa mina bokningar
-                        </a>
-                      </td>
-                    </tr>
-                  </table>
 
                   <p style="margin:0 0 8px 0; font-size:12px; color:#6b7280;">
                     Vid frågor är du varmt välkommen att kontakta oss på
@@ -430,7 +463,7 @@ async function handleCheckoutCompleted(
     from: mailFrom,
     to: customerEmail,
     subject,
-    text,
+    text,  // fallback för enkla mailklienter
     html,
     attachments: [
       {
