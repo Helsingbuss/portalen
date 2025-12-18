@@ -176,13 +176,52 @@ export async function sendOfferMail(p: SendOfferParams) {
 }
 
 export async function sendCustomerReceipt(p: CustomerReceiptParams) {
+  if (!RESEND_API_KEY) {
+    console.error(
+      "[sendCustomerReceipt] RESEND_API_KEY saknas – skickar inget mail"
+    );
+    return;
+  }
+
+  if (!p.to) {
+    console.error(
+      "[sendCustomerReceipt] Ingen mottagaradress (p.to) – skickar inget mail",
+      p
+    );
+    return;
+  }
+
   const subject = `Vi har mottagit din offertförfrågan – ${p.offerNumber}`;
   const html = renderCustomerReceiptHTML(p);
 
-  await resend.emails.send({
-    from: FROM_INFO,
-    to: p.to,
-    subject,
-    html,
-  });
+  try {
+    console.log(
+      "[sendCustomerReceipt] Försöker skicka kundmail",
+      "to:",
+      p.to,
+      "offer:",
+      p.offerNumber
+    );
+
+    const result = await resend.emails.send({
+      from: FROM_INFO,
+      to: p.to,
+      subject,
+      html,
+    });
+
+    console.log(
+      "[sendCustomerReceipt] skickat OK",
+      "to:",
+      p.to,
+      "result:",
+      (result as any)?.id || "ok"
+    );
+  } catch (err: any) {
+    console.error(
+      "[sendCustomerReceipt] Resend-fel:",
+      err?.message || err
+    );
+    throw err;
+  }
 }
