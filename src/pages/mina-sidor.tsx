@@ -1,23 +1,15 @@
 // src/pages/mina-sidor.tsx
-import React, { useState } from "react";
+import React from "react";
 import Head from "next/head";
+import Link from "next/link";
 
-type NavKey = "overview" | "profile" | "tickets" | "points" | "quiz";
+const fakeUser = {
+  firstName: "Andreas",
+  email: "andreas@example.com",
+  points: 2350,
+};
 
-const navItems: { key: NavKey; label: string }[] = [
-  { key: "overview", label: "Mina sidor" },
-  { key: "profile", label: "Min profil" },
-  { key: "tickets", label: "Mina biljetter" },
-  { key: "points", label: "Intjänad poäng" },
-  { key: "quiz", label: "Quiz ranking" },
-];
-
-export default function MinaSidorPage() {
-  // TODO: ersätt med riktig användare från Supabase senare
-  const userFirstName = "Andreas";
-
-  const [active, setActive] = useState<NavKey>("overview");
-
+export default function MinaSidor() {
   return (
     <>
       <Head>
@@ -25,378 +17,484 @@ export default function MinaSidorPage() {
       </Head>
 
       <div className="page">
-        {/* TOPPBAR */}
-        <header className="topbar">
-          <div className="topbar-left">
-            <div className="logo">Helsingbuss</div>
-            <nav className="main-nav">
-              <a href="#">Tidtabeller</a>
-              <a href="#">Destinationer</a>
-              <a href="#">Vanliga frågor</a>
-              <a href="#">Spela Quiz och vinn</a>
-              <a href="#">Boka buss</a>
-            </nav>
-          </div>
-
-          <div className="topbar-right">
-            <div className="user-pill">
-              <div className="user-icon">
-                <span>👤</span>
-              </div>
-              <div className="user-name">{userFirstName}</div>
+        <div className="shell">
+          {/* ====== TOPPHEADER ====== */}
+          <header className="appHeader">
+            <div className="brand">
+              <div className="brandMark">H</div>
+              <span className="brandText">Helsingbuss</span>
             </div>
-          </div>
-        </header>
 
-        {/* HUVUDINNEHÅLL */}
-        <main className="shell">
-          <div className="card">
-            <aside className="sidebar">
-              <h2 className="sidebar-title">Mina sidor</h2>
+            {/* Huvudmeny – länka om till riktiga sidor sen */}
+            <nav className="topNav">
+              <Link href="#" className="topNavLink">
+                Tidtabeller
+              </Link>
+              <Link href="#" className="topNavLink">
+                Destinationer
+              </Link>
+              <Link href="#" className="topNavLink">
+                Vanliga frågor
+              </Link>
+              <Link href="#" className="topNavLink">
+                Spela quiz och vinn
+              </Link>
+              <Link href="#" className="topNavButton">
+                Boka buss
+              </Link>
+            </nav>
 
-              <ul className="sidebar-nav">
-                {navItems.map((item) => (
-                  <li key={item.key}>
-                    <button
-                      type="button"
-                      className={
-                        "sidebar-link" +
-                        (active === item.key ? " sidebar-link--active" : "")
-                      }
-                      onClick={() => setActive(item.key)}
-                    >
-                      {item.label}
-                    </button>
-                  </li>
-                ))}
-                <li className="sidebar-logout">
-                  <button type="button" className="sidebar-link sidebar-link--logout">
-                    Logga ut
-                  </button>
-                </li>
-              </ul>
+            {/* Användare uppe till höger */}
+            <div className="userChip">
+              <div className="avatar">
+                {fakeUser.firstName.charAt(0).toUpperCase()}
+              </div>
+              <div className="userMeta">
+                <span className="userName">{fakeUser.firstName}</span>
+                <span className="userLabel">Inloggad</span>
+              </div>
+            </div>
+          </header>
+
+          {/* ====== HUVUDLAYOUT ====== */}
+          <main className="mainLayout">
+            {/* VÄNSTERMENY – samma punkter som i din skiss */}
+            <aside className="sideNav">
+              <h2 className="sideNavTitle">Mina sidor</h2>
+              <nav className="sideNavList">
+                <button className="sideNavItem sideNavItemActive" type="button">
+                  Mina sidor
+                </button>
+                <button className="sideNavItem" type="button">
+                  Min profil
+                </button>
+                <button className="sideNavItem" type="button">
+                  Mina biljetter
+                </button>
+                <button className="sideNavItem" type="button">
+                  Intjänad poäng
+                </button>
+                <button className="sideNavItem" type="button">
+                  Quiz ranking
+                </button>
+                <button
+                  className="sideNavItem sideNavLogout"
+                  type="button"
+                  onClick={() => {
+                    // TODO: ersätt med riktig logout
+                    console.log("Logga ut klickad");
+                  }}
+                >
+                  Logga ut
+                </button>
+              </nav>
             </aside>
 
+            {/* HÖGER – DASHBOARD / INNEHÅLL */}
             <section className="content">
-              {active === "overview" && <Overview />}
-              {active === "profile" && <Placeholder title="Min profil" />}
-              {active === "tickets" && <Placeholder title="Mina biljetter" />}
-              {active === "points" && <Placeholder title="Intjänad poäng" />}
-              {active === "quiz" && <Placeholder title="Quiz ranking" />}
+              <header className="contentHeader">
+                <div>
+                  <p className="breadcrumb">Mina sidor</p>
+                  <h1 className="contentTitle">
+                    Hej {fakeUser.firstName}, välkommen tillbaka 👋
+                  </h1>
+                  <p className="contentSub">
+                    Här hittar du dina kommande resor, biljetter och poäng i
+                    Helsingbuss Kundklubb.
+                  </p>
+                </div>
+                <div className="pointsCard">
+                  <span className="pointsLabel">Intjänade poäng</span>
+                  <span className="pointsValue">
+                    {fakeUser.points.toLocaleString("sv-SE")}
+                  </span>
+                  <span className="pointsHint">
+                    Poäng kan användas på framtida kampanjer.
+                  </span>
+                </div>
+              </header>
+
+              {/* Kort / widgetar */}
+              <div className="grid">
+                <article className="card">
+                  <h2 className="cardTitle">Kommande resor</h2>
+                  <p className="cardTextMuted">
+                    Du har just nu inga bokade resor. När du köper en biljett
+                    via Helsingbuss hamnar den här.
+                  </p>
+                  <button
+                    type="button"
+                    className="cardButton"
+                    onClick={() =>
+                      window.open("https://www.helsingbuss.se", "_blank")
+                    }
+                  >
+                    Boka nästa resa
+                  </button>
+                </article>
+
+                <article className="card">
+                  <h2 className="cardTitle">Mina biljetter</h2>
+                  <p className="cardTextMuted">
+                    Här kommer du kunna se dina aktiva och tidigare biljetter,
+                    ladda ner e-biljetter och hitta information om avgångar.
+                  </p>
+                  <ul className="bulletList">
+                    <li>Snabb åtkomst till e-biljetter</li>
+                    <li>Information om avgångstider</li>
+                    <li>Historik på tidigare resor</li>
+                  </ul>
+                </article>
+
+                <article className="card fullWidth">
+                  <h2 className="cardTitle">Quiz & kampanjer</h2>
+                  <p className="cardTextMuted">
+                    När du deltar i våra quiz och kampanjer hamnar dina
+                    resultat och vinster här. Perfekt för Pride-resor,
+                    shoppingresor och specialturer.
+                  </p>
+                  <div className="pillRow">
+                    <span className="pill">Kommande quiz</span>
+                    <span className="pill pillMuted">Ingen kampanj aktiv</span>
+                  </div>
+                </article>
+              </div>
             </section>
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
 
+      {/* ==== STYLES ==== */}
       <style jsx>{`
-        :global(html),
-        :global(body) {
-          margin: 0;
-          padding: 0;
-          font-family: "Open Sans", -apple-system, BlinkMacSystemFont,
-            "Segoe UI", system-ui, sans-serif;
-          background: #f3f4f6;
-        }
-
         .page {
           min-height: 100vh;
-          display: flex;
-          flex-direction: column;
           background: #f3f4f6;
+          color: #111827;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+            "Open Sans", sans-serif;
         }
 
-        /* TOPPBAR */
-        .topbar {
-          height: 72px;
-          background: #ffffff;
-          border-bottom: 1px solid #e5e7eb;
-          display: flex;
+        .shell {
+          max-width: 1120px;
+          margin: 0 auto;
+          padding: 24px 16px 40px;
+        }
+
+        /* HEADER */
+
+        .appHeader {
+          display: grid;
+          grid-template-columns: auto 1fr auto;
           align-items: center;
-          justify-content: space-between;
-          padding: 0 40px;
+          gap: 24px;
+          margin-bottom: 24px;
         }
 
-        .topbar-left {
+        .brand {
           display: flex;
-          align-items: center;
-          gap: 32px;
-        }
-
-        .logo {
-          font-weight: 700;
-          font-size: 20px;
-          letter-spacing: 0.02em;
-          color: #1d2937;
-        }
-
-        .main-nav {
-          display: flex;
-          gap: 20px;
-          font-size: 14px;
-        }
-
-        .main-nav a {
-          text-decoration: none;
-          color: #4b5563;
-        }
-
-        .main-nav a:hover {
-          color: #007764;
-        }
-
-        .topbar-right {
-          display: flex;
-          align-items: center;
-        }
-
-        .user-pill {
-          display: inline-flex;
           align-items: center;
           gap: 10px;
-          padding: 6px 14px;
-          border-radius: 999px;
-          background: #f3f4f6;
         }
 
-        .user-icon {
-          width: 26px;
-          height: 26px;
+        .brandMark {
+          width: 32px;
+          height: 32px;
           border-radius: 999px;
-          background: #e5e7eb;
+          background: #007764;
+          color: #ffffff;
           display: flex;
           align-items: center;
           justify-content: center;
+          font-weight: 700;
+        }
+
+        .brandText {
+          font-size: 20px;
+          font-weight: 700;
+          letter-spacing: 0.02em;
+        }
+
+        .topNav {
+          display: flex;
+          justify-content: center;
+          gap: 18px;
           font-size: 14px;
         }
 
-        .user-name {
-          font-size: 13px;
+        .topNavLink {
+          color: #4b5563;
+          text-decoration: none;
+          padding: 6px 0;
+        }
+        .topNavLink:hover {
           color: #111827;
+        }
+
+        .topNavButton {
+          padding: 6px 14px;
+          border-radius: 999px;
+          background: #007764;
+          color: #ffffff;
+          text-decoration: none;
           font-weight: 600;
         }
-
-        /* HUVUDKORT */
-        .shell {
-          flex: 1;
-          display: flex;
-          justify-content: center;
-          padding: 40px 16px 48px;
+        .topNavButton:hover {
+          background: #006254;
         }
 
-        .card {
-          width: 100%;
-          max-width: 1120px;
+        .userChip {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 4px 10px 4px 4px;
+          border-radius: 999px;
           background: #ffffff;
-          border-radius: 20px;
-          box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+          box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+        }
+
+        .avatar {
+          width: 32px;
+          height: 32px;
+          border-radius: 999px;
+          background: #e5f4f0;
+          color: #007764;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+        }
+
+        .userMeta {
+          display: flex;
+          flex-direction: column;
+          line-height: 1.1;
+        }
+        .userName {
+          font-size: 13px;
+          font-weight: 600;
+        }
+        .userLabel {
+          font-size: 11px;
+          color: #6b7280;
+        }
+
+        /* LAYOUT */
+
+        .mainLayout {
           display: grid;
           grid-template-columns: 220px minmax(0, 1fr);
-          overflow: hidden;
+          gap: 24px;
+          align-items: flex-start;
         }
 
-        /* SIDOMENY */
-        .sidebar {
-          padding: 24px 24px 24px 28px;
-          border-right: 1px solid #f1f5f9;
-          background: #f9fafb;
+        .sideNav {
+          background: #ffffff;
+          border-radius: 18px;
+          padding: 20px 18px;
+          box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
         }
 
-        .sidebar-title {
-          margin: 0 0 16px 0;
-          font-size: 16px;
+        .sideNavTitle {
+          font-size: 14px;
           font-weight: 700;
-          color: #007764;
+          margin: 0 0 12px 0;
+          color: #111827;
         }
 
-        .sidebar-nav {
-          list-style: none;
-          padding: 0;
-          margin: 0;
+        .sideNavList {
           display: flex;
           flex-direction: column;
           gap: 4px;
         }
 
-        .sidebar-link {
-          width: 100%;
+        .sideNavItem {
           text-align: left;
+          width: 100%;
           border: none;
           background: transparent;
-          padding: 8px 10px;
           border-radius: 999px;
-          font-size: 14px;
-          color: #4b5563;
+          padding: 8px 12px;
+          font-size: 13px;
+          color: #374151;
           cursor: pointer;
         }
 
-        .sidebar-link--active {
-          background: #e6f3f0;
-          color: #007764;
+        .sideNavItem:hover {
+          background: #f3f4f6;
+        }
+
+        .sideNavItemActive {
+          background: #007764;
+          color: #ffffff;
           font-weight: 600;
         }
 
-        .sidebar-link--logout {
+        .sideNavLogout {
+          margin-top: 8px;
           color: #b91c1c;
         }
-
-        .sidebar-link--logout:hover {
+        .sideNavLogout:hover {
           background: #fef2f2;
         }
 
-        .sidebar-logout {
-          margin-top: 16px;
-        }
-
-        /* CONTENT */
         .content {
-          padding: 28px 32px 32px;
           background: #ffffff;
+          border-radius: 24px;
+          padding: 24px 24px 28px;
+          box-shadow: 0 22px 50px rgba(15, 23, 42, 0.12);
         }
 
-        .content-header {
-          margin-bottom: 16px;
+        .contentHeader {
+          display: flex;
+          justify-content: space-between;
+          gap: 24px;
+          align-items: flex-start;
+          margin-bottom: 24px;
         }
 
-        .content-title {
-          margin: 0;
-          font-size: 20px;
-          font-weight: 600;
-          color: #111827;
-        }
-
-        .content-subtitle {
-          margin: 4px 0 0 0;
-          font-size: 13px;
+        .breadcrumb {
+          margin: 0 0 4px 0;
+          font-size: 12px;
           color: #6b7280;
+        }
+
+        .contentTitle {
+          margin: 0 0 6px 0;
+          font-size: 22px;
+          font-weight: 700;
+        }
+
+        .contentSub {
+          margin: 0;
+          font-size: 13px;
+          color: #4b5563;
+        }
+
+        .pointsCard {
+          min-width: 220px;
+          padding: 12px 14px;
+          border-radius: 16px;
+          background: linear-gradient(135deg, #007764, #00a98b);
+          color: #ecfdf5;
+        }
+        .pointsLabel {
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          opacity: 0.85;
+        }
+        .pointsValue {
+          display: block;
+          font-size: 24px;
+          font-weight: 700;
+          margin-top: 4px;
+        }
+        .pointsHint {
+          display: block;
+          margin-top: 4px;
+          font-size: 11px;
+          opacity: 0.9;
         }
 
         .grid {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 16px;
-          margin-top: 16px;
+          gap: 18px;
         }
 
-        .panel {
-          border-radius: 16px;
-          background: #f9fafb;
-          padding: 18px 20px;
+        .card {
+          border-radius: 18px;
           border: 1px solid #e5e7eb;
+          padding: 16px 18px 18px;
+          background: #ffffff;
         }
 
-        .panel-title {
-          margin: 0 0 10px 0;
-          font-size: 15px;
+        .card.fullWidth {
+          grid-column: 1 / -1;
+        }
+
+        .cardTitle {
+          margin: 0 0 8px 0;
+          font-size: 16px;
           font-weight: 600;
-          color: #111827;
         }
 
-        .panel-body {
+        .cardTextMuted {
+          margin: 0 0 12px 0;
           font-size: 13px;
           color: #6b7280;
         }
 
-        .points-number {
-          font-size: 24px;
-          font-weight: 700;
-          color: #007764;
-          margin-bottom: 4px;
+        .cardButton {
+          margin-top: 4px;
+          border-radius: 999px;
+          border: none;
+          background: #007764;
+          color: #ffffff;
+          font-size: 13px;
+          font-weight: 600;
+          padding: 8px 16px;
+          cursor: pointer;
+        }
+        .cardButton:hover {
+          background: #006254;
         }
 
-        .tag {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 4px 10px;
+        .bulletList {
+          margin: 0;
+          padding-left: 18px;
+          font-size: 13px;
+          color: #4b5563;
+        }
+        .bulletList li + li {
+          margin-top: 4px;
+        }
+
+        .pillRow {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .pill {
+          padding: 5px 10px;
           border-radius: 999px;
+          font-size: 12px;
           background: #ecfdf5;
           color: #047857;
-          font-size: 11px;
-          margin-top: 8px;
+        }
+        .pillMuted {
+          background: #f3f4f6;
+          color: #6b7280;
         }
 
-        /* RESPONSIVT */
+        /* RESPONSIVE */
+
         @media (max-width: 900px) {
-          .card {
-            grid-template-columns: minmax(0, 1fr);
+          .appHeader {
+            grid-template-columns: 1fr;
+            row-gap: 16px;
           }
-          .sidebar {
-            border-right: none;
-            border-bottom: 1px solid #f1f5f9;
+          .topNav {
+            justify-content: flex-start;
+            flex-wrap: wrap;
+          }
+          .mainLayout {
+            grid-template-columns: 1fr;
+          }
+          .contentHeader {
+            flex-direction: column;
           }
         }
 
         @media (max-width: 640px) {
-          .topbar {
-            padding: 0 16px;
-          }
-          .main-nav {
-            display: none; /* ev. ersätt med mobilmeny sen */
-          }
-          .shell {
-            padding: 24px 10px 32px;
+          .grid {
+            grid-template-columns: 1fr;
           }
           .content {
-            padding: 20px 18px 24px;
-          }
-          .grid {
-            grid-template-columns: minmax(0, 1fr);
+            padding: 18px 16px 22px;
           }
         }
       `}</style>
-    </>
-  );
-}
-
-/* ---------- Innehållskomponenter ---------- */
-
-function Overview() {
-  return (
-    <>
-      <div className="content-header">
-        <h1 className="content-title">Mina sidor</h1>
-        <p className="content-subtitle">
-          Här ser du dina kommande resor, poäng och information kopplad till ditt
-          Helsingbuss-konto.
-        </p>
-      </div>
-
-      <div className="grid">
-        <div className="panel">
-          <h2 className="panel-title">Kommande resor</h2>
-          <div className="panel-body">
-            Hittade inga resor ännu.
-            <br />
-            <span>Så fort du bokar en resa dyker den upp här.</span>
-          </div>
-        </div>
-
-        <div className="panel">
-          <h2 className="panel-title">Intjänad poäng</h2>
-          <div className="panel-body">
-            <div className="points-number">0 poäng</div>
-            <div>Ditt nuvarande poängsaldo visas här.</div>
-            <div className="tag">
-              🎁
-              <span>Res mer – samla fler poäng</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <>
-      <div className="content-header">
-        <h1 className="content-title">{title}</h1>
-        <p className="content-subtitle">
-          Denna del kommer vi fylla med riktigt innehåll (formulär, listor osv.) när
-          vi kopplar på databasen.
-        </p>
-      </div>
     </>
   );
 }
