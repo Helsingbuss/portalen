@@ -16,6 +16,47 @@ function pick(body: any, ...keys: string[]): string | undefined {
   return undefined;
 }
 
+/** Enkel validering av e-postadress */
+function isValidEmail(value: string | undefined | null): boolean {
+  if (!value) return false;
+  const s = String(value).trim();
+  // Väldigt enkel men räcker gott här
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return re.test(s);
+}
+
+/**
+ * Försök hitta kundens e-post i payloaden.
+ * 1) Först kända keys: customer_email / email / kund_email
+ * 2) Om dessa inte är giltiga → sök igenom ALLA värden i rawBody
+ */
+function extractCustomerEmail(rawBody: any): string | undefined {
+  // 1) Direkt via kända keys
+  const directCandidate =
+    pick(rawBody, "customer_email", "email", "kund_email") || rawBody?.customer_email;
+
+  if (isValidEmail(directCandidate)) {
+    return String(directCandidate).trim();
+  }
+
+  // 2) Fallback: leta efter första strängvärde som ser ut som e-post
+  if (rawBody && typeof rawBody === "object") {
+    for (const [key, val] of Object.entries(rawBody)) {
+      if (typeof val !== "string") continue;
+      const trimmed = val.trim();
+      if (isValidEmail(trimmed)) {
+        console.log("[offert/create] Hittade e-post i annat fält:", {
+          field: key,
+          value: trimmed,
+        });
+        return trimmed;
+      }
+    }
+  }
+
+  return undefined;
+}
+
 /** Hjälpfunktion: "Ja"/"Nej" => boolean | null */
 function parseBool(v: any): boolean | null {
   if (v === undefined || v === null) return null;
@@ -23,48 +64,6 @@ function parseBool(v: any): boolean | null {
   if (["ja", "yes", "true", "1"].includes(s)) return true;
   if (["nej", "no", "false", "0"].includes(s)) return false;
   return null;
-}
-
-/** Hjälpfunktion: hitta första e-postadress (med "@") någonstans i payloaden */
-function findEmailInBody(body: any): string | undefined {
-  const visited = new Set<any>();
-
-  function search(value: any): string | undefined {
-    if (value === null || value === undefined) return;
-
-    if (typeof value === "string") {
-      const trimmed = value.trim();
-      if (trimmed.includes("@")) {
-        return trimmed;
-      }
-      return;
-    }
-
-    if (typeof value === "number" || typeof value === "boolean") {
-      return;
-    }
-
-    if (typeof value === "object") {
-      if (visited.has(value)) return;
-      visited.add(value);
-
-      if (Array.isArray(value)) {
-        for (const item of value) {
-          const found = search(item);
-          if (found) return found;
-        }
-      } else {
-        for (const v of Object.values(value)) {
-          const found = search(v);
-          if (found) return found;
-        }
-      }
-    }
-
-    return;
-  }
-
-  return search(body);
 }
 
 /** Generera nästa offertnummer HB25XXX */
@@ -105,32 +104,21 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const rawBody: any =
       typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
 
-    /** ===== HÄMTA FÄLT FRÅN FORMULÄR ===== */
+    // ===== HÄMTA E-POST PÅ ETT ROBUST SÄTT =====
+    const customerEmail = extractCustomerEmail(rawBody);
 
-    // 1) Försök med våra vanliga fältnamn
-    const emailField =
-      pick(rawBody, "customer_email", "email", "kund_email") || "";
-
-    let customerEmail = emailField;
-
-    // 2) Om det inte ser ut som en riktig e-postadress (t.ex. "E-post"),
-    //    försök hitta första strängen med "@" någonstans i hela payloaden.
-    if (!customerEmail || !customerEmail.includes("@")) {
-      const fallback = findEmailInBody(rawBody);
-      if (fallback && fallback.includes("@")) {
-        console.log(
-          "[offert/create] Fallback hittade kundens e-post i payload:",
-          fallback
-        );
-        customerEmail = fallback;
-      } else {
-        console.warn(
-          "[offert/create] Ingen giltig kund-e-post hittades – skickar bara adminmail.",
-          { emailField, rawBody }
-        );
-        customerEmail = "";
-      }
+    if (!customerEmail) {
+      // Ingen giltig e-post hittad – vi loggar men blockerar inte offerten.
+      console.warn(
+        "[offert/create] Ingen giltig kund-e-post hittades – skickar bara adminmail.",
+        {
+          emailField: rawBody?.customer_email,
+          rawBody,
+        }
+      );
     }
+
+    /** ===== HÄMTA ÖVRIGA FÄLT FRÅN FORMULÄR ===== */
 
     const contactPerson =
       pick(
@@ -296,13 +284,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       console.error("sendOfferMail error:", (err as any)?.message || err);
     }
 
-    /** ===== kvittens till kund ===== */
-    try {
-      if (customerEmail && customerEmail.includes("@")) {
-        console.log(
-          "[offert/create] Skickar kundkvittens till:",
-          customerEmail
-        );
+    /** ===== kvittens till kund (endast om vi hittade en giltig e-post) ===== */
+    if (customerEmail && isValidEmail(customerEmail)) {
+      try {
         await sendCustomerReceipt({
           to: customerEmail,
           offerNumber: finalOfferNumber,
@@ -313,15 +297,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           passengers: passengers ?? undefined,
           link: customerLink,
         });
-      } else {
-        console.warn(
-          "[offert/create] Hoppar över kundkvittens – ingen giltig e-post."
+      } catch (err) {
+        console.error(
+          "sendCustomerReceipt error:",
+          (err as any)?.message || err
         );
       }
-    } catch (err) {
-      console.error(
-        "sendCustomerReceipt error:",
-        (err as any)?.message || err
+    } else {
+      console.warn(
+        "[offert/create] Hoppar över kundmail eftersom e-posten inte var giltig.",
+        { customerEmail }
       );
     }
 
