@@ -108,31 +108,28 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     /** ===== HÄMTA FÄLT FRÅN FORMULÄR ===== */
 
     // 1) Försök med våra vanliga fältnamn
-    let customerEmail =
+    const emailField =
       pick(rawBody, "customer_email", "email", "kund_email") || "";
 
-    // 2) Om det INTE ser ut som en riktig e-post (t.ex. "E-post"), försök hitta
-    //    första strängen med "@" någonstans i hela payloaden.
+    let customerEmail = emailField;
+
+    // 2) Om det inte ser ut som en riktig e-postadress (t.ex. "E-post"),
+    //    försök hitta första strängen med "@" någonstans i hela payloaden.
     if (!customerEmail || !customerEmail.includes("@")) {
       const fallback = findEmailInBody(rawBody);
-      if (fallback) {
+      if (fallback && fallback.includes("@")) {
         console.log(
           "[offert/create] Fallback hittade kundens e-post i payload:",
           fallback
         );
         customerEmail = fallback;
+      } else {
+        console.warn(
+          "[offert/create] Ingen giltig kund-e-post hittades – skickar bara adminmail.",
+          { emailField, rawBody }
+        );
+        customerEmail = "";
       }
-    }
-
-    // 3) Slutlig validering
-    if (!customerEmail || !customerEmail.includes("@")) {
-      console.error(
-        "[offert/create] Ogiltig eller saknad kund-e-post i payload:",
-        rawBody
-      );
-      return res.status(400).json({
-        error: "Kundens e-postadress saknas eller är ogiltig.",
-      });
     }
 
     const contactPerson =
@@ -217,7 +214,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       // kund
       contact_person: contactPerson,
       Namn_efternamn: contactPerson,
-      customer_email: customerEmail,
+      customer_email: customerEmail || null,
       customer_phone: customerPhone,
       foretag_forening: company,
       org_number: orgNumber,
@@ -287,7 +284,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       await sendOfferMail({
         offerId,
         offerNumber: finalOfferNumber,
-        customerEmail,
+        customerEmail: customerEmail || undefined,
         customerName: contactPerson || company || undefined,
         from: fromPlace || undefined,
         to: toPlace || undefined,
@@ -301,16 +298,26 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     /** ===== kvittens till kund ===== */
     try {
-      await sendCustomerReceipt({
-        to: customerEmail,
-        offerNumber: finalOfferNumber,
-        from: fromPlace || undefined,
-        toPlace: toPlace || undefined,
-        date: departureDate || undefined,
-        time: departureTime || undefined,
-        passengers: passengers ?? undefined,
-        link: customerLink,
-      });
+      if (customerEmail && customerEmail.includes("@")) {
+        console.log(
+          "[offert/create] Skickar kundkvittens till:",
+          customerEmail
+        );
+        await sendCustomerReceipt({
+          to: customerEmail,
+          offerNumber: finalOfferNumber,
+          from: fromPlace || undefined,
+          toPlace: toPlace || undefined,
+          date: departureDate || undefined,
+          time: departureTime || undefined,
+          passengers: passengers ?? undefined,
+          link: customerLink,
+        });
+      } else {
+        console.warn(
+          "[offert/create] Hoppar över kundkvittens – ingen giltig e-post."
+        );
+      }
     } catch (err) {
       console.error(
         "sendCustomerReceipt error:",
