@@ -1,3 +1,4 @@
+// src/components/AdminMenu.tsx
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -10,13 +11,30 @@ import {
   ChartBarIcon,
   ChatBubbleLeftRightIcon,
   ChevronDownIcon,
+  DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 
-export default function AdminMenu() {
-  const [open, setOpen] = useState<string | null>("booking");
+type AdminMenuProps = {
+  /** Används bara för att veta vilken grupp som ska vara öppen (t.ex. "foreningsavtal") */
+  active?: string;
+};
+
+export default function AdminMenu({ active }: AdminMenuProps) {
+  // Bestäm vilken grupp som ska vara öppen från start
+  const initialOpen: string | null = (() => {
+    if (active === "foreningsavtal" || active === "foretagsavtal") {
+      return "agreements";
+    }
+    if (active === "prislistor") {
+      return "booking";
+    }
+    // standard – samma som innan
+    return "booking";
+  })();
+
+  const [open, setOpen] = useState<string | null>(initialOpen);
   const toggleMenu = (menu: string) => setOpen(open === menu ? null : menu);
 
-  // gemensam klass för snyggare underlänkar
   const subLink =
     "block px-3 py-2 rounded-md leading-[1.45] text-[13px] text-gray-700 hover:bg-[#e5eef3] hover:text-[#194C66] transition";
 
@@ -27,7 +45,7 @@ export default function AdminMenu() {
 
   return (
     <aside className="fixed top-[60px] left-0 w-60 md:w-64 h-[calc(100vh-60px)] bg-white border-r border-gray-200 shadow-sm flex flex-col">
-      {/* liten topp-del */}
+      {/* Toppdel */}
       <div className="px-4 pt-4 pb-2 border-b border-gray-100">
         <p className="text-[11px] uppercase tracking-[0.16em] text-gray-400 mb-1">
           Helsingbuss Portal
@@ -38,7 +56,7 @@ export default function AdminMenu() {
       </div>
 
       <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-        {/* Översikt (utan pil) */}
+        {/* Översikt */}
         <Link
           href="/start"
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-[#194C66] text-white shadow-sm text-sm font-medium hover:bg-[#153a4c] transition"
@@ -102,6 +120,11 @@ export default function AdminMenu() {
                   Kommande körningar
                 </Link>
               </li>
+              <li>
+                <Link href="/admin/prislistor" className={subLink}>
+                  Ändra offertpriser
+                </Link>
+              </li>
             </ul>
           )}
         </div>
@@ -141,7 +164,7 @@ export default function AdminMenu() {
                   Boka biljett
                 </Link>
               </li>
-               <li>
+              <li>
                 <Link href="/admin/ticket-types" className={subLink}>
                   Lägg upp biljettyp
                 </Link>
@@ -156,17 +179,17 @@ export default function AdminMenu() {
                   Lägg till operatör/fordon
                 </Link>
               </li>
-               <li>
+              <li>
                 <Link href="/admin/discounts" className={subLink}>
                   Kampanjer & rabatter
                 </Link>
               </li>
-               <li>
+              <li>
                 <Link href="/admin/tickets/passengers" className={subLink}>
                   Passagerarlistor
                 </Link>
               </li>
-              </ul>
+            </ul>
           )}
         </div>
 
@@ -213,6 +236,40 @@ export default function AdminMenu() {
               <li>
                 <Link href="/admin/schedule" className={subLink}>
                   Schemaläggning
+                </Link>
+              </li>
+            </ul>
+          )}
+        </div>
+
+        {/* Avtal */}
+        <div>
+          <button
+            onClick={() => toggleMenu("agreements")}
+            className={`${groupButtonBase} ${
+              open === "agreements" ? "bg-[#f2f6f9] text-[#194C66]" : ""
+            }`}
+          >
+            <span className={groupLabelBase}>
+              <DocumentTextIcon className="h-5 w-5" />
+              <span>Avtal</span>
+            </span>
+            <ChevronDownIcon
+              className={`h-4 w-4 transition-transform ${
+                open === "agreements" ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+          {open === "agreements" && (
+            <ul className="mt-2 ml-3 border-l border-gray-100 pl-3 space-y-1">
+              <li>
+                <Link href="/admin/foreningsavtal" className={subLink}>
+                  Föreningsavtal
+                </Link>
+              </li>
+              <li>
+                <Link href="/admin/foretagsavtal" className={subLink}>
+                  Företagsavtal
                 </Link>
               </li>
             </ul>
@@ -347,7 +404,7 @@ export default function AdminMenu() {
         </div>
       </nav>
 
-      {/* Feedback längst ner */}
+      {/* Feedback */}
       <div className="p-4 border-t border-gray-100">
         <Link
           href="#"
