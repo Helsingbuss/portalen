@@ -1,19 +1,31 @@
 // src/lib/sendMail.ts
-
 import { Resend } from "resend";
 
 /** ========= Konfiguration ========= */
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+
 const FROM_ADMIN =
   process.env.RESEND_FROM_ADMIN || "Helsingbuss <offert@helsingbuss.se>";
 const FROM_INFO =
   process.env.RESEND_FROM_INFO || "Helsingbuss <info@helsingbuss.se>";
-const ADMIN_INBOX = process.env.OFFER_INBOX_TO || "offert@helsingbuss.se";
+const ADMIN_INBOX =
+  process.env.OFFER_INBOX_TO || "offert@helsingbuss.se";
 
-// Admin-/kundportal – samma bas som tidigare
-const LOGIN_URL =
-  (process.env.NEXT_PUBLIC_LOGIN_BASE_URL ||
-    "https://login.helsingbuss.se") + "/start";
+// Admin-portalen (endast internt, till er)
+const ADMIN_PORTAL_URL =
+  ((process.env.NEXT_PUBLIC_LOGIN_BASE_URL as string) ||
+    "https://login.helsingbuss.se").replace(/\/+$/, "") + "/start";
+
+// Kundens offertsida (ALLA knappar som kunden ser ska hit)
+const CUSTOMER_OFFER_BASE = (
+  (process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL as string) ||
+  "https://kund.helsingbuss.se"
+).replace(/\/+$/, "");
+
+function customerOfferLink(offerNumber: string) {
+  // Ex: https://kund.helsingbuss.se/offert/HB26002
+  return `${CUSTOMER_OFFER_BASE}/offert/${encodeURIComponent(offerNumber)}`;
+}
 
 const resend = new Resend(RESEND_API_KEY);
 
@@ -41,7 +53,7 @@ export type SendOfferParams = {
   notes?: string | null;
   subject?: string;
 
-  /** (valfritt) Länk som "Visa din offert"-knappen ska gå till */
+  /** (valfritt) om du vill skicka in en egen knapp-länk */
   link?: string;
 };
 
@@ -50,12 +62,12 @@ export type CustomerReceiptParams = {
   to: string;
   offerNumber: string;
 
-  /** Länk för kunden till offertsidan (med token) */
+  /** Länk för kunden till offertsidan (med token om du har det) */
   link?: string;
 
-  /** Resöversikt som visas i mailet */
+  /** Res-översikt som visas i mailet */
   from?: string;
-  toPlace?: string; // tidigare “to”
+  toPlace?: string;
   date?: string;
   time?: string;
   passengers?: number;
@@ -97,7 +109,7 @@ function layout(bodyHtml: string) {
 </html>`;
 }
 
-/** Gemensam knapp: "Visa din offert" */
+/** Gemensam knapp: "Visa din offert" – alltid kund.helsingbuss.se */
 function renderOfferButton(link: string) {
   return `
   <table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:20px">
@@ -109,10 +121,10 @@ function renderOfferButton(link: string) {
   </table>`;
 }
 
-/** Kundens kvittens (när de skickat in offertförfrågan) */
+/** Kundens kvittens (mottagen offertförfrågan) */
 function renderCustomerReceiptHTML(p: CustomerReceiptParams) {
-  // Samma länk som tidigare – nu via helper
-  const link = p.link || LOGIN_URL;
+  // Länk: antingen inskickad (med token) eller standard /offert/NUMMER
+  const link = p.link || customerOfferLink(p.offerNumber);
   const btn = renderOfferButton(link);
 
   const summary = `
@@ -139,7 +151,7 @@ function renderAdminNewOfferHTML(p: SendOfferParams) {
   <table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:20px">
     <tr>
       <td style="background:#194C66;color:#fff;padding:12px 18px;border-radius:8px">
-        <a href="${LOGIN_URL}" style="color:#fff;text-decoration:none;font-weight:600;display:inline-block">Öppna i portalen</a>
+        <a href="${ADMIN_PORTAL_URL}" style="color:#fff;text-decoration:none;font-weight:600;display:inline-block">Öppna i portalen</a>
       </td>
     </tr>
   </table>`;
@@ -172,8 +184,7 @@ function renderCustomerPriceProposalHTML(p: SendOfferParams) {
   const hasReturn =
     !!p.return_from || !!p.return_to || !!p.return_date || !!p.return_time;
 
-  // Samma knapp/logik som i första mailet
-  const link = p.link || LOGIN_URL;
+  const link = p.link || customerOfferLink(p.offerNumber);
   const btn = renderOfferButton(link);
 
   const introName = p.customerName ? `Hej ${p.customerName}!` : "Hej!";
@@ -242,6 +253,7 @@ export async function sendOfferMail(p: SendOfferParams) {
 
   const subject =
     p.subject || `Ny offertförfrågan inkommen – ${p.offerNumber}`;
+
   const isPriceProposal = subject.toLowerCase().includes("prisförslag");
 
   // MODE 1: Prisförslag till kund (besvarad offert)
@@ -251,10 +263,11 @@ export async function sendOfferMail(p: SendOfferParams) {
     await resend.emails.send({
       from: FROM_ADMIN,
       to: p.customerEmail,
-      // Ingen BCC här – prisförslag går bara till kund
       subject,
       html,
+      // INGEN bcc här – du ville bara ha kundmail
     });
+
     return;
   }
 
@@ -312,10 +325,7 @@ export async function sendCustomerReceipt(p: CustomerReceiptParams) {
       (result as any)?.id || "ok"
     );
   } catch (err: any) {
-    console.error(
-      "[sendCustomerReceipt] Resend-fel:",
-      err?.message || err
-    );
+    console.error("[sendCustomerReceipt] Resend-fel:", err?.message || err);
     throw err;
   }
 }
