@@ -7,11 +7,13 @@ import { sendOfferMail } from "@/lib/sendMail";
 const U = <T extends string | number | null | undefined>(v: T) =>
   v == null ? undefined : (v as Exclude<T, null>);
 
-// Enkel UUID-koll
-const isUuid = (value: string) =>
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-    value.trim()
+// Enkel koll om en sträng ser ut som en UUID
+function looksLikeUuid(value: string): boolean {
+  const s = value.trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    s
   );
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -33,18 +35,21 @@ export default async function handler(
       return_destination?: string | null;
       return_date?: string | null;
       return_time?: string | null;
+      link?: string | null; // ev. publik länk till offerten
     };
 
     // Vi accepterar både UUID (id) och offertnummer (HB25XXX)
-    const idOrNumber = String(
-      input.offer_id ?? input.offerNumber ?? req.query.id ?? ""
-    ).trim();
+    const idOrNumberRaw =
+      input.offer_id ?? input.offerNumber ?? (req.query.id as string | undefined) ?? "";
+    const idOrNumber = String(idOrNumberRaw || "").trim();
 
     if (!idOrNumber || idOrNumber === "undefined") {
       return res.status(400).json({ error: "Saknar offert-id/nummer" });
     }
 
-    // --- Hämta offerten: välj rätt kolumn beroende på om det är UUID eller offertnummer ---
+    const isUuid = looksLikeUuid(idOrNumber);
+
+    // Hämta offerten – antingen på id (uuid) eller offer_number (HB25XXX)
     let query = supabase
       .from("offers")
       .select(
@@ -75,7 +80,7 @@ export default async function handler(
       `
       );
 
-    if (isUuid(idOrNumber)) {
+    if (isUuid) {
       query = query.eq("id", idOrNumber);
     } else {
       query = query.eq("offer_number", idOrNumber);
@@ -91,14 +96,14 @@ export default async function handler(
       return res.status(404).json({ error: "Offert hittades inte" });
     }
 
-    // Sätt status "besvarad" om inte redan – priset (amount_* / vat_breakdown)
+    // Sätt status "besvarad" om inte redan
     const current = String(offer.status ?? "").toLowerCase();
     if (current !== "besvarad") {
       const { error: uerr } = await supabase
         .from("offers")
         .update({
           status: "besvarad",
-          // rör inte totals här – de sätts i /quote
+          // totals sätts i /quote – rör inte dem här
           updated_at: new Date().toISOString(),
         })
         .eq("id", offer.id);
@@ -131,13 +136,22 @@ export default async function handler(
     const stopOut = input.stop ?? offer.stop ?? null;
 
     const retFrom = input.return_departure ?? offer.return_departure ?? null;
-    const retTo = input.return_destination ?? offer.return_destination ?? null;
+    const retTo =
+      input.return_destination ?? offer.return_destination ?? null;
     const retDate = input.return_date ?? offer.return_date ?? null;
     const retTime = input.return_time ?? offer.return_time ?? null;
 
     // Bygg mailadress: contact_email -> customer_email
     const customerEmail: string | undefined =
       U(offer.contact_email) ?? U(offer.customer_email);
+
+    // Länk till offerten för kunden (om du senare vill skicka med en riktig publik URL)
+    const link =
+      typeof input.link === "string" && input.link.trim()
+        ? input.link.trim()
+        : undefined;
+    // just nu: om link är undefined kommer sendOfferMail falla tillbaka på LOGIN_URL,
+    // precis som första mailet gör.
 
     // Skicka mail till kund om prisförslag
     await sendOfferMail({
@@ -163,8 +177,11 @@ export default async function handler(
 
       notes: U(outNotes),
 
-      // extra: tydlig subject för kunden
+      // extra: tydlig subject för kunden – triggar "kund-läget" i sendOfferMail
       subject: `Offert ${offer.offer_number} – prisförslag från Helsingbuss`,
+
+      // ev. publik länk till offerten
+      link,
     });
 
     return res.status(200).json({ ok: true });

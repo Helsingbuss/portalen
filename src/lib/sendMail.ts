@@ -1,5 +1,4 @@
 // src/lib/sendMail.ts
-
 import { Resend } from "resend";
 
 /** ========= Konfiguration ========= */
@@ -7,11 +6,11 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 const FROM_ADMIN =
   process.env.RESEND_FROM_ADMIN || "Helsingbuss <offert@helsingbuss.se>";
 const FROM_INFO =
-  process.env.RESEND_FROM_INFO || "Helsingbuss <info@helsingbuss.se>";
+  process.env.RESEND_FROM_INFO || "Helsingbuss <helsingbuss@helsingbuss.se>";
 const ADMIN_INBOX =
   process.env.OFFER_INBOX_TO || "offert@helsingbuss.se";
 
-// Admin-portalen
+// Admin-portalen (login för offertvy m.m.)
 const LOGIN_URL =
   (process.env.NEXT_PUBLIC_LOGIN_BASE_URL ||
     "https://login.helsingbuss.se") + "/start";
@@ -41,6 +40,9 @@ export type SendOfferParams = {
 
   notes?: string | null;
   subject?: string;
+
+  /** (valfritt) Länk som "Visa din offert"-knappen ska gå till för kunden */
+  link?: string;
 };
 
 export type CustomerReceiptParams = {
@@ -53,7 +55,7 @@ export type CustomerReceiptParams = {
 
   /** Resöversikt som visas i mailet */
   from?: string;
-  toPlace?: string; // <— bytt namn (tidigare “to”)
+  toPlace?: string; // (tidigare “to” – men mer tydligt)
   date?: string;
   time?: string;
   passengers?: number;
@@ -95,19 +97,24 @@ function layout(bodyHtml: string) {
 </html>`;
 }
 
-/** Kundens kvittens */
-function renderCustomerReceiptHTML(p: CustomerReceiptParams) {
-  // Om ingen länk skickas in faller vi tillbaka på admin-login (gamla beteendet)
-  const link = p.link || LOGIN_URL;
-
-  const btn = `
+/** Gemensam knapp: "Visa din offert" */
+function renderOfferButton(link: string) {
+  const safeLink = (link || "").trim() || LOGIN_URL;
+  return `
   <table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:20px">
     <tr>
       <td style="background:#194C66;color:#fff;padding:12px 18px;border-radius:8px">
-        <a href="${link}" style="color:#fff;text-decoration:none;font-weight:600;display:inline-block">Visa din offert</a>
+        <a href="${safeLink}" style="color:#fff;text-decoration:none;font-weight:600;display:inline-block">Visa din offert</a>
       </td>
     </tr>
   </table>`;
+}
+
+/** Kundens kvittens (när de skickat in offertförfrågan) */
+function renderCustomerReceiptHTML(p: CustomerReceiptParams) {
+  // Knappen använder samma helper
+  const link = p.link || LOGIN_URL;
+  const btn = renderOfferButton(link);
 
   const summary = `
   <h1 style="margin:0 0 10px 0;font-size:22px">Vi har mottagit din offertförfrågan</h1>
@@ -127,7 +134,7 @@ function renderCustomerReceiptHTML(p: CustomerReceiptParams) {
   return layout(summary);
 }
 
-/** Admin: “Ny offertförfrågan inkommen” */
+/** Admin: “Ny offertförfrågan inkommen” (till offert@) */
 function renderAdminNewOfferHTML(p: SendOfferParams) {
   const openBtn = `
   <table role="presentation" cellspacing="0" cellpadding="0" style="margin-top:20px">
@@ -161,10 +168,98 @@ function renderAdminNewOfferHTML(p: SendOfferParams) {
   return layout(body);
 }
 
+/** Kund: prisförslag / besvarad offert */
+function renderCustomerPriceProposalHTML(p: SendOfferParams) {
+  const hasReturn =
+    !!p.return_from || !!p.return_to || !!p.return_date || !!p.return_time;
+
+  const link = p.link || LOGIN_URL;
+  const btn = renderOfferButton(link);
+
+  const introName = p.customerName ? `Hej ${p.customerName}!` : "Hej!";
+
+  const rowsOut = `
+  <tr><td style="padding:4px 12px 4px 0;color:#68737d">Från</td><td>${p.from ?? "—"}</td></tr>
+  <tr><td style="padding:4px 12px 4px 0;color:#68737d">Till</td><td>${p.to ?? "—"}</td></tr>
+  <tr><td style="padding:4px 12px 4px 0;color:#68737d">Datum</td><td>${p.date ?? "—"}</td></tr>
+  <tr><td style="padding:4px 12px 4px 0;color:#68737d">Tid</td><td>${p.time ?? "—"}</td></tr>
+  <tr><td style="padding:4px 12px 4px 0;color:#68737d">Passagerare</td><td>${p.passengers ?? "—"}</td></tr>`;
+
+  const rowsRet = hasReturn
+    ? `
+  <tr><td colspan="2" style="padding:10px 0 4px 0;font-weight:700">Återresa</td></tr>
+  <tr><td style="padding:4px 12px 4px 0;color:#68737d">Från</td><td>${p.return_from ?? "—"}</td></tr>
+  <tr><td style="padding:4px 12px 4px 0;color:#68737d">Till</td><td>${p.return_to ?? "—"}</td></tr>
+  <tr><td style="padding:4px 12px 4px 0;color:#68737d">Datum</td><td>${p.return_date ?? "—"}</td></tr>
+  <tr><td style="padding:4px 12px 4px 0;color:#68737d">Tid</td><td>${p.return_time ?? "—"}</td></tr>`
+    : "";
+
+  const notes = p.notes
+    ? `<p style="margin:18px 0 0 0;"><strong>Övrig information:</strong><br/>${(p.notes || "")
+        .toString()
+        .replace(/\n/g, "<br/>")}</p>`
+    : "";
+
+  const body = `
+  <h1 style="margin:0 0 10px 0;font-size:22px">Prisförslag för din resa</h1>
+  <p style="margin:0 0 10px 0;">${introName}</p>
+  <p style="margin:0 0 14px 0;">
+    Här kommer vårt prisförslag baserat på uppgifterna i din offertförfrågan
+    med ärendenummer <strong>${p.offerNumber}</strong>. Kontrollera gärna att
+    uppgifterna stämmer. Om du vill boka resan kan du svara direkt på detta
+    mail eller kontakta oss på telefon.
+  </p>
+
+  <div style="margin:18px 0 6px 0;font-weight:700">Sammanfattning av resan</div>
+  <table role="presentation" cellspacing="0" cellpadding="0" style="font-size:14px">
+    ${rowsOut}
+    ${rowsRet}
+  </table>
+
+  ${btn}
+
+  ${notes}
+
+  <p style="margin:18px 0 0 0;">
+    Har du frågor, vill göra justeringar eller vill gå vidare till bokning?
+    Svara på detta mail eller ring oss på vardagar kl. 08:00–17:00:
+    <strong>010–405&nbsp;38&nbsp;38</strong>.<br/>
+    Vid akuta ärenden når du vår jour på <strong>010–777&nbsp;21&nbsp;58</strong>.
+  </p>
+
+  <p style="margin:16px 0 0 0;">Vänliga hälsningar<br/>Helsingbuss</p>`;
+
+  return layout(body);
+}
+
 /** ========= Sändare ========= */
 
 export async function sendOfferMail(p: SendOfferParams) {
-  const subject = p.subject || `Ny offertförfrågan inkommen – ${p.offerNumber}`;
+  if (!RESEND_API_KEY) {
+    console.error("[sendOfferMail] RESEND_API_KEY saknas – skickar inget mail");
+    return;
+  }
+
+  const subject =
+    p.subject || `Ny offertförfrågan inkommen – ${p.offerNumber}`;
+  const isPriceProposal = subject.toLowerCase().includes("prisförslag");
+
+  // MODE 1: Prisförslag till kund (besvarad offert)
+  if (isPriceProposal && p.customerEmail) {
+    const html = renderCustomerPriceProposalHTML(p);
+
+    await resend.emails.send({
+      from: FROM_ADMIN,
+      to: p.customerEmail,
+      // BCC till offert-inbox så du ser alla svar
+      bcc: ADMIN_INBOX,
+      subject,
+      html,
+    });
+    return;
+  }
+
+  // MODE 2: Ny offertförfrågan till admin (befintligt beteende)
   const html = renderAdminNewOfferHTML(p);
 
   await resend.emails.send({
