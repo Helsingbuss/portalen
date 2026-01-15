@@ -1,7 +1,6 @@
 // src/lib/sendMail.ts
 
 import { Resend } from "resend";
-import { signOfferToken, customerBaseUrl } from "./offerJwt";
 
 /** ========= Konfiguration ========= */
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
@@ -12,12 +11,30 @@ const FROM_INFO =
 const ADMIN_INBOX =
   process.env.OFFER_INBOX_TO || "offert@helsingbuss.se";
 
-// Admin-portalen (används bara i admin-mail & fallback)
+// Admin-portalen (bara för interna mail)
 const LOGIN_URL =
   (process.env.NEXT_PUBLIC_LOGIN_BASE_URL ||
     "https://login.helsingbuss.se") + "/start";
 
 const resend = new Resend(RESEND_API_KEY);
+
+/** ========= Hjälpare ========= */
+
+/** Bygger kundlänk till offerten: https://kund.helsingbuss.se/offert/HB26002 */
+function customerOfferLink(offerNumber: string, fallback?: string) {
+  const trimmed = (offerNumber || "").trim();
+  if (!trimmed && fallback) return fallback;
+
+  const base =
+    process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    "https://kund.helsingbuss.se";
+
+  const root = base.replace(/\/$/, "");
+  if (!trimmed) return root; // sista fallback
+
+  return `${root}/offert/${encodeURIComponent(trimmed)}`;
+}
 
 /** ========= Typer ========= */
 export type SendOfferParams = {
@@ -43,7 +60,7 @@ export type SendOfferParams = {
   notes?: string | null;
   subject?: string;
 
-  /** Full URL till offerten för kunden (valfritt – genereras annars via JWT) */
+  /** Full URL till offerten för kunden (valfritt – genereras annars) */
   link?: string;
 };
 
@@ -52,7 +69,7 @@ export type CustomerReceiptParams = {
   to: string;
   offerNumber: string;
 
-  /** Länk för kunden till offertsidan (med token), om du redan räknat ut den */
+  /** (valfritt) egen länk – annars byggs /offert/HBxxxxx */
   link?: string;
 
   /** Resöversikt som visas i mailet */
@@ -113,8 +130,8 @@ function renderOfferButton(link: string) {
 
 /** Kundens kvittens (när de skickat in offertförfrågan) */
 function renderCustomerReceiptHTML(p: CustomerReceiptParams) {
-  // Om du redan skickar med token-länk används den, annars fall-back till LOGIN_URL
-  const link = p.link && p.link.trim() ? p.link : LOGIN_URL;
+  // Vi struntar i ev. gammal token-länk och bygger alltid /offert/HBxxxxx
+  const link = customerOfferLink(p.offerNumber, p.link);
   const btn = renderOfferButton(link);
 
   const summary = `
@@ -245,28 +262,7 @@ export async function sendOfferMail(p: SendOfferParams) {
 
   // MODE 1: Prisförslag till kund (besvarad offert)
   if (isPriceProposal && p.customerEmail) {
-    let link = (p.link || "").trim();
-
-    // Bygg JWT-token-länk om vi inte redan fått en färdig länk
-    if (!link) {
-      if (p.offerId) {
-        try {
-          const token = await signOfferToken({ offer_id: p.offerId });
-          link = `${customerBaseUrl()}/offert/${encodeURIComponent(token)}`;
-        } catch (err) {
-          console.error(
-            "[sendOfferMail] kunde inte skapa offer-token, använder LOGIN_URL",
-            err
-          );
-          link = LOGIN_URL;
-        }
-      } else {
-        console.error(
-          "[sendOfferMail] saknar offerId för prisförslag, använder LOGIN_URL"
-        );
-        link = LOGIN_URL;
-      }
-    }
+    const link = p.link || customerOfferLink(p.offerNumber);
 
     const html = renderCustomerPriceProposalHTML({ ...p, link });
 
@@ -296,7 +292,6 @@ export async function sendCustomerReceipt(p: CustomerReceiptParams) {
     console.error(
       "[sendCustomerReceipt] RESEND_API_KEY saknas – skickar inget mail"
     );
-    return;
   }
 
   if (!p.to) {
