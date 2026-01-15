@@ -1,8 +1,6 @@
+// src/pages/api/dashboard/stats.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
-
-
-
 
 const supabase =
   (admin as any).supabaseAdmin ||
@@ -17,171 +15,244 @@ type Series = {
   booking_done: number[];
 };
 
-type Payload = {
-  range: string;
-  series: Series;
-  totals: {
-    offer_answered: number;
-    offer_unanswered: number;
-    booking_in: number;
-    booking_done: number;
-  };
+type StatsTotals = {
+  offer_answered_count: number;
+  offer_answered_amount: number;
+  offer_approved_count: number;
+  offer_approved_amount: number;
+  booking_booked_count: number;
+  booking_booked_amount: number;
+  booking_done_count: number;
+  booking_done_amount: number;
 };
 
-// ---------- helpers ----------
-const startOfISOWeek = (d: Date) => {
-  const nd = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const day = (nd.getUTCDay() || 7); // 1..7 (Mon..Sun)
-  nd.setUTCDate(nd.getUTCDate() - (day - 1));
-  nd.setUTCHours(0, 0, 0, 0);
-  return nd;
-};
+type JsonOk = { ok: true; series: Series; totals: StatsTotals };
+type JsonError = { error: string };
 
-const addDays = (d: Date, n: number) => {
-  const nd = new Date(d);
-  nd.setUTCDate(nd.getUTCDate() + n);
-  return nd;
-};
-
-const weekLabel = (d: Date) => {
-  // enkel v.NN av ISO-vecka
-  const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const dayNr = (target.getUTCDay() + 6) % 7;
-  target.setUTCDate(target.getUTCDate() - dayNr + 3);
-  const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
-  const diff = (target.getTime() - firstThursday.getTime()) / 86400000;
-  const week = 1 + Math.floor(diff / 7);
-  return `v. ${week}`;
-};
-
-const buildWeeks = (from: Date, to: Date) => {
-  const weeks: { start: Date; end: Date; label: string }[] = [];
-  let cur = startOfISOWeek(from);
-  const last = addDays(startOfISOWeek(to), 6);
-  while (cur <= last) {
-    const start = new Date(cur);
-    const end = addDays(start, 6);
-    weeks.push({ start, end, label: weekLabel(start) });
-    cur = addDays(cur, 7);
-  }
-  return weeks;
-};
-
-const inRange = (dtStr: string | null | undefined, start: Date, end: Date) => {
-  if (!dtStr) return false;
-  const t = new Date(dtStr);
-  return t >= start && t <= end;
-};
-
-const pushToBucket = (datestr: string | null | undefined, weeks: ReturnType<typeof buildWeeks>, arr: number[]) => {
-  if (!datestr) return;
-  const dt = new Date(datestr);
-  const lbl = weekLabel(startOfISOWeek(dt));
-  const idx = weeks.findIndex(w => w.label === lbl);
-  if (idx >= 0) arr[idx] = (arr[idx] || 0) + 1;
-};
-
-// ---------- handler ----------
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Payload | { error: string }>
-) {
-  try {
-    const fromStr = String(req.query.from ?? "").trim();
-    const toStr = String(req.query.to ?? "").trim();
-
-    const today = new Date();
-    const defFrom = today.toISOString().slice(0, 10); // idag
-    const defTo = "2025-12-31";
-
-    const from = fromStr ? new Date(fromStr) : new Date(defFrom);
-    const to = toStr ? new Date(toStr) : new Date(defTo);
-
-    const weeks = buildWeeks(from, to);
-
-    const series: Series = {
-      weeks: weeks.map(w => w.label),
-      offer_answered: new Array(weeks.length).fill(0),
-      offer_unanswered: new Array(weeks.length).fill(0),
-      booking_in: new Array(weeks.length).fill(0),
-      booking_done: new Array(weeks.length).fill(0),
-    };
-
-    // Offerter
-    let offers: any[] = [];
-    {
-      const { data, error } = await supabase
-        .from("offers")
-        .select("id, status, created_at, offer_date")
-        .gte("created_at", from.toISOString())
-        .lte("created_at", to.toISOString());
-      if (error) {
-        // Om kolumnnamn skiljer sig, fÃ¶rsÃ¶k snÃ¤ll fallback
-        const { data: d2 } = await supabase.from("offers").select("*").limit(1000);
-        offers = d2 || [];
-      } else {
-        offers = data || [];
-      }
-    }
-
-    for (const o of offers) {
-      const created = o.created_at ?? o.offer_date ?? null;
-      const st = String(o.status ?? "").toLowerCase();
-      if (!created) continue;
-      const isAnswered = st === "besvarad" || st === "godkand" || st === "godkÃ¤nd";
-      if (isAnswered) pushToBucket(created, weeks, series.offer_answered);
-      else pushToBucket(created, weeks, series.offer_unanswered);
-    }
-
-    // Bokningar
-    let bookings: any[] = [];
-    {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("id, status, created_at")
-        .gte("created_at", from.toISOString())
-        .lte("created_at", to.toISOString());
-      if (error) {
-        const { data: d2 } = await supabase.from("bookings").select("*").limit(1000);
-        bookings = d2 || [];
-      } else {
-        bookings = data || [];
-      }
-    }
-
-    for (const b of bookings) {
-      const created = b.created_at ?? null;
-      if (!created) continue;
-      const st = String(b.status ?? "").toLowerCase();
-      const isDone =
-        st.includes("slutf") || // slutfÃ¶rd
-        st.includes("klar") ||
-        st.includes("done") ||
-        st.includes("completed");
-      if (isDone) pushToBucket(created, weeks, series.booking_done);
-      else pushToBucket(created, weeks, series.booking_in);
-    }
-
-    const payload: Payload = {
-      range: `${from.toISOString().slice(0, 10)} â€“ ${to.toISOString().slice(0, 10)}`,
-      series,
-      totals: {
-        offer_answered: series.offer_answered.reduce((a, b) => a + b, 0),
-        offer_unanswered: series.offer_unanswered.reduce((a, b) => a + b, 0),
-        booking_in: series.booking_in.reduce((a, b) => a + b, 0),
-        booking_done: series.booking_done.reduce((a, b) => a + b, 0),
-      },
-    };
-
-    // CORS och cache (bra Ã¤ven fÃ¶r WP-widget-sidor om du visar detta dÃ¤r)
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
-    res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=300");
-
-    return res.status(200).json(payload);
-  } catch (e: any) {
-    console.error("/api/dashboard/stats error", e?.message || e);
-    return res.status(500).json({ error: "Internt fel" });
-  }
+function toMoneyNumber(v: any): number {
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  if (v == null) return 0;
+  const s = String(v)
+    .trim()
+    .replace(/\s+/g, "")
+    .replace(/\u00A0/g, "")
+    .replace(",", ".");
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
 }
 
+// Försök hitta "hela totalen" i rätt ordning (inkl vat_breakdown.grandTotal)
+function extractTotalAmount(row: any): number {
+  if (!row) return 0;
+
+  const directKeys = [
+    "grand_total",
+    "grandTotal",
+    "total_amount",
+    "totalAmount",
+    "total_price",
+    "totalPrice",
+    "total",
+    "amount",
+    "sum",
+    "offer_total",
+    "offerTotal",
+    "final_total",
+    "finalTotal",
+  ];
+
+  for (const k of directKeys) {
+    if (row[k] !== undefined && row[k] !== null) {
+      const n = toMoneyNumber(row[k]);
+      if (n) return n;
+    }
+  }
+
+  // vat_breakdown kan vara JSON
+  const vb = row.vat_breakdown ?? row.vatBreakdown ?? null;
+  if (vb) {
+    // om string, försök parsea
+    if (typeof vb === "string") {
+      try {
+        const obj = JSON.parse(vb);
+        const n =
+          toMoneyNumber(obj?.grandTotal) ||
+          toMoneyNumber(obj?.grand_total) ||
+          toMoneyNumber(obj?.totalInclVat) ||
+          toMoneyNumber(obj?.total_incl_vat) ||
+          toMoneyNumber(obj?.total);
+        if (n) return n;
+      } catch {
+        // ignore
+      }
+    } else if (typeof vb === "object") {
+      const n =
+        toMoneyNumber(vb?.grandTotal) ||
+        toMoneyNumber(vb?.grand_total) ||
+        toMoneyNumber(vb?.totalInclVat) ||
+        toMoneyNumber(vb?.total_incl_vat) ||
+        toMoneyNumber(vb?.total);
+      if (n) return n;
+    }
+  }
+
+  // line_items/items: summera om det finns
+  const items = row.line_items ?? row.items ?? null;
+  if (Array.isArray(items) && items.length) {
+    let sum = 0;
+    for (const it of items) {
+      sum +=
+        toMoneyNumber(it?.total) ||
+        toMoneyNumber(it?.amount) ||
+        toMoneyNumber(it?.price) ||
+        0;
+    }
+    if (sum) return sum;
+  }
+
+  return 0;
+}
+
+function isAnsweredOfferStatus(s: any): boolean {
+  const v = String(s || "").toLowerCase();
+  return ["besvarad", "answered", "sent", "skickad", "svarad"].includes(v);
+}
+
+function isApprovedOfferStatus(s: any): boolean {
+  const v = String(s || "").toLowerCase();
+  return ["godkand", "godkänd", "approved", "accepted"].includes(v);
+}
+
+function isDoneBookingStatus(s: any): boolean {
+  const v = String(s || "").toLowerCase();
+  return ["genomford", "genomförd", "done", "completed", "avslutad"].includes(v);
+}
+
+function isBookedBookingStatus(s: any): boolean {
+  const v = String(s || "").toLowerCase();
+  return ["bokad", "planerad", "created", "confirmed", "bekraftad", "bekräftad"].includes(v);
+}
+
+// ISO-week (svensk)
+function isoWeek(date: Date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil(((+d - +yearStart) / 86400000 + 1) / 7);
+  return weekNo;
+}
+
+function clampYear(y: any) {
+  const n = Number(y);
+  if (!Number.isFinite(n)) return new Date().getFullYear();
+  return Math.max(2000, Math.min(2100, Math.floor(n)));
+}
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<JsonOk | JsonError>
+) {
+  if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+
+  try {
+    if (!supabase) return res.status(500).json({ error: "Supabase-admin saknas." });
+
+    const year = clampYear(req.query.year);
+    const from = new Date(`${year}-01-01T00:00:00.000Z`);
+    const to = new Date(`${year}-12-31T23:59:59.999Z`);
+
+    // Hämta offerter (minsta möjliga + vat_breakdown)
+    const { data: offers, error: offErr } = await supabase
+      .from("offers")
+      .select("id,status,created_at,vat_breakdown,grand_total,total_amount,total_price,total")
+      .gte("created_at", from.toISOString())
+      .lte("created_at", to.toISOString());
+
+    if (offErr) throw offErr;
+
+    // Hämta bokningar (för counts + ev totals om du har totalsfält)
+    const { data: bookings, error: bkErr } = await supabase
+      .from("bookings")
+      .select("id,status,created_at,vat_breakdown,grand_total,total_amount,total_price,total")
+      .gte("created_at", from.toISOString())
+      .lte("created_at", to.toISOString());
+
+    if (bkErr) throw bkErr;
+
+    // Bygg vecka-lista 1..53 (vi tar bara de som faktiskt används)
+    const weekSet = new Set<number>();
+    for (const o of offers || []) weekSet.add(isoWeek(new Date(o.created_at)));
+    for (const b of bookings || []) weekSet.add(isoWeek(new Date(b.created_at)));
+
+    const weekNums = Array.from(weekSet).sort((a, b) => a - b);
+    const weeks = (weekNums.length ? weekNums : [1]).map((w) => String(w));
+
+    const idxOfWeek = (w: number) => Math.max(0, weekNums.indexOf(w));
+
+    const series: Series = {
+      weeks,
+      offer_answered: Array(weeks.length).fill(0),
+      offer_unanswered: Array(weeks.length).fill(0),
+      booking_in: Array(weeks.length).fill(0),
+      booking_done: Array(weeks.length).fill(0),
+    };
+
+    const totals: StatsTotals = {
+      offer_answered_count: 0,
+      offer_answered_amount: 0,
+      offer_approved_count: 0,
+      offer_approved_amount: 0,
+      booking_booked_count: 0,
+      booking_booked_amount: 0,
+      booking_done_count: 0,
+      booking_done_amount: 0,
+    };
+
+    // Offerter: count + totals
+    for (const o of offers || []) {
+      const w = isoWeek(new Date(o.created_at));
+      const i = idxOfWeek(w);
+      const amount = extractTotalAmount(o);
+
+      if (isApprovedOfferStatus(o.status)) {
+        totals.offer_approved_count += 1;
+        totals.offer_approved_amount += amount;
+        // godkänd räknas vanligtvis också som "besvarad" i staplar? -> NEJ här, vi håller isär
+        series.offer_answered[i] += 1;
+        totals.offer_answered_count += 1;
+        totals.offer_answered_amount += amount;
+      } else if (isAnsweredOfferStatus(o.status)) {
+        totals.offer_answered_count += 1;
+        totals.offer_answered_amount += amount;
+        series.offer_answered[i] += 1;
+      } else {
+        series.offer_unanswered[i] += 1;
+      }
+    }
+
+    // Bokningar: count + totals (om totalsfält finns, annars blir 0)
+    for (const b of bookings || []) {
+      const w = isoWeek(new Date(b.created_at));
+      const i = idxOfWeek(w);
+      const amount = extractTotalAmount(b);
+
+      if (isDoneBookingStatus(b.status)) {
+        totals.booking_done_count += 1;
+        totals.booking_done_amount += amount;
+        series.booking_done[i] += 1;
+      } else if (isBookedBookingStatus(b.status)) {
+        totals.booking_booked_count += 1;
+        totals.booking_booked_amount += amount;
+        series.booking_in[i] += 1;
+      } else {
+        // ok, räknas inte
+      }
+    }
+
+    return res.status(200).json({ ok: true, series, totals });
+  } catch (e: any) {
+    console.error("/api/dashboard/stats error:", e?.message || e);
+    return res.status(500).json({ error: e?.message || "Serverfel" });
+  }
+}

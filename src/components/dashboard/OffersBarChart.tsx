@@ -22,14 +22,14 @@ export type StatsTotals = {
 
 type Props = {
   series: Series;
-  totals?: StatsTotals; // totals från API
+  totals?: Partial<StatsTotals>; // totals från API
 };
 
 const COLORS = {
-  offer_answered: "#2E7D32", // grön
-  offer_unanswered: "#A5D6A7", // ljusgrön
-  booking_in: "#C62828", // röd
-  booking_done: "#F48FB1", // rosa
+  offer_answered: "#2E7D32",
+  offer_unanswered: "#A5D6A7",
+  booking_in: "#C62828",
+  booking_done: "#F48FB1",
 };
 
 const LABELS: Record<keyof Series, string> = {
@@ -43,11 +43,15 @@ const LABELS: Record<keyof Series, string> = {
 function buildTicks(max: number): number[] {
   const ceilMax = Math.max(1, Math.ceil(max));
   if (ceilMax <= 6) return Array.from({ length: ceilMax + 1 }, (_, i) => i);
-  const step = Math.ceil(ceilMax / 6);
+  const step = RememberStep(ceilMax);
   const arr: number[] = [];
   for (let v = 0; v <= ceilMax; v += step) arr.push(v);
   if (arr[arr.length - 1] !== ceilMax) arr.push(ceilMax);
   return arr;
+
+  function RememberStep(v: number) {
+    return Math.ceil(v / 6);
+  }
 }
 
 type Tip = {
@@ -59,26 +63,37 @@ type Tip = {
   value: number;
 };
 
-const formatAmount = (value: number) =>
-  value.toLocaleString("sv-SE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+// Robust money: klarar number, "15 555", "15,555.00", "15 555,50" osv.
+function toMoneyNumber(v: any): number {
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  if (v == null) return 0;
+  const s = String(v)
+    .trim()
+    .replace(/\s+/g, "") // ta bort mellanslag
+    .replace(/\u00A0/g, "") // NBSP
+    .replace(",", "."); // svensk decimal
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+// Du ville slippa ören -> 0 decimals
+const formatAmount = (value: any) =>
+  Math.round(toMoneyNumber(value)).toLocaleString("sv-SE", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   });
 
 export default function OffersBarChart({ series, totals }: Props) {
-  // 🔹 Veckor från API – ändras när du byter intervall
   const weeks = series.weeks && series.weeks.length ? series.weeks : ["1"];
 
-  // Säker plockning (om arrayerna är olika långa)
   const safe = (arr: number[] | undefined, i: number) =>
-    (arr && arr[i]) ?? 0;
+    (arr && typeof arr[i] === "number" ? arr[i] : 0);
 
   const offerAnswered = series.offer_answered ?? [];
   const offerUnanswered = series.offer_unanswered ?? [];
   const bookingIn = series.booking_in ?? [];
   const bookingDone = series.booking_done ?? [];
 
-  // 🔹 Max Y för diagrammet
   const maxY = useMemo(
     () =>
       Math.max(
@@ -90,9 +105,9 @@ export default function OffersBarChart({ series, totals }: Props) {
       ),
     [offerAnswered, offerUnanswered, bookingIn, bookingDone]
   );
+
   const ticks = useMemo(() => buildTicks(maxY), [maxY]);
 
-  // 🔹 Totala antal från serien (fallback)
   const countFromSeries = useMemo(
     () => ({
       offer_answered: (offerAnswered || []).reduce((a, b) => a + b, 0),
@@ -103,25 +118,29 @@ export default function OffersBarChart({ series, totals }: Props) {
     [offerAnswered, offerUnanswered, bookingIn, bookingDone]
   );
 
-  // 🔹 Riktiga totals från API (per år), med fallback till serien
   const answeredCount =
-    totals?.offer_answered_count ?? countFromSeries.offer_answered;
-  const approvedCount = totals?.offer_approved_count ?? 0;
+    (totals?.offer_answered_count as number | undefined) ??
+    countFromSeries.offer_answered;
+
+  const approvedCount = (totals?.offer_approved_count as number | undefined) ?? 0;
 
   const bookedCount =
-    totals?.booking_booked_count ?? countFromSeries.booking_in;
-  const doneCount =
-    totals?.booking_done_count ?? countFromSeries.booking_done;
+    (totals?.booking_booked_count as number | undefined) ??
+    countFromSeries.booking_in;
 
+  const doneCount =
+    (totals?.booking_done_count as number | undefined) ??
+    countFromSeries.booking_done;
+
+  // Viktigt: här tar vi totals från API men normaliserar dem
   const amountTotals = {
-    offers_answered: totals?.offer_answered_amount ?? 0,
-    offers_approved: totals?.offer_approved_amount ?? 0,
-    bookings_booked: totals?.booking_booked_amount ?? 0,
-    bookings_done: totals?.booking_done_amount ?? 0,
-    tickets_sold: 0, // separat sen när vi har ticket-tabell
+    offers_answered: toMoneyNumber(totals?.offer_answered_amount),
+    offers_approved: toMoneyNumber(totals?.offer_approved_amount),
+    bookings_booked: toMoneyNumber(totals?.booking_booked_amount),
+    bookings_done: toMoneyNumber(totals?.booking_done_amount),
+    tickets_sold: 0,
   };
 
-  // SVG layout
   const height = 260;
   const topPad = 20;
   const bottomPad = 36;
@@ -134,6 +153,7 @@ export default function OffersBarChart({ series, totals }: Props) {
   const barWidth = 14;
   const barGap = 6;
   const groupWidth = barWidth * 4 + barGap * 3;
+
   const y = (val: number) =>
     topPad + innerH * (1 - val / ticks[ticks.length - 1]);
 
@@ -165,10 +185,8 @@ export default function OffersBarChart({ series, totals }: Props) {
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2.1fr)_minmax(260px,0.9fr)] gap-6">
-      {/* VÄNSTER: DIAGRAMMET */}
       <div className="relative w-full overflow-x-auto">
         <svg width={svgW} height={height} className="block">
-          {/* Horisontella linjer + Y-etiketter */}
           {ticks.map((value, i) => {
             const yPos = y(value);
             return (
@@ -193,29 +211,12 @@ export default function OffersBarChart({ series, totals }: Props) {
             );
           })}
 
-          {/* Stapelgrupper per vecka */}
           {groups.map(({ week, gx }, i) => {
             const bars = [
-              {
-                v: safe(bookingDone, i),
-                c: COLORS.booking_done,
-                key: "booking_done" as const,
-              },
-              {
-                v: safe(bookingIn, i),
-                c: COLORS.booking_in,
-                key: "booking_in" as const,
-              },
-              {
-                v: safe(offerAnswered, i),
-                c: COLORS.offer_answered,
-                key: "offer_answered" as const,
-              },
-              {
-                v: safe(offerUnanswered, i),
-                c: COLORS.offer_unanswered,
-                key: "offer_unanswered" as const,
-              },
+              { v: safe(bookingDone, i), c: COLORS.booking_done, key: "booking_done" as const },
+              { v: safe(bookingIn, i), c: COLORS.booking_in, key: "booking_in" as const },
+              { v: safe(offerAnswered, i), c: COLORS.offer_answered, key: "offer_answered" as const },
+              { v: safe(offerUnanswered, i), c: COLORS.offer_unanswered, key: "offer_unanswered" as const },
             ];
 
             return (
@@ -236,22 +237,13 @@ export default function OffersBarChart({ series, totals }: Props) {
                       height={Math.max(h, 0)}
                       fill={b.c}
                       rx={3}
-                      onMouseEnter={() =>
-                        setTip(
-                          placeTooltip(cx, cy, LABELS[b.key], b.v ?? 0)
-                        )
-                      }
-                      onMouseMove={() =>
-                        setTip(
-                          placeTooltip(cx, cy, LABELS[b.key], b.v ?? 0)
-                        )
-                      }
+                      onMouseEnter={() => setTip(placeTooltip(cx, cy, LABELS[b.key], b.v ?? 0))}
+                      onMouseMove={() => setTip(placeTooltip(cx, cy, LABELS[b.key], b.v ?? 0))}
                       onMouseLeave={() => setTip(null)}
                     />
                   );
                 })}
 
-                {/* Veckonummer från API (svensk ISO-vecka) */}
                 <text
                   x={gx + groupWidth / 2}
                   y={height - 10}
@@ -265,7 +257,6 @@ export default function OffersBarChart({ series, totals }: Props) {
             );
           })}
 
-          {/* Tooltip */}
           {tip && (
             <g pointerEvents="none">
               <path
@@ -299,30 +290,15 @@ export default function OffersBarChart({ series, totals }: Props) {
           )}
         </svg>
 
-        {/* Legend */}
         <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
-          <LegendDot
-            color={COLORS.offer_answered}
-            label="Besvarade offerter"
-          />
-          <LegendDot
-            color={COLORS.offer_unanswered}
-            label="Obesvarade offerter"
-          />
-          <LegendDot
-            color={COLORS.booking_in}
-            label="Inkomna bokningar"
-          />
-          <LegendDot
-            color={COLORS.booking_done}
-            label="Genomförda bokningar"
-          />
+          <LegendDot color={COLORS.offer_answered} label="Besvarade offerter" />
+          <LegendDot color={COLORS.offer_unanswered} label="Obesvarade offerter" />
+          <LegendDot color={COLORS.booking_in} label="Inkomna bokningar" />
+          <LegendDot color={COLORS.booking_done} label="Genomförda bokningar" />
         </div>
       </div>
 
-      {/* HÖGER: OFFERTER / BOKNINGAR / BILJETTER – lite tajtare spacing */}
       <div className="flex flex-col self-start pt-1 text-sm text-[#111827] space-y-4">
-        {/* Offerter */}
         <div>
           <div className="font-semibold text-base mb-2">Offerter</div>
           <div className="grid grid-cols-2 gap-x-10 gap-y-2">
@@ -331,7 +307,7 @@ export default function OffersBarChart({ series, totals }: Props) {
                 Besvarade, {answeredCount} st
               </div>
               <div className="mt-1 text-xl font-semibold">
-                {formatAmount(amountTotals.offers_answered)} SEK
+                {formatAmount(amountTotals.offers_answered)} kr
               </div>
             </div>
             <div className="text-right">
@@ -339,13 +315,12 @@ export default function OffersBarChart({ series, totals }: Props) {
                 Godkända, {approvedCount} st
               </div>
               <div className="mt-1 text-xl font-semibold">
-                {formatAmount(amountTotals.offers_approved)} SEK
+                {formatAmount(amountTotals.offers_approved)} kr
               </div>
             </div>
           </div>
         </div>
 
-        {/* Bokningar */}
         <div>
           <div className="font-semibold text-base mb-2">Bokningar</div>
           <div className="grid grid-cols-2 gap-x-10 gap-y-2">
@@ -354,7 +329,7 @@ export default function OffersBarChart({ series, totals }: Props) {
                 Bokade, {bookedCount} st
               </div>
               <div className="mt-1 text-xl font-semibold">
-                {formatAmount(amountTotals.bookings_booked)} SEK
+                {formatAmount(amountTotals.bookings_booked)} kr
               </div>
             </div>
             <div className="text-right">
@@ -362,13 +337,12 @@ export default function OffersBarChart({ series, totals }: Props) {
                 Genomförda, {doneCount} st
               </div>
               <div className="mt-1 text-xl font-semibold">
-                {formatAmount(amountTotals.bookings_done)} SEK
+                {formatAmount(amountTotals.bookings_done)} kr
               </div>
             </div>
           </div>
         </div>
 
-        {/* Biljetter */}
         <div>
           <div className="font-semibold text-base mb-2">Biljetter</div>
           <div className="flex items-baseline justify-between">
@@ -376,7 +350,7 @@ export default function OffersBarChart({ series, totals }: Props) {
               Köpta, 0 st
             </div>
             <div className="text-xl font-semibold">
-              {formatAmount(amountTotals.tickets_sold)} SEK
+              {formatAmount(amountTotals.tickets_sold)} kr
             </div>
           </div>
         </div>
@@ -390,19 +364,13 @@ function LegendDot({ color, label }: { color: string; label: string }) {
     <span className="inline-flex items-center gap-2">
       <span
         className="inline-block"
-        style={{
-          width: 10,
-          height: 10,
-          backgroundColor: color,
-          borderRadius: 2,
-        }}
+        style={{ width: 10, height: 10, backgroundColor: color, borderRadius: 2 }}
       />
       <span className="text-[#194C66]/80 text-sm">{label}</span>
     </span>
   );
 }
 
-// Behåller StatCard om du använder den på andra ställen
 export function StatCard({
   title,
   value,
@@ -415,12 +383,8 @@ export function StatCard({
   return (
     <div className="bg-white rounded-xl shadow p-4">
       <div className="text-sm text-[#194C66]/70">{title}</div>
-      <div className="text-2xl font-semibold text-[#194C66] mt-1">
-        {value}
-      </div>
-      {sub && (
-        <div className="text-xs text-[#194C66]/60 mt-1">{sub}</div>
-      )}
+      <div className="text-2xl font-semibold text-[#194C66] mt-1">{value}</div>
+      {sub && <div className="text-xs text-[#194C66]/60 mt-1">{sub}</div>}
     </div>
   );
 }

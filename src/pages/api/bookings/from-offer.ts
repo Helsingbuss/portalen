@@ -2,10 +2,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 
-
-
-
-// Fungerar bÃ¥de dÃ¤r du exporterar som supabaseAdmin eller default
 const supabase =
   (admin as any).supabaseAdmin ||
   (admin as any).supabase ||
@@ -13,9 +9,10 @@ const supabase =
 
 type JsonError = { error: string };
 
-// ---------- helpers ----------
 function isUUID(s: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s || "");
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    s || ""
+  );
 }
 function trimOrNull(v: any): string | null {
   if (v === undefined || v === null) return null;
@@ -31,7 +28,6 @@ function toPosIntOrNull(v: any): number | null {
   if (!Number.isFinite(n)) return null;
   return Math.max(0, Math.floor(n));
 }
-// "8" | "8:0" | "0800" | "08:00" => "08:00"
 function tidyHHMM(v: any): string | null {
   if (v === undefined || v === null) return null;
   const s = String(v).trim();
@@ -48,57 +44,50 @@ function tidyHHMM(v: any): string | null {
   }
   return null;
 }
-// Robust random BK-nummer: BK{YY}{4-digit}
 function generateBookingNo(): string {
   const yy = new Date().getFullYear().toString().slice(-2);
   const rnd = Math.floor(1000 + Math.random() * 9000);
   return `BK${yy}${rnd}`;
 }
+function toMoneyNumber(v: any): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  const s = String(v).trim().replace(/\s+/g, "").replace(",", ".");
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
 
-// ---------- handler ----------
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<any | JsonError>
 ) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const {
-      // identifierare
-      offerId,
-      offerNumber,
-
-      // ev. tilldelningar frÃ¥n admin
-      assigned_vehicle_id,
-      assigned_driver_id,
-
-      // mÃ¶jlighet att overrideâ€™a noteringar
-      notes,
-    } = (req.body ?? {}) as Record<string, any>;
+    const { offerId, offerNumber, assigned_vehicle_id, assigned_driver_id, notes } =
+      (req.body ?? {}) as Record<string, any>;
 
     if (!offerId && !offerNumber) {
-      return res.status(400).json({ error: "Du mÃ¥ste ange offerId eller offerNumber" });
+      return res.status(400).json({ error: "Du måste ange offerId eller offerNumber" });
     }
 
-    // ----- 1) HÃ„MTA OFFERT -----
-    // Matchar nya fÃ¤ltnamn (jfr /api/offers/options)
     const selectCols = [
       "id",
       "offer_number",
       "status",
-      "offer_date",
-
-      // kontakt/kund
       "contact_person",
       "contact_email",
       "customer_email",
       "contact_phone",
       "customer_phone",
-
       "passengers",
       "notes",
+
+      // totals
+      "total_price",
+      "grand_total",
+      "total_amount",
+      "total",
 
       // utresa
       "departure_place",
@@ -119,6 +108,7 @@ export default async function handler(
     ].join(",");
 
     let off: any = null;
+
     if (offerId) {
       const { data, error } = await supabase
         .from("offers")
@@ -137,26 +127,25 @@ export default async function handler(
       off = data;
     }
 
-    if (!off) {
-      return res.status(404).json({ error: "Offert hittades inte" });
-    }
+    if (!off) return res.status(404).json({ error: "Offert hittades inte" });
 
-    // ----- 2) BYGG BOOKING-PAYLOAD -----
-    // Mappar direkt till bookings-tabellens nya fÃ¤lt
-    const customer_phone_raw =
-      off.contact_phone ?? off.customer_phone ?? null;
+    const customer_phone_raw = off.contact_phone ?? off.customer_phone ?? null;
     const customer_phone = customer_phone_raw ? stripSpacesDashes(customer_phone_raw) : null;
 
-    const payloadBase = {
-      // status â€“ sÃ¤tt "bokad" fÃ¶r att matcha admin-listans fÃ¤rgkodning
+    const total_price =
+      toMoneyNumber(off.total_price) ??
+      toMoneyNumber(off.grand_total) ??
+      toMoneyNumber(off.total_amount) ??
+      toMoneyNumber(off.total) ??
+      0;
+
+    const payloadBase: Record<string, any> = {
       status: "bokad",
 
-      // Kund
       contact_person: trimOrNull(off.contact_person) ?? null,
       customer_email: trimOrNull(off.contact_email ?? off.customer_email) ?? null,
       customer_phone,
 
-      // Utresa
       passengers: toPosIntOrNull(off.passengers) ?? 0,
       departure_place: trimOrNull(off.departure_place),
       destination: trimOrNull(off.destination),
@@ -169,7 +158,6 @@ export default async function handler(
           : toPosIntOrNull(off.on_site_minutes),
       stopover_places: trimOrNull(off.stopover_places),
 
-      // Retur
       return_departure: trimOrNull(off.return_departure),
       return_destination: trimOrNull(off.return_destination),
       return_date: trimOrNull(off.return_date),
@@ -180,23 +168,22 @@ export default async function handler(
           ? null
           : toPosIntOrNull(off.return_on_site_minutes),
 
-      // Tilldelningar (valfria)
       assigned_vehicle_id: trimOrNull(assigned_vehicle_id),
       assigned_driver_id: trimOrNull(assigned_driver_id),
 
-      // Ã–vrigt (override om notes skickas med)
       notes: trimOrNull(notes ?? off.notes),
 
-      // Knyt tillbaka till offerten (om kolumner finns i DB)
-      offer_id: off.id ?? null,
-      offer_number: off.offer_number ?? null,
+      // kopplingar i din tabell
+      source_offer_id: off.id,
+      offer_id: off.id,
 
-      // tidsstÃ¤mplar (om DB inte sÃ¤tter default)
+      // totals i din tabell
+      total_price,
+
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    } as Record<string, any>;
+    };
 
-    // ----- 3) SKAPA BOKNING med robust booking_number -----
     const MAX_TRIES = 5;
     let attempt = 0;
     let created: any = null;
@@ -209,36 +196,7 @@ export default async function handler(
       const { data, error } = await supabase
         .from("bookings")
         .insert({ ...payloadBase, booking_number: bk })
-        .select(
-          [
-            "id",
-            "booking_number",
-            "contact_person",
-            "customer_email",
-            "customer_phone",
-            "passengers",
-            "departure_place",
-            "destination",
-            "departure_date",
-            "departure_time",
-            "end_time",
-            "on_site_minutes",
-            "stopover_places",
-            "return_departure",
-            "return_destination",
-            "return_date",
-            "return_time",
-            "return_end_time",
-            "return_on_site_minutes",
-            "assigned_vehicle_id",
-            "assigned_driver_id",
-            "notes",
-            "offer_id",
-            "offer_number",
-            "status",
-            "created_at",
-          ].join(",")
-        )
+        .select("*")
         .single();
 
       if (!error && data) {
@@ -248,29 +206,17 @@ export default async function handler(
 
       const msg = String(error?.message || "");
       if (error?.code === "23505" || /duplicate key|unique constraint/i.test(msg)) {
-        // kolliderade pÃ¥ uniknyckel -> fÃ¶rsÃ¶k igen med nytt nr
         lastErr = error;
         continue;
       }
+
       if (error) {
         lastErr = error;
         break;
       }
     }
 
-    if (!created) {
-      throw lastErr || new Error("Kunde inte skapa bokning (okÃ¤nt fel).");
-    }
-
-    // (valfritt) uppdatera offertstatus -> "godkand"
-    try {
-      await supabase
-        .from("offers")
-        .update({ status: "godkand" })
-        .eq("id", off.id);
-    } catch {
-      // tyst
-    }
+    if (!created) throw lastErr || new Error("Kunde inte skapa bokning.");
 
     return res.status(201).json({ ok: true, booking: created });
   } catch (e: any) {
@@ -278,4 +224,3 @@ export default async function handler(
     return res.status(500).json({ error: e?.message || "Serverfel" });
   }
 }
-

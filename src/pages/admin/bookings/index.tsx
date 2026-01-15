@@ -2,7 +2,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
-import Link from "next/link";
 import { useRouter } from "next/router";
 
 type BookingRow = {
@@ -27,13 +26,9 @@ const ORANGE_HOURS = 168;
 
 function clsStatusPill(s?: string | null) {
   const v = (s || "").toLowerCase();
-  if (v === "klar" || v === "genomförd" || v === "genomford" || v === "genomfÃ¶rd") {
-    return "bg-green-100 text-green-800";
-  }
-  if (v === "bokad" || v === "planerad") return "bg-blue-100 text-blue-800";
-  if (v === "inställd" || v === "installt" || v === "instÃ¤lld" || v === "avbokad" || v === "makulerad") {
-    return "bg-red-100 text-red-800";
-  }
+  if (v === "klar" || v === "genomförd" || v === "genomford") return "bg-green-100 text-green-800";
+  if (v === "bokad" || v === "planerad" || v === "confirmed" || v === "bekraftad") return "bg-blue-100 text-blue-800";
+  if (v === "inställd" || v === "installt" || v === "avbokad" || v === "makulerad") return "bg-red-100 text-red-800";
   return "bg-gray-100 text-gray-700";
 }
 
@@ -47,11 +42,11 @@ function tidyTime(t?: string | null) {
 function prioForRow(r: BookingRow) {
   const d = r.out?.date || null;
   if (!d) return { label: "—", cls: "bg-gray-200 text-gray-700", title: "Saknar avresedatum" };
+
   const t = tidyTime(r.out?.time || "00:00") || "00:00";
   const target = new Date(`${d}T${t}`);
-  if (isNaN(target.getTime())) {
-    return { label: "—", cls: "bg-gray-200 text-gray-700", title: "Ogiltigt datum/tid" };
-  }
+  if (isNaN(target.getTime())) return { label: "—", cls: "bg-gray-200 text-gray-700", title: "Ogiltigt datum/tid" };
+
   const diffH = (target.getTime() - Date.now()) / 36e5;
   if (diffH < RED_HOURS) return { label: "Röd", cls: "bg-red-100 text-red-800", title: "< 48h kvar" };
   if (diffH < ORANGE_HOURS) return { label: "Orange", cls: "bg-amber-100 text-amber-800", title: "48h–7 dygn kvar" };
@@ -60,6 +55,7 @@ function prioForRow(r: BookingRow) {
 
 export default function AdminBookingsIndex() {
   const router = useRouter();
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,27 +70,39 @@ export default function AdminBookingsIndex() {
   const abortRef = useRef<AbortController | null>(null);
   const searchDebounceRef = useRef<number | null>(null);
 
-  // Läs ev. query-parametrar på första mount (när router är redo)
+  // ✅ Viktigt: se till att query läses in en gång innan vi börjar router.replace-synca
+  const didInitFromQueryRef = useRef(false);
+
+  // Läs query-parametrar på första mount (när router är redo)
   useEffect(() => {
-    if (!router.isReady) return;
+    if (!router.isReady || didInitFromQueryRef.current) return;
+
     const q = router.query;
     if (q.page) setPage(Number(q.page) || 1);
+
     if (q.pageSize) {
       const ps = q.pageSize === "all" ? 9999 : Number(q.pageSize) || 10;
       setPageSize(ps);
     }
+
     if (typeof q.search === "string") setSearch(q.search);
     if (typeof q.status === "string") setStatus(q.status);
+
+    didInitFromQueryRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady]);
 
-  // Synka state -> URL (shallow)
+  // ✅ Synka state -> URL (shallow) men först efter init
   useEffect(() => {
+    if (!router.isReady) return;
+    if (!didInitFromQueryRef.current) return;
+
     const qp = new URLSearchParams();
     qp.set("page", String(page));
     qp.set("pageSize", pageSize >= 9999 ? "all" : String(pageSize));
     if (search.trim()) qp.set("search", search.trim());
     if (status) qp.set("status", status);
+
     router.replace(
       { pathname: router.pathname, query: Object.fromEntries(qp.entries()) },
       undefined,
@@ -103,15 +111,10 @@ export default function AdminBookingsIndex() {
   }, [page, pageSize, search, status, router]);
 
   function normalizeRows(input: BookingRow[]): BookingRow[] {
-    // Säkerställ snygg tid i out/ret utan att röra övriga fält
     return (input || []).map((r) => ({
       ...r,
-      out: r.out
-        ? { ...r.out, time: tidyTime(r.out.time) || r.out.time }
-        : null,
-      ret: r.ret
-        ? { ...r.ret, time: tidyTime(r.ret.time) || r.ret.time }
-        : null,
+      out: r.out ? { ...r.out, time: tidyTime(r.out.time) || r.out.time } : null,
+      ret: r.ret ? { ...r.ret, time: tidyTime(r.ret.time) || r.ret.time } : null,
     }));
   }
 
@@ -131,8 +134,9 @@ export default function AdminBookingsIndex() {
       if (status) params.set("status", status);
 
       const res = await fetch(`/api/bookings/list?${params.toString()}`, { signal: ctrl.signal });
-      if (!res.ok) throw new Error(`Serverfel: ${res.status}`);
-      const j: Partial<ListResponse> = await res.json();
+      const j: Partial<ListResponse> = await res.json().catch(() => ({}));
+
+      if (!res.ok) throw new Error((j as any)?.error || `Serverfel: ${res.status}`);
 
       setRows(normalizeRows(j.rows ?? []));
       setTotal(j.total ?? 0);
@@ -149,17 +153,22 @@ export default function AdminBookingsIndex() {
 
   // Ladda på sidbyten / status / per-sida
   useEffect(() => {
+    if (!router.isReady) return;
+    if (!didInitFromQueryRef.current) return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, status, pageSize]);
+  }, [page, status, pageSize, router.isReady]);
 
   // Debounced sökning
   useEffect(() => {
+    if (!didInitFromQueryRef.current) return;
+
     if (searchDebounceRef.current) window.clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = window.setTimeout(() => {
       setPage(1);
       load();
     }, 300);
+
     return () => {
       if (searchDebounceRef.current) window.clearTimeout(searchDebounceRef.current);
     };
@@ -180,8 +189,13 @@ export default function AdminBookingsIndex() {
   }, [total, pageSize]);
 
   function changePageSize(val: string) {
-    if (val === "all") { setPageSize(9999); setPage(1); }
-    else { setPageSize(parseInt(val, 10) || 10); setPage(1); }
+    if (val === "all") {
+      setPageSize(9999);
+      setPage(1);
+    } else {
+      setPageSize(parseInt(val, 10) || 10);
+      setPage(1);
+    }
   }
 
   function resetFilters() {
@@ -189,6 +203,11 @@ export default function AdminBookingsIndex() {
     setStatus("");
     setPage(1);
     load();
+  }
+
+  function openBooking(id: string) {
+    if (!id) return;
+    router.push(`/admin/bookings/${encodeURIComponent(id)}`);
   }
 
   const skeletonRows = Array.from({ length: Math.min(pageSize || 10, 10) }).map((_, i) => (
@@ -224,11 +243,15 @@ export default function AdminBookingsIndex() {
                 aria-label="Sök i bokningar"
               />
             </div>
+
             <div>
               <label className="block text-sm text-[#194C66]/80 mb-1">Status</label>
               <select
                 value={status}
-                onChange={(e) => { setStatus(e.target.value); setPage(1); }}
+                onChange={(e) => {
+                  setStatus(e.target.value);
+                  setPage(1);
+                }}
                 className="border rounded px-3 py-2 w-full"
                 aria-label="Filtrera på status"
               >
@@ -238,18 +261,12 @@ export default function AdminBookingsIndex() {
                 <option value="inställd">Inställda/avbokade</option>
               </select>
             </div>
+
             <div className="flex gap-2">
-              <button
-                onClick={() => { setPage(1); load(); }}
-                className="px-4 py-2 rounded-[25px] bg-[#194C66] text-white text-sm"
-              >
+              <button onClick={() => { setPage(1); load(); }} className="px-4 py-2 rounded-[25px] bg-[#194C66] text-white text-sm">
                 Sök
               </button>
-              <button
-                onClick={resetFilters}
-                className="px-3 py-2 rounded-[25px] border text-sm"
-                aria-label="Återställ filter"
-              >
+              <button onClick={resetFilters} className="px-3 py-2 rounded-[25px] border text-sm" aria-label="Återställ filter">
                 Återställ
               </button>
             </div>
@@ -293,46 +310,61 @@ export default function AdminBookingsIndex() {
                   <th className="text-right px-3 py-2">Åtgärd</th>
                 </tr>
               </thead>
+
               <tbody>
                 {loading && skeletonRows}
-                {!loading && rows.map((r) => {
-                  const pr = prioForRow(r);
-                  return (
-                    <tr key={r.id} className="border-b">
-                      <td className="px-3 py-2">{r.booking_number ?? "—"}</td>
-                      <td className="px-3 py-2">{r.customer_reference ?? "—"}</td>
-                      <td className="px-3 py-2">{r.contact_email ?? "—"}</td>
-                      <td className="px-3 py-2">{r.passengers ?? "—"}</td>
-                      <td className="px-3 py-2">
-                        {r.out ? `${r.out.from ?? "—"} → ${r.out.to ?? "—"}` : "—"}
-                      </td>
-                      <td className="px-3 py-2">
-                        {r.out ? `${r.out.date ?? "—"} ${r.out.time ?? ""}` : "—"}
-                      </td>
-                      <td className="px-3 py-2">
-                        {r.ret ? `${r.ret.from ?? "—"} → ${r.ret.to ?? "—"}` : "—"}
-                      </td>
-                      <td className="px-3 py-2">
-                        {r.ret ? `${r.ret.date ?? "—"} ${r.ret.time ?? ""}` : "—"}
-                      </td>
-                      <td className="px-3 py-2">
-                        <span className={`px-2 py-1 rounded-full text-xs ${clsStatusPill(r.status)}`}>
-                          {r.status ?? "—"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2">
-                        <span title={pr.title} className={`px-2 py-1 rounded-full text-xs ${pr.cls}`}>
-                          {pr.label}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <Link className="text-[#194C66] underline" href={`/admin/bookings/${r.id}`}>
-                          Öppna
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
+
+                {!loading &&
+                  rows.map((r) => {
+                    const pr = prioForRow(r);
+                    return (
+                      <tr
+                        key={r.id}
+                        className="border-b hover:bg-[#f8fafc] cursor-pointer"
+                        onClick={() => openBooking(r.id)}
+                        title="Öppna bokning"
+                      >
+                        <td className="px-3 py-2">{r.booking_number ?? "—"}</td>
+                        <td className="px-3 py-2">{r.customer_reference ?? "—"}</td>
+                        <td className="px-3 py-2">{r.contact_email ?? "—"}</td>
+                        <td className="px-3 py-2">{r.passengers ?? "—"}</td>
+                        <td className="px-3 py-2">
+                          {r.out ? `${r.out.from ?? "—"} → ${r.out.to ?? "—"}` : "—"}
+                        </td>
+                        <td className="px-3 py-2">
+                          {r.out ? `${r.out.date ?? "—"} ${r.out.time ?? ""}` : "—"}
+                        </td>
+                        <td className="px-3 py-2">
+                          {r.ret ? `${r.ret.from ?? "—"} → ${r.ret.to ?? "—"}` : "—"}
+                        </td>
+                        <td className="px-3 py-2">
+                          {r.ret ? `${r.ret.date ?? "—"} ${r.ret.time ?? ""}` : "—"}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className={`px-2 py-1 rounded-full text-xs ${clsStatusPill(r.status)}`}>
+                            {r.status ?? "—"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span title={pr.title} className={`px-2 py-1 rounded-full text-xs ${pr.cls}`}>
+                            {pr.label}
+                          </span>
+                        </td>
+
+                        {/* ✅ Gör “Öppna” till en riktig button som alltid funkar (stoppa row-click dubbelnav) */}
+                        <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            className="text-[#194C66] underline"
+                            onClick={() => openBooking(r.id)}
+                          >
+                            Öppna
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+
                 {!loading && rows.length === 0 && (
                   <tr>
                     <td className="px-3 py-6 text-[#194C66]/60" colSpan={11}>
@@ -344,7 +376,7 @@ export default function AdminBookingsIndex() {
             </table>
           </div>
 
-          {/* Footer: Visa-väljare + Pagination */}
+          {/* Footer */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div className="flex items-center gap-2 text-sm">
               <span className="text-[#194C66]/70">Visa:</span>
