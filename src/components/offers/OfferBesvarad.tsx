@@ -38,13 +38,38 @@ export default function OfferBesvarad({ offer }: any) {
       offer?.return_date ??
       offer?.return_time ??
       offer?.return_departure ??
-      offer?.return_destination
+      offer?.return_destination ??
+      offer?.return_from ??
+      offer?.return_to
   );
 
   const withinSweden = (offer?.trip_type || "sverige") !== "utrikes";
 
+  // ✅ Email: kunden ska vara primary
   const email: string | undefined =
-    offer?.contact_email || offer?.customer_email || undefined;
+    offer?.customer_email ||
+    offer?.contact_email ||
+    offer?.email ||
+    offer?.e_post ||
+    offer?.epost ||
+    undefined;
+
+  // ✅ Telefon: stöd flera fältnamn
+  const phone: string | undefined =
+    offer?.customer_phone ||
+    offer?.contact_phone ||
+    offer?.phone ||
+    offer?.telefon ||
+    offer?.tel ||
+    undefined;
+
+  // ✅ Adress: stöd flera fältnamn
+  const address: string | undefined =
+    offer?.customer_address ||
+    offer?.address ||
+    offer?.adress ||
+    offer?.customer_adress ||
+    undefined;
 
   // Mittens resekort (ut/retur)
   const trips = [
@@ -335,7 +360,6 @@ export default function OfferBesvarad({ offer }: any) {
                           pax={trip.pax}
                           extra={trip.extra}
                           iconSrc="/busie.png"
-                          // Extra block för pris per sträcka
                           footer={
                             breakdown?.legs ? (
                               <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 mt-3 text-[14px]">
@@ -420,10 +444,13 @@ export default function OfferBesvarad({ offer }: any) {
                   <DD>{v(offer?.internal_reference, "—")}</DD>
                   <DT>Namn:</DT>
                   <DD>{v(offer?.contact_person, "—")}</DD>
+
+                  {/* ✅ FIX: adress + telefon */}
                   <DT>Adress:</DT>
-                  <DD>{v(offer?.customer_address, "—")}</DD>
+                  <DD>{v(address, "—")}</DD>
                   <DT>Telefon:</DT>
-                  <DD>{v(offer?.contact_phone, "—")}</DD>
+                  <DD>{v(phone, "—")}</DD>
+
                   <DT>E-post:</DT>
                   <DD>{v(email, "—")}</DD>
                 </dl>
@@ -434,9 +461,7 @@ export default function OfferBesvarad({ offer }: any) {
                     Offertinformation om kostnad
                   </div>
 
-                  {/* Tabell: enkel vs tur&retur */}
                   <div className="mt-3">
-                    {/* Head */}
                     <div
                       className="grid"
                       style={{
@@ -456,13 +481,10 @@ export default function OfferBesvarad({ offer }: any) {
                       )}
                     </div>
 
-                    {/* Rows */}
                     <Row
                       roundTrip={roundTrip}
                       label="Summa exkl. moms"
-                      enkel={money(
-                        breakdown?.legs?.[0]?.subtotExVat ?? totals.ex
-                      )}
+                      enkel={money(breakdown?.legs?.[0]?.subtotExVat ?? totals.ex)}
                       retur={
                         roundTrip
                           ? money(breakdown?.legs?.[1]?.subtotExVat)
@@ -473,22 +495,15 @@ export default function OfferBesvarad({ offer }: any) {
                       roundTrip={roundTrip}
                       label="Moms"
                       enkel={money(breakdown?.legs?.[0]?.vat ?? totals.vat)}
-                      retur={
-                        roundTrip ? money(breakdown?.legs?.[1]?.vat) : undefined
-                      }
+                      retur={roundTrip ? money(breakdown?.legs?.[1]?.vat) : undefined}
                     />
                     <Row
                       roundTrip={roundTrip}
                       label="Totalsumma"
                       enkel={money(breakdown?.legs?.[0]?.total ?? totals.sum)}
-                      retur={
-                        roundTrip
-                          ? money(breakdown?.legs?.[1]?.total)
-                          : undefined
-                      }
+                      retur={roundTrip ? money(breakdown?.legs?.[1]?.total) : undefined}
                     />
 
-                    {/* Offertkostnad för uppdraget (total) */}
                     <div className="mt-3 grid grid-cols-[1fr_auto] items-baseline">
                       <div className="text-[#0f172a]/70 text-sm">
                         Offertkostnad för detta uppdrag
@@ -497,7 +512,6 @@ export default function OfferBesvarad({ offer }: any) {
                     </div>
                   </div>
 
-                  {/* Betalningsvillkor */}
                   <div className="mt-6 text-[13px] text-[#0f172a]/80 leading-relaxed">
                     <div className="font-semibold text-[#0f172a] mb-1">
                       Betalningsvillkor
@@ -511,7 +525,6 @@ export default function OfferBesvarad({ offer }: any) {
                 </div>
               </div>
 
-              {/* Knappfält – ligger i botten av högerspalten */}
               <div className="mt-auto px-6 pb-6">
                 <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
                   <button

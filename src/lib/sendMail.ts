@@ -1,5 +1,6 @@
 // src/lib/sendMail.ts
 import { Resend } from "resend";
+import { signOfferToken } from "@/lib/offerToken";
 
 /** ========= Konfiguration ========= */
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
@@ -9,15 +10,23 @@ const FROM_INFO =
   process.env.RESEND_FROM_INFO || "Helsingbuss <info@helsingbuss.se>";
 const ADMIN_INBOX = process.env.OFFER_INBOX_TO || "offert@helsingbuss.se";
 
-// Admin-portalen (fallback-länk om ingen kund-länk skickas in)
+// Admin-portalen (endast för admin-mail)
 const LOGIN_URL =
-  (process.env.NEXT_PUBLIC_LOGIN_BASE_URL ||
-    "https://login.helsingbuss.se") + "/start";
+  (process.env.NEXT_PUBLIC_LOGIN_BASE_URL || "https://login.helsingbuss.se") +
+  "/start";
+
+// ✅ Kunddomänen (DETTA ska knappar i kundmail gå till)
+const CUSTOMER_APP_URL =
+  process.env.CUSTOMER_APP_URL || "https://kund.helsingbuss.se";
 
 const resend = new Resend(RESEND_API_KEY);
 
 /** ========= Typer ========= */
+export type SendOfferKind = "admin_new_offer" | "customer_price_proposal";
+
 export type SendOfferParams = {
+  kind?: SendOfferKind;
+
   offerId: string;
   offerNumber: string;
 
@@ -47,21 +56,44 @@ export type SendOfferParams = {
 export type CustomerReceiptParams = {
   /** Mottagarens e-post (kunden) */
   to: string;
+
   offerNumber: string;
+
+  /** ✅ NYTT (valfritt) – gör att vi kan skapa token-länk även här */
+  offerId?: string;
 
   /** Länk för kunden till offertsidan (med token) */
   link?: string;
 
   /** Resöversikt som visas i mailet */
   from?: string;
-  toPlace?: string; // <— bytt namn (tidigare “to”)
+  toPlace?: string;
   date?: string;
   time?: string;
   passengers?: number;
 };
 
-/** ========= Templates (HTML) ========= */
+/** ========= Helpers ========= */
+function buildCustomerOfferLink(offerNumber: string, offerId?: string) {
+  // Om vi har offerId kan vi signera token. Om inte: bygg ändå kundlänk (bättre än login).
+  if (offerId) {
+    const token = signOfferToken({
+      offerId,
+      offerNumber,
+      id: offerId, // alias
+      no: offerNumber, // alias
+    });
 
+    return (
+      `${CUSTOMER_APP_URL}/offert/${encodeURIComponent(offerNumber)}` +
+      `?token=${encodeURIComponent(token)}&t=${encodeURIComponent(token)}`
+    );
+  }
+
+  return `${CUSTOMER_APP_URL}/offert/${encodeURIComponent(offerNumber)}`;
+}
+
+/** ========= Templates (HTML) ========= */
 function layout(bodyHtml: string) {
   return `<!doctype html>
 <html lang="sv">
@@ -110,8 +142,8 @@ function renderOfferButton(link: string) {
 
 /** Kundens kvittens (när de skickat in offertförfrågan) */
 function renderCustomerReceiptHTML(p: CustomerReceiptParams) {
-  // här ska vi få in en länk med token utifrån – annars fall-back till admin-login
-  const link = p.link || LOGIN_URL;
+  // ✅ ALDRIG login-URL i kundmail
+  const link = p.link || buildCustomerOfferLink(p.offerNumber, p.offerId);
   const btn = renderOfferButton(link);
 
   const summary = `
@@ -171,7 +203,8 @@ function renderCustomerPriceProposalHTML(p: SendOfferParams) {
   const hasReturn =
     !!p.return_from || !!p.return_to || !!p.return_date || !!p.return_time;
 
-  const link = p.link || LOGIN_URL;
+  // ✅ ALDRIG login-URL i kundmail
+  const link = p.link || buildCustomerOfferLink(p.offerNumber, p.offerId);
   const btn = renderOfferButton(link);
 
   const introName = p.customerName ? `Hej ${p.customerName}!` : "Hej!";
@@ -231,7 +264,6 @@ function renderCustomerPriceProposalHTML(p: SendOfferParams) {
 }
 
 /** ========= Sändare ========= */
-
 export async function sendOfferMail(p: SendOfferParams) {
   if (!RESEND_API_KEY) {
     console.error("[sendOfferMail] RESEND_API_KEY saknas – skickar inget mail");
@@ -241,23 +273,38 @@ export async function sendOfferMail(p: SendOfferParams) {
   const subject =
     p.subject || `Ny offertförfrågan inkommen – ${p.offerNumber}`;
 
-  const isPriceProposal = subject.toLowerCase().includes("prisförslag");
+  // ✅ Robust mode: använd "kind" om satt, annars fallback till subject
+  const subjectLc = subject.toLowerCase();
+  const inferredKind: SendOfferKind =
+    subjectLc.includes("prisförslag") || subjectLc.includes("besvar")
+      ? "customer_price_proposal"
+      : "admin_new_offer";
+
+  const kind: SendOfferKind = p.kind || inferredKind;
 
   // MODE 1: Prisförslag till kund (besvarad offert)
-  if (isPriceProposal && p.customerEmail) {
-    const html = renderCustomerPriceProposalHTML(p);
+  if (kind === "customer_price_proposal") {
+    if (!p.customerEmail) {
+      console.error(
+        "[sendOfferMail] customer_price_proposal saknar customerEmail",
+        p
+      );
+      return;
+    }
+
+    const link = p.link || buildCustomerOfferLink(p.offerNumber, p.offerId);
+    const html = renderCustomerPriceProposalHTML({ ...p, link });
 
     await resend.emails.send({
       from: FROM_ADMIN,
       to: p.customerEmail,
       subject,
       html,
-      // INGEN BCC här – besvarade ska bara till kund
     });
     return;
   }
 
-  // MODE 2: Ny offertförfrågan till admin (befintligt beteende)
+  // MODE 2: Ny offertförfrågan till admin
   const html = renderAdminNewOfferHTML(p);
 
   await resend.emails.send({
@@ -285,17 +332,12 @@ export async function sendCustomerReceipt(p: CustomerReceiptParams) {
   }
 
   const subject = `Vi har mottagit din offertförfrågan – ${p.offerNumber}`;
-  const html = renderCustomerReceiptHTML(p);
+
+  // ✅ ALDRIG login-URL i kundmail
+  const link = p.link || buildCustomerOfferLink(p.offerNumber, p.offerId);
+  const html = renderCustomerReceiptHTML({ ...p, link });
 
   try {
-    console.log(
-      "[sendCustomerReceipt] Försöker skicka kundmail",
-      "to:",
-      p.to,
-      "offer:",
-      p.offerNumber
-    );
-
     const result = await resend.emails.send({
       from: FROM_INFO,
       to: p.to,
@@ -311,10 +353,7 @@ export async function sendCustomerReceipt(p: CustomerReceiptParams) {
       (result as any)?.id || "ok"
     );
   } catch (err: any) {
-    console.error(
-      "[sendCustomerReceipt] Resend-fel:",
-      err?.message || err
-    );
+    console.error("[sendCustomerReceipt] Resend-fel:", err?.message || err);
     throw err;
   }
 }
