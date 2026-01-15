@@ -1,5 +1,4 @@
 // src/lib/sendMail.ts
-
 import { Resend } from "resend";
 
 /** ========= Konfiguration ========= */
@@ -8,33 +7,14 @@ const FROM_ADMIN =
   process.env.RESEND_FROM_ADMIN || "Helsingbuss <offert@helsingbuss.se>";
 const FROM_INFO =
   process.env.RESEND_FROM_INFO || "Helsingbuss <info@helsingbuss.se>";
-const ADMIN_INBOX =
-  process.env.OFFER_INBOX_TO || "offert@helsingbuss.se";
+const ADMIN_INBOX = process.env.OFFER_INBOX_TO || "offert@helsingbuss.se";
 
-// Admin-portalen (bara för interna mail)
+// Admin-portalen (fallback-länk om ingen kund-länk skickas in)
 const LOGIN_URL =
   (process.env.NEXT_PUBLIC_LOGIN_BASE_URL ||
     "https://login.helsingbuss.se") + "/start";
 
 const resend = new Resend(RESEND_API_KEY);
-
-/** ========= Hjälpare ========= */
-
-/** Bygger kundlänk till offerten: https://kund.helsingbuss.se/offert/HB26002 */
-function customerOfferLink(offerNumber: string, fallback?: string) {
-  const trimmed = (offerNumber || "").trim();
-  if (!trimmed && fallback) return fallback;
-
-  const base =
-    process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL ||
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    "https://kund.helsingbuss.se";
-
-  const root = base.replace(/\/$/, "");
-  if (!trimmed) return root; // sista fallback
-
-  return `${root}/offert/${encodeURIComponent(trimmed)}`;
-}
 
 /** ========= Typer ========= */
 export type SendOfferParams = {
@@ -60,7 +40,7 @@ export type SendOfferParams = {
   notes?: string | null;
   subject?: string;
 
-  /** Full URL till offerten för kunden (valfritt – genereras annars) */
+  /** Länk som "Visa din offert"-knappen ska gå till (kund-sidan) */
   link?: string;
 };
 
@@ -69,12 +49,12 @@ export type CustomerReceiptParams = {
   to: string;
   offerNumber: string;
 
-  /** (valfritt) egen länk – annars byggs /offert/HBxxxxx */
+  /** Länk för kunden till offertsidan (med token) */
   link?: string;
 
   /** Resöversikt som visas i mailet */
   from?: string;
-  toPlace?: string;
+  toPlace?: string; // <— bytt namn (tidigare “to”)
   date?: string;
   time?: string;
   passengers?: number;
@@ -130,8 +110,8 @@ function renderOfferButton(link: string) {
 
 /** Kundens kvittens (när de skickat in offertförfrågan) */
 function renderCustomerReceiptHTML(p: CustomerReceiptParams) {
-  // Vi struntar i ev. gammal token-länk och bygger alltid /offert/HBxxxxx
-  const link = customerOfferLink(p.offerNumber, p.link);
+  // här ska vi få in en länk med token utifrån – annars fall-back till admin-login
+  const link = p.link || LOGIN_URL;
   const btn = renderOfferButton(link);
 
   const summary = `
@@ -187,11 +167,13 @@ function renderAdminNewOfferHTML(p: SendOfferParams) {
 }
 
 /** Kund: prisförslag / besvarad offert */
-function renderCustomerPriceProposalHTML(p: SendOfferParams & { link: string }) {
+function renderCustomerPriceProposalHTML(p: SendOfferParams) {
   const hasReturn =
     !!p.return_from || !!p.return_to || !!p.return_date || !!p.return_time;
 
-  const btn = renderOfferButton(p.link);
+  const link = p.link || LOGIN_URL;
+  const btn = renderOfferButton(link);
+
   const introName = p.customerName ? `Hej ${p.customerName}!` : "Hej!";
 
   const rowsOut = `
@@ -258,25 +240,24 @@ export async function sendOfferMail(p: SendOfferParams) {
 
   const subject =
     p.subject || `Ny offertförfrågan inkommen – ${p.offerNumber}`;
+
   const isPriceProposal = subject.toLowerCase().includes("prisförslag");
 
   // MODE 1: Prisförslag till kund (besvarad offert)
   if (isPriceProposal && p.customerEmail) {
-    const link = p.link || customerOfferLink(p.offerNumber);
-
-    const html = renderCustomerPriceProposalHTML({ ...p, link });
+    const html = renderCustomerPriceProposalHTML(p);
 
     await resend.emails.send({
-      from: FROM_INFO,
+      from: FROM_ADMIN,
       to: p.customerEmail,
       subject,
       html,
+      // INGEN BCC här – besvarade ska bara till kund
     });
-
     return;
   }
 
-  // MODE 2: Ny offertförfrågan till admin (offert@)
+  // MODE 2: Ny offertförfrågan till admin (befintligt beteende)
   const html = renderAdminNewOfferHTML(p);
 
   await resend.emails.send({
@@ -292,6 +273,7 @@ export async function sendCustomerReceipt(p: CustomerReceiptParams) {
     console.error(
       "[sendCustomerReceipt] RESEND_API_KEY saknas – skickar inget mail"
     );
+    return;
   }
 
   if (!p.to) {
@@ -306,6 +288,14 @@ export async function sendCustomerReceipt(p: CustomerReceiptParams) {
   const html = renderCustomerReceiptHTML(p);
 
   try {
+    console.log(
+      "[sendCustomerReceipt] Försöker skicka kundmail",
+      "to:",
+      p.to,
+      "offer:",
+      p.offerNumber
+    );
+
     const result = await resend.emails.send({
       from: FROM_INFO,
       to: p.to,
@@ -321,7 +311,10 @@ export async function sendCustomerReceipt(p: CustomerReceiptParams) {
       (result as any)?.id || "ok"
     );
   } catch (err: any) {
-    console.error("[sendCustomerReceipt] Resend-fel:", err?.message || err);
+    console.error(
+      "[sendCustomerReceipt] Resend-fel:",
+      err?.message || err
+    );
     throw err;
   }
 }

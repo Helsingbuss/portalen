@@ -2,18 +2,24 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import supabase from "@/lib/supabaseAdmin";
 import { sendOfferMail } from "@/lib/sendMail";
+import { signOfferToken, customerBaseUrl } from "@/lib/offerJwt";
 
 // Hjälpare: null/undefined -> undefined (för mailparametrar)
 const U = <T extends string | number | null | undefined>(v: T) =>
   v == null ? undefined : (v as Exclude<T, null>);
 
-// Enkel koll om en sträng ser ut som en UUID
-function looksLikeUuid(value: string): boolean {
-  const s = value.trim();
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    s
-  );
-}
+type Body = {
+  offer_id?: string;
+  offerNumber?: string;
+  via?: string | null;
+  stop?: string | null;
+  notes?: string | null;
+  onboard_contact?: string | null;
+  return_departure?: string | null;
+  return_destination?: string | null;
+  return_date?: string | null;
+  return_time?: string | null;
+};
 
 export default async function handler(
   req: NextApiRequest,
@@ -24,32 +30,20 @@ export default async function handler(
       return res.status(405).json({ error: "Method not allowed" });
     }
 
-    const input = (req.body || {}) as {
-      offer_id?: string;
-      offerNumber?: string;
-      via?: string | null;
-      stop?: string | null;
-      notes?: string | null;
-      onboard_contact?: string | null;
-      return_departure?: string | null;
-      return_destination?: string | null;
-      return_date?: string | null;
-      return_time?: string | null;
-      link?: string | null; // ev. publik länk till offerten
-    };
+    const input = (req.body || {}) as Body;
 
-    // Vi accepterar både UUID (id) och offertnummer (HB25XXX)
-    const idOrNumberRaw =
-      input.offer_id ?? input.offerNumber ?? (req.query.id as string | undefined) ?? "";
-    const idOrNumber = String(idOrNumberRaw || "").trim();
+    // Acceptera både UUID (id) och offertnummer (HB25XXX)
+    const idOrNumber = String(
+      input.offer_id ?? input.offerNumber ?? req.query.id ?? ""
+    ).trim();
 
     if (!idOrNumber || idOrNumber === "undefined") {
       return res.status(400).json({ error: "Saknar offert-id/nummer" });
     }
 
-    const isUuid = looksLikeUuid(idOrNumber);
+    const isOfferNumber = /^HB\d+/i.test(idOrNumber);
 
-    // Hämta offerten – antingen på id (uuid) eller offer_number (HB25XXX)
+    // Hämta offerten – välj rätt kolumn så vi inte får UUID-fel
     let query = supabase
       .from("offers")
       .select(
@@ -78,13 +72,12 @@ export default async function handler(
         total_amount,
         vat_breakdown
       `
-      );
+      )
+      .limit(1);
 
-    if (isUuid) {
-      query = query.eq("id", idOrNumber);
-    } else {
-      query = query.eq("offer_number", idOrNumber);
-    }
+    query = isOfferNumber
+      ? query.eq("offer_number", idOrNumber)
+      : query.eq("id", idOrNumber);
 
     const { data: offer, error } = await query.maybeSingle();
 
@@ -96,14 +89,13 @@ export default async function handler(
       return res.status(404).json({ error: "Offert hittades inte" });
     }
 
-    // Sätt status "besvarad" om inte redan
+    // Sätt status "besvarad" om inte redan – totals sätts i /quote
     const current = String(offer.status ?? "").toLowerCase();
     if (current !== "besvarad") {
       const { error: uerr } = await supabase
         .from("offers")
         .update({
           status: "besvarad",
-          // totals sätts i /quote – rör inte dem här
           updated_at: new Date().toISOString(),
         })
         .eq("id", offer.id);
@@ -136,8 +128,7 @@ export default async function handler(
     const stopOut = input.stop ?? offer.stop ?? null;
 
     const retFrom = input.return_departure ?? offer.return_departure ?? null;
-    const retTo =
-      input.return_destination ?? offer.return_destination ?? null;
+    const retTo = input.return_destination ?? offer.return_destination ?? null;
     const retDate = input.return_date ?? offer.return_date ?? null;
     const retTime = input.return_time ?? offer.return_time ?? null;
 
@@ -145,13 +136,21 @@ export default async function handler(
     const customerEmail: string | undefined =
       U(offer.contact_email) ?? U(offer.customer_email);
 
-    // Länk till offerten för kunden (om du senare vill skicka med en riktig publik URL)
-    const link =
-      typeof input.link === "string" && input.link.trim()
-        ? input.link.trim()
-        : undefined;
-    // just nu: om link är undefined kommer sendOfferMail falla tillbaka på LOGIN_URL,
-    // precis som första mailet gör.
+    // ===== NYTT: bygga kund-länk med JWT-token =====
+    let customerOfferLink: string | undefined;
+    try {
+      const token = await signOfferToken({ offer_id: String(offer.id) });
+      const base = customerBaseUrl(); // t.ex. https://kund.helsingbuss.se
+      const no = String(offer.offer_number ?? idOrNumber);
+      customerOfferLink = `${base}/offert/${encodeURIComponent(
+        no
+      )}?token=${encodeURIComponent(token)}`;
+    } catch (e) {
+      console.error("[send-proposal] token/link error:", e);
+      // om något strular får kunden ändå mail, men utan knapp-länk
+      customerOfferLink = undefined;
+    }
+    // ===============================================
 
     // Skicka mail till kund om prisförslag
     await sendOfferMail({
@@ -177,11 +176,8 @@ export default async function handler(
 
       notes: U(outNotes),
 
-      // extra: tydlig subject för kunden – triggar "kund-läget" i sendOfferMail
       subject: `Offert ${offer.offer_number} – prisförslag från Helsingbuss`,
-
-      // ev. publik länk till offerten
-      link,
+      link: customerOfferLink,
     });
 
     return res.status(200).json({ ok: true });
