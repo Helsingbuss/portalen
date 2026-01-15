@@ -30,10 +30,7 @@ type PriceFields = {
   km_251_plus: string;
 };
 
-type PriceFormValues = Record<
-  PriceCategoryKey,
-  Record<BusTypeKey, PriceFields>
->;
+type PriceFormValues = Record<PriceCategoryKey, Record<BusTypeKey, PriceFields>>;
 
 function sek(value: number): string {
   if (!Number.isFinite(value)) return "—";
@@ -51,6 +48,10 @@ function toNumber(v: string | number | null | undefined): number {
   const normalized = v.replace(",", ".").trim();
   const n = Number(normalized);
   return Number.isFinite(n) ? n : 0;
+}
+
+function round2(n: number) {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
 export default function OfferCalculator({
@@ -106,6 +107,9 @@ export default function OfferCalculator({
   const [sending, setSending] = useState<boolean>(false);
   const [lastError, setLastError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+
+  const busesCount = numBuses > 0 ? numBuses : 1;
+  const legsCount = 1 + (includeReturn ? 1 : 0);
 
   // Hämta prislistor vid start
   useEffect(() => {
@@ -175,28 +179,33 @@ export default function OfferCalculator({
     return kmCost + dayCost + eveCost + wkndCost;
   }
 
+  // Per buss (exkl moms) per sträcka
   const exLeg1 = legCost(leg1);
   const exLeg2 = includeReturn ? legCost(leg2) : 0;
 
-  const extraOnceFee =
-    includeServiceFee && serviceFeeMode === "once" ? serviceFee : 0;
+  // ✅ FIX: serviceFeeMode "perLeg" ska faktiskt påverka totalen
+  const serviceFeePerBus =
+    includeServiceFee
+      ? serviceFeeMode === "once"
+        ? serviceFee
+        : serviceFee * legsCount
+      : 0;
 
-  const exVatPerBus = exLeg1 + exLeg2 + extraOnceFee;
-  const vatPerBus = Math.round(exVatPerBus * vatRate * 100) / 100;
+  const exVatPerBus = exLeg1 + exLeg2 + serviceFeePerBus;
+  const vatPerBus = round2(exVatPerBus * vatRate);
   const totalPerBus = exVatPerBus + vatPerBus;
 
-  const busesCount = numBuses > 0 ? numBuses : 1;
-
+  // Alla bussar (bas)
   const baseExVatAll = exVatPerBus * busesCount;
-  const baseVatAll = vatPerBus * busesCount;
+  const baseVatAll = round2(baseExVatAll * vatRate);
   const baseTotalAll = baseExVatAll + baseVatAll;
 
+  // Synergy (påslag/provision)
   const synergyRate = useSynergy ? synergyPercent : 0;
-  const finalExVatAll =
-    synergyRate > 0
-      ? Math.round((baseExVatAll / (1 - synergyRate)) * 100) / 100
-      : baseExVatAll;
-  const finalVatAll = Math.round(finalExVatAll * vatRate * 100) / 100;
+  const synergyMultiplier = synergyRate > 0 ? 1 / (1 - synergyRate) : 1;
+
+  const finalExVatAll = round2(baseExVatAll * synergyMultiplier);
+  const finalVatAll = round2(finalExVatAll * vatRate);
   const finalTotalAll = finalExVatAll + finalVatAll;
 
   function copyLeg1ToLeg2() {
@@ -237,47 +246,75 @@ export default function OfferCalculator({
     };
   }
 
-  function buildBreakdown() {
-    const leg1Vat = Math.round(exLeg1 * vatRate * 100) / 100;
-    const leg2Vat = includeReturn
-      ? Math.round(exLeg2 * vatRate * 100) / 100
-      : 0;
+  // ✅ Det här är breakdown-formatet som din quote.ts vill ha
+  function buildQuoteBreakdown() {
+    // Fördela service fee per leg så att legs summerar till totalen
+    const serviceLeg1Ex =
+      includeServiceFee && serviceFeeMode === "once"
+        ? serviceFee * busesCount
+        : includeServiceFee && serviceFeeMode === "perLeg"
+          ? serviceFee * busesCount
+          : 0;
+
+    const serviceLeg2Ex =
+      includeReturn && includeServiceFee && serviceFeeMode === "perLeg"
+        ? serviceFee * busesCount
+        : 0;
+
+    // Bas per leg (alla bussar)
+    const baseLeg1Ex = exLeg1 * busesCount + serviceLeg1Ex;
+    const baseLeg2Ex = includeReturn ? exLeg2 * busesCount + serviceLeg2Ex : 0;
+
+    // Synergy: skala samma proportioner
+    let leg1Ex = round2(baseLeg1Ex * synergyMultiplier);
+    let leg2Ex = includeReturn ? round2(baseLeg2Ex * synergyMultiplier) : 0;
+
+    // Rounding fix så att leg1+leg2 == finalExVatAll
+    const sumLegsEx = leg1Ex + leg2Ex;
+    const diffEx = round2(finalExVatAll - sumLegsEx);
+    leg1Ex = round2(leg1Ex + diffEx);
+
+    let leg1Vat = round2(leg1Ex * vatRate);
+    let leg2Vat = includeReturn ? round2(leg2Ex * vatRate) : 0;
+
+    // Rounding fix för moms
+    const sumVat = leg1Vat + leg2Vat;
+    const diffVat = round2(finalVatAll - sumVat);
+    leg1Vat = round2(leg1Vat + diffVat);
+
+    const legs = [
+      {
+        subtotExVat: leg1Ex,
+        vat: leg1Vat,
+        total: leg1Ex + leg1Vat,
+      },
+      ...(includeReturn
+        ? [
+            {
+              subtotExVat: leg2Ex,
+              vat: leg2Vat,
+              total: leg2Ex + leg2Vat,
+            },
+          ]
+        : []),
+    ];
 
     return {
-      perBus: {
-        exVat: exVatPerBus,
-        vat: vatPerBus,
-        total: totalPerBus,
-      },
-      allBusesBase: {
-        exVat: baseExVatAll,
-        vat: baseVatAll,
-        total: baseTotalAll,
-        numBuses: busesCount,
-      },
-      allBusesFinal: {
-        exVat: finalExVatAll,
-        vat: finalVatAll,
-        total: finalTotalAll,
-        synergyPercent: synergyRate,
-        synergyActive: useSynergy,
-      },
-      legs: [
-        {
-          name: "utresa",
-          exVat: exLeg1,
-          vat: leg1Vat,
-          total: exLeg1 + leg1Vat,
-        },
-        includeReturn
-          ? {
-              name: "retur",
-              exVat: exLeg2,
-              vat: leg2Vat,
-              total: exLeg2 + leg2Vat,
-            }
-          : null,
-      ].filter(Boolean),
+      grandExVat: finalExVatAll,
+      grandVat: finalVatAll,
+      grandTotal: finalTotalAll,
+      serviceFeeExVat: includeServiceFee ? serviceFee : 0,
+      legs,
+    };
+  }
+
+  function buildQuotePayload(mode: "draft" | "send") {
+    return {
+      mode,
+      input: buildInputPayload(),
+      breakdown: buildQuoteBreakdown(),
+      // optional override (quote.ts använder detta om du lägger in fixen nedan)
+      customerEmail: customerEmail ?? undefined,
     };
   }
 
@@ -285,15 +322,7 @@ export default function OfferCalculator({
     setSaving(true);
     setLastError(null);
     try {
-      const payload = {
-        input: buildInputPayload(),
-        breakdown: buildBreakdown(),
-        totals: {
-          exVat: finalExVatAll,
-          vat: finalVatAll,
-          total: finalTotalAll,
-        },
-      };
+      const payload = buildQuotePayload("draft");
 
       const res = await fetch(`/api/offers/${offerId}/quote`, {
         method: "POST",
@@ -327,36 +356,10 @@ export default function OfferCalculator({
     setLastError(null);
 
     try {
-      const payload = {
-        offerId,
-        offerNumber,
-        customerEmail,
-        totals: {
-          exVat: finalExVatAll,
-          vat: finalVatAll,
-          total: finalTotalAll,
-        },
-        pricing: {
-          kmPrice,
-          hourDay,
-          hourEve,
-          hourWknd,
-          serviceFee,
-          includeServiceFee,
-          serviceFeeMode,
-          vatRate,
-          category: selectedCategory,
-          busType: selectedBusType,
-          kmBand,
-          numBuses: busesCount,
-          useSynergy,
-          synergyPercent,
-        },
-        input: buildInputPayload(),
-        breakdown: buildBreakdown(),
-      };
+      // ✅ Skicka via samma endpoint som sparar + sätter status=besvarad + mailar
+      const payload = buildQuotePayload("send");
 
-      const res = await fetch(`/api/offers/${offerId}/send-proposal`, {
+      const res = await fetch(`/api/offers/${offerId}/quote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -425,9 +428,7 @@ export default function OfferCalculator({
               <option value="sprinter">Sprinter (upp till 19)</option>
               <option value="turistbuss">Turistbuss (upp till 39)</option>
               <option value="helturistbuss">Helturistbuss (upp till 63)</option>
-              <option value="dubbeldackare">
-                Dubbeldäckare (upp till 81)
-              </option>
+              <option value="dubbeldackare">Dubbeldäckare (upp till 81)</option>
             </select>
             <select
               className="rounded-lg border border-[#D0DCE7] bg-white px-2 py-1 text-xs md:text-sm"
@@ -769,9 +770,7 @@ function LegCard({
             type="number"
             className="w-full rounded-lg border border-[#D0DCE7] bg-white px-2 py-1 text-xs md:text-sm text-slate-800 outline-none focus:border-[#007764]"
             value={leg.hoursDay || ""}
-            onChange={(e) =>
-              update("hoursDay", Number(e.target.value) || 0)
-            }
+            onChange={(e) => update("hoursDay", Number(e.target.value) || 0)}
             min={0}
           />
         </label>
