@@ -10,9 +10,7 @@ const supabase =
 type JsonError = { error: string };
 
 function isUUID(s: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    s || ""
-  );
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s || "");
 }
 function trimOrNull(v: any): string | null {
   if (v === undefined || v === null) return null;
@@ -49,47 +47,34 @@ function generateBookingNo(): string {
   const rnd = Math.floor(1000 + Math.random() * 9000);
   return `BK${yy}${rnd}`;
 }
-function toMoneyNumber(v: any): number | null {
-  if (v === null || v === undefined || v === "") return null;
-  if (typeof v === "number") return Number.isFinite(v) ? v : null;
-  const s = String(v).trim().replace(/\s+/g, "").replace(",", ".");
-  const n = Number(s);
-  return Number.isFinite(n) ? n : null;
+function toMoney(v: any): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<any | JsonError>
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse<any | JsonError>) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const { offerId, offerNumber, assigned_vehicle_id, assigned_driver_id, notes } =
-      (req.body ?? {}) as Record<string, any>;
+    const { offerId, offerNumber, assigned_vehicle_id, assigned_driver_id, notes } = (req.body ?? {}) as Record<string, any>;
+    if (!offerId && !offerNumber) return res.status(400).json({ error: "Du måste ange offerId eller offerNumber" });
 
-    if (!offerId && !offerNumber) {
-      return res.status(400).json({ error: "Du måste ange offerId eller offerNumber" });
-    }
-
+    // ✅ Lägg till total_price från offers
     const selectCols = [
       "id",
       "offer_number",
       "status",
+      "offer_date",
+
       "contact_person",
       "contact_email",
       "customer_email",
       "contact_phone",
       "customer_phone",
+
       "passengers",
       "notes",
 
-      // totals
-      "total_price",
-      "grand_total",
-      "total_amount",
-      "total",
-
-      // utresa
       "departure_place",
       "destination",
       "departure_date",
@@ -98,13 +83,15 @@ export default async function handler(
       "on_site_minutes",
       "stopover_places",
 
-      // retur
       "return_departure",
       "return_destination",
       "return_date",
       "return_time",
       "return_end_time",
       "return_on_site_minutes",
+
+      // ✅ offerten total
+      "total_price",
     ].join(",");
 
     let off: any = null;
@@ -118,11 +105,7 @@ export default async function handler(
       if (error) throw error;
       off = data;
     } else {
-      const { data, error } = await supabase
-        .from("offers")
-        .select(selectCols)
-        .eq("offer_number", offerNumber)
-        .single();
+      const { data, error } = await supabase.from("offers").select(selectCols).eq("offer_number", offerNumber).single();
       if (error) throw error;
       off = data;
     }
@@ -132,14 +115,10 @@ export default async function handler(
     const customer_phone_raw = off.contact_phone ?? off.customer_phone ?? null;
     const customer_phone = customer_phone_raw ? stripSpacesDashes(customer_phone_raw) : null;
 
-    const total_price =
-      toMoneyNumber(off.total_price) ??
-      toMoneyNumber(off.grand_total) ??
-      toMoneyNumber(off.total_amount) ??
-      toMoneyNumber(off.total) ??
-      0;
+    // ✅ total_price från offert (endast offertens pris)
+    const bookingTotalPrice = toMoney(off.total_price);
 
-    const payloadBase: Record<string, any> = {
+    const payloadBase = {
       status: "bokad",
 
       contact_person: trimOrNull(off.contact_person) ?? null,
@@ -152,10 +131,7 @@ export default async function handler(
       departure_date: trimOrNull(off.departure_date),
       departure_time: tidyHHMM(off.departure_time),
       end_time: tidyHHMM(off.end_time),
-      on_site_minutes:
-        off.on_site_minutes === null || off.on_site_minutes === undefined
-          ? null
-          : toPosIntOrNull(off.on_site_minutes),
+      on_site_minutes: off.on_site_minutes === null || off.on_site_minutes === undefined ? null : toPosIntOrNull(off.on_site_minutes),
       stopover_places: trimOrNull(off.stopover_places),
 
       return_departure: trimOrNull(off.return_departure),
@@ -164,25 +140,22 @@ export default async function handler(
       return_time: tidyHHMM(off.return_time),
       return_end_time: tidyHHMM(off.return_end_time),
       return_on_site_minutes:
-        off.return_on_site_minutes === null || off.return_on_site_minutes === undefined
-          ? null
-          : toPosIntOrNull(off.return_on_site_minutes),
+        off.return_on_site_minutes === null || off.return_on_site_minutes === undefined ? null : toPosIntOrNull(off.return_on_site_minutes),
 
       assigned_vehicle_id: trimOrNull(assigned_vehicle_id),
       assigned_driver_id: trimOrNull(assigned_driver_id),
 
       notes: trimOrNull(notes ?? off.notes),
 
-      // kopplingar i din tabell
-      source_offer_id: off.id,
-      offer_id: off.id,
+      offer_id: off.id ?? null,
+      offer_number: off.offer_number ?? null,
 
-      // totals i din tabell
-      total_price,
+      // ✅ Här är nyckeln
+      total_price: bookingTotalPrice,
 
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    };
+    } as Record<string, any>;
 
     const MAX_TRIES = 5;
     let attempt = 0;
@@ -196,7 +169,38 @@ export default async function handler(
       const { data, error } = await supabase
         .from("bookings")
         .insert({ ...payloadBase, booking_number: bk })
-        .select("*")
+        .select(
+          [
+            "id",
+            "booking_number",
+            "status",
+            "total_price",
+            "offer_id",
+            "offer_number",
+            "contact_person",
+            "customer_email",
+            "customer_phone",
+            "passengers",
+            "departure_place",
+            "destination",
+            "departure_date",
+            "departure_time",
+            "end_time",
+            "on_site_minutes",
+            "stopover_places",
+            "return_departure",
+            "return_destination",
+            "return_date",
+            "return_time",
+            "return_end_time",
+            "return_on_site_minutes",
+            "assigned_vehicle_id",
+            "assigned_driver_id",
+            "notes",
+            "created_at",
+            "updated_at",
+          ].join(",")
+        )
         .single();
 
       if (!error && data) {
@@ -209,7 +213,6 @@ export default async function handler(
         lastErr = error;
         continue;
       }
-
       if (error) {
         lastErr = error;
         break;
@@ -217,6 +220,11 @@ export default async function handler(
     }
 
     if (!created) throw lastErr || new Error("Kunde inte skapa bokning.");
+
+    // valfritt: uppdatera offertstatus
+    try {
+      await supabase.from("offers").update({ status: "godkand" }).eq("id", off.id);
+    } catch {}
 
     return res.status(201).json({ ok: true, booking: created });
   } catch (e: any) {
