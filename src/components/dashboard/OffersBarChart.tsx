@@ -1,4 +1,3 @@
-// src/components/dashboard/OffersBarChart.tsx
 import React, { useMemo, useState } from "react";
 
 export type Series = {
@@ -11,18 +10,18 @@ export type Series = {
 
 export type StatsTotals = {
   offer_answered_count: number;
-  offer_answered_amount: number;
+  offer_answered_amount: number | string;
   offer_approved_count: number;
-  offer_approved_amount: number;
+  offer_approved_amount: number | string;
   booking_booked_count: number;
-  booking_booked_amount: number;
+  booking_booked_amount: number | string;
   booking_done_count: number;
-  booking_done_amount: number;
+  booking_done_amount: number | string;
 };
 
 type Props = {
   series: Series;
-  totals?: Partial<StatsTotals>; // totals från API
+  totals?: StatsTotals;
 };
 
 const COLORS = {
@@ -43,15 +42,11 @@ const LABELS: Record<keyof Series, string> = {
 function buildTicks(max: number): number[] {
   const ceilMax = Math.max(1, Math.ceil(max));
   if (ceilMax <= 6) return Array.from({ length: ceilMax + 1 }, (_, i) => i);
-  const step = RememberStep(ceilMax);
+  const step = Math.ceil(ceilMax / 6);
   const arr: number[] = [];
   for (let v = 0; v <= ceilMax; v += step) arr.push(v);
   if (arr[arr.length - 1] !== ceilMax) arr.push(ceilMax);
   return arr;
-
-  function RememberStep(v: number) {
-    return Math.ceil(v / 6);
-  }
 }
 
 type Tip = {
@@ -63,31 +58,24 @@ type Tip = {
   value: number;
 };
 
-// Robust money: klarar number, "15 555", "15,555.00", "15 555,50" osv.
-function toMoneyNumber(v: any): number {
+function toAmount(v: any): number {
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
-  if (v == null) return 0;
-  const s = String(v)
-    .trim()
-    .replace(/\s+/g, "") // ta bort mellanslag
-    .replace(/\u00A0/g, "") // NBSP
-    .replace(",", "."); // svensk decimal
-  const n = Number(s);
-  return Number.isFinite(n) ? n : 0;
+  if (typeof v === "string") {
+    // supabase numeric kan komma som string
+    const cleaned = v.replace(/\s/g, "").replace(",", ".");
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
 }
 
-// Du ville slippa ören -> 0 decimals
-const formatAmount = (value: any) =>
-  Math.round(toMoneyNumber(value)).toLocaleString("sv-SE", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
+const formatKr = (value: number | string) =>
+  new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 0 }).format(toAmount(value));
 
 export default function OffersBarChart({ series, totals }: Props) {
   const weeks = series.weeks && series.weeks.length ? series.weeks : ["1"];
 
-  const safe = (arr: number[] | undefined, i: number) =>
-    (arr && typeof arr[i] === "number" ? arr[i] : 0);
+  const safe = (arr: number[] | undefined, i: number) => (arr && arr[i]) ?? 0;
 
   const offerAnswered = series.offer_answered ?? [];
   const offerUnanswered = series.offer_unanswered ?? [];
@@ -105,7 +93,6 @@ export default function OffersBarChart({ series, totals }: Props) {
       ),
     [offerAnswered, offerUnanswered, bookingIn, bookingDone]
   );
-
   const ticks = useMemo(() => buildTicks(maxY), [maxY]);
 
   const countFromSeries = useMemo(
@@ -118,26 +105,17 @@ export default function OffersBarChart({ series, totals }: Props) {
     [offerAnswered, offerUnanswered, bookingIn, bookingDone]
   );
 
-  const answeredCount =
-    (totals?.offer_answered_count as number | undefined) ??
-    countFromSeries.offer_answered;
+  const answeredCount = totals?.offer_answered_count ?? countFromSeries.offer_answered;
+  const approvedCount = totals?.offer_approved_count ?? 0;
 
-  const approvedCount = (totals?.offer_approved_count as number | undefined) ?? 0;
+  const bookedCount = totals?.booking_booked_count ?? countFromSeries.booking_in;
+  const doneCount = totals?.booking_done_count ?? countFromSeries.booking_done;
 
-  const bookedCount =
-    (totals?.booking_booked_count as number | undefined) ??
-    countFromSeries.booking_in;
-
-  const doneCount =
-    (totals?.booking_done_count as number | undefined) ??
-    countFromSeries.booking_done;
-
-  // Viktigt: här tar vi totals från API men normaliserar dem
   const amountTotals = {
-    offers_answered: toMoneyNumber(totals?.offer_answered_amount),
-    offers_approved: toMoneyNumber(totals?.offer_approved_amount),
-    bookings_booked: toMoneyNumber(totals?.booking_booked_amount),
-    bookings_done: toMoneyNumber(totals?.booking_done_amount),
+    offers_answered: toAmount(totals?.offer_answered_amount ?? 0),
+    offers_approved: toAmount(totals?.offer_approved_amount ?? 0),
+    bookings_booked: toAmount(totals?.booking_booked_amount ?? 0),
+    bookings_done: toAmount(totals?.booking_done_amount ?? 0),
     tickets_sold: 0,
   };
 
@@ -153,18 +131,11 @@ export default function OffersBarChart({ series, totals }: Props) {
   const barWidth = 14;
   const barGap = 6;
   const groupWidth = barWidth * 4 + barGap * 3;
-
-  const y = (val: number) =>
-    topPad + innerH * (1 - val / ticks[ticks.length - 1]);
+  const y = (val: number) => topPad + innerH * (1 - val / ticks[ticks.length - 1]);
 
   const [tip, setTip] = useState<null | Tip>(null);
 
-  function placeTooltip(
-    anchorX: number,
-    anchorY: number,
-    label: string,
-    value: number
-  ): Tip {
+  function placeTooltip(anchorX: number, anchorY: number, label: string, value: number): Tip {
     const boxW = 160;
     const boxH = 28;
     const gap = 10;
@@ -191,20 +162,8 @@ export default function OffersBarChart({ series, totals }: Props) {
             const yPos = y(value);
             return (
               <g key={`grid-${i}`}>
-                <line
-                  x1={leftPad}
-                  x2={leftPad + innerW}
-                  y1={yPos}
-                  y2={yPos}
-                  stroke="#E5E7EB"
-                />
-                <text
-                  x={leftPad - 7}
-                  y={yPos + 4}
-                  textAnchor="end"
-                  fill="#6B7280"
-                  fontSize="10"
-                >
+                <line x1={leftPad} x2={leftPad + innerW} y1={yPos} y2={yPos} stroke="#E5E7EB" />
+                <text x={leftPad - 7} y={yPos + 4} textAnchor="end" fill="#6B7280" fontSize="10">
                   {value}
                 </text>
               </g>
@@ -244,13 +203,7 @@ export default function OffersBarChart({ series, totals }: Props) {
                   );
                 })}
 
-                <text
-                  x={gx + groupWidth / 2}
-                  y={height - 10}
-                  textAnchor="middle"
-                  fill="#6B7280"
-                  fontSize="11"
-                >
+                <text x={gx + groupWidth / 2} y={height - 10} textAnchor="middle" fill="#6B7280" fontSize="11">
                   {week}
                 </text>
               </g>
@@ -268,22 +221,8 @@ export default function OffersBarChart({ series, totals }: Props) {
                 fill="white"
                 stroke="#E5E7EB"
               />
-              <rect
-                x={tip.boxX}
-                y={tip.boxY}
-                width={160}
-                height={28}
-                fill="white"
-                stroke="#E5E7EB"
-                rx={6}
-              />
-              <text
-                x={tip.boxX + 80}
-                y={tip.boxY + 18}
-                textAnchor="middle"
-                fontSize="11"
-                fill="#111827"
-              >
+              <rect x={tip.boxX} y={tip.boxY} width={160} height={28} fill="white" stroke="#E5E7EB" rx={6} />
+              <text x={tip.boxX + 80} y={tip.boxY + 18} textAnchor="middle" fontSize="11" fill="#111827">
                 {tip.label}: {tip.value}
               </text>
             </g>
@@ -303,20 +242,12 @@ export default function OffersBarChart({ series, totals }: Props) {
           <div className="font-semibold text-base mb-2">Offerter</div>
           <div className="grid grid-cols-2 gap-x-10 gap-y-2">
             <div>
-              <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF]">
-                Besvarade, {answeredCount} st
-              </div>
-              <div className="mt-1 text-xl font-semibold">
-                {formatAmount(amountTotals.offers_answered)} kr
-              </div>
+              <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF]">Besvarade, {answeredCount} st</div>
+              <div className="mt-1 text-xl font-semibold">{formatKr(amountTotals.offers_answered)} kr</div>
             </div>
             <div className="text-right">
-              <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF]">
-                Godkända, {approvedCount} st
-              </div>
-              <div className="mt-1 text-xl font-semibold">
-                {formatAmount(amountTotals.offers_approved)} kr
-              </div>
+              <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF]">Godkända, {approvedCount} st</div>
+              <div className="mt-1 text-xl font-semibold">{formatKr(amountTotals.offers_approved)} kr</div>
             </div>
           </div>
         </div>
@@ -325,20 +256,12 @@ export default function OffersBarChart({ series, totals }: Props) {
           <div className="font-semibold text-base mb-2">Bokningar</div>
           <div className="grid grid-cols-2 gap-x-10 gap-y-2">
             <div>
-              <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF]">
-                Bokade, {bookedCount} st
-              </div>
-              <div className="mt-1 text-xl font-semibold">
-                {formatAmount(amountTotals.bookings_booked)} kr
-              </div>
+              <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF]">Bokade, {bookedCount} st</div>
+              <div className="mt-1 text-xl font-semibold">{formatKr(amountTotals.bookings_booked)} kr</div>
             </div>
             <div className="text-right">
-              <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF]">
-                Genomförda, {doneCount} st
-              </div>
-              <div className="mt-1 text-xl font-semibold">
-                {formatAmount(amountTotals.bookings_done)} kr
-              </div>
+              <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF]">Genomförda, {doneCount} st</div>
+              <div className="mt-1 text-xl font-semibold">{formatKr(amountTotals.bookings_done)} kr</div>
             </div>
           </div>
         </div>
@@ -346,12 +269,8 @@ export default function OffersBarChart({ series, totals }: Props) {
         <div>
           <div className="font-semibold text-base mb-2">Biljetter</div>
           <div className="flex items-baseline justify-between">
-            <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF]">
-              Köpta, 0 st
-            </div>
-            <div className="text-xl font-semibold">
-              {formatAmount(amountTotals.tickets_sold)} kr
-            </div>
+            <div className="text-[11px] uppercase tracking-wide text-[#9CA3AF]">Köpta, 0 st</div>
+            <div className="text-xl font-semibold">{formatKr(amountTotals.tickets_sold)} kr</div>
           </div>
         </div>
       </div>
@@ -362,24 +281,13 @@ export default function OffersBarChart({ series, totals }: Props) {
 function LegendDot({ color, label }: { color: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-2">
-      <span
-        className="inline-block"
-        style={{ width: 10, height: 10, backgroundColor: color, borderRadius: 2 }}
-      />
+      <span className="inline-block" style={{ width: 10, height: 10, backgroundColor: color, borderRadius: 2 }} />
       <span className="text-[#194C66]/80 text-sm">{label}</span>
     </span>
   );
 }
 
-export function StatCard({
-  title,
-  value,
-  sub,
-}: {
-  title: string;
-  value: string | number;
-  sub?: string;
-}) {
+export function StatCard({ title, value, sub }: { title: string; value: string | number; sub?: string }) {
   return (
     <div className="bg-white rounded-xl shadow p-4">
       <div className="text-sm text-[#194C66]/70">{title}</div>

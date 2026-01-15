@@ -1,4 +1,3 @@
-// src/pages/api/bookings/list.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 
@@ -9,50 +8,39 @@ const supabase =
 
 type AnyRow = Record<string, any>;
 
-function normalizeBooking(r: AnyRow) {
-  const booking_number =
-    r.booking_number ?? r.booking_no ?? r.number ?? r.offer_number ?? null;
+function tidyTime(t?: string | null) {
+  if (!t) return null;
+  const s = String(t);
+  if (s.includes(":")) return s.slice(0, 5);
+  if (s.length >= 4) return `${s.slice(0, 2)}:${s.slice(2, 4)}`;
+  return s;
+}
 
+function normalizeBooking(r: AnyRow) {
   const out = {
-    from: r.departure_place ?? r.out_from ?? r.from ?? null,
-    to: r.destination ?? r.out_to ?? r.to ?? null,
-    date: r.departure_date ?? r.out_date ?? r.date ?? null,
-    time: r.departure_time ?? r.out_time ?? r.time ?? null,
+    from: r.departure_place ?? r.out_from ?? null,
+    to: r.destination ?? r.out_to ?? null,
+    date: r.departure_date ?? r.out_date ?? null,
+    time: tidyTime(r.departure_time ?? r.out_time ?? null),
   };
 
-  const hasReturn = !!(
-    r.return_departure ||
-    r.return_destination ||
-    r.return_date ||
-    r.return_time
-  );
-
+  const hasReturn = !!(r.return_departure || r.return_destination || r.return_date || r.return_time);
   const ret = hasReturn
     ? {
-        from: r.return_departure ?? r.return_from ?? null,
-        to: r.return_destination ?? r.return_to ?? null,
+        from: r.return_departure ?? null,
+        to: r.return_destination ?? null,
         date: r.return_date ?? null,
-        time: r.return_time ?? null,
+        time: tidyTime(r.return_time ?? null),
       }
     : null;
 
-  // “Kund”-kolumnen i UI: visa beställare/företag om det finns
-  const customer_reference =
-    r.customer_reference ??
-    r.contact_person ??
-    r.customer_name ??
-    r.foretag_forening ??
-    r["Namn_efternamn"] ??
-    null;
-
-  const contact_email = r.contact_email ?? r.customer_email ?? null;
-
   return {
     id: r.id,
-    booking_number,
+    booking_number: r.booking_number ?? null,
     status: r.status ?? null,
-    customer_reference,
-    contact_email,
+    // visa något vettigt i listan
+    customer_reference: r.contact_person ?? r.customer_name ?? r.foretag_forening ?? null,
+    contact_email: r.customer_email ?? null,
     passengers: r.passengers ?? null,
     total_price: r.total_price ?? 0,
     created_at: r.created_at ?? null,
@@ -61,38 +49,45 @@ function normalizeBooking(r: AnyRow) {
   };
 }
 
-const BOOKED_STATUSES = ["bokad", "planerad", "bekraftad", "confirmed"];
-const DONE_STATUSES = ["klar", "genomförd", "genomford"];
-const CANCELED_STATUSES = ["inställd", "installt", "avbokad", "makulerad"];
+function parsePage(v: any) {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
+}
+
+function parsePageSize(v: any) {
+  const raw = String(v ?? "").trim().toLowerCase();
+  if (!raw) return 20;
+  if (raw === "all") return 9999;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return 20;
+  return Math.min(9999, Math.max(5, Math.floor(n)));
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    if (req.method !== "GET")
-      return res.status(405).json({ error: "Method not allowed" });
+    if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+    if (!supabase) return res.status(500).json({ error: "Supabase-admin saknas" });
 
     const search = (req.query.search as string | undefined)?.trim() || "";
-    const statusRaw = (req.query.status as string | undefined)?.trim().toLowerCase() || "";
+    const status = (req.query.status as string | undefined)?.trim().toLowerCase() || "";
 
-    const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10) || 1);
-    const pageSize = Math.min(
-      100,
-      Math.max(5, parseInt(String(req.query.pageSize ?? "20"), 10) || 20)
-    );
+    const page = parsePage(req.query.page);
+    const pageSize = parsePageSize(req.query.pageSize);
 
     const rangeFrom = (page - 1) * pageSize;
     const rangeTo = rangeFrom + pageSize - 1;
 
-    // ✅ välj bara kolumner som finns hos dig + total_price/passengers
+    // ✅ ENBART kolumner som finns i din bookings-tabell (från din SQL)
     const sel = [
       "id",
       "booking_number",
       "status",
-      "created_at",
       "contact_person",
       "customer_name",
-      "foretag_forening",
       "customer_email",
       "passengers",
+      "total_price",
+      "created_at",
       "departure_place",
       "destination",
       "departure_date",
@@ -101,7 +96,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       "return_destination",
       "return_date",
       "return_time",
-      "total_price",
     ].join(",");
 
     let q = supabase
@@ -109,20 +103,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .select(sel, { count: "exact" })
       .order("created_at", { ascending: false });
 
-    // ✅ robust statusfilter
-    if (statusRaw) {
-      if (statusRaw === "bokad") q = q.in("status", BOOKED_STATUSES);
-      else if (statusRaw === "klar") q = q.in("status", DONE_STATUSES);
-      else if (statusRaw === "inställd") q = q.in("status", CANCELED_STATUSES);
-      else q = q.eq("status", statusRaw);
-    }
+    if (status) q = q.eq("status", status);
 
-    // ✅ sök på kolumner som finns
+    // ✅ endast sök mot kolumner som finns
     if (search) {
       q = q.or(
         [
           `booking_number.ilike.%${search}%`,
           `contact_person.ilike.%${search}%`,
+          `customer_name.ilike.%${search}%`,
           `customer_email.ilike.%${search}%`,
           `departure_place.ilike.%${search}%`,
           `destination.ilike.%${search}%`,
@@ -131,55 +120,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const resp = await q.range(rangeFrom, rangeTo);
-
-    if (resp.error) {
-      // fallback: hämta * och filtrera i Node (om någon kolumn saknas / RLS / etc)
-      const fallback = await supabase
-        .from("bookings")
-        .select("*", { count: "exact" })
-        .order("created_at", { ascending: false })
-        .range(rangeFrom, rangeTo);
-
-      if (fallback.error) throw fallback.error;
-
-      const rowsAll = (fallback.data as AnyRow[]).map(normalizeBooking);
-
-      const filtered = rowsAll.filter((r) => {
-        const okStatus = statusRaw
-          ? (() => {
-              const s = (r.status || "").toLowerCase();
-              if (statusRaw === "bokad") return BOOKED_STATUSES.includes(s);
-              if (statusRaw === "klar") return DONE_STATUSES.includes(s);
-              if (statusRaw === "inställd") return CANCELED_STATUSES.includes(s);
-              return s === statusRaw;
-            })()
-          : true;
-
-        const s = search.toLowerCase();
-        const okSearch = s
-          ? [
-              r.booking_number,
-              r.customer_reference,
-              r.contact_email,
-              r.out?.from,
-              r.out?.to,
-            ]
-              .filter(Boolean)
-              .some((x) => String(x).toLowerCase().includes(s))
-          : true;
-
-        return okStatus && okSearch;
-      });
-
-      return res.status(200).json({
-        page,
-        pageSize,
-        total: filtered.length, // ✅ korrekt vid filter
-        rows: filtered,
-      });
-    }
+    if (resp.error) throw resp.error;
 
     const rows = (resp.data as AnyRow[]).map(normalizeBooking);
+
     return res.status(200).json({
       page,
       pageSize,
@@ -188,6 +132,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (e: any) {
     console.error("/api/bookings/list error:", e?.message || e);
-    return res.status(500).json({ error: "Kunde inte hämta bokningar" });
+    return res.status(500).json({ error: e?.message || "Kunde inte hämta bokningar" });
   }
 }

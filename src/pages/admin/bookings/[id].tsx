@@ -1,4 +1,3 @@
-// src/pages/admin/bookings/[id].tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import AdminMenu from "@/components/AdminMenu";
@@ -18,7 +17,7 @@ type Booking = {
   departure_place?: string | null;
   destination?: string | null;
   departure_date?: string | null; // YYYY-MM-DD
-  departure_time?: string | null;
+  departure_time?: string | null; // HH:MM
   end_time?: string | null;
   on_site_minutes?: number | null;
   stopover_places?: string | null;
@@ -35,6 +34,8 @@ type Booking = {
   assigned_driver_id?: string | null;
   assigned_vehicle_id?: string | null;
 
+  total_price?: number | null;
+
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -44,17 +45,18 @@ const ORANGE_HOURS = 120;
 
 function clsStatusPill(s?: string | null) {
   const v = (s || "").toLowerCase();
-  if (v === "godkand") return "bg-green-100 text-green-800";
-  if (v === "bekraftad" || v === "confirmed") return "bg-emerald-100 text-emerald-800";
-  if (v === "planerad" || v === "bokad") return "bg-blue-100 text-blue-800";
+  if (v === "godkand" || v === "godkänd") return "bg-green-100 text-green-800";
+  if (v === "bekraftad" || v === "bekräftad" || v === "confirmed") return "bg-emerald-100 text-emerald-800";
+  if (v === "planerad" || v === "bokad" || v === "created") return "bg-blue-100 text-blue-800";
   if (v === "makulerad" || v === "avbojt" || v === "avböjt" || v === "inställd") return "bg-red-100 text-red-800";
   return "bg-gray-100 text-gray-700";
 }
 
 function tidyTime(t?: string | null) {
   if (!t) return null;
-  if (t.includes(":")) return t.slice(0, 5);
-  if (t.length >= 4) return `${t.slice(0, 2)}:${t.slice(2, 4)}`;
+  const s = String(t);
+  if (s.includes(":")) return s.slice(0, 5);
+  if (s.length >= 4) return `${s.slice(0, 2)}:${s.slice(2, 4)}`;
   return null;
 }
 
@@ -70,7 +72,7 @@ function prioMeta(date?: string | null, time?: string | null) {
   if (!target) return { label: "—", cls: "bg-gray-200 text-gray-700", title: "Saknar/ogiltigt datum" };
 
   const diffH = (target.getTime() - Date.now()) / 36e5;
-  if (diffH <= RED_HOURS) return { label: "Röd", cls: "bg-red-100 text-red-800", title: "<= 48h kvar" };
+  if (diffH <= RED_HOURS) return { label: "Röd", cls: "bg-red-100 text-red-800", title: "≤ 48h kvar" };
   if (diffH <= ORANGE_HOURS) return { label: "Orange", cls: "bg-amber-100 text-amber-800", title: "48–120h kvar" };
   return { label: "Grön", cls: "bg-green-100 text-green-800", title: "> 120h kvar" };
 }
@@ -95,19 +97,17 @@ function fmtDateSv(iso?: string | null) {
   try {
     return new Intl.DateTimeFormat("sv-SE", { dateStyle: "medium" }).format(dt);
   } catch {
-    const parts = iso.split("-");
-    if (parts.length !== 3) return iso;
-    const [y, m, d] = parts;
-    const months = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
-    const mi = Math.max(1, Math.min(12, parseInt(m, 10))) - 1;
-    return `${parseInt(d, 10)} ${months[mi]} ${y}`;
+    return iso;
   }
 }
-function fmtTime(t?: string | null) { return (tidyTime(t) ?? "—"); }
+
+function fmtTime(t?: string | null) {
+  return tidyTime(t) ?? "—";
+}
 
 function toNumOrNull(v: any): number | null {
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
-  if (v == null) return null;
+  if (v == null || v === "") return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
@@ -117,9 +117,15 @@ function sanitizeTel(t?: string | null) {
   return t.replace(/[^\d+]/g, "");
 }
 
+function formatSEK(v?: number | null) {
+  const n = typeof v === "number" ? v : Number(v ?? 0);
+  const safe = Number.isFinite(n) ? n : 0;
+  return safe.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 /** Normalisera API-svar till Booking */
 function normalizeBooking(x: any): Booking {
-  const b: Booking = {
+  return {
     id: String(x.id ?? x.booking_id ?? x.uuid ?? ""),
     booking_number: x.booking_number ?? x.bookingNo ?? x.number ?? null,
     status: x.status ?? x.state ?? null,
@@ -151,10 +157,105 @@ function normalizeBooking(x: any): Booking {
     assigned_driver_id: x.assigned_driver_id ?? x.driver_id ?? null,
     assigned_vehicle_id: x.assigned_vehicle_id ?? x.vehicle_id ?? null,
 
+    total_price: toNumOrNull(x.total_price),
+
     created_at: x.created_at ?? null,
     updated_at: x.updated_at ?? null,
   };
-  return b;
+}
+
+type BookingForm = {
+  status: string;
+  contact_person: string;
+  customer_email: string;
+  customer_phone: string;
+  passengers: string;
+  departure_place: string;
+  destination: string;
+  departure_date: string;
+  departure_time: string;
+  end_time: string;
+  on_site_minutes: string;
+  stopover_places: string;
+
+  return_departure: string;
+  return_destination: string;
+  return_date: string;
+  return_time: string;
+  return_end_time: string;
+  return_on_site_minutes: string;
+
+  notes: string;
+  assigned_driver_id: string;
+  assigned_vehicle_id: string;
+
+  total_price: string;
+};
+
+function bookingToForm(b: Booking): BookingForm {
+  return {
+    status: b.status ?? "",
+    contact_person: b.contact_person ?? "",
+    customer_email: b.customer_email ?? "",
+    customer_phone: b.customer_phone ?? "",
+    passengers: b.passengers == null ? "" : String(b.passengers),
+
+    departure_place: b.departure_place ?? "",
+    destination: b.destination ?? "",
+    departure_date: b.departure_date ?? "",
+    departure_time: tidyTime(b.departure_time) ?? "",
+    end_time: tidyTime(b.end_time) ?? "",
+    on_site_minutes: b.on_site_minutes == null ? "" : String(b.on_site_minutes),
+    stopover_places: b.stopover_places ?? "",
+
+    return_departure: b.return_departure ?? "",
+    return_destination: b.return_destination ?? "",
+    return_date: b.return_date ?? "",
+    return_time: tidyTime(b.return_time) ?? "",
+    return_end_time: tidyTime(b.return_end_time) ?? "",
+    return_on_site_minutes: b.return_on_site_minutes == null ? "" : String(b.return_on_site_minutes),
+
+    notes: b.notes ?? "",
+    assigned_driver_id: b.assigned_driver_id ?? "",
+    assigned_vehicle_id: b.assigned_vehicle_id ?? "",
+
+    total_price: b.total_price == null ? "" : String(b.total_price),
+  };
+}
+
+function formToPatch(f: BookingForm) {
+  const toNull = (v: any) => (v === "" || v === undefined ? null : v);
+
+  return {
+    status: toNull(f.status),
+    contact_person: toNull(f.contact_person),
+    customer_email: toNull(f.customer_email),
+    customer_phone: toNull(f.customer_phone),
+
+    passengers: f.passengers === "" ? null : Number(f.passengers),
+
+    departure_place: toNull(f.departure_place),
+    destination: toNull(f.destination),
+    departure_date: toNull(f.departure_date),
+    departure_time: toNull(f.departure_time ? tidyTime(f.departure_time) : null),
+    end_time: toNull(f.end_time ? tidyTime(f.end_time) : null),
+    on_site_minutes: f.on_site_minutes === "" ? null : Number(f.on_site_minutes),
+    stopover_places: toNull(f.stopover_places),
+
+    return_departure: toNull(f.return_departure),
+    return_destination: toNull(f.return_destination),
+    return_date: toNull(f.return_date),
+    return_time: toNull(f.return_time ? tidyTime(f.return_time) : null),
+    return_end_time: toNull(f.return_end_time ? tidyTime(f.return_end_time) : null),
+    return_on_site_minutes: f.return_on_site_minutes === "" ? null : Number(f.return_on_site_minutes),
+
+    notes: toNull(f.notes),
+
+    assigned_driver_id: toNull(f.assigned_driver_id),
+    assigned_vehicle_id: toNull(f.assigned_vehicle_id),
+
+    total_price: f.total_price === "" ? null : Number(f.total_price),
+  };
 }
 
 export default function BookingDetailPage() {
@@ -162,60 +263,63 @@ export default function BookingDetailPage() {
   const { id } = router.query as { id?: string };
 
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   const [err, setErr] = useState<string | null>(null);
   const [b, setB] = useState<Booking | null>(null);
+
   const [driverLabel, setDriverLabel] = useState<string | null>(null);
   const [vehicleLabel, setVehicleLabel] = useState<string | null>(null);
 
+  const [editMode, setEditMode] = useState(false);
+  const [form, setForm] = useState<BookingForm | null>(null);
+
   const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
+  async function refresh() {
     if (!id) return;
-    (async () => {
-      try {
-        setLoading(true);
-        setErr(null);
+    try {
+      setLoading(true);
+      setErr(null);
 
-        if (abortRef.current) abortRef.current.abort();
-        const ctrl = new AbortController();
-        abortRef.current = ctrl;
+      if (abortRef.current) abortRef.current.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
 
-        const r = await fetch(`/api/bookings/${encodeURIComponent(id)}`, { signal: ctrl.signal });
-        const j = await r.json().catch(() => ({} as any));
-        if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+      const r = await fetch(`/api/bookings/${encodeURIComponent(id)}`, { signal: ctrl.signal });
+      const j = await r.json().catch(() => ({} as any));
+      if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`);
 
-        // Stöd flera former på payload
-        const raw = j?.booking ?? j;
-        const nb = normalizeBooking(raw);
-        setB(nb);
+      const raw = j?.booking ?? j;
+      const nb = normalizeBooking(raw);
+      setB(nb);
 
-        // Etiketter: toppnivå / inbäddat / fallback
-        const drvLabel =
-          j?.driver_label ??
-          raw?.driver_label ??
-          raw?.driver?.name ??
-          raw?.assigned_driver_name ??
-          null;
+      const drvLabel =
+        j?.driver_label ?? raw?.driver_label ?? raw?.driver?.name ?? raw?.assigned_driver_name ?? null;
 
-        const vehLabel =
-          j?.vehicle_label ??
-          raw?.vehicle_label ??
-          raw?.vehicle?.name ??
-          raw?.assigned_vehicle_name ??
-          null;
+      const vehLabel =
+        j?.vehicle_label ?? raw?.vehicle_label ?? raw?.vehicle?.name ?? raw?.assigned_vehicle_name ?? null;
 
-        setDriverLabel(drvLabel ?? null);
-        setVehicleLabel(vehLabel ?? null);
-      } catch (e: any) {
-        if (e?.name !== "AbortError") setErr(e?.message || "Kunde inte hämta bokningen.");
-      } finally {
-        setLoading(false);
-      }
-    })();
+      setDriverLabel(drvLabel ?? null);
+      setVehicleLabel(vehLabel ?? null);
 
+      // om vi inte redigerar just nu – håll formuläret syncat
+      if (!editMode) setForm(bookingToForm(nb));
+    } catch (e: any) {
+      if (e?.name !== "AbortError") setErr(e?.message || "Kunde inte hämta bokningen.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    refresh();
     return () => {
       if (abortRef.current) abortRef.current.abort();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const title = useMemo(() => {
@@ -224,21 +328,22 @@ export default function BookingDetailPage() {
     return `Bokning ${nr}`;
   }, [b]);
 
-  const prio = useMemo(
-    () => prioMeta(b?.departure_date, b?.departure_time),
-    [b?.departure_date, b?.departure_time]
-  );
+  const prio = useMemo(() => prioMeta(b?.departure_date, b?.departure_time), [b?.departure_date, b?.departure_time]);
 
   const createdText = useMemo(() => {
     if (!b?.created_at) return "—";
     const dt = new Date(b.created_at);
-    return isNaN(dt.getTime()) ? b.created_at : new Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "short" }).format(dt);
+    return isNaN(dt.getTime())
+      ? b.created_at
+      : new Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "short" }).format(dt);
   }, [b?.created_at]);
 
   const updatedText = useMemo(() => {
     if (!b?.updated_at) return "—";
     const dt = new Date(b.updated_at);
-    return isNaN(dt.getTime()) ? b.updated_at : new Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "short" }).format(dt);
+    return isNaN(dt.getTime())
+      ? b.updated_at
+      : new Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "short" }).format(dt);
   }, [b?.updated_at]);
 
   function copy(text: string) {
@@ -246,10 +351,97 @@ export default function BookingDetailPage() {
     navigator.clipboard?.writeText(text).catch(() => {});
   }
 
-  const canCreateOrder = b && !["inställd","makulerad"].includes((b.status||"").toLowerCase());
-
-  // helpers to show 0 min instead of "—"
+  const canCreateOrder = b && !["inställd", "makulerad"].includes((b.status || "").toLowerCase());
   const hasOnSite = (v?: number | null) => v !== null && v !== undefined;
+
+  async function saveChanges() {
+    if (!b || !form) return;
+    try {
+      setSaving(true);
+      setErr(null);
+
+      const patch = formToPatch(form);
+
+      const r = await fetch(`/api/bookings/${encodeURIComponent(b.id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const j = await r.json().catch(() => ({} as any));
+      if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+
+      setEditMode(false);
+      await refresh();
+    } catch (e: any) {
+      setErr(e?.message || "Kunde inte spara ändringar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function resendConfirmation() {
+    if (!b) return;
+    if (!b.customer_email) {
+      setErr("Bokningen saknar kundens e-postadress (customer_email).");
+      return;
+    }
+
+    try {
+      setSending(true);
+      setErr(null);
+
+      const r = await fetch(`/api/bookings/send-confirmation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId: b.id }),
+      });
+      const j = await r.json().catch(() => ({} as any));
+      if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+
+      // liten feedback
+      alert("Bokningsbekräftelse skickad.");
+    } catch (e: any) {
+      setErr(e?.message || "Kunde inte skicka bokningen igen.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function deleteBooking() {
+    if (!b) return;
+    const ok = confirm("Är du säker på att du vill ta bort bokningen? Detta går inte att ångra.");
+    if (!ok) return;
+
+    try {
+      setDeleting(true);
+      setErr(null);
+
+      const r = await fetch(`/api/bookings/${encodeURIComponent(b.id)}`, { method: "DELETE" });
+      const j = await r.json().catch(() => ({} as any));
+      if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+
+      router.push("/admin/bookings");
+    } catch (e: any) {
+      setErr(e?.message || "Kunde inte ta bort bokningen.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  function Field({
+    label,
+    children,
+  }: {
+    label: string;
+    children: React.ReactNode;
+  }) {
+    return (
+      <label className="block">
+        <div className="text-xs text-[#194C66]/70 mb-1">{label}</div>
+        {children}
+      </label>
+    );
+  }
 
   return (
     <>
@@ -257,9 +449,10 @@ export default function BookingDetailPage() {
       <div className="min-h-screen bg-[#f5f4f0] lg:pl-64">
         <Header />
         <main className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <h1 className="text-xl font-semibold text-[#194C66]">{title}</h1>
-            <div className="flex items-center gap-2">
+
+            <div className="flex items-center gap-2 flex-wrap">
               {b && (
                 <button
                   onClick={() => copy(b.booking_number || b.id)}
@@ -269,21 +462,55 @@ export default function BookingDetailPage() {
                   Kopiera ID
                 </button>
               )}
-              {canCreateOrder && (
-                <a
-                  href={`/admin/orders/new?bookingId=${encodeURIComponent(b!.id)}`}
+
+              {b && (
+                <button
+                  onClick={() => {
+                    setEditMode((v) => !v);
+                    setForm(bookingToForm(b));
+                  }}
                   className="px-4 py-2 rounded-[25px] bg-[#194C66] text-white text-sm"
+                >
+                  {editMode ? "Avbryt" : "Redigera"}
+                </button>
+              )}
+
+              {b && (
+                <button
+                  onClick={resendConfirmation}
+                  disabled={sending}
+                  className="px-4 py-2 rounded-[25px] border text-sm text-[#194C66] disabled:opacity-50"
+                  title="Skicka bokningsbekräftelse igen"
+                >
+                  {sending ? "Skickar..." : "Skicka igen"}
+                </button>
+              )}
+
+              {b && (
+                <button
+                  onClick={deleteBooking}
+                  disabled={deleting}
+                  className="px-4 py-2 rounded-[25px] border border-red-300 text-sm text-red-700 disabled:opacity-50"
+                  title="Ta bort bokningen"
+                >
+                  {deleting ? "Tar bort..." : "Ta bort"}
+                </button>
+              )}
+
+              {canCreateOrder && b && (
+                <a
+                  href={`/admin/orders/new?bookingId=${encodeURIComponent(b.id)}`}
+                  className="px-4 py-2 rounded-[25px] bg-[#0f766e] text-white text-sm"
                   title="Skapa körorder baserat på denna bokning"
                 >
                   Skapa körorder
                 </a>
               )}
-              <a
-                href="/admin/bookings"
-                className="px-4 py-2 rounded-[25px] border text-sm text-[#194C66]"
-              >
+
+              <a href="/admin/bookings" className="px-4 py-2 rounded-[25px] border text-sm text-[#194C66]" >
                 Alla bokningar
               </a>
+
               <button
                 onClick={() => window.print()}
                 className="px-4 py-2 rounded-[25px] border text-sm text-[#194C66]"
@@ -296,22 +523,18 @@ export default function BookingDetailPage() {
 
           <div className="bg-white rounded-xl shadow p-4 space-y-6">
             {loading && <div className="text-[#194C66]/70">Laddar…</div>}
+
             {!loading && err && (
-              <div
-                className="rounded-lg bg-red-50 border border-red-200 text-red-700 p-3 text-sm"
-                role="alert"
-                aria-live="assertive"
-              >
+              <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 p-3 text-sm" role="alert" aria-live="assertive">
                 {err}
               </div>
             )}
-            {!loading && !err && !b && (
-              <div className="text-[#194C66]/70">Ingen bokning hittades.</div>
-            )}
+
+            {!loading && !err && !b && <div className="text-[#194C66]/70">Ingen bokning hittades.</div>}
 
             {!loading && b && (
               <>
-                {/* Översta kort: status + prio */}
+                {/* Översta kort: status + prio + pris */}
                 <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-[#f8fafc] rounded-lg p-4">
                     <div className="text-sm text-[#194C66]/70 mb-1">Allmänt</div>
@@ -331,10 +554,14 @@ export default function BookingDetailPage() {
                         <span title={prio.title} className={`px-2 py-0.5 rounded-full text-xs ${prio.cls}`}>
                           {prio.label}
                         </span>
-                        <span className="text-xs text-[#194C66]/70">
-                          {relUntil(b.departure_date, b.departure_time)}
-                        </span>
+                        <span className="text-xs text-[#194C66]/70">{relUntil(b.departure_date, b.departure_time)}</span>
                       </div>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <span className="font-semibold">Totalpris:</span>
+                        <span>{formatSEK(b.total_price)} kr</span>
+                      </div>
+
                       <div className="text-xs text-[#194C66]/60 pt-1">
                         Skapad: {createdText} · Uppdaterad: {updatedText}
                       </div>
@@ -345,8 +572,7 @@ export default function BookingDetailPage() {
                     <div className="text-sm text-[#194C66]/70 mb-1">Kund</div>
                     <div className="text-[#194C66] space-y-1">
                       <div>
-                        <span className="font-semibold">Beställare:</span>{" "}
-                        {b.contact_person || "—"}
+                        <span className="font-semibold">Beställare:</span> {b.contact_person || "—"}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="font-semibold">E-post:</span>{" "}
@@ -355,15 +581,13 @@ export default function BookingDetailPage() {
                             <a className="underline" href={`mailto:${b.customer_email}`}>
                               {b.customer_email}
                             </a>
-                            <button
-                              className="text-xs underline"
-                              onClick={() => copy(b.customer_email!)}
-                              title="Kopiera e-post"
-                            >
+                            <button className="text-xs underline" onClick={() => copy(b.customer_email!)} title="Kopiera e-post">
                               kopiera
                             </button>
                           </>
-                        ) : "—"}
+                        ) : (
+                          "—"
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="font-semibold">Telefon:</span>{" "}
@@ -372,15 +596,13 @@ export default function BookingDetailPage() {
                             <a className="underline" href={`tel:${sanitizeTel(b.customer_phone)}`}>
                               {b.customer_phone}
                             </a>
-                            <button
-                              className="text-xs underline"
-                              onClick={() => copy(b.customer_phone!)}
-                              title="Kopiera telefon"
-                            >
+                            <button className="text-xs underline" onClick={() => copy(b.customer_phone!)} title="Kopiera telefon">
                               kopiera
                             </button>
                           </>
-                        ) : "—"}
+                        ) : (
+                          "—"
+                        )}
                       </div>
                     </div>
                   </div>
@@ -389,18 +611,176 @@ export default function BookingDetailPage() {
                     <div className="text-sm text-[#194C66]/70 mb-1">Tilldelning (internt)</div>
                     <div className="text-[#194C66] space-y-1">
                       <div>
-                        <span className="font-semibold">Chaufför:</span>{" "}
-                        {driverLabel || "—"}
+                        <span className="font-semibold">Chaufför:</span> {driverLabel || "—"}
                       </div>
                       <div>
-                        <span className="font-semibold">Fordon:</span>{" "}
-                        {vehicleLabel || "—"}
+                        <span className="font-semibold">Fordon:</span> {vehicleLabel || "—"}
                       </div>
                     </div>
                   </div>
                 </section>
 
-                {/* Utresa / Retur */}
+                {/* EDIT MODE */}
+                {editMode && form && (
+                  <section className="bg-[#f8fafc] rounded-lg p-4">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="font-semibold text-[#194C66]">Redigera bokning</div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={saveChanges}
+                          disabled={saving}
+                          className="px-4 py-2 rounded-[25px] bg-[#194C66] text-white text-sm disabled:opacity-50"
+                        >
+                          {saving ? "Sparar..." : "Spara"}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditMode(false);
+                            setForm(bookingToForm(b));
+                          }}
+                          className="px-4 py-2 rounded-[25px] border text-sm text-[#194C66]"
+                        >
+                          Avbryt
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                      <Field label="Status">
+                        <select
+                          className="w-full border rounded px-3 py-2"
+                          value={form.status}
+                          onChange={(e) => setForm({ ...form, status: e.target.value })}
+                        >
+                          <option value="">—</option>
+                          <option value="created">created</option>
+                          <option value="bokad">bokad</option>
+                          <option value="klar">klar</option>
+                          <option value="inställd">inställd</option>
+                        </select>
+                      </Field>
+
+                      <Field label="Totalpris (SEK)">
+                        <input
+                          className="w-full border rounded px-3 py-2"
+                          value={form.total_price}
+                          onChange={(e) => setForm({ ...form, total_price: e.target.value })}
+                          placeholder="t.ex 15555.00"
+                        />
+                      </Field>
+
+                      <div />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                      <Field label="Beställare">
+                        <input className="w-full border rounded px-3 py-2" value={form.contact_person}
+                          onChange={(e) => setForm({ ...form, contact_person: e.target.value })} />
+                      </Field>
+                      <Field label="E-post">
+                        <input className="w-full border rounded px-3 py-2" value={form.customer_email}
+                          onChange={(e) => setForm({ ...form, customer_email: e.target.value })} />
+                      </Field>
+                      <Field label="Telefon">
+                        <input className="w-full border rounded px-3 py-2" value={form.customer_phone}
+                          onChange={(e) => setForm({ ...form, customer_phone: e.target.value })} />
+                      </Field>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                      <Field label="Passagerare">
+                        <input className="w-full border rounded px-3 py-2" value={form.passengers}
+                          onChange={(e) => setForm({ ...form, passengers: e.target.value })} />
+                      </Field>
+                      <Field label="assigned_driver_id">
+                        <input className="w-full border rounded px-3 py-2" value={form.assigned_driver_id}
+                          onChange={(e) => setForm({ ...form, assigned_driver_id: e.target.value })} />
+                      </Field>
+                      <Field label="assigned_vehicle_id">
+                        <input className="w-full border rounded px-3 py-2" value={form.assigned_vehicle_id}
+                          onChange={(e) => setForm({ ...form, assigned_vehicle_id: e.target.value })} />
+                      </Field>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                      <div>
+                        <div className="font-semibold text-[#194C66] mb-3">Utresa</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Field label="Från">
+                            <input className="w-full border rounded px-3 py-2" value={form.departure_place}
+                              onChange={(e) => setForm({ ...form, departure_place: e.target.value })} />
+                          </Field>
+                          <Field label="Till">
+                            <input className="w-full border rounded px-3 py-2" value={form.destination}
+                              onChange={(e) => setForm({ ...form, destination: e.target.value })} />
+                          </Field>
+                          <Field label="Datum">
+                            <input type="date" className="w-full border rounded px-3 py-2" value={form.departure_date}
+                              onChange={(e) => setForm({ ...form, departure_date: e.target.value })} />
+                          </Field>
+                          <Field label="Tid">
+                            <input type="time" className="w-full border rounded px-3 py-2" value={form.departure_time}
+                              onChange={(e) => setForm({ ...form, departure_time: e.target.value })} />
+                          </Field>
+                          <Field label="Slut (planerat)">
+                            <input type="time" className="w-full border rounded px-3 py-2" value={form.end_time}
+                              onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
+                          </Field>
+                          <Field label="På plats (min före)">
+                            <input className="w-full border rounded px-3 py-2" value={form.on_site_minutes}
+                              onChange={(e) => setForm({ ...form, on_site_minutes: e.target.value })} />
+                          </Field>
+                          <Field label="Via/Stop">
+                            <input className="w-full border rounded px-3 py-2" value={form.stopover_places}
+                              onChange={(e) => setForm({ ...form, stopover_places: e.target.value })} />
+                          </Field>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="font-semibold text-[#194C66] mb-3">Retur</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Field label="Från">
+                            <input className="w-full border rounded px-3 py-2" value={form.return_departure}
+                              onChange={(e) => setForm({ ...form, return_departure: e.target.value })} />
+                          </Field>
+                          <Field label="Till">
+                            <input className="w-full border rounded px-3 py-2" value={form.return_destination}
+                              onChange={(e) => setForm({ ...form, return_destination: e.target.value })} />
+                          </Field>
+                          <Field label="Datum">
+                            <input type="date" className="w-full border rounded px-3 py-2" value={form.return_date}
+                              onChange={(e) => setForm({ ...form, return_date: e.target.value })} />
+                          </Field>
+                          <Field label="Tid">
+                            <input type="time" className="w-full border rounded px-3 py-2" value={form.return_time}
+                              onChange={(e) => setForm({ ...form, return_time: e.target.value })} />
+                          </Field>
+                          <Field label="Slut (planerat)">
+                            <input type="time" className="w-full border rounded px-3 py-2" value={form.return_end_time}
+                              onChange={(e) => setForm({ ...form, return_end_time: e.target.value })} />
+                          </Field>
+                          <Field label="På plats (min före)">
+                            <input className="w-full border rounded px-3 py-2" value={form.return_on_site_minutes}
+                              onChange={(e) => setForm({ ...form, return_on_site_minutes: e.target.value })} />
+                          </Field>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-6">
+                      <Field label="Noteringar">
+                        <textarea
+                          className="w-full border rounded px-3 py-2 min-h-[110px]"
+                          value={form.notes}
+                          onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                        />
+                      </Field>
+                    </div>
+                  </section>
+                )}
+
+                {/* READ MODE: Utresa / Retur */}
                 <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-[#f8fafc] rounded-lg p-4">
                     <div className="text-sm text-[#194C66]/70 mb-1">Utresa</div>
@@ -441,9 +821,7 @@ export default function BookingDetailPage() {
                 {/* Noteringar */}
                 <section className="bg-[#f8fafc] rounded-lg p-4">
                   <div className="text-sm text-[#194C66]/70 mb-1">Övrig information</div>
-                  <div className="text-[#194C66] whitespace-pre-wrap">
-                    {b.notes || "—"}
-                  </div>
+                  <div className="text-[#194C66] whitespace-pre-wrap">{b.notes || "—"}</div>
                 </section>
               </>
             )}

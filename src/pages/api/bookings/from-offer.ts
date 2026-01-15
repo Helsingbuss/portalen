@@ -1,4 +1,3 @@
-// src/pages/api/bookings/from-offer.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 
@@ -48,8 +47,12 @@ function generateBookingNo(): string {
   return `BK${yy}${rnd}`;
 }
 function toMoney(v: any): number {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  if (typeof v === "string") {
+    const n = Number(v.replace(/\s/g, "").replace(",", "."));
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<any | JsonError>) {
@@ -59,7 +62,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const { offerId, offerNumber, assigned_vehicle_id, assigned_driver_id, notes } = (req.body ?? {}) as Record<string, any>;
     if (!offerId && !offerNumber) return res.status(400).json({ error: "Du måste ange offerId eller offerNumber" });
 
-    // ✅ Lägg till total_price från offers
     const selectCols = [
       "id",
       "offer_number",
@@ -90,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       "return_end_time",
       "return_on_site_minutes",
 
-      // ✅ offerten total
+      // ✅ VIKTIGT: priset från offerten
       "total_price",
     ].join(",");
 
@@ -105,7 +107,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       if (error) throw error;
       off = data;
     } else {
-      const { data, error } = await supabase.from("offers").select(selectCols).eq("offer_number", offerNumber).single();
+      const { data, error } = await supabase
+        .from("offers")
+        .select(selectCols)
+        .eq("offer_number", offerNumber)
+        .single();
       if (error) throw error;
       off = data;
     }
@@ -115,8 +121,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const customer_phone_raw = off.contact_phone ?? off.customer_phone ?? null;
     const customer_phone = customer_phone_raw ? stripSpacesDashes(customer_phone_raw) : null;
 
-    // ✅ total_price från offert (endast offertens pris)
-    const bookingTotalPrice = toMoney(off.total_price);
+    // ✅ Pris från offerten (fallbacks om du råkat ha annat fältnamn)
+    const offerPrice = toMoney(off.total_price ?? off.total_amount ?? off.amount_total ?? off.price_total ?? 0);
 
     const payloadBase = {
       status: "bokad",
@@ -131,7 +137,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       departure_date: trimOrNull(off.departure_date),
       departure_time: tidyHHMM(off.departure_time),
       end_time: tidyHHMM(off.end_time),
-      on_site_minutes: off.on_site_minutes === null || off.on_site_minutes === undefined ? null : toPosIntOrNull(off.on_site_minutes),
+      on_site_minutes: off.on_site_minutes == null ? null : toPosIntOrNull(off.on_site_minutes),
       stopover_places: trimOrNull(off.stopover_places),
 
       return_departure: trimOrNull(off.return_departure),
@@ -139,8 +145,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return_date: trimOrNull(off.return_date),
       return_time: tidyHHMM(off.return_time),
       return_end_time: tidyHHMM(off.return_end_time),
-      return_on_site_minutes:
-        off.return_on_site_minutes === null || off.return_on_site_minutes === undefined ? null : toPosIntOrNull(off.return_on_site_minutes),
+      return_on_site_minutes: off.return_on_site_minutes == null ? null : toPosIntOrNull(off.return_on_site_minutes),
 
       assigned_vehicle_id: trimOrNull(assigned_vehicle_id),
       assigned_driver_id: trimOrNull(assigned_driver_id),
@@ -150,8 +155,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       offer_id: off.id ?? null,
       offer_number: off.offer_number ?? null,
 
-      // ✅ Här är nyckeln
-      total_price: bookingTotalPrice,
+      // ✅ här hamnar priset på bokningen (från offerten)
+      total_price: offerPrice,
 
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -169,38 +174,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       const { data, error } = await supabase
         .from("bookings")
         .insert({ ...payloadBase, booking_number: bk })
-        .select(
-          [
-            "id",
-            "booking_number",
-            "status",
-            "total_price",
-            "offer_id",
-            "offer_number",
-            "contact_person",
-            "customer_email",
-            "customer_phone",
-            "passengers",
-            "departure_place",
-            "destination",
-            "departure_date",
-            "departure_time",
-            "end_time",
-            "on_site_minutes",
-            "stopover_places",
-            "return_departure",
-            "return_destination",
-            "return_date",
-            "return_time",
-            "return_end_time",
-            "return_on_site_minutes",
-            "assigned_vehicle_id",
-            "assigned_driver_id",
-            "notes",
-            "created_at",
-            "updated_at",
-          ].join(",")
-        )
+        .select("*")
         .single();
 
       if (!error && data) {
@@ -219,12 +193,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       }
     }
 
-    if (!created) throw lastErr || new Error("Kunde inte skapa bokning.");
+    if (!created) throw lastErr || new Error("Kunde inte skapa bokning (okänt fel).");
 
-    // valfritt: uppdatera offertstatus
     try {
       await supabase.from("offers").update({ status: "godkand" }).eq("id", off.id);
-    } catch {}
+    } catch {
+      // tyst
+    }
 
     return res.status(201).json({ ok: true, booking: created });
   } catch (e: any) {

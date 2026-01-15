@@ -22,6 +22,22 @@ const ZERO_TOTALS: StatsTotals = {
   booking_done_amount: 0,
 };
 
+// ✅ Viktigt: Supabase numeric kan komma som string -> vi normaliserar allt till number
+function toNumber(v: unknown): number {
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  if (v == null) return 0;
+
+  // Rensa vanliga varianter: "12 345,67", "12345.67", "12 345 kr", "SEK"
+  const cleaned = String(v)
+    .replace(/\s/g, "")
+    .replace(/kr/gi, "")
+    .replace(/sek/gi, "")
+    .replace(",", ".");
+
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
+}
+
 const formatAmount = (value: number) =>
   value.toLocaleString("sv-SE", {
     minimumFractionDigits: 2,
@@ -37,13 +53,13 @@ export default function EconomyCard({
 }: Props) {
   const t = totals ?? ZERO_TOTALS;
 
-  // 🔹 Data för kortet
-  const soldTickets = t.booking_done_count;          // "sålda biljetter"
-  const bookedCount = t.booking_booked_count;        // antal bokade
-  const revenue = t.booking_done_amount;             // intäkter (genomförda)
+  // 🔹 Data för kortet (normaliserat)
+  const soldTickets = toNumber((t as any).booking_done_count);     // "sålda biljetter"
+  const bookedCount = toNumber((t as any).booking_booked_count);   // antal bokade
+  const revenue = toNumber((t as any).booking_done_amount);        // intäkter (genomförda)
 
   const bars = useMemo(() => {
-    const values = [soldTickets, bookedCount, revenue];
+    const values: number[] = [soldTickets, bookedCount, revenue];
     const max = Math.max(1, ...values);
 
     return [
@@ -74,9 +90,7 @@ export default function EconomyCard({
   const rangeLabel = `${from} – ${to}`;
 
   return (
-    <div
-      className={`bg-white rounded-xl shadow px-5 py-4 flex flex-col ${heightClass}`}
-    >
+    <div className={`bg-white rounded-xl shadow px-5 py-4 flex flex-col ${heightClass}`}>
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div>
@@ -108,10 +122,7 @@ export default function EconomyCard({
               {bars.map((b) => {
                 const h = 40 + b.ratio * 110; // visuell höjd
                 return (
-                  <div
-                    key={b.key}
-                    className="flex flex-col items-center justify-end flex-1"
-                  >
+                  <div key={b.key} className="flex flex-col items-center justify-end flex-1">
                     <div
                       className="w-10 rounded-t-md"
                       style={{
