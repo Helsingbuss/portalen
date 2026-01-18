@@ -49,8 +49,6 @@
                     "_app_disabled/**",
                     "_ignore/**",
                     ".next/**",
-                    "dist/**",
-                    "src/mobile/**",
-                    "mobile/**"
+                    "dist/**"
                 ]
 }
