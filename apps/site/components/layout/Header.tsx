@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import OffcanvasMenu from "./OffcanvasMenu";
+import IconSwap from "../ui/IconSwap";
 
 const BRAND = "#194C66";          // din färg
 const EDGE_DESKTOP = 50;          // hur långt in från kanten (som dina röda streck ungefär)
@@ -202,11 +203,9 @@ export default function Header() {
               type="button"
               style={styles.iconBtn}
               className="hb-ico"
-              aria-label="Språk"
-              onClick={() => {}}
-            >
-              <IconGlobe />
-            </button>
+              aria-label="Språk" >
+                <IconSwap alt="Språk" whiteSrc="/brand/icons/language_vit.png" colorSrc="/brand/icons/language_farg.png" size={22} />
+</button>
           )}
 
           <div style={styles.searchWrap} ref={wrapRef} className="hb-searchwrap" onMouseEnter={() => setSearchOpen(true)} onMouseLeave={() => setSearchOpen(false)}>
@@ -226,22 +225,18 @@ export default function Header() {
               type="button"
               style={{ ...styles.iconBtn, ...styles.compactIcon }}
               className="hb-ico"
-              aria-label="Sök"
-              onClick={() => setSearchOpen((v) => !v)}
-            >
-              <IconSearch />
-            </button>
+              aria-label="Sök" >
+                <IconSwap alt="Sök" whiteSrc="/brand/icons/url_vit.png" colorSrc="/brand/icons/url_farg.png" size={22} />
+</button>
           </div>
 
           <button
             type="button"
             style={{ ...styles.iconBtn, ...styles.compactIcon }}
             className="hb-ico"
-            aria-label="Meny"
-            onClick={() => {}}
-          >
-            <IconMenu />
-          </button>
+            aria-label="Meny" >
+                <IconSwap alt="Meny" whiteSrc="/brand/icons/grind_vit.png" colorSrc="/brand/icons/grind_farg.png" size={24} />
+</button>
         </div>
       </div>
 
@@ -274,6 +269,12 @@ export default function Header() {
     </header>
   );
 }
+
+
+
+
+
+
 
 
 
