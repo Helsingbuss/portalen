@@ -204,7 +204,7 @@ export default function Header() {
               style={styles.iconBtn}
               className="hb-ico"
               aria-label="Språk" >
-                <IconSwap alt="Språk" whiteSrc="/brand/icons/language_vit.png" colorSrc="/brand/icons/language_farg.png" size={22} />
+                <IconSwap alt="Språk" whiteSrc="/brand/icons/language_vit.png" colorSrc="/brand/icons/language_farg.png" size={26} />
 </button>
           )}
 
@@ -226,7 +226,7 @@ export default function Header() {
               style={{ ...styles.iconBtn, ...styles.compactIcon }}
               className="hb-ico"
               aria-label="Sök" >
-                <IconSwap alt="Sök" whiteSrc="/brand/icons/url_vit.png" colorSrc="/brand/icons/url_farg.png" size={22} />
+                <IconSwap alt="Sök" whiteSrc="/brand/icons/url_vit.png" colorSrc="/brand/icons/url_farg.png" size={26} />
 </button>
           </div>
 
@@ -235,7 +235,7 @@ export default function Header() {
             style={{ ...styles.iconBtn, ...styles.compactIcon }}
             className="hb-ico"
             aria-label="Meny" >
-                <IconSwap alt="Meny" whiteSrc="/brand/icons/grind_vit.png" colorSrc="/brand/icons/grind_farg.png" size={24} />
+                <IconSwap alt="Meny" whiteSrc="/brand/icons/grind_vit.png" colorSrc="/brand/icons/grind_farg.png" size={30} />
 </button>
         </div>
       </div>
@@ -269,6 +269,8 @@ export default function Header() {
     </header>
   );
 }
+
+
 
 
 
