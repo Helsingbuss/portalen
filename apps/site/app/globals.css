@@ -267,39 +267,48 @@ body{
 }
 
 
-/* === MOBILE FIXES (only) === */
+
+
+/* === MOBILE FIXES (final) === */
 @media (max-width: 640px) {
 
-  /* A) Ta bort vitt band ovanför (iOS/safe-area + background) */
+  /* A) Hero ska gå hela vägen upp (inga band/kanter) */
   html, body {
-    background: #000 !important;
     margin: 0 !important;
     padding: 0 !important;
+    background: transparent !important;
+    overflow-x: hidden !important;
   }
 
-  /* Om din hero/huvud-wrapper tidigare hade "kort"-utseende med rundade hörn */
+  /* Full-bleed: tvinga hero att bli 100vw och centrera */
   .hb-hero,
-  .hb-hero-card,
   .hb-hero-wrap,
-  .hb-hero-full {
+  .hb-hero-full,
+  .hb-hero-card {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin-left: calc(50% - 50vw) !important;
+    margin-right: calc(50% - 50vw) !important;
     border-radius: 0 !important;
-    margin: 0 !important;
   }
 
-  /* Säkerställ att första sektionen går kant-till-kant på mobil */
+  /* Om någon wrapper ger padding/marginal som skapar “bandet” */
   main, #__next {
-    width: 100% !important;
-    margin: 0 !important;
     padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
   }
 
-  /* B) QuickAction / formulär: stoppa overflow och gör Avresa synlig */
+  /* B) Avresa ska INTE overflowa + ska inte vara “blank” på iPhone */
+
+  /* 1 kolumn på mobil så ingenting trycks ut */
   .hb-qam-grid,
   .hb-qam-row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    grid-template-columns: 1fr !important;
     gap: 12px !important;
   }
 
+  /* Stoppa att fält tvingar bredd */
   .hb-qam-grid > *,
   .hb-qam-row > *,
   .hb-qam-field,
@@ -308,7 +317,7 @@ body{
     box-sizing: border-box !important;
   }
 
-  /* Alla inputs/select ska hålla sig innanför */
+  /* Inputs/select ska alltid hålla sig innanför */
   .hb-qam-grid input,
   .hb-qam-grid select,
   .hb-qam-row input,
@@ -317,14 +326,26 @@ body{
     max-width: 100% !important;
   }
 
-  /* Avresa (date) blir ibland “blank” på iOS om color blir fel */
+  /* iOS: date kan se “tom” ut om textfärgen/renderer blir fel */
   input[type="date"] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    background: #fff !important;
     color: #111 !important;
     -webkit-text-fill-color: #111 !important;
-    background: #fff !important;
   }
 
-  input[type="date"]::placeholder {
-    color: rgba(0,0,0,0.55) !important;
+  /* iOS: säkerställ att själva datum-delarna får färg */
+  input[type="date"]::-webkit-datetime-edit,
+  input[type="date"]::-webkit-datetime-edit-text,
+  input[type="date"]::-webkit-datetime-edit-month-field,
+  input[type="date"]::-webkit-datetime-edit-day-field,
+  input[type="date"]::-webkit-datetime-edit-year-field {
+    color: #111 !important;
+  }
+
+  /* Om kalender-ikonen blir “osynlig” ibland */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0.85;
   }
 }
