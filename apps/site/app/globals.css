@@ -266,3 +266,65 @@ body{
   }
 }
 
+
+/* === MOBILE FIXES (only) === */
+@media (max-width: 640px) {
+
+  /* A) Ta bort vitt band ovanför (iOS/safe-area + background) */
+  html, body {
+    background: #000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Om din hero/huvud-wrapper tidigare hade "kort"-utseende med rundade hörn */
+  .hb-hero,
+  .hb-hero-card,
+  .hb-hero-wrap,
+  .hb-hero-full {
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Säkerställ att första sektionen går kant-till-kant på mobil */
+  main, #__next {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* B) QuickAction / formulär: stoppa overflow och gör Avresa synlig */
+  .hb-qam-grid,
+  .hb-qam-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .hb-qam-grid > *,
+  .hb-qam-row > *,
+  .hb-qam-field,
+  .hb-qam-field * {
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Alla inputs/select ska hålla sig innanför */
+  .hb-qam-grid input,
+  .hb-qam-grid select,
+  .hb-qam-row input,
+  .hb-qam-row select {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Avresa (date) blir ibland “blank” på iOS om color blir fel */
+  input[type="date"] {
+    color: #111 !important;
+    -webkit-text-fill-color: #111 !important;
+    background: #fff !important;
+  }
+
+  input[type="date"]::placeholder {
+    color: rgba(0,0,0,0.55) !important;
+  }
+}
