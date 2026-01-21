@@ -210,7 +210,7 @@ body{
   body {
     margin: 0 !important;
   }
-}
+
 
 /* --- Mobile fix: hero edge-to-edge (no visible band) + Avresa fits --- */
 @media (max-width: 820px) {
@@ -265,3 +265,4 @@ body{
     min-width: 0 !important;
   }
 }
+
