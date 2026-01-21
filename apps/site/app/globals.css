@@ -360,7 +360,7 @@ body{
 /* --- iOS/WebView: ta bort vit remsa högst upp (safe-area/bounce) --- */
 @media (max-width: 640px) {
   html, body {
-    background: #050607 !important; /* syns bakom notch/bounce istället för vitt */
+    background: #ffffff !important; /* syns bakom notch/bounce istället för vitt */
   }
 
   /* Flytta upp hero under safe-area så bilden känns "hela vägen upp" */
@@ -371,4 +371,5 @@ body{
     padding-top: env(safe-area-inset-top) !important;
   }
 }
+
 
