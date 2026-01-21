@@ -97,3 +97,101 @@ body{
     width: 100% !important;
   }
 }
+
+/* HB_MOBILE_FIX_START */
+@media (max-width: 768px) {
+  .hb-header-inner { padding: 12px 16px; }
+  .hb-right { gap: 10px; }
+  .hb-hideMobile { display: none !important; }
+  .hb-hamburgerBtn { position: relative; z-index: 80; }
+
+  .hb-qam-grid{
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .hb-qam-grid select,
+  .hb-qam-grid input,
+  .hb-qam-grid button{
+    width: 100%;
+  }
+  .hb-qam-grid button{ min-height: 44px; }
+}
+/* HB_MOBILE_FIX_END */
+
+/* HB_MOBILE_HEADER_QAM_FIX_START */
+/* MOBIL ONLY (rör inte desktop) */
+@media (max-width: 768px) {
+
+  /* HEADER: bara Logo + Logga in + Hamburgare */
+  button[aria-label*="Språk"],
+  button[aria-label*="Language"],
+  a[aria-label*="Språk"],
+  a[aria-label*="Language"],
+  button[aria-label*="Globe"],
+  button[aria-label*="Language selector"]{
+    display: none !important;
+  }
+
+  button[aria-label*="Sök"],
+  button[aria-label*="Search"]{
+    display: none !important;
+  }
+
+  /* flytta in header-innehåll lite (så inget hamnar bakom kanten) */
+  .hb-header-inner { padding-left: 16px !important; padding-right: 16px !important; }
+  .hb-right { gap: 10px !important; }
+
+  /* SNABBSTART / QuickActionModule: gör den mobilvänlig */
+  .hb-qam-grid{
+    display: grid !important;
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr) !important;
+    gap: 10px !important;
+    align-items: stretch !important;
+  }
+
+  .hb-qam-grid select,
+  .hb-qam-grid input{
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* gör knappen fullbredd på mobil (spannar 2 kolumner) */
+  .hb-qam-grid button{
+    width: 100% !important;
+    min-height: 44px !important;
+    grid-column: 1 / -1 !important;
+  }
+
+  /* Om första fältet är en select (Typ av resa) kan den få full bredd också */
+  .hb-qam-grid select:first-of-type{
+    grid-column: 1 / -1 !important;
+  }
+}
+/* HB_MOBILE_HEADER_QAM_FIX_END */
+
+/* HB_MOBILE_HEADER_FIX_START */
+@media (max-width: 768px) {
+  /* Visa hamburgare på mobil */
+  button[aria-label*="Meny"],
+  button[aria-label*="Menu"]{
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Dölj glob + sök på mobil (du vill bara: logo + logga in + hamburgare) */
+  button[aria-label*="Språk"],
+  button[aria-label*="Language"],
+  button[aria-label*="Globe"],
+  button[aria-label*="Sök"],
+  button[aria-label*="Search"]{
+    display: none !important;
+  }
+
+  /* Låt header ligga fint innanför kanten */
+  .hb-header-inner { padding-left: 16px !important; padding-right: 16px !important; }
+  .hb-right { gap: 12px !important; }
+}
+/* HB_MOBILE_HEADER_FIX_END */
+
