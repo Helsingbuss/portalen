@@ -271,8 +271,14 @@ body{
 
 /* === MOBILE FIXES (final) === */
 @media (max-width: 640px) {
-
-  /* A) Hero ska gå hela vägen upp (inga band/kanter) */
+  /* iPhone safe-area: låt hero-bakgrunden gå hela vägen upp */
+  .hb-hero,
+  .hb-hero-wrap,
+  .hb-hero-full,
+  .hb-hero-card {
+    padding-top: env(safe-area-inset-top) !important;
+  }
+/* A) Hero ska gå hela vägen upp (inga band/kanter) */
   html, body {
     margin: 0 !important;
     padding: 0 !important;
@@ -349,3 +355,4 @@ body{
     opacity: 0.85;
   }
 }
+
