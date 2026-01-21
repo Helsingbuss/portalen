@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import QuickActionModule from "@/components/home/QuickActionModule";
+import QuickActionModule from "./QuickActionModule";
 
 export default function HeroHeader() {
   const router = useRouter();
@@ -55,7 +55,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const styles: Record<string, any> = {
   checkList: { marginTop: 34,
     display: "grid",
     gap: 10,
@@ -156,6 +156,10 @@ const styles: Record<string, React.CSSProperties> = {
     whiteSpace: "nowrap",
   },
 };
+
+
+
+
 
 
 

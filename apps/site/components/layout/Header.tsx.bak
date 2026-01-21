@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import OffcanvasMenu from "./OffcanvasMenu";
 
 const BRAND = "#194C66";          // din färg
 const EDGE_DESKTOP = 50;          // hur långt in från kanten (som dina röda streck ungefär)
@@ -246,7 +247,7 @@ export default function Header() {
 
       <style jsx>{`
         /* Mobil: bara logo + hamburgare (du sa exakt detta) */
-        @media (max-width: 768px) {
+        @media (max-width: 240px) {
           .hb-header-inner {
             padding-left: ${EDGE_MOBILE}px !important;
             padding-right: ${EDGE_MOBILE}px !important;
@@ -273,6 +274,7 @@ export default function Header() {
     </header>
   );
 }
+
 
 
 

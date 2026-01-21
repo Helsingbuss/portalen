@@ -245,7 +245,7 @@ export default function Header() {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         /* Mobil: bara logo + hamburgare (du sa exakt detta) */
         @media (max-width: 240px) {
           .hb-header-inner {
@@ -274,6 +274,7 @@ export default function Header() {
     </header>
   );
 }
+
 
 
 

@@ -1,4 +1,4 @@
-﻿import Header from "@/components/layout/Header";
+﻿import Header from "../components/layout/Header";
 import type { Metadata } from "next";
 import "./globals.css";
 import { Open_Sans } from "next/font/google";
@@ -23,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
+
 
 
 

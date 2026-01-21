@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import QuickActionModule from "@/components/home/QuickActionModule";
+import QuickActionModule from "./QuickActionModule";
 
 export default function HeroHeader() {
   const router = useRouter();
@@ -39,32 +39,7 @@ export default function HeroHeader() {
   <div style={styles.checkRow}><span style={styles.checkIcon}>✓</span><span>Snabb återkoppling på offerter</span></div>
 </div>
 
-          <div className="hb-quickquote" style={styles.card}>
-            <Field label="Datum">
-              <input value={date} onChange={(e) => setDate(e.target.value)} placeholder="ÅÅÅÅ-MM-DD" style={styles.input} />
-            </Field>
-
-            <Field label="Från">
-              <input value={from} onChange={(e) => setFrom(e.target.value)} placeholder="Resen..." style={styles.input} />
-            </Field>
-
-            <Field label="Till">
-              <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="Antal resor..." style={styles.input} />
-            </Field>
-
-            <Field label="Antal">
-              <select value={people} onChange={(e) => setPeople(e.target.value)} style={styles.select}>
-                <option>Antal resenärer</option>
-                <option>1–8</option>
-                <option>9–19</option>
-                <option>20–39</option>
-                <option>40–59</option>
-                <option>60+</option>
-              </select>
-            </Field>
-
-            <button onClick={submit} style={styles.cta}>Få prisförslag</button>
-          </div>
+          <QuickActionModule />
         </div>
       </div>
     </section>
@@ -80,7 +55,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const styles: Record<string, any> = {
   checkList: { marginTop: 34,
     display: "grid",
     gap: 10,
@@ -131,10 +106,10 @@ const styles: Record<string, React.CSSProperties> = {
     zIndex: 2,
     maxWidth: 1400,
     margin: "0 auto",
-    padding: "150px 22px 72px",
+    padding: "170px 22px 72px",
   },
   left: { color: "white", maxWidth: 980 },
-  h1: { fontSize: 56, lineHeight: 1.08, margin: 0, fontWeight: 700 },  divider: { width: 140, height: 2, marginTop: 34, marginBottom: 40, borderRadius: 999, background: "linear-gradient(90deg, rgba(176,122,42,0.0) 0%, rgba(176,122,42,0.95) 20%, rgba(255,214,140,0.95) 50%, rgba(176,122,42,0.95) 80%, rgba(176,122,42,0.0) 100%)", boxShadow: "0 6px 16px rgba(176,122,42,0.25)" },
+  h1: { fontSize: "clamp(34px, 3.6vw, 48px)", lineHeight: 1.06, margin: 0, fontWeight: 700 },  divider: { width: 140, height: 2, marginTop: 34, marginBottom: 40, borderRadius: 999, background: "linear-gradient(90deg, rgba(176,122,42,0.0) 0%, rgba(176,122,42,0.95) 20%, rgba(255,214,140,0.95) 50%, rgba(176,122,42,0.95) 80%, rgba(176,122,42,0.0) 100%)", boxShadow: "0 6px 16px rgba(176,122,42,0.25)" },
   list: { margin: "18px 0 18px", paddingLeft: 18, display: "grid", gap: 12, maxWidth: 520 },
   li: { fontSize: 15, opacity: 0.95 },
   card: { marginTop: 52,
@@ -181,6 +156,12 @@ const styles: Record<string, React.CSSProperties> = {
     whiteSpace: "nowrap",
   },
 };
+
+
+
+
+
+
 
 
 

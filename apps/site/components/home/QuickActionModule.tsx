@@ -239,7 +239,7 @@ export default function QuickActionModule() {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @media (max-width: 980px) {
           .hb-qam-grid {
             grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -261,3 +261,4 @@ export default function QuickActionModule() {
     </div>
   );
 }
+

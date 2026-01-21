@@ -49,7 +49,7 @@ export default function SiteHeader() {
       {/* Offcanvas */}
       <OffcanvasMenu open={open} onClose={() => setOpen(false)} />
 
-      <style jsx>{`
+      <style>{`
         .hb-bar {
           position: absolute;
           top: 0;
@@ -148,4 +148,5 @@ export default function SiteHeader() {
     </>
   );
 }
+
 

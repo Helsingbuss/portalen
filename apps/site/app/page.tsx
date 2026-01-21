@@ -1,4 +1,4 @@
-﻿import HeroHeader from "@/components/home/HeroHeader";
+﻿import HeroHeader from "../components/home/HeroHeader";
 
 export default function HomePage() {
   return (
@@ -7,3 +7,4 @@ export default function HomePage() {
     </main>
   );
 }
+
