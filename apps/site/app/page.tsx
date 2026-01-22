@@ -3,7 +3,7 @@ import SectionTitle from "@/components/sections/SectionTitle";
 
 export default function HomePage() {
   return (
-    <main style={{ width: "100%" }}>
+    <main className="hb-page">
       <HeroHeader />
       <SectionTitle
   title="Bekväma bussresor  skräddarsydda för dig"
@@ -12,6 +12,7 @@ export default function HomePage() {
 </main>
   );
 }
+
 
 
 

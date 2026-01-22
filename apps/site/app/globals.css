@@ -406,3 +406,77 @@ body{
 html, body { font-family: var(--hb-font) !important; }
 *, *::before, *::after { font-family: inherit !important; }
 /* === END FORCE === */
+
+/* HB_PAGE_BG_START */
+/* Premium varm bakgrund med vignette (utan bildfil). Ligger på hela sidan under hero. */
+.hb-page{
+  width: 100%;
+  min-height: 100svh;
+  /* varm “papperston” + mjuk vignette + subtil textur via gradients */
+  background:
+    radial-gradient(1200px 700px at 50% -120px, rgba(255,255,255,0.85), rgba(255,255,255,0) 55%),
+    radial-gradient(900px 520px at 50% 0px, rgba(0,0,0,0.08), rgba(0,0,0,0) 60%),
+    radial-gradient(1200px 900px at 50% 40%, rgba(255,240,220,0.22), rgba(255,240,220,0) 65%),
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.015) 0px, rgba(0,0,0,0.015) 1px, rgba(0,0,0,0) 10px),
+    linear-gradient(180deg, #f3eee6 0%, #efe7dc 60%, #efe7dc 100%);
+}
+
+/* Sektioner får INTE vit bakgrund som “bryter” under hero */
+.hb-section{
+  background: transparent;
+  width: 100%;
+}
+.hb-section--tight{
+  padding: 34px 16px 46px;
+  margin-top: -10px; /* flyttar upp rubrik/undertext så det känns tight under hero */
+}
+
+.hb-wrap{
+  max-width: 1060px;
+  margin: 0 auto;
+}
+
+/* Rubrik-komponenten (premium-känsla) */
+.hb-st{
+  text-align: left;
+}
+.hb-st--center{
+  text-align: center;
+  margin: 0 auto;
+}
+.hb-st__line{
+  width: 64px;
+  height: 3px;
+  border-radius: 999px;
+  margin: 0 auto 14px;
+  background: linear-gradient(90deg, rgba(197,154,92,0.1), rgba(197,154,92,0.95), rgba(197,154,92,0.1));
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+}
+.hb-st--center .hb-st__line{
+  margin-left: auto;
+  margin-right: auto;
+}
+.hb-st__title{
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-size: clamp(26px, 2.2vw, 34px);
+  color: #18212b;
+  margin: 0 0 10px;
+}
+.hb-st__sub{
+  margin: 0 auto;
+  max-width: 720px;
+  font-size: clamp(14px, 1.2vw, 16px);
+  line-height: 1.55;
+  color: rgba(24,33,43,0.72);
+}
+
+/* Mobil: lite tajtare, fortfarande premium */
+@media (max-width: 640px){
+  .hb-section--tight{
+    padding: 26px 14px 36px;
+    margin-top: -14px;
+  }
+  .hb-st__line{ width: 56px; }
+}
+/* HB_PAGE_BG_END */
