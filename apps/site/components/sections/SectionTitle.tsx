@@ -3,24 +3,28 @@
 export type SectionTitleProps = {
   title: string;
   subtitle?: string;
-  align?: "left" | "center";
   className?: string;
 };
 
-export default function SectionTitle({
-  title,
-  subtitle,
-  align = "center",
-  className,
-}: SectionTitleProps) {
-  const isCenter = align === "center";
-
+export default function SectionTitle({ title, subtitle, className }: SectionTitleProps) {
   return (
-    <section className={`hb-section hb-section--tight ${className ?? ""}`}>
-      <div className={`hb-wrap hb-st ${isCenter ? "hb-st--center" : ""}`}>
-        <div className="hb-st__line" aria-hidden="true" />
-        <h2 className="hb-st__title">{title}</h2>
-        {subtitle ? <p className="hb-st__sub">{subtitle}</p> : null}
+    <section
+      aria-label={title}
+      className={className}
+      style={{
+        width: "100%",
+        padding: "28px 0 10px",
+      }}
+    >
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 18px", textAlign: "center" }}>
+        <h2 style={{ margin: 0, fontSize: "clamp(22px, 3vw, 34px)", fontWeight: 900 }}>
+          {title}
+        </h2>
+        {subtitle ? (
+          <p style={{ margin: "10px auto 0", maxWidth: 760, fontSize: "clamp(13px, 1.5vw, 16px)", opacity: 0.75, lineHeight: 1.6 }}>
+            {subtitle}
+          </p>
+        ) : null}
       </div>
     </section>
   );
