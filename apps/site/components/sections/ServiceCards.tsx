@@ -1,269 +1,252 @@
 ﻿import React from "react";
-import Link from "next/link";
 
 type Card = {
+  key: string;
   title: string;
   subtitle: string;
   text: string;
-  button: string;
-  href: string;
+  cta: string;
+  href?: string;
+  iconLetter: string; // placeholder tills du lägger in riktiga ikoner
+  image?: string;     // placeholder (valfritt). Lämna tom så blir det premium-gradient.
 };
 
 const cards: Card[] = [
   {
+    key: "foretagsresa",
     title: "Företagsresa",
     subtitle: "Smidig transport till möten, kundevent och personaldagar.",
-    text: "Vi anpassar tider, stopp och komfort – ni fokuserar på dagen.",
-    button: "Läs mer",
-    href: "#foretagsresa",
+    text: "Vi anpassar tider, stopp och komfort  ni fokuserar på dagen.",
+    cta: "Läs mer",
+    href: "#",
+    iconLetter: "F",
   },
   {
+    key: "skola-forening",
     title: "Skola & förening",
     subtitle: "Trygga resor för utflykter, cuper och läger.",
     text: "Tydlig planering, säkerhetsfokus och gott om plats för packning.",
-    button: "Läs mer",
-    href: "#skola-forening",
+    cta: "Läs mer",
+    href: "#",
+    iconLetter: "S",
   },
   {
-    title: "Event & konferens",
-    subtitle: "Professionella resor med tidspassad logistik.",
-    text: "Smidig upphämtning, tydliga tider och en ombordkänsla som håller ihop dagen.",
-    button: "Läs mer",
-    href: "#event-konferens",
-  },
-  {
+    key: "brollop",
     title: "Bröllop",
     subtitle: "Gör dagen enkel för gästerna och perfekt i tid.",
-    text: "Transport mellan vigsel, fest och hotell – tryggt och bekvämt.",
-    button: "Läs mer",
-    href: "#brollop",
+    text: "Transport mellan vigsel, fest och hotell  tryggt och bekvämt.",
+    cta: "Läs mer",
+    href: "#",
+    iconLetter: "B",
   },
   {
+    key: "sportresa",
     title: "Sportresa",
     subtitle: "Lag- och supporterresor med smart logistik.",
     text: "Plats för utrustning och tidspassat upplägg till match eller cup.",
-    button: "Läs mer",
-    href: "#sportresa",
+    cta: "Läs mer",
+    href: "#",
+    iconLetter: "S",
   },
   {
+    key: "transfer",
     title: "Transfer / Flygbuss",
-    subtitle: "Smidig resa till flyg, från centrala Helsingborg.",
+    subtitle: "Smidig resa till flyg, från centrala Helsingborg",
     text: "Boka enkelt via Helsingbuss Airport Shuttle.",
-    button: "Till Airport Shuttle",
-    href: "#transfer",
+    cta: "Till Airport Shuttle",
+    href: "/boka",
+    iconLetter: "T",
   },
 ];
 
+function CardItem({ item }: { item: Card }) {
+  return (
+    <article className="hb-svc-card">
+      {/* Bildyta (placeholder). Du kan senare sätta item.image och byta till riktig bild. */}
+      <div
+        className="hb-svc-media"
+        style={
+          item.image
+            ? { backgroundImage: `url(${item.image})` }
+            : undefined
+        }
+        aria-hidden
+      />
+
+      {/* Ikon-cirkel (placeholder-bokstav). Byt till din ikon senare. */}
+      <div className="hb-svc-icon" aria-hidden>
+        {item.iconLetter}
+      </div>
+
+      <div className="hb-svc-body">
+        <h3 className="hb-svc-title">{item.title}</h3>
+        <p className="hb-svc-sub">{item.subtitle}</p>
+        <p className="hb-svc-text">{item.text}</p>
+
+        <a className="hb-svc-btn" href={item.href || "#"}>
+          {item.cta}
+        </a>
+      </div>
+    </article>
+  );
+}
+
 export default function ServiceCards() {
   return (
-    <section aria-label="Tjänster" style={{ width: "100%", padding: "0 0 34px" }}>
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          padding: "clamp(16px, 3vw, 28px) clamp(14px, 4vw, 36px)",
-          borderRadius: 18,
-          overflow: "hidden",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
-          background:
-            "radial-gradient(1200px 300px at 20% 10%, rgba(255, 236, 210, 0.55), rgba(255,255,255,0) 55%)," +
-            "radial-gradient(900px 260px at 80% 0%, rgba(240, 210, 160, 0.45), rgba(255,255,255,0) 60%)," +
-            "linear-gradient(180deg, rgba(255,255,255,0.76), rgba(245,239,230,0.78))",
-          backdropFilter: "blur(8px)",
-        }}
-      >
-        <div
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "radial-gradient(120% 80% at 50% 20%, rgba(0,0,0,0) 35%, rgba(0,0,0,0.10) 100%)",
-            pointerEvents: "none",
-          }}
-        />
-
-        {/* Desktop/tablet */}
-        <div
-          className="hb-services-grid hb-hide-on-mobile"
-          style={{
-            position: "relative",
-            display: "grid",
-            gap: 16,
-            gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
-            alignItems: "stretch",
-          }}
-        >
+    <section className="hb-svc-wrap" aria-label="Tjänster">
+      <div className="hb-svc-inner">
+        {/* Desktop: grid */}
+        <div className="hb-svc-grid">
           {cards.map((c) => (
-            <article
-              key={c.title}
-              style={{
-                borderRadius: 16,
-                overflow: "hidden",
-                background: "rgba(255,255,255,0.78)",
-                border: "1px solid rgba(0,0,0,0.06)",
-                boxShadow: "0 10px 24px rgba(0,0,0,0.10)",
-              }}
-            >
-              <div
-                style={{
-                  height: 88,
-                  background:
-                    "linear-gradient(135deg, rgba(25,76,102,0.12), rgba(177,227,221,0.18))",
-                  position: "relative",
-                }}
-              >
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 16,
-                    bottom: -18,
-                    width: 44,
-                    height: 44,
-                    borderRadius: 999,
-                    background: "rgba(255,255,255,0.9)",
-                    border: "1px solid rgba(0,0,0,0.08)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: 800,
-                  }}
-                  aria-hidden="true"
-                >
-                  {c.title.slice(0, 1)}
-                </div>
-              </div>
-
-              <div style={{ padding: "28px 16px 16px" }}>
-                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>{c.title}</h3>
-                <p style={{ margin: "6px 0 0", fontSize: 12.5, opacity: 0.78 }}>{c.subtitle}</p>
-                <p style={{ margin: "10px 0 0", fontSize: 12.5, opacity: 0.9 }}>{c.text}</p>
-
-                <div style={{ marginTop: 12 }}>
-                  <Link
-                    href={c.href}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      height: 34,
-                      padding: "0 14px",
-                      borderRadius: 10,
-                      textDecoration: "none",
-                      fontWeight: 800,
-                      fontSize: 12.5,
-                      background: "rgba(30,30,30,0.86)",
-                      color: "#fff",
-                      border: "1px solid rgba(0,0,0,0.14)",
-                    }}
-                  >
-                    {c.button}
-                  </Link>
-                </div>
-              </div>
-            </article>
+            <CardItem key={c.key} item={c} />
           ))}
         </div>
 
-        {/* Mobile carousel */}
-        <div
-          className="hb-services-carousel hb-show-on-mobile"
-          style={{
-            position: "relative",
-            display: "flex",
-            gap: 14,
-            overflowX: "auto",
-            padding: "4px 2px",
-            scrollSnapType: "x mandatory",
-            WebkitOverflowScrolling: "touch",
-          }}
-        >
+        {/* Mobil: karusell (scroll-snap) */}
+        <div className="hb-svc-carousel" aria-label="Tjänster (scroll)">
           {cards.map((c) => (
-            <article
-              key={"m-" + c.title}
-              style={{
-                flex: "0 0 auto",
-                width: "78vw",
-                maxWidth: 360,
-                scrollSnapAlign: "start",
-                borderRadius: 18,
-                overflow: "hidden",
-                background: "rgba(255,255,255,0.82)",
-                border: "1px solid rgba(0,0,0,0.06)",
-                boxShadow: "0 12px 26px rgba(0,0,0,0.12)",
-              }}
-            >
-              <div
-                style={{
-                  height: 110,
-                  background:
-                    "linear-gradient(135deg, rgba(25,76,102,0.14), rgba(177,227,221,0.20))",
-                  position: "relative",
-                }}
-              >
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 16,
-                    bottom: -20,
-                    width: 52,
-                    height: 52,
-                    borderRadius: 999,
-                    background: "rgba(255,255,255,0.92)",
-                    border: "1px solid rgba(0,0,0,0.08)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: 900,
-                    fontSize: 18,
-                  }}
-                  aria-hidden="true"
-                >
-                  {c.title.slice(0, 1)}
-                </div>
-              </div>
-
-              <div style={{ padding: "30px 16px 16px" }}>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900 }}>{c.title}</h3>
-                <p style={{ margin: "6px 0 0", fontSize: 13, opacity: 0.8 }}>{c.subtitle}</p>
-                <p style={{ margin: "10px 0 0", fontSize: 13, opacity: 0.92 }}>{c.text}</p>
-
-                <div style={{ marginTop: 12 }}>
-                  <Link
-                    href={c.href}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      height: 38,
-                      padding: "0 14px",
-                      borderRadius: 12,
-                      textDecoration: "none",
-                      fontWeight: 900,
-                      fontSize: 13,
-                      background: "rgba(30,30,30,0.86)",
-                      color: "#fff",
-                      border: "1px solid rgba(0,0,0,0.14)",
-                    }}
-                  >
-                    {c.button}
-                  </Link>
-                </div>
-              </div>
-            </article>
+            <div key={c.key} className="hb-svc-slide">
+              <CardItem item={c} />
+            </div>
           ))}
         </div>
-
-        <style>{`
-          .hb-services-carousel::-webkit-scrollbar { height: 0px; }
-          .hb-show-on-mobile { display: none; }
-          .hb-hide-on-mobile { display: block; }
-          @media (max-width: 820px) {
-            .hb-hide-on-mobile { display: none; }
-            .hb-show-on-mobile { display: block; }
-          }
-        `}</style>
       </div>
+
+      {/* OBS: ingen styled-jsx (så TS klagar inte). Vanlig <style> funkar. */}
+      <style>{`
+        .hb-svc-wrap{
+          width: 100%;
+          padding: 28px 0 34px;
+          background: transparent; /* LÅT DIN LYXBAGRUND SYNAS GENOM ALLT */
+        }
+
+        .hb-svc-inner{
+          max-width: 1240px;
+          margin: 0 auto;
+          padding: 0 18px;
+        }
+
+        /* Desktop grid */
+        .hb-svc-grid{
+          display: none;
+          gap: 18px;
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          align-items: stretch;
+        }
+
+        /* Mobil karusell */
+        .hb-svc-carousel{
+          display: flex;
+          gap: 14px;
+          overflow-x: auto;
+          padding: 6px 2px 14px;
+          scroll-snap-type: x mandatory;
+          -webkit-overflow-scrolling: touch;
+        }
+        .hb-svc-carousel::-webkit-scrollbar{ height: 8px; }
+        .hb-svc-slide{
+          scroll-snap-align: start;
+          min-width: 78%;
+        }
+
+        /* Kort */
+        .hb-svc-card{
+          position: relative;
+          border-radius: 18px;
+          overflow: hidden;
+          background: rgba(255,255,255,0.86);
+          box-shadow: 0 10px 28px rgba(0,0,0,0.12);
+          border: 1px solid rgba(255,255,255,0.55);
+          min-height: 246px;
+        }
+
+        /* Bildyta */
+        .hb-svc-media{
+          height: 86px;
+          background-size: cover;
+          background-position: center;
+          /* Premium placeholder-gradient tills du sätter riktiga bilder */
+          background-image:
+            radial-gradient(120px 60px at 20% 20%, rgba(255,255,255,0.55), rgba(255,255,255,0)),
+            linear-gradient(135deg, rgba(32,54,66,0.22), rgba(177,227,221,0.22));
+        }
+
+        /* Ikon-cirkel */
+        .hb-svc-icon{
+          position: absolute;
+          top: 63px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 46px;
+          height: 46px;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.92);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 800;
+          font-size: 15px;
+          color: rgba(32,54,66,0.85);
+          border: 1px solid rgba(0,0,0,0.06);
+          box-shadow: 0 10px 18px rgba(0,0,0,0.10);
+        }
+
+        .hb-svc-body{
+          padding: 18px 16px 18px;
+          padding-top: 30px;
+        }
+
+        .hb-svc-title{
+          margin: 8px 0 6px;
+          font-size: 15px;
+          font-weight: 800;
+          color: #1d2937;
+        }
+
+        .hb-svc-sub{
+          margin: 0 0 10px;
+          font-size: 12.5px;
+          font-weight: 600;
+          color: rgba(29,41,55,0.72);
+        }
+
+        .hb-svc-text{
+          margin: 0 0 12px;
+          font-size: 12.5px;
+          color: rgba(29,41,55,0.78);
+          line-height: 1.35;
+        }
+
+        .hb-svc-btn{
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px 12px;
+          border-radius: 10px;
+          background: rgba(34,34,34,0.82);
+          color: #fff;
+          text-decoration: none;
+          font-weight: 700;
+          font-size: 12.5px;
+          box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+        }
+        .hb-svc-btn:hover{ background: rgba(34,34,34,0.92); }
+
+        /* BREAKPOINTS */
+        @media (min-width: 900px){
+        .hb-svc-icon{ top: 73px; }
+          .hb-svc-carousel{ display:none; }
+          .hb-svc-grid{ display:grid; }
+          .hb-svc-slide{ min-width: auto; }
+
+          .hb-svc-media{ height: 96px; }
+          .hb-svc-card{ min-height: 260px; }
+          .hb-svc-title{ font-size: 15px; }
+        }
+      `}</style>
     </section>
   );
 }
+
+
+
