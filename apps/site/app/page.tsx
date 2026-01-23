@@ -1,5 +1,5 @@
-import SectionTitle from "../components/sections/SectionTitle.tsx";
-import ServiceCards from "../components/sections/ServiceCards.tsx";
+import SectionTitle from "../components/sections/SectionTitle";
+import ServiceCards from "../components/sections/ServiceCards";
 
 ﻿import HeroHeader from "../components/home/HeroHeader";
 
