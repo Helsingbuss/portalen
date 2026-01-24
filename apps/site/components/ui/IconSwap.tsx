@@ -17,7 +17,7 @@ export default function IconSwap({
   alt,
   whiteSrc,
   colorSrc,
-  size = 22,
+  size = 24,
   href,
   onClick,
   className,
@@ -25,48 +25,44 @@ export default function IconSwap({
 }: Props) {
   const [hover, setHover] = React.useState(false);
 
-  const img = (
-    <Image
-      src={hover ? colorSrc : whiteSrc}
-      alt={alt}
-      width={size}
-      height={size}
-      style={{ display: "block" }}
-    />
-  );
-
-  const common = {
-    className,
-    title,
-    onMouseEnter: () => setHover(true),
-    onMouseLeave: () => setHover(false),
-    onFocus: () => setHover(true),
-    onBlur: () => setHover(false),
-    "aria-label": alt,
-  } as const;
-
-  if (href) {
-    return (
-      <Link href={href} {...common}>
-        {img}
-      </Link>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      {...common}
+  const content = (
+    <span
+      className={className}
+      title={title}
+      aria-label={alt}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onFocus={() => setHover(true)}
+      onBlur={() => setHover(false)}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (!onClick) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
       style={{
-        background: "transparent",
-        border: 0,
-        padding: 0,
-        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: onClick ? "pointer" : "default",
         lineHeight: 0,
+        userSelect: "none",
       }}
     >
-      {img}
-    </button>
+      <Image
+        src={hover ? colorSrc : whiteSrc}
+        alt={alt}
+        width={size}
+        height={size}
+        style={{ display: "block" }}
+      />
+    </span>
   );
+
+  if (href) return <Link href={href}>{content}</Link>;
+  return content;
 }

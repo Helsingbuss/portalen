@@ -480,3 +480,47 @@ html, body { font-family: var(--hb-font) !important; }
   .hb-st__line{ width: 56px; }
 }
 /* HB_PAGE_BG_END */
+
+
+/* HB_GLOBAL_PREMIUM_BG */
+/* En sammanhängande varm/premium bakgrund över HELA sidan */
+html, body {
+  height: 100%;
+}
+
+body {
+  /* varm paper + vignette + lätt ljus i mitten */
+  background:
+    radial-gradient(1200px 600px at 50% 0%, rgba(255, 248, 236, 0.70), rgba(255, 248, 236, 0.00) 60%),
+    radial-gradient(900px 500px at 50% 40%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.00) 70%),
+    radial-gradient(1200px 700px at 50% 105%, rgba(0, 0, 0, 0.10), rgba(0, 0, 0, 0.00) 55%),
+    linear-gradient(180deg, #f6efe6 0%, #f2e8dc 35%, #f6efe6 100%);
+  background-attachment: fixed;
+}
+
+/* Viktigt: sektioner ska INTE lägga egen bakgrund */
+.hb-section-bg,
+.hb-section,
+.hb-sectionTitle,
+.hb-servicecards-wrap {
+  background: transparent !important;
+}
+
+
+/* HB_SERVICECARDS_WIDTH_START */
+@media (min-width: 900px) {
+  /* Bredare sektion + större kort */
+  .hb-servicecards-grid{
+    max-width: 1650px !important;
+    margin: 0 auto !important;
+    gap: 26px !important;
+    grid-template-columns: repeat(5, minmax(300px, 1fr)) !important;
+    padding: 0 18px !important;
+  }
+
+  .hb-servicecard{
+    padding: 18px !important;
+  }
+}
+/* HB_SERVICECARDS_WIDTH_END */
+
