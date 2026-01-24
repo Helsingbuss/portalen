@@ -18,7 +18,7 @@ body{
 }
 
 
-/* Helsingbuss Hero – Responsive */
+/* Helsingbuss Hero â€“ Responsive */
 @media (max-width: 980px) {
   .hb-quickquote {
     grid-template-columns: 1fr 1fr !important;
@@ -49,7 +49,7 @@ body{
     display: none !important;
   }
 
-  /* om du vill: gör burger lite större på mobil */
+  /* om du vill: gr burger lite strre p mobil */
   .hb-header-burger {
     width: 46px !important;
     height: 46px !important;
@@ -129,29 +129,29 @@ body{
 /* HB_MOBILE_FIX_END */
 
 /* HB_MOBILE_HEADER_QAM_FIX_START */
-/* MOBIL ONLY (rör inte desktop) */
+/* MOBIL ONLY (rr inte desktop) */
 @media (max-width: 768px) {
 
   /* HEADER: bara Logo + Logga in + Hamburgare */
-  button[aria-label*="Språk"],
+  button[aria-label*="Sprk"],
   button[aria-label*="Language"],
-  a[aria-label*="Språk"],
+  a[aria-label*="Sprk"],
   a[aria-label*="Language"],
   button[aria-label*="Globe"],
   button[aria-label*="Language selector"]{
     display: none !important;
   }
 
-  button[aria-label*="Sök"],
+  button[aria-label*="Sk"],
   button[aria-label*="Search"]{
     display: none !important;
   }
 
-  /* flytta in header-innehåll lite (så inget hamnar bakom kanten) */
+  /* flytta in header-innehll lite (s inget hamnar bakom kanten) */
   .hb-header-inner { padding-left: 16px !important; padding-right: 16px !important; }
   .hb-right { gap: 10px !important; }
 
-  /* SNABBSTART / QuickActionModule: gör den mobilvänlig */
+  /* SNABBSTART / QuickActionModule: gr den mobilvnlig */
   .hb-qam-grid{
     display: grid !important;
     grid-template-columns: minmax(0,1fr) minmax(0,1fr) !important;
@@ -165,14 +165,14 @@ body{
     min-width: 0 !important;
   }
 
-  /* gör knappen fullbredd på mobil (spannar 2 kolumner) */
+  /* gr knappen fullbredd p mobil (spannar 2 kolumner) */
   .hb-qam-grid button{
     width: 100% !important;
     min-height: 44px !important;
     grid-column: 1 / -1 !important;
   }
 
-  /* Om första fältet är en select (Typ av resa) kan den få full bredd också */
+  /* Om frsta fltet r en select (Typ av resa) kan den f full bredd ocks */
   .hb-qam-grid select:first-of-type{
     grid-column: 1 / -1 !important;
   }
@@ -181,7 +181,7 @@ body{
 
 /* HB_MOBILE_HEADER_FIX_START */
 @media (max-width: 768px) {
-  /* Visa hamburgare på mobil */
+  /* Visa hamburgare p mobil */
   button[aria-label*="Meny"],
   button[aria-label*="Menu"]{
     display: inline-flex !important;
@@ -189,23 +189,23 @@ body{
     justify-content: center !important;
   }
 
-  /* Dölj glob + sök på mobil (du vill bara: logo + logga in + hamburgare) */
-  button[aria-label*="Språk"],
+  /* Dlj glob + sk p mobil (du vill bara: logo + logga in + hamburgare) */
+  button[aria-label*="Sprk"],
   button[aria-label*="Language"],
   button[aria-label*="Globe"],
-  button[aria-label*="Sök"],
+  button[aria-label*="Sk"],
   button[aria-label*="Search"]{
     display: none !important;
   }
 
-  /* Låt header ligga fint innanför kanten */
+  /* Lt header ligga fint innanfr kanten */
   .hb-header-inner { padding-left: 16px !important; padding-right: 16px !important; }
   .hb-right { gap: 12px !important; }
 }
 /* HB_MOBILE_HEADER_FIX_END */
 
 
-/* Om du har wrapper som skapar "kortet" med rundade hörn */
+/* Om du har wrapper som skapar "kortet" med rundade hrn */
   .hb-hero,
   .hb-hero-card,
   .hb-hero-inner,
@@ -215,7 +215,7 @@ body{
     border-top-right-radius: 0 !important;
   }
 
-  /* säkerställ att inget "luft" skapar vit remsa */
+  /* skerstll att inget "luft" skapar vit remsa */
   body {
     margin: 0 !important;
   }
@@ -224,7 +224,7 @@ body{
 /* --- Mobile fix: hero edge-to-edge (no visible band) + Avresa fits --- */
 @media (max-width: 820px) {
 
-  /* Viktigt: undvik att någon wrapper skapar "kortkänsla" med rundade hörn på mobilen */
+  /* Viktigt: undvik att ngon wrapper skapar "kortknsla" med rundade hrn p mobilen */
   .hb-hero,
   .hb-hero-card,
   .hb-hero-inner,
@@ -246,7 +246,7 @@ body{
     overflow: hidden !important;
   }
 
-  /* Fix: input/fält får inte trycka ut grid på mobil (Avresa-problemet) */
+  /* Fix: input/flt fr inte trycka ut grid p mobil (Avresa-problemet) */
   input,
   select,
   textarea {
@@ -261,7 +261,7 @@ body{
     min-width: 0 !important;
   }
 
-  /* Om din snabbstart-modul använder grid (vanligt i din kod) */
+  /* Om din snabbstart-modul anvnder grid (vanligt i din kod) */
   .hb-qam-grid,
   .hb-quick-grid,
   .hb-quickaction-grid {
@@ -280,14 +280,14 @@ body{
 
 /* === MOBILE FIXES (final) === */
 @media (max-width: 640px) {
-  /* iPhone safe-area: låt hero-bakgrunden gå hela vägen upp */
+  /* iPhone safe-area: lt hero-bakgrunden g hela vgen upp */
   .hb-hero,
   .hb-hero-wrap,
   .hb-hero-full,
   .hb-hero-card {
     padding-top: env(safe-area-inset-top) !important;
   }
-/* A) Hero ska gå hela vägen upp (inga band/kanter) */
+/* A) Hero ska g hela vgen upp (inga band/kanter) */
   html, body {
     margin: 0 !important;
     padding: 0 !important;
@@ -307,23 +307,23 @@ body{
     border-radius: 0 !important;
   }
 
-  /* Om någon wrapper ger padding/marginal som skapar “bandet” */
+  /* Om ngon wrapper ger padding/marginal som skapar â€œbandetâ€ */
   main, #__next {
     padding: 0 !important;
     margin: 0 !important;
     width: 100% !important;
   }
 
-  /* B) Avresa ska INTE overflowa + ska inte vara “blank” på iPhone */
+  /* B) Avresa ska INTE overflowa + ska inte vara â€œblankâ€ p iPhone */
 
-  /* 1 kolumn på mobil så ingenting trycks ut */
+  /* 1 kolumn p mobil s ingenting trycks ut */
   .hb-qam-grid,
   .hb-qam-row {
     grid-template-columns: 1fr !important;
     gap: 12px !important;
   }
 
-  /* Stoppa att fält tvingar bredd */
+  /* Stoppa att flt tvingar bredd */
   .hb-qam-grid > *,
   .hb-qam-row > *,
   .hb-qam-field,
@@ -332,7 +332,7 @@ body{
     box-sizing: border-box !important;
   }
 
-  /* Inputs/select ska alltid hålla sig innanför */
+  /* Inputs/select ska alltid hlla sig innanfr */
   .hb-qam-grid input,
   .hb-qam-grid select,
   .hb-qam-row input,
@@ -341,7 +341,7 @@ body{
     max-width: 100% !important;
   }
 
-  /* iOS: date kan se “tom” ut om textfärgen/renderer blir fel */
+  /* iOS: date kan se â€œtomâ€ ut om textfrgen/renderer blir fel */
   input[type="date"] {
     -webkit-appearance: none !important;
     appearance: none !important;
@@ -350,7 +350,7 @@ body{
     -webkit-text-fill-color: #111 !important;
   }
 
-  /* iOS: säkerställ att själva datum-delarna får färg */
+  /* iOS: skerstll att sjlva datum-delarna fr frg */
   input[type="date"]::-webkit-datetime-edit,
   input[type="date"]::-webkit-datetime-edit-text,
   input[type="date"]::-webkit-datetime-edit-month-field,
@@ -359,20 +359,20 @@ body{
     color: #111 !important;
   }
 
-  /* Om kalender-ikonen blir “osynlig” ibland */
+  /* Om kalender-ikonen blir â€œosynligâ€ ibland */
   input[type="date"]::-webkit-calendar-picker-indicator {
     opacity: 0.85;
   }
 }
 
 
-/* --- iOS/WebView: ta bort vit remsa högst upp (safe-area/bounce) --- */
+/* --- iOS/WebView: ta bort vit remsa hgst upp (safe-area/bounce) --- */
 @media (max-width: 640px) {
   html, body {
-    background: #ffffff !important; /* syns bakom notch/bounce istället för vitt */
+    background: #ffffff !important; /* syns bakom notch/bounce istllet fr vitt */
   }
 
-  /* Flytta upp hero under safe-area så bilden känns "hela vägen upp" */
+  /* Flytta upp hero under safe-area s bilden knns "hela vgen upp" */
   .hb-hero,
   .hb-hero-wrap,
   .hb-hero-full {
@@ -384,7 +384,7 @@ body{
 
 
 
-/* --- Font-fix: samma typsnitt på CTA-knapp och "Gör en offertförfrågan" --- */
+/* --- Font-fix: samma typsnitt p CTA-knapp och "Gr en offertfrfrgan" --- */
 .hb-quickmodule, 
 .hb-quickmodule * ,
 .hb-qam,
@@ -408,11 +408,11 @@ html, body { font-family: var(--hb-font) !important; }
 /* === END FORCE === */
 
 /* HB_PAGE_BG_START */
-/* Premium varm bakgrund med vignette (utan bildfil). Ligger på hela sidan under hero. */
+/* Premium varm bakgrund med vignette (utan bildfil). Ligger p hela sidan under hero. */
 .hb-page{
   width: 100%;
   min-height: 100svh;
-  /* varm “papperston” + mjuk vignette + subtil textur via gradients */
+  /* varm â€œpapperstonâ€ + mjuk vignette + subtil textur via gradients */
   background:
     radial-gradient(1200px 700px at 50% -120px, rgba(255,255,255,0.85), rgba(255,255,255,0) 55%),
     radial-gradient(900px 520px at 50% 0px, rgba(0,0,0,0.08), rgba(0,0,0,0) 60%),
@@ -421,14 +421,14 @@ html, body { font-family: var(--hb-font) !important; }
     linear-gradient(180deg, #f3eee6 0%, #efe7dc 60%, #efe7dc 100%);
 }
 
-/* Sektioner får INTE vit bakgrund som “bryter” under hero */
+/* Sektioner fr INTE vit bakgrund som â€œbryterâ€ under hero */
 .hb-section{
   background: transparent;
   width: 100%;
 }
 .hb-section--tight{
   padding: 34px 16px 46px;
-  margin-top: -10px; /* flyttar upp rubrik/undertext så det känns tight under hero */
+  margin-top: -10px; /* flyttar upp rubrik/undertext s det knns tight under hero */
 }
 
 .hb-wrap{
@@ -436,7 +436,7 @@ html, body { font-family: var(--hb-font) !important; }
   margin: 0 auto;
 }
 
-/* Rubrik-komponenten (premium-känsla) */
+/* Rubrik-komponenten (premium-knsla) */
 .hb-st{
   text-align: left;
 }
@@ -483,13 +483,13 @@ html, body { font-family: var(--hb-font) !important; }
 
 
 /* HB_GLOBAL_PREMIUM_BG */
-/* En sammanhängande varm/premium bakgrund över HELA sidan */
+/* En sammanhngande varm/premium bakgrund ver HELA sidan */
 html, body {
   height: 100%;
 }
 
 body {
-  /* varm paper + vignette + lätt ljus i mitten */
+  /* varm paper + vignette + ltt ljus i mitten */
   background:
     radial-gradient(1200px 600px at 50% 0%, rgba(255, 248, 236, 0.70), rgba(255, 248, 236, 0.00) 60%),
     radial-gradient(900px 500px at 50% 40%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.00) 70%),
@@ -498,7 +498,7 @@ body {
   background-attachment: fixed;
 }
 
-/* Viktigt: sektioner ska INTE lägga egen bakgrund */
+/* Viktigt: sektioner ska INTE lgga egen bakgrund */
 .hb-section-bg,
 .hb-section,
 .hb-sectionTitle,
@@ -509,7 +509,7 @@ body {
 
 /* HB_SERVICECARDS_WIDTH_START */
 @media (min-width: 900px) {
-  /* Bredare sektion + större kort */
+  /* Bredare sektion + strre kort */
   .hb-servicecards-grid{
     max-width: 1650px !important;
     margin: 0 auto !important;
@@ -523,4 +523,111 @@ body {
   }
 }
 /* HB_SERVICECARDS_WIDTH_END */
+
+
+/* HB_ST_GOLDLINE_CSS */
+.hb-st__gold{
+  width: 56px;
+  height: 2px;
+  border-radius: 999px;
+  margin: 0 0 14px 0;
+  background: linear-gradient(90deg, rgba(214,179,92,0.0), rgba(214,179,92,0.95), rgba(214,179,92,0.0));
+  box-shadow: 0 10px 22px rgba(214,179,92,0.10);
+}
+/* HB_ST_GOLDLINE_CSS_END */
+
+/* HB_SC_SIZING_CSS */
+.hb-sc-grid{
+  display:grid;
+  gap: 18px;
+}
+@media (min-width: 900px){
+  .hb-sc-grid{
+    grid-template-columns: repeat(3, minmax(360px, 1fr));
+    justify-content: center;
+  }
+  .hb-sc-card{
+    max-width: 420px;
+  }
+}
+@media (max-width: 899px){
+  /* Mobil: alla boxar samma storlek */
+  .hb-sc-card{
+    height: 420px;
+    display:flex;
+    flex-direction: column;
+  }
+  .hb-sc-card .hb-sc-body{
+    flex: 1 1 auto;
+    display:flex;
+    flex-direction: column;
+  }
+  .hb-sc-card .hb-sc-cta{
+    margin-top: auto;
+  }
+}
+/* HB_SC_SIZING_CSS_END */
+/* === HB SectionTitle styling === */
+.hb-section-title{
+  padding: 28px 18px 10px;
+  text-align: center;
+}
+.hb-section-title__gold{
+  width: 56px;
+  height: 3px;
+  margin: 0 auto 14px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #b88a2b, #f2d27a, #b88a2b);
+  box-shadow: 0 8px 20px rgba(184,138,43,0.22);
+}
+.hb-section-title__h2{
+  margin: 0;
+  font-size: 34px;
+  font-weight: 800;
+}
+.hb-section-title__p{
+  margin: 10px auto 0;
+  max-width: 760px;
+  color: rgba(0,0,0,0.60);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* HB_SECTIONTITLE_START */
+.hb-section-title{
+  padding: 42px 16px 18px;
+  width: 100%;
+}
+
+.hb-goldline{
+  width: 72px;
+  height: 3px;
+  border-radius: 999px;
+  margin: 0 auto 14px;
+  background: linear-gradient(90deg, #c8a24a, #f0d37c, #c8a24a);
+  box-shadow: 0 10px 24px rgba(200,162,74,0.25);
+}
+
+.hb-st__title{
+  margin: 0;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  font-size: clamp(26px, 3vw, 40px);
+  color: #0e1116;
+  text-align: left;
+}
+
+.hb-st__subtitle{
+  margin: 10px auto 0;
+  max-width: 920px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: rgba(14,17,22,0.72);
+  text-align: left;
+}
+
+.is-center{
+  text-align: center !important;
+}
+/* HB_SECTIONTITLE_END */
 
