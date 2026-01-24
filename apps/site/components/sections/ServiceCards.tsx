@@ -1,252 +1,246 @@
-﻿import React from "react";
+﻿"use client";
 
-type Card = {
+import React from "react";
+import Link from "next/link";
+
+//
+// ======= HÄR ÄNDRAR DU STORLEKAR SNABBT =======
+// Desktop (dator/laptop):
+const DESKTOP_CARD_MIN = 240; // gör större/mindre (t.ex. 360)
+const DESKTOP_CARD_MAX = 280; // max-bredd per kort
+const DESKTOP_GAP = 15;       // avstånd mellan kort
+
+// Mobil (karusell):
+const MOBILE_CARD_WIDTH = 300;   // fast bredd så alla blir lika stora
+const MOBILE_CARD_MIN_H = 260;   // fast höjd-ish (alla lika stora)
+const IMAGE_H = 100;             // bildhöjd (påverkar även ikonens placering)
+const ICON_SIZE = 46;            // ikon-cirkel storlek
+// =============================================
+
+type CardItem = {
   key: string;
   title: string;
-  subtitle: string;
-  text: string;
+  p1: string;
+  p2?: string;
+  href: string;
   cta: string;
-  href?: string;
-  iconLetter: string; // placeholder tills du lägger in riktiga ikoner
-  image?: string;     // placeholder (valfritt). Lämna tom så blir det premium-gradient.
+  iconLetter: string;
 };
 
-const cards: Card[] = [
+const items: CardItem[] = [
   {
-    key: "foretagsresa",
+    key: "foretag",
     title: "Företagsresa",
-    subtitle: "Smidig transport till möten, kundevent och personaldagar.",
-    text: "Vi anpassar tider, stopp och komfort  ni fokuserar på dagen.",
+    p1: "Smidig transport till möten, kundevent och personaldagar.",
+    p2: "Vi anpassar tider, stopp och komfort – ni fokuserar på dagen.",
+    href: "/tjanster/foretag",
     cta: "Läs mer",
-    href: "#",
     iconLetter: "F",
   },
   {
-    key: "skola-forening",
+    key: "skola",
     title: "Skola & förening",
-    subtitle: "Trygga resor för utflykter, cuper och läger.",
-    text: "Tydlig planering, säkerhetsfokus och gott om plats för packning.",
+    p1: "Trygga resor för utflykter, cuper och läger.",
+    p2: "Tydlig planering, säkerhetsfokus och gott om plats för packning.",
+    href: "/tjanster/skola",
     cta: "Läs mer",
-    href: "#",
     iconLetter: "S",
   },
   {
     key: "brollop",
     title: "Bröllop",
-    subtitle: "Gör dagen enkel för gästerna och perfekt i tid.",
-    text: "Transport mellan vigsel, fest och hotell  tryggt och bekvämt.",
+    p1: "Gör dagen enkel för gästerna och perfekt i tid.",
+    p2: "Transport mellan vigsel, fest och hotell – tryggt och bekvämt.",
+    href: "/tjanster/brollop",
     cta: "Läs mer",
-    href: "#",
     iconLetter: "B",
   },
   {
-    key: "sportresa",
+    key: "sport",
     title: "Sportresa",
-    subtitle: "Lag- och supporterresor med smart logistik.",
-    text: "Plats för utrustning och tidspassat upplägg till match eller cup.",
+    p1: "Lag- och supporterresor med smart logistik.",
+    p2: "Plats för utrustning och tidspassat upplägg till match eller cup.",
+    href: "/tjanster/sport",
     cta: "Läs mer",
-    href: "#",
     iconLetter: "S",
   },
   {
     key: "transfer",
     title: "Transfer / Flygbuss",
-    subtitle: "Smidig resa till flyg, från centrala Helsingborg",
-    text: "Boka enkelt via Helsingbuss Airport Shuttle.",
+    p1: "Smidig resa till flyg, från centrala Helsingborg",
+    p2: "Boka enkelt via Helsingbuss Airport Shuttle.",
+    href: "https://hbshuttle.se",
     cta: "Till Airport Shuttle",
-    href: "/boka",
     iconLetter: "T",
   },
 ];
 
-function CardItem({ item }: { item: Card }) {
+function Card({ item }: { item: CardItem }) {
   return (
-    <article className="hb-svc-card">
-      {/* Bildyta (placeholder). Du kan senare sätta item.image och byta till riktig bild. */}
-      <div
-        className="hb-svc-media"
-        style={
-          item.image
-            ? { backgroundImage: `url(${item.image})` }
-            : undefined
-        }
-        aria-hidden
-      />
-
-      {/* Ikon-cirkel (placeholder-bokstav). Byt till din ikon senare. */}
-      <div className="hb-svc-icon" aria-hidden>
-        {item.iconLetter}
+    <div className="hb-svc-card">
+      {/* IMAGE (kant-till-kant) */}
+      <div className="hb-svc-img" aria-hidden="true">
+        <div className="hb-svc-img__fill" />
       </div>
 
-      <div className="hb-svc-body">
+      {/* ICON CIRCLE (centrerad + 50/50 överlapp) */}
+      <div className="hb-svc-ic">
+        <span className="hb-svc-ic__txt">{item.iconLetter}</span>
+      </div>
+
+      {/* CONTENT */}
+      <div className="hb-svc-content">
         <h3 className="hb-svc-title">{item.title}</h3>
-        <p className="hb-svc-sub">{item.subtitle}</p>
-        <p className="hb-svc-text">{item.text}</p>
+        <p className="hb-svc-p">{item.p1}</p>
+        {item.p2 ? <p className="hb-svc-p hb-svc-p2">{item.p2}</p> : null}
 
-        <a className="hb-svc-btn" href={item.href || "#"}>
-          {item.cta}
-        </a>
+        <div className="hb-svc-btnrow">
+          <Link className="hb-svc-btn" href={item.href} target={item.href.startsWith("http") ? "_blank" : undefined}>
+            {item.cta}
+          </Link>
+        </div>
       </div>
-    </article>
+    </div>
   );
 }
 
 export default function ServiceCards() {
   return (
     <section className="hb-svc-wrap" aria-label="Tjänster">
-      <div className="hb-svc-inner">
-        {/* Desktop: grid */}
-        <div className="hb-svc-grid">
-          {cards.map((c) => (
-            <CardItem key={c.key} item={c} />
-          ))}
-        </div>
-
-        {/* Mobil: karusell (scroll-snap) */}
-        <div className="hb-svc-carousel" aria-label="Tjänster (scroll)">
-          {cards.map((c) => (
-            <div key={c.key} className="hb-svc-slide">
-              <CardItem item={c} />
-            </div>
-          ))}
-        </div>
+      {/* Desktop grid */}
+      <div className="hb-svc-grid">
+        {items.map((it) => (
+          <Card key={it.key} item={it} />
+        ))}
       </div>
 
-      {/* OBS: ingen styled-jsx (så TS klagar inte). Vanlig <style> funkar. */}
+      {/* Mobil karusell */}
+      <div className="hb-svc-carousel" aria-hidden="true">
+        {items.map((it) => (
+          <div key={it.key} className="hb-svc-slide">
+            <Card item={it} />
+          </div>
+        ))}
+      </div>
+
       <style>{`
         .hb-svc-wrap{
-          width: 100%;
-          padding: 28px 0 34px;
-          background: transparent; /* LÅT DIN LYXBAGRUND SYNAS GENOM ALLT */
+          padding: 10px 14px 28px;
         }
 
-        .hb-svc-inner{
-          max-width: 1240px;
-          margin: 0 auto;
-          padding: 0 18px;
-        }
-
-        /* Desktop grid */
-        .hb-svc-grid{
-          display: none;
-          gap: 18px;
-          grid-template-columns: repeat(5, minmax(0, 1fr));
-          align-items: stretch;
-        }
-
-        /* Mobil karusell */
-        .hb-svc-carousel{
-          display: flex;
-          gap: 14px;
-          overflow-x: auto;
-          padding: 6px 2px 14px;
-          scroll-snap-type: x mandatory;
-          -webkit-overflow-scrolling: touch;
-        }
-        .hb-svc-carousel::-webkit-scrollbar{ height: 8px; }
-        .hb-svc-slide{
-          scroll-snap-align: start;
-          min-width: 78%;
-        }
-
-        /* Kort */
+        /* CARD */
         .hb-svc-card{
           position: relative;
           border-radius: 18px;
           overflow: hidden;
           background: rgba(255,255,255,0.86);
-          box-shadow: 0 10px 28px rgba(0,0,0,0.12);
-          border: 1px solid rgba(255,255,255,0.55);
-          min-height: 246px;
+          border: 1px solid rgba(255,255,255,0.70);
+          box-shadow: 0 12px 30px rgba(0,0,0,0.10);
+          min-height: ${MOBILE_CARD_MIN_H}px; /* mobil-lika stora */
         }
 
-        /* Bildyta */
-        .hb-svc-media{
-          height: 86px;
-          background-size: cover;
-          background-position: center;
-          /* Premium placeholder-gradient tills du sätter riktiga bilder */
-          background-image:
-            radial-gradient(120px 60px at 20% 20%, rgba(255,255,255,0.55), rgba(255,255,255,0)),
-            linear-gradient(135deg, rgba(32,54,66,0.22), rgba(177,227,221,0.22));
+        /* IMAGE */
+        .hb-svc-img{
+          height: ${IMAGE_H}px;
+          width: 100%;
+          position: relative;
+          overflow: hidden;
         }
-
-        /* Ikon-cirkel */
-        .hb-svc-icon{
+        .hb-svc-img__fill{
           position: absolute;
-          top: 63px;
+          inset: 0; /* HELT ut i kanterna */
+          background:
+            linear-gradient(180deg, rgba(210,224,224,0.95), rgba(240,248,248,0.80));
+        }
+
+        /* ICON */
+        .hb-svc-ic{
+          position: absolute;
           left: 50%;
-          transform: translateX(-50%);
-          width: 46px;
-          height: 46px;
+          top: ${IMAGE_H}px; /* samma som image-höjden */
+          transform: translate(-50%, -50%); /* 50/50 över bild/vitt */
+          width: ${ICON_SIZE}px;
+          height: ${ICON_SIZE}px;
           border-radius: 999px;
-          background: rgba(255,255,255,0.92);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 800;
-          font-size: 15px;
-          color: rgba(32,54,66,0.85);
+          background: rgba(255,255,255,0.96);
           border: 1px solid rgba(0,0,0,0.06);
-          box-shadow: 0 10px 18px rgba(0,0,0,0.10);
+          box-shadow: 0 10px 18px rgba(0,0,0,0.12);
+          display: grid;
+          place-items: center;
+          z-index: 3;
+        }
+        .hb-svc-ic__txt{
+          font-weight: 900;
+          font-size: 14px;
+          color: #1D2937;
         }
 
-        .hb-svc-body{
-          padding: 18px 16px 18px;
-          padding-top: 30px;
+        /* CONTENT (mindre "luft") */
+        .hb-svc-content{
+          padding: 18px 18px 16px;
+          padding-top: 26px; /* pga ikonöver-lapp */
         }
-
         .hb-svc-title{
-          margin: 8px 0 6px;
-          font-size: 15px;
-          font-weight: 800;
-          color: #1d2937;
+          margin: 0 0 6px;
+          font-weight: 900;
+          color: #0f172a;
+          font-size: 16px;
         }
-
-        .hb-svc-sub{
-          margin: 0 0 10px;
-          font-size: 12.5px;
-          font-weight: 600;
-          color: rgba(29,41,55,0.72);
-        }
-
-        .hb-svc-text{
-          margin: 0 0 12px;
-          font-size: 12.5px;
-          color: rgba(29,41,55,0.78);
+        .hb-svc-p{
+          margin: 0;
           line-height: 1.35;
+          color: rgba(15, 23, 42, 0.70);
+          font-size: 13px;
+        }
+        .hb-svc-p2{
+          margin-top: 10px; /* mindre än innan */
         }
 
+        .hb-svc-btnrow{
+          margin-top: 14px;
+        }
         .hb-svc-btn{
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 8px 12px;
+          display: inline-block;
+          padding: 9px 14px;
           border-radius: 10px;
-          background: rgba(34,34,34,0.82);
+          background: rgba(0,0,0,0.72);
           color: #fff;
+          font-weight: 800;
+          font-size: 13px;
           text-decoration: none;
-          font-weight: 700;
-          font-size: 12.5px;
-          box-shadow: 0 8px 16px rgba(0,0,0,0.12);
         }
-        .hb-svc-btn:hover{ background: rgba(34,34,34,0.92); }
 
-        /* BREAKPOINTS */
-        @media (min-width: 900px){
-        .hb-svc-icon{ top: 73px; }
+        /* DESKTOP GRID */
+        .hb-svc-grid{
+          display: none;
+          gap: ${DESKTOP_GAP}px;
+          justify-content: center;
+        }
+        .hb-svc-carousel{
+          display: flex;
+          gap: 14px;
+          overflow-x: auto;
+          padding: 6px 2px 0;
+          scroll-snap-type: x mandatory;
+          -webkit-overflow-scrolling: touch;
+        }
+        .hb-svc-slide{
+          width: ${MOBILE_CARD_WIDTH}px;
+          min-width: ${MOBILE_CARD_WIDTH}px; /* alla lika breda */
+          scroll-snap-align: start;
+        }
+
+        @media (min-width: 980px){
           .hb-svc-carousel{ display:none; }
-          .hb-svc-grid{ display:grid; }
-          .hb-svc-slide{ min-width: auto; }
-
-          .hb-svc-media{ height: 96px; }
-          .hb-svc-card{ min-height: 260px; }
-          .hb-svc-title{ font-size: 15px; }
+          .hb-svc-grid{
+            display: grid;
+            grid-template-columns: repeat(5, minmax(${DESKTOP_CARD_MIN}px, ${DESKTOP_CARD_MAX}px));
+          }
+          .hb-svc-card{
+            min-height: unset; /* desktop får växa naturligt */
+          }
         }
       `}</style>
     </section>
   );
 }
-
-
-
