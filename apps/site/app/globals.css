@@ -631,3 +631,16 @@ body {
 }
 /* HB_SECTIONTITLE_END */
 
+ 
+/* HB_NO_HORIZONTAL_SCROLL_START */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+/* HB_NO_HORIZONTAL_SCROLL_END */
