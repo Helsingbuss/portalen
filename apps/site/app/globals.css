@@ -644,3 +644,14 @@ html, body {
   box-sizing: border-box;
 }
 /* HB_NO_HORIZONTAL_SCROLL_END */
+
+
+/* HB: service cards visibility */
+.hb-desktop-only { display: none; }
+.hb-mobile-only { display: block; }
+
+/* Desktop: visa grid, dölj karusell */
+@media (min-width: 980px) {
+  .hb-desktop-only { display: block; }
+  .hb-mobile-only { display: none; }
+}

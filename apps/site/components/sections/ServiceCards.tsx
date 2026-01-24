@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import Image from "next/image";
 
 type Card = {
@@ -21,12 +21,12 @@ const DESKTOP_GAP = 10;       // du vill ha 10 nu
 const MOBILE_CARD_WIDTH = 300;   // fast bredd så alla blir lika stora
 const MOBILE_CARD_MIN_H = 260;   // fast höjd-ish (alla lika stora)
 const IMAGE_H = 140;             // bildhöjd
-const ICON_SIZE = 46;            // ikon-cirkel storlek
+const ICON_SIZE = 50;            // ikon-cirkel storlek
 const ICON_TO_TITLE = 20;        // mellan cirkel och rubrik (du sa 20)
 
 // Bild/overlay lyx
-const IMAGE_BLUR_PX = 1.2;       // <-- ÄNDRA BLURR-STYRKA HÄR (t.ex 0.81.6)
-const OVERLAY_OPACITY = 0.85;    // <-- ÄNDRA OVERLAY-STYRKA HÄR (0.650.95)
+const IMAGE_BLUR_PX = 0.9;       // <-- ÄNDRA BLURR-STYRKA HÄR (t.ex 0.81.6)
+const OVERLAY_OPACITY = 0.50;    // <-- ÄNDRA OVERLAY-STYRKA HÄR (0.650.95)
 // =============================================
 
 const CARDS: Card[] = [
@@ -76,7 +76,7 @@ export default function ServiceCards() {
   return (
     <section style={wrap}>
       {/* Desktop grid */}
-      <div style={desktopWrap}>
+      <div className="hb-desktop-only" style={desktopWrap}>
         <div style={desktopGrid}>
           {CARDS.map((item) => (
             <CardItem key={item.title} item={item} />
@@ -85,7 +85,7 @@ export default function ServiceCards() {
       </div>
 
       {/* Mobile carousel */}
-      <div style={mobileWrap}>
+      <div className="hb-mobile-only" style={mobileWrap}>
         <div style={mobileRail} aria-label="Tjänster (karusell)">
           {CARDS.map((item) => (
             <div key={item.title} style={mobileSnap}>
@@ -228,7 +228,7 @@ const wrap: React.CSSProperties = {
 const desktopWrap: React.CSSProperties = {
   maxWidth: 1320,
   margin: "0 auto",
-  display: "none",
+  display: "block",
 };
 
 const desktopGrid: React.CSSProperties = {
