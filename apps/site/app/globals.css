@@ -344,8 +344,6 @@ body{
   /* iOS: date kan se â€œtomâ€ ut om textfrgen/renderer blir fel */
   input[type="date"] {
     -webkit-appearance: none !important;
-    appearance: none !important;
-    background: #fff !important;
     color: #111 !important;
     -webkit-text-fill-color: #111 !important;
   }
@@ -368,8 +366,6 @@ body{
 
 /* --- iOS/WebView: ta bort vit remsa hgst upp (safe-area/bounce) --- */
 @media (max-width: 640px) {
-  html, body {
-    background: #ffffff !important; /* syns bakom notch/bounce istllet fr vitt */
   }
 
   /* Flytta upp hero under safe-area s bilden knns "hela vgen upp" */
@@ -379,11 +375,6 @@ body{
     margin-top: calc(env(safe-area-inset-top) * -1) !important;
     padding-top: env(safe-area-inset-top) !important;
   }
-}
-
-
-
-
 /* --- Font-fix: samma typsnitt p CTA-knapp och "Gr en offertfrfrgan" --- */
 .hb-quickmodule, 
 .hb-quickmodule * ,
@@ -407,79 +398,7 @@ html, body { font-family: var(--hb-font) !important; }
 *, *::before, *::after { font-family: inherit !important; }
 /* === END FORCE === */
 
-/* HB_PAGE_BG_START */
-/* Premium varm bakgrund med vignette (utan bildfil). Ligger p hela sidan under hero. */
-.hb-page{
-  width: 100%;
-  min-height: 100svh;
-  /* varm â€œpapperstonâ€ + mjuk vignette + subtil textur via gradients */
-  background:
-    radial-gradient(1200px 700px at 50% -120px, rgba(255,255,255,0.85), rgba(255,255,255,0) 55%),
-    radial-gradient(900px 520px at 50% 0px, rgba(0,0,0,0.08), rgba(0,0,0,0) 60%),
-    radial-gradient(1200px 900px at 50% 40%, rgba(255,240,220,0.22), rgba(255,240,220,0) 65%),
-    repeating-linear-gradient(0deg, rgba(0,0,0,0.015) 0px, rgba(0,0,0,0.015) 1px, rgba(0,0,0,0) 10px),
-    linear-gradient(180deg, #f3eee6 0%, #efe7dc 60%, #efe7dc 100%);
-}
 
-/* Sektioner fr INTE vit bakgrund som â€œbryterâ€ under hero */
-.hb-section{
-  background: transparent;
-  width: 100%;
-}
-.hb-section--tight{
-  padding: 34px 16px 46px;
-  margin-top: -10px; /* flyttar upp rubrik/undertext s det knns tight under hero */
-}
-
-.hb-wrap{
-  max-width: 1060px;
-  margin: 0 auto;
-}
-
-/* Rubrik-komponenten (premium-knsla) */
-.hb-st{
-  text-align: left;
-}
-.hb-st--center{
-  text-align: center;
-  margin: 0 auto;
-}
-.hb-st__line{
-  width: 64px;
-  height: 3px;
-  border-radius: 999px;
-  margin: 0 auto 14px;
-  background: linear-gradient(90deg, rgba(197,154,92,0.1), rgba(197,154,92,0.95), rgba(197,154,92,0.1));
-  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-}
-.hb-st--center .hb-st__line{
-  margin-left: auto;
-  margin-right: auto;
-}
-.hb-st__title{
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  font-size: clamp(26px, 2.2vw, 34px);
-  color: #18212b;
-  margin: 0 0 10px;
-}
-.hb-st__sub{
-  margin: 0 auto;
-  max-width: 720px;
-  font-size: clamp(14px, 1.2vw, 16px);
-  line-height: 1.55;
-  color: rgba(24,33,43,0.72);
-}
-
-/* Mobil: lite tajtare, fortfarande premium */
-@media (max-width: 640px){
-  .hb-section--tight{
-    padding: 26px 14px 36px;
-    margin-top: -14px;
-  }
-  .hb-st__line{ width: 56px; }
-}
-/* HB_PAGE_BG_END */
 
 
 /* HB_GLOBAL_PREMIUM_BG */
@@ -507,22 +426,7 @@ body {
 }
 
 
-/* HB_SERVICECARDS_WIDTH_START */
-@media (min-width: 900px) {
-  /* Bredare sektion + strre kort */
-  .hb-servicecards-grid{
-    max-width: 1650px !important;
-    margin: 0 auto !important;
-    gap: 26px !important;
-    grid-template-columns: repeat(5, minmax(300px, 1fr)) !important;
-    padding: 0 18px !important;
-  }
 
-  .hb-servicecard{
-    padding: 18px !important;
-  }
-}
-/* HB_SERVICECARDS_WIDTH_END */
 
 
 /* HB_ST_GOLDLINE_CSS */
@@ -666,3 +570,65 @@ html, body {
   .hb-mobile-only{ display:none; }
 }
 /* HB_SERVICECARDS_VISIBILITY_END */
+\n\n\n
+
+/* HB_PAGE_BG_START */
+:root{
+}
+html, body{
+}
+/* HB_PAGE_BG_END */
+
+/* HB_SERVICECARDS_SHADOWS_START */
+/* Desktop: behåll premium shadow */
+@media (min-width: 980px){
+  .hb-servicecard{
+    box-shadow: 0 16px 40px rgba(0,0,0,0.12);
+    border: 1px solid rgba(255,255,255,0.65);
+  }
+}
+
+/* Mobil: INGEN skugga + ingen vit linje */
+@media (max-width: 979px){
+  .hb-servicecard{
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
+/* HB_SERVICECARDS_SHADOWS_END */
+
+/* HB_FORCE_PREMIUM_BG_START */
+
+:root {
+}
+
+html, body {
+  min-height: 100%;
+  background-attachment: fixed !important;
+}
+
+main, #__next, .hb-section-bg, .hb-section, .hb-sectionTitle, .hb-servicecards-wrap {
+  background: transparent !important;
+}
+
+/* HB_FORCE_PREMIUM_BG_END */
+
+
+/* HB_FORCE_PREMIUM_BG_START */
+
+:root {
+  --hb-page-bg: radial-gradient(1200px 600px at 50% 0%, rgba(255,248,236,0.70), rgba(255,248,236,0.00) 60%), radial-gradient(900px 500px at 50% 40%, rgba(255,255,255,0.55), rgba(255,255,255,0.00) 70%), radial-gradient(1200px 700px at 50% 105%, rgba(0,0,0,0.10), rgba(0,0,0,0.00) 55%), linear-gradient(180deg, #f6efe6 0%, #f2e8dc 35%, #f6efe6 100%);
+}
+
+html, body {
+  min-height: 100%;
+  background: var(--hb-page-bg) !important;
+  background-attachment: fixed !important;
+}
+
+main, #__next, .hb-section-bg, .hb-section, .hb-sectionTitle, .hb-servicecards-wrap {
+  background: transparent !important;
+}
+
+/* HB_FORCE_PREMIUM_BG_END */
+
