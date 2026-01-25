@@ -1,0 +1,138 @@
+﻿.hbSc { padding: 0; }
+
+/* Desktop / mobile visibility (endast för denna komponent) */
+.desktop { display: none; }
+.mobile { display: block; }
+
+@media (min-width: 980px){
+  .desktop { display: block; }
+  .mobile { display: none; }
+}
+
+/* Desktop grid: 280px kort */
+.grid{
+  display:grid;
+  grid-template-columns: repeat(5, 280px);
+  gap: 18px;
+  justify-content:center;
+  align-items:start;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 18px;
+}
+
+/* Mobil karusell: 280px kort */
+.track{
+  display:flex;
+  gap: 18px;
+  overflow-x:auto;
+  padding: 0 18px 10px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.card{
+  width: 280px;
+  background:#fff;
+  border-radius: 18px;
+  overflow:hidden;
+  border: 0;
+  outline: none;
+  display:flex;
+  flex-direction:column;
+  scroll-snap-align: start;
+}
+
+/* Desktop skugga OK */
+@media (min-width: 980px){
+  .card{ box-shadow: 0 18px 38px rgba(0,0,0,.12); }
+}
+
+/* Mobil: INGEN skugga */
+@media (max-width: 979px){
+  .card{ box-shadow:none !important; }
+}
+
+.imgWrap{
+  position:relative;
+  height: 140px;
+  background: transparent;
+}
+
+.img{
+  object-fit: cover;
+  display:block;
+  /* mindre blur (justera 1.2–2.0 om du vill) */
+  filter: blur(1.6px) saturate(1.02) contrast(1.04);
+  transform: scale(1.03);
+}
+
+/* Overlay: tar bort vit kant & den fula “band”-känslan */
+.overlay{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(120% 85% at 22% 10%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.00) 62%),
+    radial-gradient(100% 70% at 78% 14%, rgba(214,179,92,0.10) 0%, rgba(214,179,92,0.00) 60%),
+    linear-gradient(180deg, rgba(0,0,0,0.07) 0%, rgba(0,0,0,0.00) 55%, rgba(0,0,0,0.08) 100%);
+}
+
+/* Cirkeln – ingen mörk remsa */
+.iconCircle{
+  position:absolute;
+  left:50%;
+  bottom:-25px; /* halva 50px */
+  transform: translateX(-50%);
+  width:50px;
+  height:50px;
+  border-radius:999px;
+  background:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.10);
+}
+
+.icon{
+  width:28px;
+  height:28px;
+}
+
+.body{
+  padding: 16px 18px 18px;
+  display:flex;
+  flex-direction:column;
+  gap: 10px;
+  min-height: 220px; /* knappen samma nivå */
+}
+
+/* DINA låsta mått */
+.title{
+  font-size:16px;
+  line-height:1.2;
+  margin: 20px 0 0 0; /* ICON_TO_TITLE = 20 */
+}
+
+.text{
+  font-size:12.5px;
+  line-height:1.5;
+  margin:0;
+  opacity:.92;
+}
+
+.btn{
+  margin-top:auto;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background:#2d2e31;
+  color:#fff;
+  text-decoration:none;
+  font-weight:600;
+  font-size: 13px;
+  width: fit-content;
+}
