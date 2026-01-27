@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap');
 /* === GLOBAL FONT: Open Sans (force) === */
 html, body {
 
@@ -18,7 +18,7 @@ body{
 }
 
 
-/* Helsingbuss Hero â€“ Responsive */
+/* Helsingbuss Hero Ã¢â‚¬â€œ Responsive */
 @media (max-width: 980px) {
   .hb-quickquote {
     grid-template-columns: 1fr 1fr !important;
@@ -304,14 +304,14 @@ body{
     border-radius: 0 !important;
   }
 
-  /* Om ngon wrapper ger padding/marginal som skapar â€œbandetâ€ */
+  /* Om ngon wrapper ger padding/marginal som skapar Ã¢â‚¬Å“bandetÃ¢â‚¬Â */
   main, #__next {
     padding: 0 !important;
     margin: 0 !important;
     width: 100% !important;
   }
 
-  /* B) Avresa ska INTE overflowa + ska inte vara â€œblankâ€ p iPhone */
+  /* B) Avresa ska INTE overflowa + ska inte vara Ã¢â‚¬Å“blankÃ¢â‚¬Â p iPhone */
 
   /* 1 kolumn p mobil s ingenting trycks ut */
   .hb-qam-grid,
@@ -338,7 +338,7 @@ body{
     max-width: 100% !important;
   }
 
-  /* iOS: date kan se â€œtomâ€ ut om textfrgen/renderer blir fel */
+  /* iOS: date kan se Ã¢â‚¬Å“tomÃ¢â‚¬Â ut om textfrgen/renderer blir fel */
   input[type="date"] {
     -webkit-appearance: none !important;
     color: #111 !important;
@@ -354,7 +354,7 @@ body{
     color: #111 !important;
   }
 
-  /* Om kalender-ikonen blir â€œosynligâ€ ibland */
+  /* Om kalender-ikonen blir Ã¢â‚¬Å“osynligÃ¢â‚¬Â ibland */
   input[type="date"]::-webkit-calendar-picker-indicator {
     opacity: 0.85;
   }
@@ -551,7 +551,7 @@ html, body {
 .hb-desktop-only { display: none; }
 .hb-mobile-only { display: block; }
 
-/* Desktop: visa grid, dölj karusell */
+/* Desktop: visa grid, dÃ¶lj karusell */
 @media (min-width: 980px) {
   .hb-desktop-only { display: block; }
   .hb-mobile-only { display: none; }
@@ -567,7 +567,10 @@ html, body {
   .hb-mobile-only{ display:none; }
 }
 /* HB_SERVICECARDS_VISIBILITY_END */
-\n\n\n
+
+
+
+
 
 /* HB_PAGE_BG_START */
 :root{
@@ -577,7 +580,7 @@ html, body{
 /* HB_PAGE_BG_END */
 
 /* HB_SERVICECARDS_SHADOWS_START */
-/* Desktop: behåll premium shadow */
+/* Desktop: behÃ¥ll premium shadow */
 @media (min-width: 980px){
   .hb-servicecard{
     box-shadow: 0 16px 40px rgba(0,0,0,0.12);
@@ -629,3 +632,207 @@ main, #__next, .hb-section-bg, .hb-section, .hb-sectionTitle, .hb-servicecards-w
 
 /* HB_FORCE_PREMIUM_BG_END */
 
+
+
+/* ===== HB_UPCOMING_CENTERING_START ===== */
+.hb-upcoming{
+  display: flex;
+  justify-content: center;
+}
+
+.hb-upcoming__inner{
+  width: 100%;
+}
+
+.hb-upcoming__head{
+  justify-content: center;
+  text-align: center;
+}
+
+.hb-upcoming__titleBlock{
+  margin: 0 auto;
+}
+
+/* Diskret hjälptext */
+.hb-upcoming__note{
+  margin: 10px auto 0;
+  max-width: 760px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #475569;
+  opacity: 0.9;
+}
+/* ===== HB_UPCOMING_CENTERING_END ===== */
+
+/* HB_UPCOMING_UI_START */
+.hb-upcoming__goldline{
+  display:block;
+  width:64px;
+  height:2px;
+  margin: 0 auto 12px auto; /* centrerad och lite tight */
+  border-radius:999px;
+  background: linear-gradient(90deg, rgba(199,154,63,0.2), rgba(199,154,63,0.95), rgba(199,154,63,0.2));
+}
+
+.hb-upcoming__subrow{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  margin-top:8px;
+}
+
+.hb-upcoming__info{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.hb-upcoming__infoBtn{
+  width:22px;
+  height:22px;
+  border-radius:999px;
+  border:1px solid rgba(15,23,42,0.18);
+  background: rgba(255,255,255,0.55);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:help;
+}
+
+.hb-upcoming__tooltip{
+  position:absolute;
+  left:50%;
+  top:34px;
+  transform:translateX(-50%);
+  width:min(360px, 78vw);
+  padding:10px 12px;
+  border-radius:12px;
+  background: rgba(255,255,255,0.92);
+  border:1px solid rgba(15,23,42,0.12);
+  box-shadow: 0 18px 45px rgba(15,23,42,0.14);
+  color:#0f172a;
+  font-size:12.5px;
+  line-height:1.45;
+  opacity:0;
+  pointer-events:none;
+  transition: opacity .15s ease, transform .15s ease;
+}
+
+.hb-upcoming__info:hover .hb-upcoming__tooltip,
+.hb-upcoming__info:focus-within .hb-upcoming__tooltip{
+  opacity:1;
+  pointer-events:auto;
+  transform:translateX(-50%) translateY(2px);
+}
+
+@media (max-width: 820px){
+  .hb-upcoming__subrow{ flex-direction:column; gap:8px; }
+}
+/* HB_UPCOMING_UI_END */
+
+
+.hb-upcoming__title{margin:0;font-size:34px;font-weight:900;letter-spacing:-0.02em;color:#0f172a;}
+
+.hb-upcoming__subtitle{margin:6px 0 0 0;font-size:14.5px;line-height:1.55;color:#334155;}
+
+
+/* HB_UPCOMING_TOOLTIP_START */
+.hb-upcoming__subrow{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.hb-upcoming__infoWrap{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+}
+
+.hb-upcoming__infoBtn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:28px;            /* större ikon */
+  height:28px;
+  border:none;
+  padding:0;
+  margin:0;
+  background:transparent; /* tar bort vit bakgrund */
+  color:#0f172a;
+  cursor:help;
+  border-radius:999px;
+}
+
+.hb-upcoming__infoBtn svg{
+  width:18px;
+  height:18px;
+  display:block;
+}
+
+.hb-upcoming__infoBtn:focus-visible{
+  outline:2px solid rgba(212, 175, 55, .55);
+  outline-offset:3px;
+}
+
+.hb-upcoming__tooltip{
+  position:absolute;
+  left:50%;
+  top:calc(100% + 10px);
+  transform:translateX(-50%);
+  z-index:50;
+
+  min-width:260px;
+  max-width:min(360px, 82vw);
+  padding:10px 12px;
+  border-radius:12px;
+
+  background:rgba(255,255,255,.92);
+  border:1px solid rgba(15,23,42,.10);
+  box-shadow:0 12px 30px rgba(2,6,23,.18);
+
+  font-size:12.5px;
+  line-height:1.45;
+  color:#0f172a;
+
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transition:opacity .15s ease, transform .15s ease, visibility .15s ease;
+}
+
+/* liten "pil" */
+.hb-upcoming__tooltip::before{
+  content:"";
+  position:absolute;
+  top:-7px;
+  left:50%;
+  transform:translateX(-50%);
+  width:12px;
+  height:12px;
+  background:rgba(255,255,255,.92);
+  border-left:1px solid rgba(15,23,42,.10);
+  border-top:1px solid rgba(15,23,42,.10);
+  rotate:45deg;
+}
+
+.hb-upcoming__infoWrap:hover .hb-upcoming__tooltip,
+.hb-upcoming__infoWrap:focus-within .hb-upcoming__tooltip{
+  opacity:1;
+  visibility:visible;
+  transform:translateX(-50%) translateY(0);
+}
+
+/* mobil: tooltip mer som "kort" under, centrerad */
+@media (max-width: 820px){
+  .hb-upcoming__tooltip{
+    left:50%;
+    top:calc(100% + 10px);
+    transform:translateX(-50%);
+  }
+}
+/* HB_UPCOMING_TOOLTIP_END */
