@@ -33,3 +33,9 @@ yarn-error.log*
 pnpm-debug.log*
 
 /src/generated/prisma
+
+# Local patch/backup files
+*.bak_*
+patch-upcoming.js
+apps/site/scripts/patch_*.js
+
