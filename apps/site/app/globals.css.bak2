@@ -1,4 +1,5 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;
+
 /* ==========================
    HÄR ÄNDRAR DU AVSTÅNDET
    Desktop: 50–75px (t.ex 60px)
@@ -15,6 +16,7 @@
     --hb-section-gap-desktop: var(--hb-section-gap-mobile);
   }
 }
+400;600;700&display=swap');
 /* === GLOBAL FONT: Open Sans (force) === */
 html, body {
 
@@ -1182,7 +1184,7 @@ main, #__next, .hb-section-bg, .hb-section, .hb-sectionTitle, .hb-servicecards-w
 
 .hb-fleet__title{
   margin: 0 0 10px;
-  font-size: 28px;
+  font-size: clamp(28px, 3.2vw, 44px);
   line-height: 1.08;
   letter-spacing: -0.02em;
   text-shadow: 0 10px 30px rgba(0,0,0,.35);
@@ -1376,7 +1378,7 @@ main, #__next, .hb-section-bg, .hb-section, .hb-sectionTitle, .hb-servicecards-w
 /* HB_SECTION_GAPS_START */
 :root{
   /* ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ HÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾R ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾NDRAR DU AVSTÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦NDET ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ */
-  --hb-section-gap: 15px;
+  --hb-section-gap: 30px;
 
   /* (valfritt) Hero-sektioner kan ha eget avstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥nd */
   --hb-section-gap-hero: 64px;
@@ -1409,7 +1411,7 @@ main, #__next, .hb-section-bg, .hb-section, .hb-sectionTitle, .hb-servicecards-w
 /* ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â½ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â½ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â½ HÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾R ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾NDRAR DU HÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“JDEN ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â½ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â½ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒâ€šÃ‚Â½
    Exempel:
    520px  = lÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥g hero
-px  = lagom (REKOMMENDERAD)
+   600px  = lagom (REKOMMENDERAD)
    680px  = hÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶g
 */
 :root {
@@ -1434,7 +1436,7 @@ px  = lagom (REKOMMENDERAD)
 
 /* ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â½ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â½ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â½ HÃƒÆ’Ã¢â‚¬Å¾R ÃƒÆ’Ã¢â‚¬Å¾NDRAR DU AVSTÃƒÆ’Ã¢â‚¬Â¦NDET (DESKTOP) ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â½ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â½ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â½ */
 :root{
-  --hb-section-gap: 10px; /* desktop */
+  --hb-section-gap: 15px; /* desktop */
 }
 
 /* ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â½ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â½ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â½ HÃƒÆ’Ã¢â‚¬Å¾R ÃƒÆ’Ã¢â‚¬Å¾NDRAR DU AVSTÃƒÆ’Ã¢â‚¬Â¦NDET (MOBIL) ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â½ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â½ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â½ */
@@ -1516,178 +1518,5 @@ px  = lagom (REKOMMENDERAD)
     padding-top: var(--hb-section-gap-mobile);
   }
 }
-
-/* === HB FLEET SECTION START === */
-
-.hb-fleet{ width:100%; background:#f5efe7; }
-
-/* HERO */
-.hb-fleet__hero{
-  position:relative;
-  width:100%;
-  min-height:520px;
-  height:520px;
-  display:flex;
-  align-items:center;
-  overflow:hidden;
-  background-image:
-    linear-gradient(90deg, rgba(0,0,0,.68) 0%, rgba(0,0,0,.40) 52%, rgba(0,0,0,.15) 100%),
-    url("/sate_bus.jpg");
-  background-size:cover;
-  background-position:right center;
-}
-
-.hb-fleet__content{
-  width:100%;
-  max-width:1200px;
-  margin:0 auto;
-  padding:0 24px;
-  display:grid;
-  gap:14px;
-  padding-top:50px; /* Desktop: flytta ner texten */
-}
-
-.hb-fleet__content > *{ max-width:640px; }
-
-.hb-fleet__title{
-  color:#fff;
-  font-size: 28px;
-  line-height:1.02;
-  letter-spacing:-0.02em;
-  margin:0;
-}
-
-.hb-fleet__text{
-  color:rgba(255,255,255,.92);
-  font-size:15px;
-  line-height:1.55;
-  margin:0;
-}
-
-/* USP */
-.hb-fleet__usp{
-  display:flex;
-  gap:14px;
-  flex-wrap:wrap;
-  margin-top:8px;
-}
-
-.hb-fleet__uspItem{
-  display:inline-flex;
-  align-items:center;
-  gap:10px;
-  padding:12px 14px;
-  border-radius:14px;
-  color:rgba(255,255,255,.92);
-  background:rgba(255,255,255,.08);
-  border:1px solid rgba(255,255,255,.14);
-  backdrop-filter:blur(10px);
-  font-size:13px;
-  line-height:1.2;
-  box-shadow:0 12px 30px rgba(0,0,0,.18);
-}
-
-.hb-fleet__check{
-  width:24px;
-  height:24px;
-  border-radius:999px;
-  background:rgba(255,255,255,.16);
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  flex:0 0 auto;
-}
-
-.hb-fleet__check svg{
-  width:15px;
-  height:15px;
-  color:rgba(255,255,255,.95);
-}
-
-/* Button */
-.hb-fleet__btn{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  width:fit-content;
-  padding:12px 18px;
-  border-radius:999px;
-  background:#0b4b52;
-  color:#fff;
-  text-decoration:none;
-  font-weight:600;
-  font-size:14px;
-  margin-top:6px;
-  box-shadow:0 14px 30px rgba(0,0,0,.25);
-  transition:transform .15s ease, filter .15s ease;
-}
-.hb-fleet__btn:hover{ transform:translateY(-1px); filter:brightness(1.06); }
-.hb-fleet__btn:active{ transform:translateY(0px); }
-
-/* LOGO BAR */
-.hb-fleet__logos{
-  width:100%;
-  background:#f7f2eb;
-  border-top:1px solid rgba(0,0,0,.06);
-}
-
-.hb-fleet__logosInner{
-  max-width:1200px;
-  margin:0 auto;
-  padding:16px 24px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:50px;
-}
-
-.hb-fleet__logo{
-  height:auto;
-  opacity:.95;
-  filter:grayscale(10%);
-  transition:opacity .15s ease, filter .15s ease;
-}
-
-.hb-fleet__logo:hover{ opacity:1; filter:grayscale(0%); }
-
-/* MOBIL */
-@media (max-width:768px){
-  .hb-fleet__hero{
-    min-height:520px;
-    height:520px;
-    background-position:70% center;
-  }
-
-  .hb-fleet__content{
-    padding-top:0; /* Mobil: INTE flytta ner extra */
-    padding:34px 16px 0;
-  }
-
-  .hb-fleet__content > *{ max-width:100%; }
-
-  .hb-fleet__title{ font-size: 28px; line-height:1.05; }
-  .hb-fleet__text{ font-size:14px; }
-
-  .hb-fleet__usp{ gap:10px; }
-  .hb-fleet__uspItem{ width:100%; }
-
-  /* Logos mindre så 3 får plats */
-  .hb-fleet__logosInner{
-    gap:18px;
-    padding:12px 14px;
-  }
-  .hb-fleet__logo{
-    max-width:95px;
-    width:auto;
-    height:auto;
-  }
-}
-
-@media (max-width:380px){
-  .hb-fleet__hero{ min-height:540px; height:540px; }
-  .hb-fleet__logo{ max-width:82px; }
-}
-
-/* === HB FLEET SECTION END === */
 
 

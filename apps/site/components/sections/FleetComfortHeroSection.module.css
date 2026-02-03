@@ -1,0 +1,126 @@
+﻿.section { width: 100%; }
+
+.hero {
+  position: relative;
+  width: 100%;
+  min-height: 520px;
+  background-image: url("/images/fleet-hero.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.65) 0%,
+    rgba(0, 0, 0, 0.35) 55%,
+    rgba(0, 0, 0, 0.05) 100%
+  );
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 56px 20px 48px 20px;
+}
+
+.content { max-width: 720px; }
+
+.title {
+  margin: 0 0 10px 0;
+  font-size: 44px;
+  line-height: 1.05;
+  color: #fff;
+  font-weight: 800;
+}
+
+.text {
+  margin: 0 0 18px 0;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.points {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 16px 0 18px 0;
+}
+
+.point {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(20, 20, 20, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.92);
+  min-width: 220px;
+  backdrop-filter: blur(8px);
+}
+
+.check {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.cta {
+  border: 0;
+  cursor: pointer;
+  padding: 12px 18px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+  background: #0d5a5f;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+
+.cta:hover { transform: translateY(-1px); filter: brightness(1.06); }
+.cta:active { transform: translateY(0px); }
+
+.logoLine { height: 3px; background: rgba(255, 255, 255, 0.9); }
+
+.logoStrip { background: #efe8de; padding: 14px 0; }
+
+.logoRow {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 34px;
+}
+
+.logoImg {
+  height: 30px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+}
+
+@media (max-width: 768px) {
+  .hero { min-height: 560px; }
+  .container { padding: 46px 16px 42px 16px; }
+  .title { font-size: 34px; }
+  .content { max-width: 100%; }
+  .points { gap: 10px; }
+  .point { min-width: 0; width: 100%; }
+
+  .logoRow { gap: 18px; justify-content: space-between; }
+  .logoImg { height: 22px; }
+}
