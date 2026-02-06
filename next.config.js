@@ -34,6 +34,25 @@ const nextConfig = {
       },
     ];
   },
+
+  // NYTT: redirect för invest.helsingbuss.se -> /invest
+  async redirects() {
+    return [
+      {
+        source: "/",
+        has: [
+          {
+            // Kolla Host-headern så det bara gäller invest.helsingbuss.se
+            type: "header",
+            key: "host",
+            value: "invest.helsingbuss.se",
+          },
+        ],
+        destination: "/invest",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;
