@@ -13,7 +13,7 @@ import { offerSubmitPayloadSchema } from "../../../components/widgets/offer-form
 function makeOfferNo() {
   // HB26 + 3 alfanum (enkelt). Du kan byta till din tidigare generator senare utan att ändra widget.
   const rand = Math.random().toString(36).slice(2, 5).toUpperCase();
-  return \HB26\\;
+  return `HB26${rand}`;
 }
 
 async function readJson(req: Request) {
@@ -152,4 +152,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true, offerNo }, { status: 200 });
 }
+
 
