@@ -1,0 +1,419 @@
+﻿/* =========================
+   Helsingbuss Offertform Widget
+   Endast lokala klasser (CSS Modules)
+   ========================= */
+
+.wrap {
+  width: min(920px, 100%);
+  margin: 0 auto;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 18px 60px rgba(0,0,0,.10);
+  overflow: hidden;
+}
+
+/* “cookiebar safe” – lägg lite extra bottenmarginal så knappar aldrig hamnar bakom */
+.safeBottom {
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px 10px;
+  border-bottom: 1px solid rgba(0,0,0,.06);
+}
+
+.title {
+  font-weight: 800;
+  font-size: 18px; /* mindre rubrik som du bad */
+  color: #0b2b2a;
+  margin: 0;
+}
+
+.steps {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.stepPill {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: #e8efee;
+  color: #0b2b2a;
+}
+
+.stepPillActive {
+  background: #0f5d58;
+  color: #fff;
+}
+
+.body {
+  padding: 16px 18px 18px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.grid3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0b2b2a;
+}
+
+.optional {
+  font-size: 11px;
+  color: rgba(11,43,42,.65);
+  font-weight: 700;
+}
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  border: 1px solid rgba(0,0,0,.12);
+  background: #d7e3e1; /* din light mint */
+  border-radius: 12px;
+  padding: 11px 12px;
+  font-size: 14px;
+  outline: none;
+  color: #0b2b2a;
+}
+
+.textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  border-color: rgba(15,93,88,.55);
+  box-shadow: 0 0 0 3px rgba(15,93,88,.18);
+}
+
+.err {
+  font-size: 12px;
+  font-weight: 700;
+  color: #b42318;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.radioGroup {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.radioBtn {
+  border: 1px solid rgba(0,0,0,.14);
+  background: #eef4f3;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #0b2b2a;
+  cursor: pointer;
+  user-select: none;
+}
+
+.radioBtnActive {
+  background: #0f5d58;
+  color: #fff;
+  border-color: transparent;
+}
+
+.usps {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 10px;
+}
+
+.usp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0,0,0,.08);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 14px;
+  padding: 10px 12px;
+  color: #0b2b2a;
+}
+
+.check {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,.75);
+  color: #0f5d58;
+  flex: 0 0 auto;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.btn {
+  border: none;
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 12px 16px;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.btnGhost {
+  background: #eef4f3;
+  color: #0b2b2a;
+}
+
+.btnPrimary {
+  background: #0f5d58;
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(15,93,88,.25);
+}
+
+.btnPrimary:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.footerNote {
+  margin-top: 12px;
+  font-size: 11px;
+  color: rgba(11,43,42,.7);
+}
+
+.inlineNote {
+  font-size: 11px;
+  color: rgba(11,43,42,.75);
+}
+
+/* Tooltip (i) */
+.infoWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.infoDot {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(15,93,88,.14);
+  color: #0f5d58;
+  font-weight: 900;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid rgba(15,93,88,.22);
+}
+
+.tip {
+  position: absolute;
+  top: 24px;
+  left: 0;
+  z-index: 50;
+  width: min(260px, 70vw);
+  background: #0b2b2a;
+  color: #fff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.35;
+  box-shadow: 0 18px 50px rgba(0,0,0,.25);
+  display: none;
+}
+
+.infoWrap:focus-within .tip,
+.infoWrap:hover .tip {
+  display: block;
+}
+
+/* Success */
+.success {
+  padding: 26px 18px 28px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.successIcon {
+  width: 62px;
+  height: 62px;
+  border-radius: 999px;
+  background: rgba(15,93,88,.12);
+  color: #0f5d58;
+  display: grid;
+  place-items: center;
+}
+
+.successTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 900;
+  color: #0b2b2a;
+}
+
+.successText {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(11,43,42,.85);
+}
+
+.offerNo {
+  font-weight: 900;
+  color: #0f5d58;
+}
+
+/* =========================
+   Responsive
+   ========================= */
+@media (max-width: 900px) {
+  .grid3 { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 680px) {
+  .header { padding: 14px 14px 10px; }
+  .body { padding: 14px; }
+  .grid2 { grid-template-columns: 1fr; }
+  .grid3 { grid-template-columns: 1fr; }
+  .actions { flex-direction: column-reverse; }
+  .btn { width: 100%; }
+  .title { font-size: 16px; }
+}
+
+
+
+
+/* ==============================
+   HELSINGBUSS OFFERTFORM  PATCH
+   Fixar: Open Sans, dropdown-storlek, jämna fälthöjder,
+          samt stabil layout i steg 2 (företag/förening).
+   ============================== */
+
+:root{
+  --hb-field-h: 44px;
+  --hb-font: "Open Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --hb-fs: 14px;
+}
+
+/* Säkra typsnitt överallt i widgeten */
+.hb-offert, .hb-offert *{
+  font-family: var(--hb-font) !important;
+}
+
+/* Alla inputs/selects samma storlek & höjd */
+.hb-offert input,
+.hb-offert select,
+.hb-offert textarea{
+  font-size: var(--hb-fs) !important;
+  line-height: 1.2 !important;
+}
+
+/* Inputs + select = samma höjd */
+.hb-offert input,
+.hb-offert select{
+  height: var(--hb-field-h) !important;
+  min-height: var(--hb-field-h) !important;
+  box-sizing: border-box !important;
+}
+
+/* Placeholder och option-text ska inte bli större */
+.hb-offert ::placeholder{
+  font-size: var(--hb-fs) !important;
+}
+.hb-offert select,
+.hb-offert option{
+  font-size: var(--hb-fs) !important;
+}
+
+/* Om du har pill/tabs för Privat/Företag/Förening  hindra att grid/flex kollapsar */
+.hb-offert .hb-offert__bookerTabs,
+.hb-offert .hb-offert__tabs{
+  display: flex !important;
+  gap: 10px !important;
+  flex-wrap: wrap !important;
+}
+
+/* Stabilt 2-kolumnslayout på desktop, 1 kolumn på mobil (bara om wrapper finns) */
+.hb-offert .hb-offert__grid,
+.hb-offert .hb-offert__fields{
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 14px !important;
+  align-items: start !important;
+}
+
+/* Fullbredd för långa fält (textarea / dropdowns / faktura / orgnr / referens) */
+.hb-offert .hb-offert__full,
+.hb-offert textarea,
+.hb-offert select[name],
+.hb-offert input[name="org_number"],
+.hb-offert input[name="Referens_PO_nummer"],
+.hb-offert input[name="invoice_email"]{
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+/* Labels: samma textstorlek */
+.hb-offert label{
+  font-size: 13px !important;
+}
+
+/* Mobil/surfplatta */
+@media (max-width: 900px){
+  .hb-offert .hb-offert__grid,
+  .hb-offert .hb-offert__fields{
+    grid-template-columns: 1fr !important;
+  }
+}
+

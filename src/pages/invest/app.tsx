@@ -1,84 +1,163 @@
-﻿import Head from "next/head";
-import type { NextPage } from "next";
-import InvestorLayout from "@/components/investors/InvestorLayout";
+﻿import type { GetServerSideProps, NextPage } from "next";
+import InvestorLayout from "@/components/invest/InvestorLayout";
+import InvestorTopStats from "@/components/invest/InvestorTopStats";
+import InvestorKpiRow from "@/components/investors/InvestorKpiRow";
+import supabase from "@/lib/supabaseAdmin";
 
-const InvestorAppPage: NextPage = () => {
+type Kpi = {
+  revenue: number;
+  costs: number;
+  profit: number;
+  revenueChange: number;
+  costsChange: number;
+  profitChange: number;
+};
+
+type Props = {
+  kpi: Kpi | null;
+};
+
+const CONFIRMED_STATUSES = [
+  "godkänd",
+  "godkand",
+  "bokningsbekräftelse",
+  "bokningsbekraftelse",
+];
+
+const InvestorOverviewPage: NextPage<Props> = ({ kpi }) => {
   return (
-    <>
-      <Head>
-        <title>Investerarportal – översikt | Helsingbuss</title>
-        <meta
-          name="description"
-          content="Översikt för investerare i Helsingbuss – affärsplan, nyckeltal och rapporter."
+    <InvestorLayout title="Investeraröversikt">
+      <h1 className="text-2xl font-semibold text-[#0f172a]">
+        Investeraröversikt
+      </h1>
+
+      <div className="mt-6">
+        <InvestorTopStats
+          revenue={kpi?.revenue ?? 0}
+          revenueChange={kpi?.revenueChange ?? 0}
+          costs={kpi?.costs ?? 0}
+          costsChange={kpi?.costsChange ?? 0}
+          profit={kpi?.profit ?? 0}
+          profitChange={kpi?.profitChange ?? 0}
         />
-        <meta name="robots" content="noindex" />
-      </Head>
+      </div>
 
-      <InvestorLayout>
-        <div className="flex flex-col gap-6">
-          <section>
-            <h1 className="text-2xl font-semibold text-[#0f172a]">
-              Investeraröversikt
-            </h1>
-            <p className="mt-2 text-sm text-slate-600 max-w-2xl">
-              Här samlar vi affärsplan, ekonomiska nyckeltal, godkända offerter
-              och uppdateringar om Helsingbuss utveckling. Allt du ser här
-              kommer stegvis kopplas direkt mot våra tabeller i databasen.
-            </p>
-          </section>
-
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3">
-              <p className="text-xs font-semibold tracking-[0.18em] uppercase text-[#194C66]">
-                Affärsplan
-              </p>
-              <p className="mt-1 text-sm text-slate-700">
-                Här kommer vi lägga en interaktiv affärsplan som hämtar
-                nyckeltal och prognoser direkt från databasen.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3">
-              <p className="text-xs font-semibold tracking-[0.18em] uppercase text-[#194C66]">
-                Nyckeltal
-              </p>
-              <p className="mt-1 text-sm text-slate-700">
-                Dashboards med intäkter, kostnader, godkända offerter och
-                lönsamhet per linje/produkt.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3">
-              <p className="text-xs font-semibold tracking-[0.18em] uppercase text-[#194C66]">
-                Dokument & avtal
-              </p>
-              <p className="mt-1 text-sm text-slate-700">
-                Här samlar vi investeraravtal, sekretessavtal och annan
-                dokumentation för dina investeringar.
-              </p>
-            </div>
-          </section>
-
-          <section className="mt-2">
-            <h2 className="text-sm font-semibold text-[#0f172a]">
-              Nästa steg i utvecklingen
-            </h2>
-            <ul className="mt-2 text-sm text-slate-600 list-disc pl-5 space-y-1">
-              <li>Koppla sidan mot Supabase-auth (riktig inloggning).</li>
-              <li>
-                Länka affärsplan/nyckeltal direkt mot tabeller (offers,
-                kostnader, intäkter m.m.).
-              </li>
-              <li>
-                Lägg till veckovisa mail/notiser med sammanfattning till
-                investerare.
-              </li>
-            </ul>
-          </section>
-        </div>
-      </InvestorLayout>
-    </>
+      <section className="mt-8 rounded-2xl bg-white border border-slate-200 px-6 py-5 shadow-sm">
+        <h2 className="text-sm font-semibold tracking-[0.16em] text-[#194C66]/80 uppercase">
+          Nästa steg i utvecklingen
+        </h2>
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
+          <li>Koppla sidan mot Supabase-auth (riktig inloggning).</li>
+          <li>
+            Länka affärsplan och nyckeltal direkt mot tabeller (offers,
+            kostnader, intäkter med mera).
+          </li>
+          <li>
+            Lägga till veckovisa mail/notiser med sammanfattning till
+            investerare.
+          </li>
+        </ul>
+      </section>
+    </InvestorLayout>
   );
 };
 
-export default InvestorAppPage;
+/* ======= KPI-LOGIK (kan vi finjustera sen när du ger rätt kolumn) ======= */
+
+function calcChange(current: number, previous: number): number {
+  if (!previous || !Number.isFinite(previous)) return 0;
+  return ((current - previous) / previous) * 100;
+}
+
+function formatDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Läser Synergybus-nivåer:
+ *  - INVEST_SYNERGY_RATES = "0.07,0.09,0.10,0.11" (7, 9, 10, 11 %)
+ *  - snittet används som generell procentsats
+ *  - fallback: INVEST_SYNERGY_RATE (en siffra, t.ex. 0.09)
+ */
+function getSynergyRate(): number {
+  const raw = process.env.INVEST_SYNERGY_RATES || "";
+  if (raw.trim().length > 0) {
+    const nums = raw
+      .split(",")
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isFinite(n) && n > 0 && n < 1);
+
+    if (nums.length > 0) {
+      const sum = nums.reduce((a, b) => a + b, 0);
+      return sum / nums.length;
+    }
+  }
+
+  const fallback = Number(process.env.INVEST_SYNERGY_RATE || "0.1");
+  return Number.isFinite(fallback) ? fallback : 0.1;
+}
+
+async function sumRevenueForRange(
+  startIso: string,
+  endIso: string
+): Promise<number> {
+  const { data, error } = await supabase
+    .from("offers")
+    .select("total_amount, status, departure_date")
+    .in("status", CONFIRMED_STATUSES)
+    .gte("departure_date", startIso)
+    .lt("departure_date", endIso);
+
+  if (error || !data) {
+    console.error("[invest/app] error when fetching offers:", error);
+    return 0;
+  }
+
+  return (data as any[]).reduce((sum, row) => {
+    const value = Number((row as any).total_amount ?? 0);
+    if (!Number.isFinite(value)) return sum;
+    return sum + value;
+  }, 0);
+}
+
+export const getServerSideProps: GetServerSideProps<Props> = async () => {
+  const now = new Date();
+
+  const currentStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const nextStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const previousEnd = currentStart;
+
+  const currentRevenue = await sumRevenueForRange(
+    formatDate(currentStart),
+    formatDate(nextStart)
+  );
+  const previousRevenue = await sumRevenueForRange(
+    formatDate(previousStart),
+    formatDate(previousEnd)
+  );
+
+  const synergyRate = getSynergyRate();
+  const baseCost = Number(process.env.INVEST_BASE_COST || "0");
+
+  const currentCosts = baseCost + currentRevenue * synergyRate;
+  const previousCosts = baseCost + previousRevenue * synergyRate;
+
+  const currentProfit = currentRevenue - currentCosts;
+  const previousProfit = previousRevenue - previousCosts;
+
+  const kpi: Kpi = {
+    revenue: currentRevenue,
+    costs: currentCosts,
+    profit: currentProfit,
+    revenueChange: calcChange(currentRevenue, previousRevenue),
+    costsChange: calcChange(currentCosts, previousCosts),
+    profitChange: calcChange(currentProfit, previousProfit),
+  };
+
+  return {
+    props: { kpi },
+  };
+};
+
+export default InvestorOverviewPage;
