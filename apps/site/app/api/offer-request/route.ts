@@ -115,29 +115,29 @@ export async function POST(req: Request) {
       const html = `
 <div style="font-family:Arial,sans-serif;line-height:1.45">
   <h2>Ny offertförfrågan: ${offerNo}</h2>
-  <p><strong>Namn:</strong> ${payload.Namn_efternamn || "-"}</p>
-  <p><strong>E-post:</strong> ${payload.customer_email || "-"}</p>
-  <p><strong>Telefon:</strong> ${payload.customer_phone || "-"}</p>
+  <p><strong>Namn:</strong> ${body.Namn_efternamn || "-"}</p>
+  <p><strong>E-post:</strong> ${body.customer_email || "-"}</p>
+  <p><strong>Telefon:</strong> ${body.customer_phone || "-"}</p>
   <hr/>
-  <p><strong>Avresa:</strong> ${payload.departure_place || "-"}</p>
-  <p><strong>Destination:</strong> ${payload.destination || "-"}</p>
-  <p><strong>Datum & tid:</strong> ${(payload.departure_date || "-")} ${(payload.departure_time || "")}</p>
-  <p><strong>Antal:</strong> ${payload.passengers ?? "-"}</p>
-  <p><strong>Enkel/Tur&Retur:</strong> ${payload.enkel_tur_retur || "-"}</p>
-  ${payload.enkel_tur_retur === "tur-retur" ? `
+  <p><strong>Avresa:</strong> ${body.departure_place || "-"}</p>
+  <p><strong>Destination:</strong> ${body.destination || "-"}</p>
+  <p><strong>Datum & tid:</strong> ${(body.departure_date || "-")} ${(body.departure_time || "")}</p>
+  <p><strong>Antal:</strong> ${body.passengers ?? "-"}</p>
+  <p><strong>Enkel/Tur&Retur:</strong> ${body.enkel_tur_retur || "-"}</p>
+  ${body.enkel_tur_retur === "tur-retur" ? `
     <hr/>
-    <p><strong>Retur från:</strong> ${payload.return_departure || "-"}</p>
-    <p><strong>Retur till:</strong> ${payload.final_destination || "-"}</p>
-    <p><strong>Retur datum & tid:</strong> ${(payload.return_date || "-")} ${(payload.return_time || "")}</p>
+    <p><strong>Retur från:</strong> ${body.return_departure || "-"}</p>
+    <p><strong>Retur till:</strong> ${body.final_destination || "-"}</p>
+    <p><strong>Retur datum & tid:</strong> ${(body.return_date || "-")} ${(body.return_time || "")}</p>
   ` : ``}
   <hr/>
-  <p><strong>Resans upplägg:</strong><br/>${(payload.notes || "-").toString().replaceAll("<","&lt;").replaceAll(">","&gt;")}</p>
+  <p><strong>Resans upplägg:</strong><br/>${(body.notes || "-").toString().replaceAll("<","&lt;").replaceAll(">","&gt;")}</p>
 </div>
 `; 
       await resend.emails.send({
         from: MAIL_FROM,
         to: [MAIL_TO],
-        replyTo: state.email,
+        reply_to: state.email,
         subject,
         html,
       });
@@ -156,6 +156,8 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true, offerNo }, { status: 200 });
 }
+
+
 
 
 

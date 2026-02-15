@@ -1,5 +1,4 @@
-﻿import OfferFormWidget from "@/components/widgets/offer-form/OfferFormWidget";
-
+﻿import OfferFormWidget from "../../../../components/widgets/offer-form/OfferFormWidget";
 function toInt(v: unknown) {
   const n = Number(v);
   if (!Number.isFinite(n)) return "";
@@ -29,3 +28,4 @@ export default function Page({
     </main>
   );
 }
+

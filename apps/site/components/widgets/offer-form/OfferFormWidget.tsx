@@ -5,7 +5,7 @@ import styles from "./offerForm.module.css";
 import type { OfferFormStep, OfferFormState, OfferSubmitPayload, OfferSubmitResponse, CustomerType, TripType, HeardFrom } from "./offerForm.types";
 import { offerFormStateSchema } from "./offerForm.schema";
 import { clampInt, computeReturnRoute, createDefaultState, safeTrim } from "./offerForm.utils";
-import { trackOfferFormEvent } from "@/lib/telemetry/offerFormTelemetry";
+import { trackOfferFormEvent } from "../../../lib/telemetry/offerFormTelemetry";
 import Image from "next/image";
 
 function Info({ text }: { text: string }) {
@@ -17,7 +17,9 @@ function Info({ text }: { text: string }) {
   );
 }
 
-export default function OfferFormWidget() {
+type OfferFormWidgetProps = { initial?: any }
+
+export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
   const [step, setStep] = useState<OfferFormStep>(1);
   const [state, setState] = useState<OfferFormState>(() => createDefaultState());
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -159,7 +161,7 @@ export default function OfferFormWidget() {
               Ditt offertnummer är: <span className={styles.offerNo}>{success.offerNo}</span>
             </p>
             <p className={styles.successText}>Du får ett prisförslag inom 24 timmar (vardagar 09–18).</p>
-            <button className={${styles.btn} } onClick={() => (window.location.href = "/")}>
+            <button className={styles.btn} onClick={() => (window.location.href = "/")}>
               Till startsidan
             </button>
           </div>
@@ -170,13 +172,13 @@ export default function OfferFormWidget() {
 
   return (
     <div className={styles.wrap}>
-      <div className={${styles.card} }>
+      <div className={styles.card}>
         <div className={styles.header}>
           <h3 className={styles.title}>Fyll i din resa</h3>
 
           <div className={styles.steps} aria-label="Steg">
-            <span className={${styles.stepPill} }>1. Resa</span>
-            <span className={${styles.stepPill} }>2. Kontakt</span>
+            <span className={styles.stepPill}>1. Resa</span>
+            <span className={styles.stepPill}>2. Kontakt</span>
           </div>
         </div>
 
@@ -279,7 +281,7 @@ export default function OfferFormWidget() {
                   </div>
                   <div className={styles.radioGroup} role="radiogroup" aria-label="Typ av resa">
                     <div
-                      className={${styles.radioBtn} }
+                      className={styles.radioBtn}
                       onClick={() => onTripTypeChange("oneway")}
                       role="radio"
                       aria-checked={state.tripType === "oneway"}
@@ -288,7 +290,7 @@ export default function OfferFormWidget() {
                       Enkel
                     </div>
                     <div
-                      className={${styles.radioBtn} }
+                      className={styles.radioBtn}
                       onClick={() => onTripTypeChange("roundtrip")}
                       role="radio"
                       aria-checked={state.tripType === "roundtrip"}
@@ -317,7 +319,7 @@ export default function OfferFormWidget() {
 
                   <div className={styles.radioGroup}>
                     <div
-                      className={${styles.radioBtn} }
+                      className={styles.radioBtn}
                       onClick={() => setField("returnSwapRoute", true)}
                       role="button"
                       tabIndex={0}
@@ -325,7 +327,7 @@ export default function OfferFormWidget() {
                       Ja, vänd rutten
                     </div>
                     <div
-                      className={${styles.radioBtn} }
+                      className={styles.radioBtn}
                       onClick={() => setField("returnSwapRoute", false)}
                       role="button"
                       tabIndex={0}
@@ -372,7 +374,7 @@ export default function OfferFormWidget() {
 
               <div className={styles.actions}>
                 <div />
-                <button className={${styles.btn} } onClick={nextStep}>
+                <button className={styles.btn} onClick={nextStep}>
                   Fortsätt
                 </button>
               </div>
@@ -398,7 +400,7 @@ export default function OfferFormWidget() {
                 ].map(([v, label]) => (
                   <div
                     key={v}
-                    className={${styles.radioBtn} }
+                    className={styles.radioBtn}
                     onClick={() => setField("customerType", v as CustomerType)}
                     role="button"
                     tabIndex={0}
@@ -538,10 +540,10 @@ export default function OfferFormWidget() {
               {errors.submit && <div className={styles.err} style={{ marginTop: 10 }}>{errors.submit}</div>}
 
               <div className={styles.actions}>
-                <button className={${styles.btn} } onClick={prevStep}>
+                <button className={styles.btn} onClick={prevStep}>
                   Tillbaka
                 </button>
-                <button className={${styles.btn} } onClick={submit} disabled={submitting}>
+                <button className={styles.btn} onClick={submit} disabled={submitting}>
                   {submitting ? "Skickar..." : "Skicka förfrågan"}
                 </button>
               </div>
@@ -556,3 +558,7 @@ export default function OfferFormWidget() {
     </div>
   );
 }
+
+
+
+
