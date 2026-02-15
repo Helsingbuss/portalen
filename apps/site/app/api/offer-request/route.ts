@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from "next/server";
-import { offerSubmitPayloadSchema } from "@/components/widgets/offer-form/offerForm.schema";
+import { offerSubmitPayloadSchema } from "../../../components/widgets/offer-form/offerForm.schema";
 
 // OBS: Vi försöker återanvända ditt befintliga Supabase/Resend-flöde.
 // För att undvika att du “börjar om”, är detta byggt så att:
@@ -152,3 +152,4 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true, offerNo }, { status: 200 });
 }
+
