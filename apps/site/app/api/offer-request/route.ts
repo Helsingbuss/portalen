@@ -111,25 +111,29 @@ export async function POST(req: Request) {
     try {
       const { Resend } = await import("resend");
       const resend = new Resend(RESEND_API_KEY);
-
-      const subject = \Ny offertförfrågan \\;
-      const html =
-        \<div style="font-family:Arial,sans-serif;line-height:1.45">\ +
-        \<h2>Ny offertförfrågan: \</h2>\ +
-        \<p><b>Namn:</b> \<br/>\ +
-        \<b>Telefon:</b> \<br/>\ +
-        \<b>E-post:</b> \</p>\ +
-        \<p><b>Resa:</b> \ → \<br/>\ +
-        \<b>Datum/Tid:</b> \ \<br/>\ +
-        \<b>Resenärer:</b> \<br/>\ +
-        \<b>Typ:</b> \\ +
-        \</p>\ +
-        \<p><b>Önskemål:</b> \<br/>\ +
-        \<b>Tillgänglighet:</b> \\ +
-        \</p>\ +
-        \<p style="color:#666;font-size:12px">Källa: site widget • Sparad i DB: \</p>\ +
-        \</div>\;
-
+      const subject = "Ny offertförfrågan";
+      const html = `
+<div style="font-family:Arial,sans-serif;line-height:1.45">
+  <h2>Ny offertförfrågan: ${offerNo}</h2>
+  <p><strong>Namn:</strong> ${payload.Namn_efternamn || "-"}</p>
+  <p><strong>E-post:</strong> ${payload.customer_email || "-"}</p>
+  <p><strong>Telefon:</strong> ${payload.customer_phone || "-"}</p>
+  <hr/>
+  <p><strong>Avresa:</strong> ${payload.departure_place || "-"}</p>
+  <p><strong>Destination:</strong> ${payload.destination || "-"}</p>
+  <p><strong>Datum & tid:</strong> ${(payload.departure_date || "-")} ${(payload.departure_time || "")}</p>
+  <p><strong>Antal:</strong> ${payload.passengers ?? "-"}</p>
+  <p><strong>Enkel/Tur&Retur:</strong> ${payload.enkel_tur_retur || "-"}</p>
+  ${payload.enkel_tur_retur === "tur-retur" ? `
+    <hr/>
+    <p><strong>Retur från:</strong> ${payload.return_departure || "-"}</p>
+    <p><strong>Retur till:</strong> ${payload.final_destination || "-"}</p>
+    <p><strong>Retur datum & tid:</strong> ${(payload.return_date || "-")} ${(payload.return_time || "")}</p>
+  ` : ``}
+  <hr/>
+  <p><strong>Resans upplägg:</strong><br/>${(payload.notes || "-").toString().replaceAll("<","&lt;").replaceAll(">","&gt;")}</p>
+</div>
+`; 
       await resend.emails.send({
         from: MAIL_FROM,
         to: [MAIL_TO],
@@ -152,5 +156,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true, offerNo }, { status: 200 });
 }
+
+
 
 
