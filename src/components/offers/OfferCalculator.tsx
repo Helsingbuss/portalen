@@ -54,6 +54,13 @@ function round2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
+function addDaysToTodayISO(days: number): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 export default function OfferCalculator({
   offerId,
   offerNumber,
@@ -308,13 +315,38 @@ export default function OfferCalculator({
     };
   }
 
+  function buildPriceMeta(mode: "draft" | "send") {
+    const nowIso = new Date().toISOString();
+
+    return {
+      price_amount: round2(finalTotalAll),
+      price_currency: "SEK",
+      price_vat_included:
+        vatRate > 0
+          ? `Inkl. moms (${Math.round(vatRate * 100)}%)`
+          : "Ingen moms (0%)",
+      internal_cost: round2(baseExVatAll),
+      price_note: note?.trim() ? note.trim() : null,
+      valid_until: addDaysToTodayISO(14),
+      price_last_updated_at: nowIso,
+      price_status: mode === "send" ? "Skickat prisförslag" : "Kalkyl sparad",
+    };
+  }
+
   function buildQuotePayload(mode: "draft" | "send") {
+    const priceMeta = buildPriceMeta(mode);
+
     return {
       mode,
       input: buildInputPayload(),
       breakdown: buildQuoteBreakdown(),
-      // optional override (quote.ts använder detta om du lägger in fixen nedan)
       customerEmail: customerEmail ?? undefined,
+
+      // Nya prisfält – top-level för enkel backend-hantering
+      ...priceMeta,
+
+      // Extra fallback om quote-routen vill läsa ett eget objekt
+      priceMeta,
     };
   }
 

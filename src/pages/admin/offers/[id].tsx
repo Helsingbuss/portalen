@@ -47,14 +47,85 @@ type Offer = {
   onboard_contact: string | null;
   more_trip_info: string | null;
 
+  // Prisfält
+  price_amount: number | null;
+  price_currency: string | null;
+  price_vat_included: string | null;
+  internal_cost: number | null;
+  price_note: string | null;
+  valid_until: string | null;
+  price_last_updated_at: string | null;
+  price_status: string | null;
+
   notes: string | null; // legacy
 };
 
-function toIntOrNull(v: any): number | null {
+function toNumberOrNull(v: any): number | null {
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
   if (v == null || v === "") return null;
+
+  if (typeof v === "string") {
+    const cleaned = v
+      .trim()
+      .replace(/\s+/g, "")
+      .replace(",", ".")
+      .replace(/[^0-9.-]/g, "");
+
+    if (!cleaned) return null;
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : null;
+  }
+
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+function toIntOrNull(v: any): number | null {
+  const n = toNumberOrNull(v);
+  return n == null ? null : Math.round(n);
+}
+
+function formatMoney(
+  amount: number | null | undefined,
+  currency: string | null | undefined = "SEK"
+): string {
+  if (amount == null || !Number.isFinite(amount)) return "—";
+
+  try {
+    return new Intl.NumberFormat("sv-SE", {
+      style: "currency",
+      currency: currency || "SEK",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `${amount} ${currency || "SEK"}`;
+  }
+}
+
+function formatDateValue(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+
+  return new Intl.DateTimeFormat("sv-SE", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
+function formatDateTimeValue(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+
+  return new Intl.DateTimeFormat("sv-SE", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
 }
 
 /** Normalisera olika API-svar till Offer */
@@ -104,6 +175,32 @@ function normalizeOffer(o: any | null | undefined): Offer | null {
     parking: o.parkering ?? o.parking ?? null,
     onboard_contact: o.onboard_contact ?? o.contact_person_ombord ?? null,
     more_trip_info: o.more_trip_info ?? o.moreTripInfo ?? null,
+
+    // Prisfält
+    price_amount: toNumberOrNull(
+      o.price_amount ??
+        o.offer_price ??
+        o.customer_price ??
+        o.total_price ??
+        o.price ??
+        null
+    ),
+    price_currency: o.price_currency ?? o.currency ?? "SEK",
+    price_vat_included:
+      o.price_vat_included ??
+      o.vat_included ??
+      o.incl_vat ??
+      o.price_includes_vat ??
+      null,
+    internal_cost: toNumberOrNull(
+      o.internal_cost ?? o.cost_price ?? o.internal_price ?? null
+    ),
+    price_note: o.price_note ?? o.pris_notering ?? o.price_comment ?? null,
+    valid_until: o.valid_until ?? o.offer_valid_until ?? o.expires_at ?? null,
+    price_last_updated_at:
+      o.price_last_updated_at ?? o.price_updated_at ?? o.updated_price_at ?? null,
+    price_status:
+      o.price_status ?? o.prisstatus ?? o.quote_price_status ?? null,
 
     notes: o.notes ?? o.message ?? o.other_info ?? null,
   };
@@ -269,6 +366,30 @@ export default function AdminOfferDetail() {
                       {offer.status || "inkommen"}
                     </div>
                     <div>
+                      <span className="font-semibold">Prisstatus:</span>{" "}
+                      {offer.price_status || "—"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Offertpris:</span>{" "}
+                      {formatMoney(offer.price_amount, offer.price_currency)}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Moms:</span>{" "}
+                      {offer.price_vat_included || "—"}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Internt pris:</span>{" "}
+                      {formatMoney(offer.internal_cost, offer.price_currency)}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Giltig till:</span>{" "}
+                      {formatDateValue(offer.valid_until)}
+                    </div>
+                    <div>
+                      <span className="font-semibold">Pris uppdaterat:</span>{" "}
+                      {formatDateTimeValue(offer.price_last_updated_at)}
+                    </div>
+                    <div>
                       <span className="font-semibold">Typ av resa:</span>{" "}
                       {offer.trip_kind || (hasReturn ? "Tur & retur" : "Enkel")}
                     </div>
@@ -277,6 +398,13 @@ export default function AdminOfferDetail() {
                       {offer.passengers ?? "—"}
                     </div>
                   </div>
+
+                  {offer.price_note && (
+                    <div className="pt-2 text-sm text-[#194C66] whitespace-pre-wrap">
+                      <span className="font-semibold">Prisnotis:</span>{" "}
+                      {offer.price_note}
+                    </div>
+                  )}
                 </section>
 
                 {/* Kund */}

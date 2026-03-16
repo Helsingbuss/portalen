@@ -52,10 +52,11 @@ export default async function handler(
 
     const raw = Array.isArray(req.query.id) ? req.query.id[0] : req.query.id;
     const idOrNo = String(raw ?? "").trim();
-    if (!idOrNo) return res.status(400).json({ error: "Missing id" });
 
-    // ✅ Reserverade rutter som INTE ska kunna hamna här (om frontend råkar gå fel)
-    // Returnera 404 så det inte skapar “rött fel” i UI.
+    if (!idOrNo) {
+      return res.status(400).json({ error: "Missing id" });
+    }
+
     const reserved = new Set(["calendar", "calender", "list", "stats", "series"]);
     if (reserved.has(idOrNo.toLowerCase())) {
       return res.status(404).json({ error: "Not found" });
@@ -64,16 +65,36 @@ export default async function handler(
     const byUUID = isUUID(idOrNo);
     const byOfferNo = looksLikeOfferNo(idOrNo) || looksLikeNumericNo(idOrNo);
 
-    // ✅ Om det inte är UUID/offertnr -> 404 (inte 400) för att inte “skräpa ner” UI
     if (!byUUID && !byOfferNo) {
       return res.status(404).json({ error: "Not found" });
     }
 
-    const q = byUUID
-      ? supabase.from("offers").select("*").eq("id", idOrNo).limit(1)
-      : supabase.from("offers").select("*").eq("offer_number", idOrNo).limit(1);
+    let data: any = null;
+    let error: any = null;
 
-    const { data, error } = await getSingle(q);
+    if (byUUID) {
+      const firstTry = await getSingle(
+        supabase.from("offers").select("*").eq("id", idOrNo).limit(1)
+      );
+
+      data = firstTry.data;
+      error = firstTry.error;
+
+      if (!data && !error) {
+        const secondTry = await getSingle(
+          supabase.from("offers").select("*").eq("offer_number", idOrNo).limit(1)
+        );
+        data = secondTry.data;
+        error = secondTry.error;
+      }
+    } else {
+      const firstTry = await getSingle(
+        supabase.from("offers").select("*").eq("offer_number", idOrNo).limit(1)
+      );
+
+      data = firstTry.data;
+      error = firstTry.error;
+    }
 
     if (error) {
       const msg = String(error.message || "");
@@ -83,7 +104,9 @@ export default async function handler(
       return res.status(500).json({ error: msg || "Serverfel" });
     }
 
-    if (!data) return res.status(404).json({ error: "Not found" });
+    if (!data) {
+      return res.status(404).json({ error: "Not found" });
+    }
 
     return res.status(200).json({ ok: true, offer: data });
   } catch (e: any) {

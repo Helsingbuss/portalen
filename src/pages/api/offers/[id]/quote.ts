@@ -1,7 +1,12 @@
 // src/pages/api/offers/[id]/quote.ts
-import type { NextApiRequest, NextApiResponse } from "next";
-import supabase from "@/lib/supabaseAdmin";
+import supabaseImport from "@/lib/supabaseAdmin";
 import { sendOfferMail } from "@/lib/sendMail";
+
+const supabase =
+  (supabaseImport as any)?.supabaseAdmin ||
+  (supabaseImport as any)?.supabase ||
+  (supabaseImport as any)?.default ||
+  supabaseImport;
 
 type CanonLeg = { subtotExVat: number; vat: number; total: number };
 type CanonBreakdown = {
@@ -17,10 +22,16 @@ function num(x: any): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+function str(x: any): string | null {
+  if (typeof x !== "string") return null;
+  const v = x.trim();
+  return v ? v : null;
+}
+
 function normalizeBreakdown(input: any, breakdown: any, totals: any): CanonBreakdown {
   const buses = Math.max(1, num(input?.pricing?.numBuses || input?.pricing?.busesCount || 1));
 
-  // CASE A: redan i "kanoniskt" format
+  // CASE A: redan i kanoniskt format
   if (
     breakdown &&
     typeof breakdown === "object" &&
@@ -33,7 +44,8 @@ function normalizeBreakdown(input: any, breakdown: any, totals: any): CanonBreak
       grandExVat: num(breakdown.grandExVat),
       grandVat: num(breakdown.grandVat),
       grandTotal: num(breakdown.grandTotal),
-      serviceFeeExVat: breakdown.serviceFeeExVat != null ? num(breakdown.serviceFeeExVat) : undefined,
+      serviceFeeExVat:
+        breakdown.serviceFeeExVat != null ? num(breakdown.serviceFeeExVat) : undefined,
       legs: breakdown.legs.map((l: any) => ({
         subtotExVat: num(l.subtotExVat),
         vat: num(l.vat),
@@ -42,7 +54,7 @@ function normalizeBreakdown(input: any, breakdown: any, totals: any): CanonBreak
     };
   }
 
-  // CASE B: OfferCalculator-format (legs: [{exVat, vat, total} ...], totals: {exVat, vat, total})
+  // CASE B: äldre format
   const canon: CanonBreakdown = {
     grandExVat: 0,
     grandVat: 0,
@@ -50,7 +62,6 @@ function normalizeBreakdown(input: any, breakdown: any, totals: any): CanonBreak
     legs: [],
   };
 
-  // totals i första hand
   const tEx = totals?.exVat ?? totals?.grandExVat ?? breakdown?.allBusesFinal?.exVat;
   const tVat = totals?.vat ?? totals?.grandVat ?? breakdown?.allBusesFinal?.vat;
   const tTot = totals?.total ?? totals?.grandTotal ?? breakdown?.allBusesFinal?.total;
@@ -59,19 +70,16 @@ function normalizeBreakdown(input: any, breakdown: any, totals: any): CanonBreak
   canon.grandVat = num(tVat);
   canon.grandTotal = num(tTot);
 
-  // legs -> konvertera till formatet som kundvyn läser (subtotExVat/vat/total)
   if (Array.isArray(breakdown?.legs)) {
     canon.legs = breakdown.legs
       .filter(Boolean)
       .map((l: any) => ({
-        // Calculator-legs är oftast per buss – skala till hela uppdraget
         subtotExVat: num(l.exVat) * buses,
         vat: num(l.vat) * buses,
         total: num(l.total) * buses,
       }));
   }
 
-  // serviceFee (valfri)
   if (input?.pricing?.includeServiceFee) {
     canon.serviceFeeExVat = num(input?.pricing?.serviceFee);
   }
@@ -79,16 +87,63 @@ function normalizeBreakdown(input: any, breakdown: any, totals: any): CanonBreak
   return canon;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+function extractPriceFields(body: any, canonBreakdown: CanonBreakdown, mode: "draft" | "send") {
+  const meta = body?.priceMeta ?? {};
+
+  const price_amount = num(meta.price_amount ?? body?.price_amount ?? canonBreakdown.grandTotal);
+  const price_currency = str(meta.price_currency ?? body?.price_currency) || "SEK";
+  const price_vat_included =
+    str(meta.price_vat_included ?? body?.price_vat_included) ||
+    (canonBreakdown.grandVat > 0 ? "Inkl. moms" : "Ingen moms (0%)");
+
+  const internal_cost = num(
+    meta.internal_cost ?? body?.internal_cost ?? canonBreakdown.grandExVat
+  );
+
+  const price_note =
+    str(meta.price_note ?? body?.price_note) ||
+    str(body?.input?.note) ||
+    null;
+
+  const valid_until = str(meta.valid_until ?? body?.valid_until) || null;
+
+  const price_last_updated_at =
+    str(meta.price_last_updated_at ?? body?.price_last_updated_at) ||
+    new Date().toISOString();
+
+  const price_status =
+    str(meta.price_status ?? body?.price_status) ||
+    (mode === "send" ? "Skickat prisförslag" : "Kalkyl sparad");
+
+  return {
+    price_amount,
+    price_currency,
+    price_vat_included,
+    internal_cost,
+    price_note,
+    valid_until,
+    price_last_updated_at,
+    price_status,
+  };
+}
+
+export default async function handler(req: any, res: any) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
   const { id } = req.query as { id?: string };
-  if (!id) return res.status(400).json({ error: "Missing id" });
+  if (!id) {
+    return res.status(400).json({ error: "Missing id" });
+  }
+
+  if (!supabase) {
+    return res.status(500).json({ error: "Supabase är inte initierad korrekt." });
+  }
 
   const body = (req.body ?? {}) as any;
   const idOrNumber = String(id);
 
-  // mode kan saknas (OfferCalculator saveDraft) -> default "draft"
   const mode: "draft" | "send" = body?.mode === "send" ? "send" : "draft";
   const input = body?.input ?? null;
   const breakdownRaw = body?.breakdown ?? null;
@@ -98,7 +153,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     typeof body?.customerEmail === "string" ? body.customerEmail : undefined;
 
   try {
-    // ==== 1) Hämta offerten ====
+    // 1) Hämta offerten
     const looksLikeUuid = idOrNumber.includes("-") && idOrNumber.length >= 30;
 
     let query = supabase
@@ -137,18 +192,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const canonBreakdown = normalizeBreakdown(input, breakdownRaw, totalsRaw);
 
-    // Om totals ändå blir 0 men du har data – försök fallback
     if (canonBreakdown.grandTotal === 0 && breakdownRaw?.allBusesFinal?.total) {
       canonBreakdown.grandTotal = num(breakdownRaw.allBusesFinal.total);
     }
 
-    // ==== 2) Spara kalkyl / totals / metadata ====
+    const priceFields = extractPriceFields(body, canonBreakdown, mode);
+
+    // 2) Spara kalkyl / totals / metadata
     const patch: any = {
       amount_ex_vat: canonBreakdown.grandExVat ?? null,
       vat_amount: canonBreakdown.grandVat ?? null,
       total_amount: canonBreakdown.grandTotal ?? null,
       calc_json: input ?? null,
       vat_breakdown: canonBreakdown ?? null,
+
+      // Nya prisfält
+      price_amount: priceFields.price_amount ?? null,
+      price_currency: priceFields.price_currency ?? "SEK",
+      price_vat_included: priceFields.price_vat_included ?? null,
+      internal_cost: priceFields.internal_cost ?? null,
+      price_note: priceFields.price_note ?? null,
+      valid_until: priceFields.valid_until ?? null,
+      price_last_updated_at: priceFields.price_last_updated_at ?? new Date().toISOString(),
+      price_status: priceFields.price_status ?? null,
+
       updated_at: new Date().toISOString(),
     };
 
@@ -167,10 +234,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       throw updErr;
     }
 
-    // ==== 3) Skicka mail endast vid "send" ====
+    // 3) Skicka mail endast vid send
     if (mode === "send" && offer.offer_number) {
       try {
-        // ✅ Prioritera customerEmail från body, sen customer_email, sist contact_email
         const customerEmail: string | undefined =
           bodyCustomerEmail ||
           (offer.customer_email as string | undefined) ||
@@ -199,11 +265,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       } catch (mailErr) {
         console.error("sendOfferMail failed:", mailErr);
-        // Ignorera mailfel – kalkylen är ändå sparad
       }
     }
 
-    return res.status(200).json({ ok: true, saved: patch });
+    return res.status(200).json({
+      ok: true,
+      saved: {
+        ...patch,
+      },
+    });
   } catch (e: any) {
     console.error("quote.ts error:", e);
     return res.status(500).json({ error: e?.message || "Server error" });
