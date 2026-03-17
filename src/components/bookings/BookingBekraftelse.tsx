@@ -22,9 +22,18 @@ function v(x: any, fallback = "â€”") {
   return String(x);
 }
 
+function money(n?: number | null) {
+  if (n == null) return "â€”";
+  return n.toLocaleString("sv-SE", {
+    style: "currency",
+    currency: "SEK",
+  });
+}
+
 export default function BookingBekraftelse({ booking }: { booking: any }) {
   // rubriker
   const bookingNo = v(booking?.booking_number ?? booking?.booking_id, "BK25XXXX");
+  const totalAmount = booking?.total_price ?? booking?.total_amount ?? null;
 
   // fÃ¶rsta benet
   const out: TripLeg = {
@@ -104,6 +113,10 @@ export default function BookingBekraftelse({ booking }: { booking: any }) {
               <div>
                 <span className="font-semibold">Passagerare:</span>{" "}
                 {booking?.passengers ?? "â€”"}
+              </div>
+              <div>
+                <span className="font-semibold">Totalt belopp:</span>{" "}
+                {money(totalAmount)}
               </div>
             </div>
           </div>
@@ -200,4 +213,3 @@ export default function BookingBekraftelse({ booking }: { booking: any }) {
     </div>
   );
 }
-

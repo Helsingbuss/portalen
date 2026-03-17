@@ -36,6 +36,7 @@ type Booking = {
   amount_ex_vat?: number | null;
   vat_amount?: number | null;
   total_amount?: number | null;
+  total_price?: number | null;
 };
 
 function money(n?: number | null) {
@@ -130,7 +131,9 @@ export default function BookingConfirmation({ booking }: { booking: Booking }) {
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-sm text-[#0f172a]/70 font-semibold">Totalsumma</span>
-              <span className="text-[#0f172a]">{money(booking.total_amount)}</span>
+              <span className="text-[#0f172a]">
+                {money(booking.total_amount ?? booking.total_price)}
+              </span>
             </div>
           </div>
 
@@ -217,4 +220,3 @@ export default function BookingConfirmation({ booking }: { booking: Booking }) {
     </div>
   );
 }
-
