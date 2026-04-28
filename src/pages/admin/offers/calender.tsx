@@ -205,15 +205,14 @@ export default function OffersCalenderPage() {
 
         {/* ✅ luft så knappar inte hamnar under topbar */}
         <main className="p-6 pt-16 space-y-6">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center justify-between gap-3 flex-wrap bg-white p-4 rounded-2xl shadow-sm border border-[#E3EBF2]">
             <h1 className="text-xl font-semibold text-[#194C66]">Offertkalender</h1>
 
             <div className="flex items-center gap-2 flex-wrap">
               <button
-                onClick={() => setMonth((m) => addMonths(m, -1))}
-                className="px-4 py-2 rounded-[25px] border text-sm text-[#194C66] bg-white"
-              >
-                ← Föregående
+              onClick={() => setMonth((m) => addMonths(m, -1))}
+              className="px-4 py-2 rounded-full text-sm font-medium text-[#194C66] bg-white border border-[#D0DCE7] hover:bg-[#f1f5f9] transition">
+               ← Föregående
               </button>
 
               <div className="bg-white border rounded-[25px] px-4 py-2 text-sm text-[#194C66]">
@@ -222,8 +221,7 @@ export default function OffersCalenderPage() {
 
               <button
                 onClick={() => setMonth((m) => addMonths(m, 1))}
-                className="px-4 py-2 rounded-[25px] border text-sm text-[#194C66] bg-white"
-              >
+                className="px-4 py-2 rounded-full text-sm font-medium text-[#194C66] bg-white border border-[#D0DCE7] hover:bg-[#f1f5f9] transition">
                 Nästa →
               </button>
 
@@ -237,8 +235,7 @@ export default function OffersCalenderPage() {
 
               <Link
                 href="/admin/offers"
-                className="px-4 py-2 rounded-[25px] border text-sm text-[#194C66] bg-white"
-              >
+                className="px-4 py-2 rounded-full text-sm font-medium text-[#194C66] bg-white border border-[#D0DCE7] hover:bg-[#f1f5f9] transition">
                 Alla offerter
               </Link>
             </div>
@@ -271,13 +268,13 @@ export default function OffersCalenderPage() {
                   return (
                     <div
                       key={cell.ymd}
-                      className={`min-h-[140px] border-b border-r p-2 ${
+                      className={`min-h-[140px] border-b border-r p-2 transition hover:bg-[#f8fbfd] ${
                         cell.inMonth ? "bg-white" : "bg-gray-50"
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div
-                          className={`text-xs font-semibold ${
+  className={`text-sm font-bold ${
                             cell.inMonth ? "text-[#194C66]" : "text-[#194C66]/40"
                           }`}
                         >
@@ -295,14 +292,14 @@ export default function OffersCalenderPage() {
                             <Link
                               key={it.id}
                               href={`/admin/offers/${encodeURIComponent(it.id)}`}
-                              className={`block rounded-lg border px-2 py-1 text-xs hover:bg-gray-50 ${
+                              className={`block rounded-xl border border-[#E3EBF2] px-2 py-2 text-xs bg-white hover:shadow-sm hover:border-[#C9D9E5] transition ${
                                 declined ? "opacity-60" : ""
                               }`}
                               title={`${it.offer_number || "Offert"} • ${it.email || ""}`}
                             >
                               <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <span className="inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-[10px] text-[#194C66] bg-white">
+                                  <span className="inline-flex items-center justify-center rounded-full bg-[#194C66] text-white px-2 py-0.5 text-[10px] font-semibold">
                                     {it.time || "—"}
                                   </span>
                                   <span className={`truncate text-[#194C66] ${line}`}>
@@ -310,7 +307,7 @@ export default function OffersCalenderPage() {
                                   </span>
                                 </div>
 
-                                <span className={`text-[10px] text-[#194C66]/70 whitespace-nowrap ${line}`}>
+                                <span className={`text-[11px] font-semibold text-[#007764] whitespace-nowrap ${line}`}>
                                   {it.total_price != null ? `${formatSEK(it.total_price)} kr` : ""}
                                 </span>
                               </div>
@@ -328,7 +325,9 @@ export default function OffersCalenderPage() {
                         )}
 
                         {dayItems.length === 0 && (
-                          <div className="text-[11px] text-[#194C66]/35 px-1">Inga offerter</div>
+                          <div className="text-[11px] text-[#194C66]/30 italic px-1">
+  Inga bokningar
+</div>
                         )}
                       </div>
                     </div>

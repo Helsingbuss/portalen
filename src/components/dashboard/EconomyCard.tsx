@@ -1,156 +1,124 @@
 // src/components/dashboard/EconomyCard.tsx
-import React, { useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { AdjustmentsHorizontalIcon } from "@heroicons/react/24/outline";
-import type { StatsTotals } from "./OffersBarChart";
+import {
+  DevicePhoneMobileIcon,
+  GlobeAltIcon,
+  PaperAirplaneIcon,
+} from "@heroicons/react/24/solid";
 
 type Props = {
-  from: string;            // YYYY-MM-DD
-  to: string;              // YYYY-MM-DD
-  totals?: StatsTotals;    // totals från /api/dashboard/series
+  from: string;
+  to: string;
   loading?: boolean;
-  heightClass?: string;    // t.ex. "h-[420px]"
+  heightClass?: string;
 };
-
-const ZERO_TOTALS: StatsTotals = {
-  offer_answered_count: 0,
-  offer_answered_amount: 0,
-  offer_approved_count: 0,
-  offer_approved_amount: 0,
-  booking_booked_count: 0,
-  booking_booked_amount: 0,
-  booking_done_count: 0,
-  booking_done_amount: 0,
-};
-
-const toNum = (v: any) => {
-  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
-  const n = Number(v ?? 0);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const formatAmount = (value: number) =>
-  value.toLocaleString("sv-SE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
 
 export default function EconomyCard({
   from,
   to,
-  totals,
   loading = false,
   heightClass = "h-[420px]",
 }: Props) {
-  const t = totals ?? ZERO_TOTALS;
+  const [data, setData] = useState<any>(null);
 
-  // 🔹 Data för kortet (tvinga number så TS är glad)
-  const soldTickets = toNum(t.booking_done_count);
-  const bookedCount = toNum(t.booking_booked_count);
-  const revenue = toNum(t.booking_done_amount);
-
-  const bars = useMemo(() => {
-    const values = [soldTickets, bookedCount, revenue].map(toNum);
-    const max = Math.max(1, ...values);
-
-    return [
-      {
-        key: "tickets",
-        label: "Sålda biljetter",
-        color: "#2E7D32",
-        value: soldTickets,
-        ratio: soldTickets / max,
-      },
-      {
-        key: "booked",
-        label: "Antal bokade",
-        color: "#60A5FA",
-        value: bookedCount,
-        ratio: bookedCount / max,
-      },
-      {
-        key: "revenue",
-        label: "Intäkter",
-        color: "#14532D",
-        value: revenue,
-        ratio: revenue / max,
-      },
-    ];
-  }, [soldTickets, bookedCount, revenue]);
+  useEffect(() => {
+    fetch("/api/dashboard/platforms")
+      .then((r) => r.json())
+      .then(setData)
+      .catch(console.error);
+  }, []);
 
   const rangeLabel = `${from} – ${to}`;
 
   return (
     <div className={`bg-white rounded-xl shadow px-5 py-4 flex flex-col ${heightClass}`}>
-      {/* Header */}
-      <div className="flex items-start justify-between mb-3">
+      
+      {/* HEADER */}
+      <div className="flex items-start justify-between mb-4">
         <div>
           <h2 className="text-[#194C66] font-semibold text-lg">
-            Sålda biljetter, antal bokade och intäkter
+            Trafik & plattformar
           </h2>
           <p className="text-xs text-[#6B7280] mt-1">{rangeLabel}</p>
         </div>
 
-        <button
-          type="button"
-          className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-gray-600 hover:bg-gray-50"
-          aria-label="Filter för period"
-        >
+        <button className="inline-flex items-center justify-center rounded-lg border border-gray-200 px-2.5 py-2">
           <AdjustmentsHorizontalIcon className="h-5 w-5" />
         </button>
       </div>
 
-      {/* Innehåll */}
+      {/* CONTENT */}
       {loading ? (
-        <div className="flex-1 flex items-center justify-center text-[#194C66]/70">
+        <div className="flex-1 flex items-center justify-center">
           Laddar…
         </div>
       ) : (
-        <>
-          {/* Stapeldiagram */}
-          <div className="flex-1 flex flex-col">
-            <div className="flex-1 flex items-end justify-between gap-4 border-b border-dashed border-gray-200 pb-4">
-              {bars.map((b) => {
-                const h = 40 + b.ratio * 110; // visuell höjd
-                return (
-                  <div key={b.key} className="flex flex-col items-center justify-end flex-1">
-                    <div
-                      className="w-10 rounded-t-md"
-                      style={{ height: `${h}px`, backgroundColor: b.color }}
-                    />
-                    <span className="mt-2 text-xs text-[#6B7280] text-center leading-tight">
-                      {b.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+        <div className="flex flex-col gap-4">
 
-            {/* Sammanfattning */}
-            <dl className="mt-4 space-y-1 text-sm">
-              <div className="flex items-baseline justify-between gap-4">
-                <dt className="text-[#194C66]">Sålda biljetter</dt>
-                <dd className="font-semibold text-[#2E7D32]">
-                  {Math.round(soldTickets).toLocaleString("sv-SE")}
-                </dd>
-              </div>
+          {/* APP */}
+          <Card
+            icon={<DevicePhoneMobileIcon className="h-5 w-5 text-blue-600" />}
+            title="Appen"
+            text={
+              data?.app
+                ? `${data.app.bookings} bokningar • ${data.app.visits} användare`
+                : "Lanseras snart"
+            }
+            badge="Kommer snart"
+            badgeColor="bg-blue-500"
+          />
 
-              <div className="flex items-baseline justify-between gap-4">
-                <dt className="text-[#194C66]">Antal bokade</dt>
-                <dd className="font-semibold text-[#1D4ED8]">
-                  {Math.round(bookedCount).toLocaleString("sv-SE")}
-                </dd>
-              </div>
+          {/* HELSINGBUSS */}
+          <Card
+            icon={<GlobeAltIcon className="h-5 w-5 text-green-600" />}
+            title="Helsingbuss.se"
+            text={
+              data?.helsingbuss
+                ? `${data.helsingbuss.visits} besök • ${data.helsingbuss.clicks} klick • ${data.helsingbuss.offers} offerter`
+                : "Laddar..."
+            }
+            badge="Live"
+            badgeColor="bg-green-500"
+          />
 
-              <div className="flex items-baseline justify-between gap-4">
-                <dt className="text-[#194C66]">Intäkter</dt>
-                <dd className="font-semibold text-[#14532D]">
-                  {formatAmount(revenue)} SEK
-                </dd>
-              </div>
-            </dl>
-          </div>
-        </>
+          {/* SHUTTLE */}
+          <Card
+            icon={<PaperAirplaneIcon className="h-5 w-5 text-indigo-600" />}
+            title="hbshuttle.se"
+            text={
+              data?.shuttle
+                ? `${data.shuttle.visits} besök • ${data.shuttle.clicks} sökningar • ${data.shuttle.bookings} bokningar`
+                : "Laddar..."
+            }
+            badge="Live"
+            badgeColor="bg-green-500"
+          />
+
+        </div>
       )}
+    </div>
+  );
+}
+
+/* CARD */
+function Card({ icon, title, text, badge, badgeColor }: any) {
+  return (
+    <div className="flex items-center justify-between bg-[#F9FAFB] rounded-xl p-4">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-white shadow-sm">
+          {icon}
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-[#111827]">{title}</p>
+          <p className="text-xs text-gray-500">{text}</p>
+        </div>
+      </div>
+
+      <span className={`px-2 py-1 rounded-full text-xs text-white ${badgeColor}`}>
+        {badge}
+      </span>
     </div>
   );
 }

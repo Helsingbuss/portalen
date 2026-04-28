@@ -71,15 +71,15 @@ export default function UnansweredTable({
 
   // bara de som inte är besvarade/godkända
   const filtered = useMemo(
-    () =>
-      (rows || []).filter((r) => {
-        const s = (r.status ?? "").toLowerCase();
-        return !["besvarad", "answered", "godkänd", "godkand", "approved"].includes(
-          s
-        );
-      }),
-    [rows]
-  );
+  () =>
+    (rows || []).filter((r) => {
+      const s = (r.status ?? "").toLowerCase();
+
+      // ✅ VISA ENDAST INKOMNA
+      return s === "inkommen";
+    }),
+  [rows]
+);
 
   const total = filtered.length;
 

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Lager_1" data-name="Lager 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 161.22 136.96">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #0b2a5b;
+        font-family: Poppins-Bold, Poppins;
+        font-size: 200px;
+        font-weight: 700;
+      }
+
+      .cls-1, .cls-2 {
+        isolation: isolate;
+      }
+
+      .cls-3 {
+        fill: #fb7185;
+      }
+    </style>
+  </defs>
+  <g class="cls-2">
+    <text class="cls-1" transform="translate(10.71 123.96)"><tspan x="0" y="0">s</tspan></text>
+  </g>
+  <circle class="cls-3" cx="137.21" cy="107.56" r="18"/>
+</svg>

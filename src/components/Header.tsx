@@ -1,16 +1,10 @@
 // src/components/Header.tsx
-import React, { useState, ReactNode } from "react";
+import React, { useState, ReactNode, useRef, useEffect } from "react";
 import Image from "next/image";
-import QuickActionsMenu from "./QuickActionsMenu";
-import {
-  BellIcon,
-  QuestionMarkCircleIcon,
-  ChartBarIcon,
-  PencilSquareIcon,
-  ChevronDownIcon,
-} from "@heroicons/react/24/outline";
+import { ChevronDownIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { supabase } from "../lib/supabaseClient";
 import { useRouter } from "next/router";
+import Link from "next/link";
 
 type HeaderProps = {
   profile?: {
@@ -24,143 +18,140 @@ type HeaderProps = {
 export default function Header({ profile }: HeaderProps) {
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [activePanel, setActivePanel] = useState<string | null>(null);
-  const [helpOpen, setHelpOpen] = useState(false);
   const router = useRouter();
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const userName = profile?.full_name ?? "Andreas Ekelöf";
   const companyName = profile?.title ?? profile?.company_name ?? "Helsingbuss";
-  const employeeNumber = profile?.employee_number ?? "XXXXXXXX";
+  const employeeNumber = profile?.employee_number ?? "—";
 
   const togglePanel = (panel: string) => {
-    setHelpOpen(false);
     setActivePanel((prev) => (prev === panel ? null : panel));
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push("/"); // till login
+    router.push("/");
   };
+
+  // 🔥 CLICK OUTSIDE
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setCreateMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   return (
     <>
-      {/* TOPP-BAR */}
-      <header className="bg-[#1D2937] text-white px-6 lg:px-8 py-3 flex justify-between items-center shadow fixed top-0 left-0 right-0 z-50 h-[60px]">
-        {/* Logo */}
+      {/* TOPBAR */}
+      <header className="bg-white border-b border-gray-200 px-6 h-[60px] flex justify-between items-center fixed top-0 left-0 right-0 z-50">
+
+        {/* LOGO */}
         <div className="flex items-center">
-          <Image src="/vit_logo.png" alt="Helsingbuss" width={140} height={40} />
+          <Image src="/mork_logo.png" alt="Helsingbuss" width={200} height={100} />
         </div>
 
-        {/* Right side */}
-        <div className="flex items-center gap-3 relative">
-          {/* Guida mig */}
-          <button
-            type="button"
-            className="border border-white/60 rounded-full px-3.5 py-1 text-xs font-medium hover:bg-white hover:text-[#1D2937] transition"
-          >
-            Guida mig
+        {/* RIGHT SIDE */}
+        <div className="flex items-center gap-3">
+
+          {/* Butik */}
+          <button className="text-xs px-3 py-1.5 rounded-md border border-gray-300 bg-gray-50 hover:bg-gray-100">
+            Butik/kassa
           </button>
 
-          {/* Skapa ny */}
-          <div className="relative">
+          {/* 🔥 SNABBVAL */}
+          <div className="relative" ref={dropdownRef}>
             <button
-              type="button"
-              onClick={() => {
-                setCreateMenuOpen((v) => !v);
-                setActivePanel(null);
-                setHelpOpen(false);
-              }}
-              className="bg-white text-[#1D2937] text-xs font-semibold rounded-full px-3.5 py-1 hover:bg-slate-100 transition inline-flex items-center gap-1"
+              onClick={() => setCreateMenuOpen(!createMenuOpen)}
+              className="text-xs px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 flex items-center gap-1"
             >
-              <span className="text-base leading-none">+</span>
-              <span>Skapa ny</span>
+              <PlusIcon className="w-4 h-4" />
+              Snabbval
             </button>
-            {createMenuOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-white text-slate-900 rounded-xl shadow-lg z-50">
-                <QuickActionsMenu />
-              </div>
-            )}
-          </div>
 
-          {/* Ikoner – rapporter, anteckningar, notiser, hjälp-dropdown */}
-          <div className="flex items-center gap-1">
-            <IconButton
-              title="Rapporter"
-              active={activePanel === "reports"}
-              onClick={() => togglePanel("reports")}
+            {/* 🔥 ANIMERAD DROPDOWN */}
+            <div
+              className={`absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-xl border z-50 py-2 transform transition-all duration-200 ease-out ${
+                createMenuOpen
+                  ? "opacity-100 translate-y-0 scale-100"
+                  : "opacity-0 -translate-y-2 scale-95 pointer-events-none"
+              }`}
             >
-              <ChartBarIcon className="h-5 w-5" />
-            </IconButton>
 
-            <IconButton
-              title="Anteckningar"
-              active={activePanel === "notes"}
-              onClick={() => togglePanel("notes")}
-            >
-              <PencilSquareIcon className="h-5 w-5" />
-            </IconButton>
+              {/* SÄLJ */}
+              <div className="text-[10px] text-gray-400 px-4 mb-1">Sälj</div>
+              <Link href="#" className="block px-4 py-2 text-sm hover:bg-gray-50">Skapa offert</Link>
+              <Link href="#" className="block px-4 py-2 text-sm hover:bg-gray-50">Skapa bokning</Link>
 
-            <IconButton
-              title="Notifieringar"
-              active={activePanel === "notifications"}
-              onClick={() => togglePanel("notifications")}
-            >
-              <BellIcon className="h-5 w-5" />
-            </IconButton>
+              {/* RESOR */}
+              <div className="text-[10px] text-gray-400 px-4 mt-2 mb-1">Resor</div>
+              <Link href="#" className="block px-4 py-2 text-sm hover:bg-gray-50">Skapa resa</Link>
+              <Link href="#" className="block px-4 py-2 text-sm hover:bg-gray-50">Boka biljett</Link>
+              <Link href="#" className="block px-4 py-2 text-sm hover:bg-gray-50">Skapa avgång</Link>
 
-            <div className="relative">
-              <IconButton
-                title="Hjälp"
-                active={helpOpen}
-                onClick={() => {
-                  setHelpOpen((v) => !v);
-                  setActivePanel(null);
-                }}
-              >
-                <QuestionMarkCircleIcon className="h-5 w-5" />
-              </IconButton>
+              {/* DRIFT */}
+              <div className="text-[10px] text-gray-400 px-4 mt-2 mb-1">Drift</div>
+              <Link href="#" className="block px-4 py-2 text-sm hover:bg-gray-50">Skapa körorder</Link>
 
-              {helpOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white text-slate-900 rounded-xl shadow-lg z-50 text-sm">
-                  <button className="w-full text-left px-4 py-2 hover:bg-slate-50">
-                    ✨ Fråga AI-assistenten
-                  </button>
-                  <button className="w-full text-left px-4 py-2 hover:bg-slate-50 border-t border-slate-100">
-                    📘 Hjälp
-                  </button>
-                </div>
-              )}
+              {/* CRM */}
+              <div className="text-[10px] text-gray-400 px-4 mt-2 mb-1">Kunder</div>
+              <Link href="#" className="block px-4 py-2 text-sm hover:bg-gray-50">Lägg till kund</Link>
+
             </div>
           </div>
 
-          {/* Profil – öppnar konto-panel */}
+          {/* IKONER */}
+          <div className="flex items-center gap-2 ml-2">
+            <TopIcon src="/data-report.svg" onClick={() => togglePanel("reports")} />
+            <TopIcon src="/note-sticky.svg" onClick={() => togglePanel("notes")} />
+            <TopIcon src="/bell.svg" onClick={() => togglePanel("notifications")} />
+            <TopIcon src="/Comment-info.svg" onClick={() => togglePanel("help")} />
+          </div>
+
+          {/* PROFIL */}
           <button
-            type="button"
             onClick={() => togglePanel("account")}
-            className="flex items-center gap-2 cursor-pointer pl-3 border-l border-white/20 ml-1"
+            className="flex items-center gap-2 ml-3 pl-3 border-l border-gray-200"
           >
-            <div className="flex flex-col items-end leading-tight">
-              <span className="font-medium text-xs sm:text-sm">{userName}</span>
-              <span className="text-[10px] sm:text-xs text-slate-200">
-                {companyName}
-              </span>
+            <img src="/User.svg" className="w-[18px] h-[18px] opacity-80" />
+
+            <div className="text-right leading-tight">
+              <div className="text-sm font-medium text-gray-800">{userName}</div>
+              <div className="text-xs text-gray-500">{companyName}</div>
             </div>
-            <ChevronDownIcon className="h-4 w-4 text-slate-100" />
+
+            <ChevronDownIcon className="w-4 h-4 text-gray-500" />
           </button>
         </div>
       </header>
 
-      {/* SIDOPANELER */}
+      {/* PANELER */}
       {activePanel && (
-        <div className="fixed top-[60px] right-0 bottom-0 w-full max-w-sm bg-white shadow-xl border-l border-slate-200 z-40">
+        <div className="fixed top-[60px] right-0 bottom-0 w-full max-w-sm bg-white shadow-xl border-l z-40">
+
           {activePanel === "reports" && (
-            <ReportsPanel onClose={() => setActivePanel(null)} />
+            <Panel title="Rapporter" onClose={() => setActivePanel(null)} />
           )}
+
           {activePanel === "notes" && (
-            <NotesPanel onClose={() => setActivePanel(null)} />
+            <Panel title="Anteckningar" onClose={() => setActivePanel(null)} />
           )}
+
           {activePanel === "notifications" && (
-            <NotificationsPanel onClose={() => setActivePanel(null)} />
+            <Panel title="Notifieringar" onClose={() => setActivePanel(null)} />
           )}
+
           {activePanel === "account" && (
             <AccountPanel
               onClose={() => setActivePanel(null)}
@@ -176,144 +167,76 @@ export default function Header({ profile }: HeaderProps) {
   );
 }
 
-/* ---------- Hjälpkomponenter & paneler ---------- */
-
-function IconButton({
-  children,
-  title,
-  active,
-  onClick,
-}: {
-  children: ReactNode;
-  title: string;
-  active?: boolean;
-  onClick: () => void;
-}) {
+/* ---------- ICON ---------- */
+function TopIcon({ src, onClick }: { src: string; onClick: () => void }) {
   return (
     <button
-      type="button"
-      title={title}
       onClick={onClick}
-      className={`inline-flex h-9 w-9 items-center justify-center rounded-full border text-white transition 
-      ${
-        active
-          ? "bg-white/20 border-white"
-          : "bg-white/5 border-white/30 hover:bg-white/10"
-      }`}
+      className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition"
     >
-      {children}
+      <img src={src} className="w-[18px] h-[18px] opacity-80" />
     </button>
   );
 }
 
-type PanelProps = {
-  onClose: () => void;
-};
-
-function PanelShell({
-  title,
-  children,
-  onClose,
-}: PanelProps & { title: string; children: ReactNode }) {
+/* ---------- PANEL ---------- */
+function Panel({ title, onClose }: { title: string; onClose: () => void }) {
   return (
     <div className="flex flex-col h-full">
-      <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-xs text-slate-500 hover:text-slate-800"
-        >
+      <div className="p-4 border-b flex justify-between">
+        <span className="font-semibold text-sm">{title}</span>
+        <button onClick={onClose} className="text-xs text-gray-500">
           Stäng
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto">{children}</div>
+
+      <div className="p-4 text-sm text-gray-500">
+        Innehåll kommer här...
+      </div>
     </div>
   );
 }
 
-/* Rapporter */
-function ReportsPanel({ onClose }: PanelProps) {
-  return (
-    <PanelShell title="Rapporter" onClose={onClose}>
-      <div className="p-4 text-sm text-slate-700">
-        <p className="text-xs text-slate-500 mb-2">
-          Här kan du lägga dina rapport-listor senare.
-        </p>
-        <ul className="space-y-1">
-          <li className="py-1 border-b border-slate-100">Trafivo – körjournal</li>
-          <li className="py-1 border-b border-slate-100">Intäkter per linje</li>
-          <li className="py-1 border-b border-slate-100">Offerter & bokningar</li>
-          <li className="py-1">Ekonomiöversikt</li>
-        </ul>
-      </div>
-    </PanelShell>
-  );
-}
-
-/* Anteckningar */
-function NotesPanel({ onClose }: PanelProps) {
-  return (
-    <PanelShell title="Anteckningar" onClose={onClose}>
-      <div className="p-4 flex flex-col h-full">
-        <button
-          type="button"
-          className="self-end mb-3 rounded-full bg-[#1D2937] text-white text-xs px-3 py-1 hover:bg-slate-900"
-        >
-          Ny anteckning
-        </button>
-        <div className="flex-1 flex flex-col items-center justify-center text-center text-xs text-slate-500">
-          <span>Det finns inga anteckningar</span>
-        </div>
-      </div>
-    </PanelShell>
-  );
-}
-
-/* Notiser */
-function NotificationsPanel({ onClose }: PanelProps) {
-  return (
-    <PanelShell title="Notifieringar" onClose={onClose}>
-      <div className="p-4 flex flex-col items-center justify-center h-full text-xs text-slate-500">
-        <span>Det finns inga notifieringar</span>
-      </div>
-    </PanelShell>
-  );
-}
-
-/* Konto / profil */
+/* ---------- ACCOUNT PANEL ---------- */
 function AccountPanel({
   onClose,
   userName,
   companyName,
   employeeNumber,
   onLogout,
-}: PanelProps & {
+}: {
+  onClose: () => void;
   userName: string;
   companyName: string;
   employeeNumber: string;
   onLogout: () => void;
 }) {
   return (
-    <PanelShell title={userName} onClose={onClose}>
-      <div className="p-4 space-y-4 text-sm text-slate-800">
+    <div className="flex flex-col h-full">
+      <div className="p-4 border-b flex justify-between">
+        <span className="font-semibold text-sm">{userName}</span>
+        <button onClick={onClose} className="text-xs text-gray-500">
+          Stäng
+        </button>
+      </div>
+
+      <div className="p-4 space-y-3 text-sm text-gray-800">
         <div>
-          <p className="font-semibold">{userName}</p>
-          <p className="text-xs text-slate-500">{companyName}</p>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="font-medium">{userName}</p>
+          <p className="text-xs text-gray-500">{companyName}</p>
+
+          <p className="mt-1 text-xs text-gray-500">
             Anställningsnr: {employeeNumber}
           </p>
         </div>
 
-        <div className="border-t border-slate-200 pt-3">
-          <button
-            onClick={onLogout}
-            className="w-full justify-center px-3 py-2 text-xs rounded-md border border-red-300 text-red-600 hover:bg-red-50"
-          >
-            Logga ut
-          </button>
-        </div>
+        <button
+          onClick={onLogout}
+          className="w-full mt-3 px-3 py-2 text-xs border border-red-300 text-red-600 rounded-md hover:bg-red-50"
+        >
+          Logga ut
+        </button>
       </div>
-    </PanelShell>
+    </div>
   );
 }

@@ -1,117 +1,123 @@
 // src/components/dashboard/GreetingNews.tsx
-import React from "react";
-import Image from "next/image";
-import { Newspaper, ArrowRight, ChevronRight } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Plane } from "lucide-react";
 
-type NewsItem = { title: string; href?: string };
-
-export default function GreetingNews({
-  name = "Andreas",
-  role = "admin",
-  items = [],
+export default function AirportShuttleCard({
   heightClass = "h-[320px]",
 }: {
-  name?: string;
-  role?: "admin" | "agent" | string;
-  items?: NewsItem[];
-  heightClass?: string; // t.ex. "h-[520px]" för att matcha diagramhöjden
+  heightClass?: string;
 }) {
-  const now = new Date();
-  const h = now.getHours();
-  const greeting =
-    h < 10 ? "God morgon" : h < 18 ? "God dag" : "God kväll";
+  const [now, setNow] = useState(new Date());
 
-  const roleText =
-    role === "agent"
-      ? "Här kommer lite uppdateringar för dig som arbetar i portalen."
-      : "Här bjuder vi på lite nyheter och roligheter.";
+  useEffect(() => {
+    const i = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(i);
+  }, []);
 
-  const news = items.length
-    ? items
-    : [
-        { title: "Välkommen till Helsingbuss Portal!", href: "#" },
-        { title: "Helsingbuss.se är nu relanserad", href: "#" },
-        { title: "Nya resor ligger ute på hemsidan", href: "#" },
-        { title: "Nya betalningsvillkor för privatpersoner", href: "#" },
-      ];
+  const departures = ["08:00", "09:30", "11:00", "13:30", "15:00", "17:30"];
+
+  function getNextDeparture() {
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    for (let t of departures) {
+      const [h, m] = t.split(":").map(Number);
+      const depMinutes = h * 60 + m;
+
+      if (depMinutes >= currentMinutes) {
+        return depMinutes - currentMinutes;
+      }
+    }
+
+    return null;
+  }
+
+  const minutesLeft = getNextDeparture();
+
+  function getStatus(mins: number | null) {
+    if (mins === null) return null;
+
+    if (mins <= 5) {
+      return {
+        label: "Avgår nu",
+        class: "bg-red-500 text-white",
+      };
+    }
+
+    if (mins <= 15) {
+      return {
+        label: "Snart",
+        class: "bg-amber-400 text-white",
+      };
+    }
+
+    return {
+      label: "I tid",
+      class: "bg-green-500 text-white",
+    };
+  }
+
+  const status = getStatus(minutesLeft);
 
   return (
-    <div
-      className={`bg-white rounded-xl shadow px-5 py-4 flex flex-col ${heightClass}`}
-    >
-      {/* Rubrik + Busie uppe till höger */}
-      <div className="mb-4 flex items-start justify-between gap-3">
+    <div className={`bg-white rounded-2xl shadow p-5 flex flex-col ${heightClass}`}>
+      
+      {/* HEADER */}
+      <div className="flex items-start justify-between mb-4">
         <div>
-          <div className="text-[#111827] font-semibold text-lg">
-            {greeting}, {name}!
-          </div>
-          <div className="text-[#4B5563] mt-1 text-[14px]">
-            {roleText}
-          </div>
+          <h2 className="text-lg font-semibold text-[#111827]">
+            Helsingbuss Airport Shuttle
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Tidtabeller och avgångar
+          </p>
         </div>
 
-        <div className="hidden sm:flex items-center justify-center w-14 h-14 rounded-2xl bg-[#F3F4F6]">
-          <Image
-            src="/busie.png"
-            alt="Helsingbuss maskot"
-            width={40}
-            height={40}
-            className="object-contain"
-          />
+        <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-[#F3F4F6]">
+          <Plane className="text-[#194C66]" size={20} />
         </div>
       </div>
 
-      {/* Lista med nyheter */}
-      <div className="flex-1 overflow-y-auto">
-        <ul className="divide-y divide-gray-100">
-          {news.map((n, i) => (
-            <li key={`${n.title}-${i}`}>
-              <a
-                href={n.href || "#"}
-                className="flex items-center justify-between gap-3 py-2.5 group"
-              >
-                <span className="flex items-center gap-3">
-                  {/* Liten "ikonbricka" – anpassad känsla */}
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F3F4F6] text-[#194C66]">
-                    <Newspaper size={16} strokeWidth={2} />
-                  </span>
+      {/* LIVE INFO */}
+      <div className="mb-4 space-y-2">
 
-                  <span className="text-[#111827] text-[14px] md:text-[15px] group-hover:underline">
-                    {n.title}
-                  </span>
-                </span>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-[#374151]">
+            Nästa avgång från{" "}
+            <span className="font-medium">Helsingborg C</span>
+          </p>
 
-                <ChevronRight
-                  size={16}
-                  className="text-[#9CA3AF] transition-transform group-hover:translate-x-0.5"
-                />
-              </a>
-            </li>
-          ))}
-        </ul>
+          {status && (
+            <span className={`px-2 py-1 rounded-full text-xs ${status.class}`}>
+              {status.label}
+            </span>
+          )}
+        </div>
+
+        <p className="text-sm">
+          {minutesLeft !== null ? (
+            <>
+              <span className="font-semibold text-[#111827]">
+                {minutesLeft} min
+              </span>{" "}
+              kvar
+            </>
+          ) : (
+            "Inga fler avgångar idag"
+          )}
+        </p>
       </div>
 
-      {/* Länk/CTA längst ned – som en liten knapp */}
-      <div className="pt-4">
-        <a
-          href="#"
-          className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1.5 text-[13px] font-medium text-[#111827] hover:bg-[#F9FAFB]"
-        >
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#F3F4F6]">
-            <ArrowRight size={14} className="text-[#111827]" />
-          </span>
-          Visa alla nyheter
-        </a>
+      {/* LISTA */}
+      <div className="flex-1 overflow-y-auto divide-y divide-gray-100 text-sm">
+
+        {departures.map((t, i) => (
+          <div key={i} className="py-2 flex justify-between items-center">
+            <span className="text-[#111827]">Avgång</span>
+            <span className="font-medium">{t}</span>
+          </div>
+        ))}
+
       </div>
     </div>
-  );
-}
-
-function NewsIcon() {
-  // Om du senare vill ha olika ikoner per rad kan du bygga ut denna.
-  return (
-    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F3F4F6] text-[#194C66]">
-      <Newspaper size={16} strokeWidth={2} />
-    </span>
   );
 }

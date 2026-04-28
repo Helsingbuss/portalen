@@ -1,14 +1,57 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Ticket {
+  id            String   @id
+
+  createdAt     DateTime @default(now()) @map("createdAt")
+  updatedAt     DateTime @updatedAt @map("updatedAt")
+
+  // 👤 Kund
+  customerName  String   @map("customerName")
+  customerEmail String   @map("customerEmail")
+  customerPhone String?  @map("customerPhone")
+
+  // 🎟️ Produkt
+  productName   String   @map("productName")
+  type          String   @map("type") // resa, multi, period
+
+  // 🚌 Resa
+  route         String?  @map("route")     // NY
+  date          DateTime? @map("date")
+  stop          String?   @map("stop")
+
+  // 💰 Pris
+  price         Int      @map("price")
+  qty           Int      @map("qty")
+  total         Int      @map("total")
+
+  ticketType    String?  @map("ticketType") // enkel, tur-retur, 10-resor etc
+
+  // 📊 Status
+  status        String   @default("PENDING") @map("status")
+
+  // 🔐 QR
+  qrCode        String?  @unique @map("qrCode")
+  isUsed        Boolean  @default(false) @map("isUsed")
+  usedAt        DateTime? @map("usedAt")
+
+  // 🎟️ KLIPPKORT (NY)
+  ridesLeft     Int      @default(1) @map("ridesLeft")
+
+  // 📅 PERIODKORT (NY)
+  validUntil    DateTime? @map("validUntil")
+
+  // 💳 Betalning
+  paymentLink   String?  @map("paymentLink")
+  paidAt        DateTime? @map("paidAt")
+
+  @@map("tickets")
 }

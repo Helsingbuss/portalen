@@ -4,6 +4,10 @@ type OfferCalculatorProps = {
   offerId: string;
   offerNumber: string;
   customerEmail?: string | null;
+
+// 🔥 NYTT
+  tripType?: "sverige" | "utland";
+  includeBridge?: boolean;
 };
 
 type TripDomain = "sverige" | "utomlands";
@@ -65,6 +69,8 @@ export default function OfferCalculator({
   offerId,
   offerNumber,
   customerEmail,
+  tripType = "sverige",
+  includeBridge = false,
 }: OfferCalculatorProps) {
   // Prislista-data från /api/admin/prislistor
   const [priceTable, setPriceTable] = useState<PriceFormValues | null>(null);
@@ -73,6 +79,8 @@ export default function OfferCalculator({
   const [selectedBusType, setSelectedBusType] =
     useState<BusTypeKey>("turistbuss");
   const [kmBand, setKmBand] = useState<KmBandKey>("26_100");
+  // 🔥 BROAVGIFT
+const [bridgeCost, setBridgeCost] = useState<number>(0);
 
   // Grundpriser (kan överstyras manuellt i fälten)
   const [kmPrice, setKmPrice] = useState<number>(0);
@@ -141,11 +149,33 @@ export default function OfferCalculator({
   // Knyt Resa: Sverige / Utomlands till moms:
   // Minst en sträcka i Sverige => 6 % moms, annars 0 %.
   useEffect(() => {
-    const anySweden =
-      leg1Domain === "sverige" ||
-      (includeReturn && leg2Domain === "sverige");
-    setVatRate(anySweden ? 0.06 : 0);
-  }, [leg1Domain, leg2Domain, includeReturn]);
+  // 🔥 om admin styr → använd den
+  if (tripType) {
+    setVatRate(tripType === "sverige" ? 0.06 : 0);
+    return;
+  }
+
+  // fallback (om ingen admin styrning finns)
+  const anySweden =
+    leg1Domain === "sverige" ||
+    (includeReturn && leg2Domain === "sverige");
+
+  setVatRate(anySweden ? 0.06 : 0);
+}, [leg1Domain, leg2Domain, includeReturn, tripType]);
+  // 🔥 OVERRIDE från admin (Sverige / Utland)
+useEffect(() => {
+  setVatRate(tripType === "sverige" ? 0.06 : 0);
+}, [tripType]);
+// 🔥 BROAVGIFT logik
+useEffect(() => {
+  if (!includeBridge) {
+    setBridgeCost(0);
+    return;
+  }
+
+  // Standard bro (kan göras smart sen)
+  setBridgeCost(1500);
+}, [includeBridge]);
 
   // Applicera prisprofil när kategori / busstyp / km-band ändras
   useEffect(() => {
@@ -203,7 +233,7 @@ export default function OfferCalculator({
   const totalPerBus = exVatPerBus + vatPerBus;
 
   // Alla bussar (bas)
-  const baseExVatAll = exVatPerBus * busesCount;
+  const baseExVatAll = exVatPerBus * busesCount + bridgeCost;
   const baseVatAll = round2(baseExVatAll * vatRate);
   const baseTotalAll = baseExVatAll + baseVatAll;
 
@@ -271,6 +301,11 @@ export default function OfferCalculator({
     // Bas per leg (alla bussar)
     const baseLeg1Ex = exLeg1 * busesCount + serviceLeg1Ex;
     const baseLeg2Ex = includeReturn ? exLeg2 * busesCount + serviceLeg2Ex : 0;
+    {includeBridge && (
+  <div className="text-[11px] text-[#194C66]/70">
+    ✔ Pris inkluderar broavgifter
+  </div>
+)}
 
     // Synergy: skala samma proportioner
     let leg1Ex = round2(baseLeg1Ex * synergyMultiplier);

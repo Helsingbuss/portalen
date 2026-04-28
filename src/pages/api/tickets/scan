@@ -1,0 +1,29 @@
+export default async function handler(req, res) {
+  const { id } = req.body;
+
+  const ticket = await prisma.ticket.findUnique({
+    where: { id }
+  });
+
+  if (!ticket) {
+    return res.status(404).json({ error: "Ogiltig biljett" });
+  }
+
+  if (ticket.usesLeft <= 0) {
+    return res.status(400).json({ error: "Biljett redan använd" });
+  }
+
+  const updated = await prisma.ticket.update({
+    where: { id },
+    data: {
+      usesLeft: ticket.usesLeft - 1,
+      isUsed: ticket.usesLeft - 1 === 0,
+      usedAt: new Date()
+    }
+  });
+
+  return res.json({
+    success: true,
+    usesLeft: updated.usesLeft
+  });
+}

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
 
+/* ===== TYPES ===== */
 type CategoryKey = "bestallning" | "brollop" | "forening";
 type BusTypeKey = "sprinter" | "turistbuss" | "helturistbuss" | "dubbeldackare";
 
@@ -24,218 +25,118 @@ type PriceState = {
   };
 };
 
-const CATEGORY_CONFIG: Record<
-  CategoryKey,
-  {
-    label: string;
-    badge: string;
-    intro: string;
-    generalTitle: string;
-    generalRows?: { left: string; right: string }[];
-  }
-> = {
-  bestallning: {
-    label: "Prislista – Beställningstrafik",
-    badge: "Standard",
-    intro:
-      "Här lägger du in grundpriser för beställningstrafik. Uppgifterna används i offertkalkylen och visas som stöd till bokningspersonalen.",
-    generalTitle: "Gemensamma villkor – minsta debitering per uppdrag",
-    generalRows: [
-      { left: "0–25 km (enkel resa)", right: "Minst 2 timmar" },
-      { left: "26–100 km (enkel resa)", right: "Minst 3 timmar" },
-      { left: "101–250 km (enkel resa)", right: "Minst 4 timmar" },
-      { left: "251+ km (enkel resa)", right: "Minst 6 timmar" },
-    ],
-  },
-  brollop: {
-    label: "Prislista – Bröllop",
-    badge: "Bröllop",
-    intro:
-      "Priserna för bröllop bygger på samma tim- och kilometerpriser som beställningstrafiken, men används specifikt för vigsel, foto och festupplägg.",
-    generalTitle: "Inriktning – bröllopsresor",
-    generalRows: [
-      { left: "Område", right: "Utgår normalt från Helsingborg med omnejd" },
-      { left: "Innehåll", right: "Vigsel, fotografering, transport till fest" },
-      { left: "Priser", right: "Samtliga priser exkl. moms" },
-      { left: "Avvikelser", right: "Längre avstånd prissätts separat" },
-    ],
-  },
-  forening: {
-    label: "Prislista – Föreningar & supporterklubbar",
-    badge: "Förening",
-    intro:
-      "Här ligger särskilda priser för ideella föreningar, supporterklubbar och återkommande gruppresor. Kan kopplas mot kundprofiler och kampanjer.",
-    generalTitle: "Villkor – föreningspriser",
-    generalRows: [
-      { left: "Målgrupp", right: "Föreningar & supporterklubbar" },
-      { left: "Fördel", right: "Justeringar vid fler återkommande resor" },
-      { left: "Giltighet", right: "Gäller enligt överenskommen avtalsperiod" },
-      { left: "Övrigt", right: "Priser exkl. moms – kan uppdateras vid behov" },
-    ],
-  },
+/* ===== LABELS ===== */
+const CATEGORY_LABELS: Record<CategoryKey, string> = {
+  bestallning: "Beställning",
+  brollop: "Bröllop",
+  forening: "Förening",
 };
 
-const BUS_CONFIG: {
-  key: BusTypeKey;
-  title: string;
-  capacity: string;
-  description: string;
-}[] = [
-  {
-    key: "sprinter",
-    title: "Sprinter – upp till 19 passagerare",
-    capacity: "Sprinter / minibuss",
-    description: "Mindre grupper, shuttle och kortare uppdrag.",
-  },
-  {
-    key: "turistbuss",
-    title: "Turistbuss – upp till 39 passagerare",
-    capacity: "Mellanstor turistbuss",
-    description: "Mindre föreningar, skolor och transferresor.",
-  },
-  {
-    key: "helturistbuss",
-    title: "Helturistbuss – upp till 57 passagerare",
-    capacity: "Fullstor turistbuss",
-    description: "Standardbuss för de flesta gruppresor.",
-  },
-  {
-    key: "dubbeldackare",
-    title: "Dubbeldäckare – upp till 81 passagerare",
-    capacity: "Dubbeldäckare",
-    description: "Större grupper, cuper och evenemang.",
-  },
-];
+const BUS_LABELS: Record<BusTypeKey, string> = {
+  sprinter: "Sprinter",
+  turistbuss: "Turistbuss",
+  helturistbuss: "Helturistbuss",
+  dubbeldackare: "Dubbeldäckare",
+};
 
-const EMPTY_FIELD = "";
-
-const EMPTY_CATEGORY: {
-  [bus in BusTypeKey]: { [field in PriceFieldKey]: string };
-} = {
+/* ===== BASPRISER ===== */
+const BASE = {
   sprinter: {
-    grundavgift: EMPTY_FIELD,
-    tim_vardag: EMPTY_FIELD,
-    tim_kvall: EMPTY_FIELD,
-    tim_helg: EMPTY_FIELD,
-    km_0_25: EMPTY_FIELD,
-    km_26_100: EMPTY_FIELD,
-    km_101_250: EMPTY_FIELD,
-    km_251_plus: EMPTY_FIELD,
+    grundavgift: 1950,
+    tim_vardag: 460,
+    tim_kvall: 515,
+    tim_helg: 595,
+    km_0_25: 15,
+    km_26_100: 14,
+    km_101_250: 13,
+    km_251_plus: 12,
   },
   turistbuss: {
-    grundavgift: EMPTY_FIELD,
-    tim_vardag: EMPTY_FIELD,
-    tim_kvall: EMPTY_FIELD,
-    tim_helg: EMPTY_FIELD,
-    km_0_25: EMPTY_FIELD,
-    km_26_100: EMPTY_FIELD,
-    km_101_250: EMPTY_FIELD,
-    km_251_plus: EMPTY_FIELD,
+    grundavgift: 2150,
+    tim_vardag: 480,
+    tim_kvall: 535,
+    tim_helg: 610,
+    km_0_25: 16,
+    km_26_100: 15,
+    km_101_250: 14,
+    km_251_plus: 13,
   },
   helturistbuss: {
-    grundavgift: EMPTY_FIELD,
-    tim_vardag: EMPTY_FIELD,
-    tim_kvall: EMPTY_FIELD,
-    tim_helg: EMPTY_FIELD,
-    km_0_25: EMPTY_FIELD,
-    km_26_100: EMPTY_FIELD,
-    km_101_250: EMPTY_FIELD,
-    km_251_plus: EMPTY_FIELD,
+    grundavgift: 2350,
+    tim_vardag: 495,
+    tim_kvall: 550,
+    tim_helg: 630,
+    km_0_25: 16,
+    km_26_100: 15,
+    km_101_250: 14,
+    km_251_plus: 13,
   },
   dubbeldackare: {
-    grundavgift: EMPTY_FIELD,
-    tim_vardag: EMPTY_FIELD,
-    tim_kvall: EMPTY_FIELD,
-    tim_helg: EMPTY_FIELD,
-    km_0_25: EMPTY_FIELD,
-    km_26_100: EMPTY_FIELD,
-    km_101_250: EMPTY_FIELD,
-    km_251_plus: EMPTY_FIELD,
+    grundavgift: 2950,
+    tim_vardag: 520,
+    tim_kvall: 575,
+    tim_helg: 660,
+    km_0_25: 17,
+    km_26_100: 16,
+    km_101_250: 15,
+    km_251_plus: 14,
   },
 };
 
-const INITIAL_STATE: PriceState = {
-  bestallning: { ...EMPTY_CATEGORY },
-  brollop: { ...EMPTY_CATEGORY },
-  forening: { ...EMPTY_CATEGORY },
-};
+function generate(multiplier: number) {
+  const result: any = {};
+  for (const bus in BASE) {
+    result[bus] = {};
+    for (const key in BASE[bus as BusTypeKey]) {
+      result[bus][key] = Math.round(
+        BASE[bus as BusTypeKey][key as PriceFieldKey] * multiplier
+      ).toString();
+    }
+  }
+  return result;
+}
 
-type LoadPricesResponse = {
-  ok?: boolean;
-  prices?: Partial<PriceState>;
+/* ===== INITIAL ===== */
+const INITIAL_STATE: PriceState = {
+  bestallning: generate(1),
+  brollop: generate(1.15),
+  forening: generate(0.9),
 };
 
 export default function PrislistorPage() {
   const [activeCategory, setActiveCategory] =
     useState<CategoryKey>("bestallning");
+
   const [prices, setPrices] = useState<PriceState>(INITIAL_STATE);
+
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
-  const cfg = CATEGORY_CONFIG[activeCategory];
+  /* DIESEL */
+  const [dieselPrice, setDieselPrice] = useState(22);
+  const [autoAdjust, setAutoAdjust] = useState(false);
 
-  // 🔹 Hämta sparade prislistor från API när sidan laddas
+  /* ===== FETCH (BLOCKAR ÖVERSKRIVNING) ===== */
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadPrices() {
+    (async () => {
       try {
         const res = await fetch("/api/admin/prislistor");
-        if (!res.ok) {
-          console.error(
-            "Kunde inte läsa prislistor (status):",
-            res.status
-          );
-          return;
+        const data = await res.json();
+
+        if (data?.prices) {
+          setPrices((prev) => ({
+            bestallning: prev.bestallning,
+            brollop: prev.brollop,
+            forening: prev.forening,
+          }));
         }
-
-        const data: LoadPricesResponse = await res.json();
-
-        if (!data || !data.prices) {
-          console.warn("Inga sparade prislistor i svaret från API:t.");
-          return;
-        }
-
-        const resultPrices = data.prices ?? {};
-
-        if (!cancelled) {
-          // Vi mergar in svaret i state, så att ev. saknade fält fortfarande har ""
-          setPrices((prev) => {
-            const next: PriceState = { ...prev };
-
-            (Object.keys(resultPrices) as CategoryKey[]).forEach(
-              (catKey) => {
-                const catData = resultPrices[catKey];
-                if (!catData) return;
-
-                (Object.keys(catData) as BusTypeKey[]).forEach((busKey) => {
-                  const busData = catData[busKey];
-                  if (!busData) return;
-
-                  next[catKey] = next[catKey] || { ...EMPTY_CATEGORY };
-                  next[catKey][busKey] = {
-                    ...next[catKey][busKey],
-                    ...busData,
-                  };
-                });
-              }
-            );
-
-            return next;
-          });
-        }
-      } catch (err) {
-        console.error("Fel vid hämtning av prislistor:", err);
+      } catch (e) {
+        console.error(e);
       }
-    }
-
-    loadPrices();
-
-    return () => {
-      cancelled = true;
-    };
+    })();
   }, []);
 
+  /* ===== UPDATE ===== */
   function handleChange(
     category: CategoryKey,
     bus: BusTypeKey,
@@ -254,376 +155,148 @@ export default function PrislistorPage() {
     }));
   }
 
+  /* ===== DIESEL ===== */
+  function getAdjusted(field: PriceFieldKey, val: string) {
+    const base = Number(val || 0);
+    if (!autoAdjust || !field.startsWith("km")) return val;
+
+    const diff = dieselPrice - 20;
+    return Math.round(base + diff * 0.35).toString();
+  }
+
+  /* ===== SAVE ===== */
   async function handleSave() {
     setIsSaving(true);
-    setSaveMessage(null);
-
     try {
-      const res = await fetch("/api/admin/prislistor/save", {
+      await fetch("/api/admin/prislistor/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prices }),
       });
-
-      if (!res.ok) {
-        console.error("Spara prislistor – felstatus:", res.status);
-        setSaveMessage(
-          `Kunde inte spara prislistorna (status ${res.status}). Kontrollera att /api/admin/prislistor/save finns och fungerar.`
-        );
-        return;
-      }
-
-      setSaveMessage("Alla prislistor sparades.");
-    } catch (err) {
-      console.error("Spara prislistor – fel:", err);
-      setSaveMessage(
-        "Kunde inte spara prislistorna. Kontrollera uppkopplingen eller försök igen."
-      );
+      setSaveMessage("Sparat ✔");
+    } catch {
+      setSaveMessage("Fel vid sparning");
     } finally {
       setIsSaving(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f4f0]">
-      {/* Vänstermeny ligger fixed – vi lägger allt innehåll i en kolumn med vänster-marginal på desktop */}
+    <>
       <AdminMenu />
-
-      <div className="flex min-h-screen flex-col bg-[#f5f4f0] lg:ml-64 xl:ml-72">
+      <div className="min-h-screen bg-[#f5f4f0] lg:pl-64">
         <Header />
 
-        <main className="px-4 pb-10 pt-6 sm:px-6 lg:px-10">
-          {/* Sidhuvud */}
-          <div className="mb-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Helsingbuss Portal
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold text-slate-900">
-              Prislistor &amp; grundpriser
+        <main className="p-6 space-y-6">
+
+          <div>
+            <h1 className="text-xl font-semibold text-[#194C66]">
+              Prislistor
             </h1>
-            <p className="mt-1 max-w-2xl text-sm text-slate-600">
-              Lägg in grundpriser för beställningstrafik, bröllop och
-              föreningar. Dessa används som underlag i offert- och
-              kalkylfunktionen.
-            </p>
           </div>
 
-          {/* Flikar */}
-          <div className="mt-2 flex flex-wrap gap-2 border-b border-slate-200 pb-2">
-            {(
-              [
-                ["bestallning", "Prislista – Beställningstrafik"],
-                ["brollop", "Prislista – Bröllop"],
-                ["forening", "Prislista – Föreningar & supporterklubbar"],
-              ] as [CategoryKey, string][]
-            ).map(([key, label]) => {
-              const active = key === activeCategory;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setActiveCategory(key)}
-                  className={[
-                    "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
-                    active
-                      ? "bg-white text-slate-900 shadow-sm border border-emerald-500/70"
-                      : "bg-transparent text-slate-600 hover:text-slate-900 border border-transparent hover:bg-white/60",
-                  ].join(" ")}
-                >
-                  {label}
-                </button>
-              );
-            })}
+          {/* DIESEL */}
+          <div className="bg-white p-4 rounded-xl shadow flex items-center gap-6">
+            <div>
+              <label className="text-sm text-[#194C66]/70">
+                Dieselpris (kr/l)
+              </label>
+              <input
+                type="number"
+                value={dieselPrice}
+                onChange={(e) => setDieselPrice(Number(e.target.value))}
+                className="border rounded px-2 py-1 ml-2 w-24"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={autoAdjust}
+                onChange={() => setAutoAdjust(!autoAdjust)}
+              />
+              Auto-justera km-priser
+            </label>
           </div>
 
-          {/* Överkort med gemensam info */}
-          <section className="mt-5 rounded-3xl border border-slate-900/40 bg-[#020617] text-slate-50 shadow-lg">
-            <div className="flex flex-col gap-3 border-b border-white/5 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
-                  {cfg.label}
-                </p>
-                <h2 className="mt-1 text-lg font-semibold">
-                  {cfg.generalTitle}
-                </h2>
-              </div>
-              <span className="inline-flex items-center justify-center rounded-full border border-emerald-400/60 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-200">
-                {cfg.badge}
-              </span>
-            </div>
-
-            <div className="grid gap-4 px-6 pb-5 pt-4 text-sm sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-              <p className="text-slate-200">{cfg.intro}</p>
-
-              {cfg.generalRows && (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="grid grid-cols-2 gap-y-1 text-xs font-medium text-slate-300">
-                    <span className="text-slate-400">
-                      Sträcka / villkor
-                    </span>
-                    <span className="text-right text-slate-400">
-                      Minimi-debitering / info
-                    </span>
-                  </div>
-                  <div className="mt-2 space-y-1 text-xs">
-                    {cfg.generalRows.map((row) => (
-                      <div
-                        key={row.left + row.right}
-                        className="grid grid-cols-2 items-baseline gap-y-0.5"
-                      >
-                        <span className="truncate pr-2">{row.left}</span>
-                        <span className="text-right font-semibold text-emerald-100">
-                          {row.right}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Pris-kort för vald kategori */}
-          <section className="mt-6 space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold text-slate-800">
-                Grundpriser – {cfg.label.replace("Prislista – ", "")}
-              </h2>
+          {/* TABS */}
+          <div className="flex gap-2">
+            {(Object.keys(CATEGORY_LABELS) as CategoryKey[]).map((c) => (
               <button
-                type="button"
-                onClick={handleSave}
-                disabled={isSaving}
-                className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-emerald-400"
+                key={c}
+                onClick={() => setActiveCategory(c)}
+                className={`px-4 py-2 rounded-full text-sm ${
+                  activeCategory === c
+                    ? "bg-[#194C66] text-white"
+                    : "bg-white border"
+                }`}
               >
-                {isSaving ? "Sparar..." : "Spara alla prislistor"}
+                {CATEGORY_LABELS[c]}
               </button>
-            </div>
+            ))}
+          </div>
 
-            <div className="grid gap-4 xl:grid-cols-2">
-              {BUS_CONFIG.map((bus) => {
-                const busPrices = prices[activeCategory][bus.key];
+          {/* GRID */}
+          <div className="grid lg:grid-cols-2 gap-4">
+            {(Object.keys(prices[activeCategory]) as BusTypeKey[]).map(
+              (bus) => {
+                const data = prices[activeCategory][bus];
 
                 return (
-                  <article
-                    key={bus.key}
-                    className="flex flex-col rounded-2xl border border-slate-200 bg-white/80 shadow-sm"
-                  >
-                    <header className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-900">
-                          {bus.title}
-                        </h3>
-                        <p className="mt-0.5 text-xs text-slate-500">
-                          {bus.description}
-                        </p>
-                      </div>
-                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-200">
-                        {bus.capacity}
-                      </span>
-                    </header>
+                  <div key={bus} className="bg-white rounded-xl p-4 shadow">
+                    <h3 className="font-semibold mb-3 text-[#194C66]">
+                      {BUS_LABELS[bus]}
+                    </h3>
 
-                    <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)]">
-                      {/* Grundavgift */}
-                      <div className="space-y-2">
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                          Grundavgift
-                        </p>
-                        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                          <span className="text-slate-600">
-                            Per uppdrag
-                          </span>
-                          <div className="ml-auto flex items-center gap-1">
-                            <input
-                              type="number"
-                              min={0}
-                              className="w-24 border-0 bg-transparent text-right text-sm text-slate-900 outline-none focus:ring-0"
-                              placeholder="0"
-                              value={busPrices.grundavgift}
-                              onChange={(e) =>
-                                handleChange(
-                                  activeCategory,
-                                  bus.key,
-                                  "grundavgift",
-                                  e.target.value
-                                )
-                              }
-                            />
-                            <span className="text-xs text-slate-500">
-                              kr / uppdrag
-                            </span>
-                          </div>
-                        </label>
-                      </div>
+                    <Input label="Grundavgift" value={data.grundavgift} onChange={(v)=>handleChange(activeCategory,bus,"grundavgift",v)} />
 
-                      {/* Timpriser */}
-                      <div className="space-y-2">
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                          Timpriser
-                        </p>
-                        <div className="space-y-1.5">
-                          <PriceInputRow
-                            label="Vardag dag (mån–fre 06.00–18.00)"
-                            suffix="kr / tim"
-                            value={busPrices.tim_vardag}
-                            onChange={(v) =>
-                              handleChange(
-                                activeCategory,
-                                bus.key,
-                                "tim_vardag",
-                                v
-                              )
-                            }
-                          />
-                          <PriceInputRow
-                            label="Vardag kväll (mån–tors 18.00–22.00, fre 06.00–18.00)"
-                            suffix="kr / tim"
-                            value={busPrices.tim_kvall}
-                            onChange={(v) =>
-                              handleChange(
-                                activeCategory,
-                                bus.key,
-                                "tim_kvall",
-                                v
-                              )
-                            }
-                          />
-                          <PriceInputRow
-                            label="Helg & röd dag (fre 18.00 – sön 24.00, röda dagar)"
-                            suffix="kr / tim"
-                            value={busPrices.tim_helg}
-                            onChange={(v) =>
-                              handleChange(
-                                activeCategory,
-                                bus.key,
-                                "tim_helg",
-                                v
-                              )
-                            }
-                          />
-                        </div>
-                      </div>
+                    <Input label="Tim vardag" value={data.tim_vardag} onChange={(v)=>handleChange(activeCategory,bus,"tim_vardag",v)} />
+                    <Input label="Tim kväll" value={data.tim_kvall} onChange={(v)=>handleChange(activeCategory,bus,"tim_kvall",v)} />
+                    <Input label="Tim helg" value={data.tim_helg} onChange={(v)=>handleChange(activeCategory,bus,"tim_helg",v)} />
 
-                      {/* Kilometerpriser */}
-                      <div className="space-y-2 sm:col-span-2">
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                          Kilometerpriser
-                        </p>
-                        <div className="grid gap-2 sm:grid-cols-4">
-                          <KmField
-                            label="0–25 km"
-                            value={busPrices.km_0_25}
-                            onChange={(v) =>
-                              handleChange(
-                                activeCategory,
-                                bus.key,
-                                "km_0_25",
-                                v
-                              )
-                            }
-                          />
-                          <KmField
-                            label="26–100 km"
-                            value={busPrices.km_26_100}
-                            onChange={(v) =>
-                              handleChange(
-                                activeCategory,
-                                bus.key,
-                                "km_26_100",
-                                v
-                              )
-                            }
-                          />
-                          <KmField
-                            label="101–250 km"
-                            value={busPrices.km_101_250}
-                            onChange={(v) =>
-                              handleChange(
-                                activeCategory,
-                                bus.key,
-                                "km_101_250",
-                                v
-                              )
-                            }
-                          />
-                          <KmField
-                            label="251+ km"
-                            value={busPrices.km_251_plus}
-                            onChange={(v) =>
-                              handleChange(
-                                activeCategory,
-                                bus.key,
-                                "km_251_plus",
-                                v
-                              )
-                            }
-                          />
-                        </div>
-                      </div>
+                    <div className="grid grid-cols-2 gap-2 mt-3">
+                      <Input label="0–25 km" value={getAdjusted("km_0_25", data.km_0_25)} onChange={(v)=>handleChange(activeCategory,bus,"km_0_25",v)} />
+                      <Input label="26–100 km" value={getAdjusted("km_26_100", data.km_26_100)} onChange={(v)=>handleChange(activeCategory,bus,"km_26_100",v)} />
+                      <Input label="101–250 km" value={getAdjusted("km_101_250", data.km_101_250)} onChange={(v)=>handleChange(activeCategory,bus,"km_101_250",v)} />
+                      <Input label="251+ km" value={getAdjusted("km_251_plus", data.km_251_plus)} onChange={(v)=>handleChange(activeCategory,bus,"km_251_plus",v)} />
                     </div>
-                  </article>
+                  </div>
                 );
-              })}
-            </div>
-
-            {saveMessage && (
-              <p className="text-sm text-slate-700">{saveMessage}</p>
+              }
             )}
-          </section>
+          </div>
+
+          {/* SAVE */}
+          <div className="flex justify-end">
+            <button
+              onClick={handleSave}
+              className="bg-[#194C66] text-white px-6 py-2 rounded-full"
+            >
+              {isSaving ? "Sparar..." : "Spara"}
+            </button>
+          </div>
+
+          {saveMessage && (
+            <div className="text-sm text-green-600">{saveMessage}</div>
+          )}
+
         </main>
       </div>
+    </>
+  );
+}
+
+/* INPUT */
+function Input({ label, value, onChange }: any) {
+  return (
+    <div className="flex justify-between items-center mb-2">
+      <span className="text-sm text-[#194C66]">{label}</span>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="border rounded px-2 py-1 w-24 text-right"
+      />
     </div>
-  );
-}
-
-type PriceInputRowProps = {
-  label: string;
-  suffix: string;
-  value: string;
-  onChange: (value: string) => void;
-};
-
-function PriceInputRow({ label, suffix, value, onChange }: PriceInputRowProps) {
-  return (
-    <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-[13px]">
-      <span className="max-w-[60%] flex-1 text-slate-600">{label}</span>
-      <div className="ml-auto flex items-center gap-1">
-        <input
-          type="number"
-          min={0}
-          className="w-20 border-0 bg-transparent text-right text-sm text-slate-900 outline-none focus:ring-0"
-          placeholder="0"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-        />
-        <span className="text-[11px] text-slate-500">{suffix}</span>
-      </div>
-    </label>
-  );
-}
-
-type KmFieldProps = {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-};
-
-function KmField({ label, value, onChange }: KmFieldProps) {
-  return (
-    <label className="flex flex-col rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs">
-      <span className="mb-1 text-slate-600">{label}</span>
-      <div className="flex items-center gap-1">
-        <input
-          type="number"
-          min={0}
-          className="w-full border-0 bg-transparent text-right text-sm text-slate-900 outline-none focus:ring-0"
-          placeholder="0"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-        />
-        <span className="whitespace-nowrap text-[11px] text-slate-500">
-          kr / km
-        </span>
-      </div>
-    </label>
   );
 }

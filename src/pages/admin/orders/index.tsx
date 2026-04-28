@@ -22,7 +22,6 @@ type Row = {
 function tidyTime(hhmm?: string | null) {
   if (!hhmm) return "";
   const s = String(hhmm).slice(0, 5);
-  // Hantera "8:0" -> "08:00"
   const [h = "00", m = "00"] = s.split(":");
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
@@ -34,6 +33,7 @@ function fmtDate(d?: string | null) {
     ? d!
     : new Intl.DateTimeFormat("sv-SE", { dateStyle: "medium" }).format(dt);
 }
+
 function fmtTime(t?: string | null) {
   const hhmm = tidyTime(t);
   if (!hhmm) return "";
@@ -47,113 +47,37 @@ function clsStatusPill(s?: string | null) {
   const v = (s || "").toLowerCase();
   if (v === "draft") return "bg-slate-100 text-slate-800";
   if (v === "sent") return "bg-blue-100 text-blue-800";
-  if (v === "ack" || v === "confirmed" || v === "bekraftad" || v === "bekräftad")
-    return "bg-emerald-100 text-emerald-800";
-  if (v === "done" || v === "klar") return "bg-green-100 text-green-800";
-  if (
-    v === "cancelled" ||
-    v === "canceled" ||
-    v === "avbokad" ||
-    v === "inställd" ||
-    v === "installt"
-  )
-    return "bg-red-100 text-red-800";
+  if (v === "ack" || v === "confirmed") return "bg-emerald-100 text-emerald-800";
+  if (v === "done") return "bg-green-100 text-green-800";
+  if (v.includes("cancel")) return "bg-red-100 text-red-800";
   return "bg-gray-100 text-gray-700";
 }
 
 function labelStatus(s?: string | null) {
   const v = (s || "").toLowerCase();
   if (!v) return "Utkast";
-
-  switch (v) {
-    case "draft":
-      return "Utkast";
-    case "sent":
-      return "Skickad";
-    case "ack":
-    case "confirmed":
-    case "bekraftad":
-    case "bekräftad":
-      return "Bekräftad";
-    case "done":
-    case "klar":
-      return "Klar";
-    case "cancelled":
-    case "canceled":
-    case "avbokad":
-    case "inställd":
-    case "installt":
-      return "Avbokad";
-    default:
-      return s || "—";
-  }
+  if (v === "draft") return "Utkast";
+  if (v === "sent") return "Skickad";
+  if (v === "ack" || v === "confirmed") return "Bekräftad";
+  if (v === "done") return "Klar";
+  if (v.includes("cancel")) return "Avbokad";
+  return s || "—";
 }
 
 export default function OrdersList() {
   const router = useRouter();
 
-  // scope från URL (all | upcoming)
-  const scopeFromUrl = (router.query.scope as string) || "all";
-  const [scope, setScope] = useState<"all" | "upcoming">(
-    scopeFromUrl === "upcoming" ? "upcoming" : "all"
-  );
-
   const [rows, setRows] = useState<Row[]>([]);
-  const [status, setStatus] = useState<string>(
-    (router.query.status as string) || ""
-  );
-  const [search, setSearch] = useState<string>(
-    (router.query.search as string) || ""
-  );
-  const [page, setPage] = useState<number>(() => {
-    const p = Number(router.query.page);
-    return Number.isFinite(p) && p > 0 ? p : 1;
-  });
-  const [pageSize, setPageSize] = useState<number>(() => {
-    const ps =
-      router.query.pageSize === "all"
-        ? 1000
-        : Number(router.query.pageSize);
-    return Number.isFinite(ps) && ps > 0 ? ps : 10;
-  });
+  const [status, setStatus] = useState<string>("");
+  const [search, setSearch] = useState<string>("");
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // abort controllers
   const listAbortRef = useRef<AbortController | null>(null);
   const searchDebounceRef = useRef<number | null>(null);
-
-  // spegla alla filter i URL (shallow)
-  useEffect(() => {
-    const q = new URLSearchParams();
-    q.set("scope", scope);
-    if (status) q.set("status", status);
-    if (search) q.set("search", search);
-    q.set("page", String(page));
-    q.set("pageSize", pageSize >= 1000 ? "all" : String(pageSize));
-    router.replace(
-      { pathname: router.pathname, query: Object.fromEntries(q.entries()) },
-      undefined,
-      { shallow: true }
-    );
-  }, [scope, status, search, page, pageSize, router]);
-
-  async function fetchWithFallback(
-    urlPrimary: string,
-    urlFallback: string,
-    signal?: AbortSignal
-  ) {
-    let r = await fetch(urlPrimary, { signal });
-    if (!r.ok) {
-      try {
-        r = await fetch(urlFallback, { signal });
-      } catch {
-        /* ignore */
-      }
-    }
-    return r;
-  }
 
   async function load() {
     setLoading(true);
@@ -167,26 +91,23 @@ export default function OrdersList() {
       const qs = new URLSearchParams({
         page: String(page),
         pageSize: String(pageSize),
-        scope,
+        status,
+        search,
       });
-      if (status) qs.set("status", status);
-      if (search) qs.set("search", search);
 
-      // Viktigt: korrekt querystring med "?"
-      const urlA = `/api/orders/list?${qs.toString()}`;
-      const urlB = `/api/driver-orders/list?${qs.toString()}`;
+      const r = await fetch(`/api/orders/list?${qs}`, {
+        signal: ctrl.signal,
+      });
 
-      const r = await fetchWithFallback(urlA, urlB, ctrl.signal);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const j = await r.json().catch(() => ({} as any));
 
+      const j = await r.json();
       setRows(j?.rows ?? []);
       setTotal(j?.total ?? 0);
     } catch (e: any) {
-      if (e?.name === "AbortError") return;
-      setRows([]);
-      setTotal(0);
-      setError(e?.message || "Kunde inte hämta körordrar.");
+      if (e?.name !== "AbortError") {
+        setError("Kunde inte hämta körordrar.");
+      }
     } finally {
       setLoading(false);
     }
@@ -194,139 +115,61 @@ export default function OrdersList() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scope, status, page, pageSize]);
+  }, [status, page, pageSize]);
 
-  // debounced search -> laddar om när användaren pausar skrivandet
   useEffect(() => {
     if (searchDebounceRef.current)
       window.clearTimeout(searchDebounceRef.current);
+
     searchDebounceRef.current = window.setTimeout(() => {
       setPage(1);
       load();
     }, 300);
-    return () => {
-      if (searchDebounceRef.current)
-        window.clearTimeout(searchDebounceRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-  const [resendingId, setResendingId] = useState<string | null>(null);
-  async function resend(id: string) {
-    const ok = confirm("Skicka om körorder till chaufför?");
-    if (!ok) return;
-    setResendingId(id);
-    try {
-      const r = await fetch(`/api/driver-orders/${id}/resend`, {
-        method: "POST",
-      });
-      if (!r.ok) alert("Kunde inte skicka om.");
-      else alert("Utskicket gjordes.");
-    } catch {
-      alert("Nätverksfel vid utskick.");
-    } finally {
-      setResendingId(null);
-    }
-  }
-
-  const prioColor = (out_date?: string | null, out_time?: string | null) => {
-    if (!out_date) return "";
-    const d = new Date(out_date + "T" + tidyTime(out_time));
-    const diffH = (d.getTime() - Date.now()) / 36e5;
-    if (diffH <= 48) return "text-red-600"; // Besvara direkt
-    if (diffH <= 120) return "text-orange-500"; // Börjar närma sig
-    return "text-green-600"; // Gott om tid
-  };
-
-  const skeletonRows = Array.from({
-    length: Math.min(pageSize || 10, 10),
-  }).map((_, i) => (
-    <tr key={`sk-${i}`} className="border-t animate-pulse">
-      {Array.from({ length: 7 }).map((__, j) => (
-        <td key={j} className="py-2 pr-3">
-          <div className="h-3 bg-gray-200 rounded w-24" />
-        </td>
-      ))}
-    </tr>
-  ));
-
-  useEffect(() => {
-    // städa abortcontroller på unmount
-    return () => {
-      if (listAbortRef.current) listAbortRef.current.abort();
-    };
-  }, []);
 
   return (
     <>
       <AdminMenu />
       <div className="min-h-screen bg-[#f5f4f0] lg:pl-64">
         <Header />
-        <main className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-semibold text-[#194C66]">
-              Alla körordrar
-            </h1>
+
+        <main className="p-6 pt-16 space-y-6">
+
+          {/* HEADER */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h1 className="text-xl font-semibold text-[#194C66]">
+                Körordrar
+              </h1>
+              <p className="text-xs text-[#194C66]/60">
+                Hantera alla körningar och chaufförer
+              </p>
+            </div>
+
             <a
               href="/admin/orders/new"
-              className="px-4 py-2 rounded-[25px] bg-[#194C66] text-white text-sm"
+              className="px-5 py-2 rounded-full bg-[#194C66] text-white text-sm shadow hover:bg-[#16394d]"
             >
-              Skapa körorder
+              + Ny körorder
             </a>
           </div>
 
-          {/* Snabbfilter: Alla / Kommande */}
-          <div className="bg-white rounded-xl shadow p-3 flex flex-wrap items-center gap-3">
-            <div
-              className="inline-flex rounded-xl bg-[#f8fafc] p-1"
-              role="tablist"
-              aria-label="Snabbfilter"
-            >
-              {(["all", "upcoming"] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => {
-                    setPage(1);
-                    setScope(s);
-                  }}
-                  className={`px-3 py-1 rounded-lg text-sm ${
-                    scope === s
-                      ? "bg-[#194C66] text-white"
-                      : "text-[#194C66]"
-                  }`}
-                  role="tab"
-                  aria-selected={scope === s}
-                  aria-controls={`panel-${s}`}
-                >
-                  {s === "all" ? "Alla" : "Kommande"}
-                </button>
-              ))}
-            </div>
+          {/* FILTER */}
+          <div className="bg-white rounded-2xl shadow border p-4 flex flex-wrap gap-3">
 
             <input
-              className="border rounded px-3 py-2"
-              placeholder="Sök (nummer, chaufför, ort)…"
+              className="border rounded-full px-4 py-2 text-sm w-[220px]"
+              placeholder="Sök..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  setPage(1);
-                  load();
-                }
-              }}
-              aria-label="Sök i körordrar"
             />
+
             <select
-              className="border rounded px-3 py-2"
+              className="border rounded-full px-4 py-2 text-sm"
               value={status}
-              onChange={(e) => {
-                setStatus(e.target.value);
-                setPage(1);
-              }}
-              aria-label="Filtrera på status"
+              onChange={(e) => setStatus(e.target.value)}
             >
               <option value="">Alla status</option>
               <option value="draft">Utkast</option>
@@ -334,160 +177,122 @@ export default function OrdersList() {
               <option value="ack">Bekräftad</option>
               <option value="done">Klar</option>
             </select>
+
             <select
-              className="border rounded px-3 py-2"
+              className="border rounded-full px-4 py-2 text-sm"
               value={pageSize}
-              onChange={(e) => {
-                setPageSize(parseInt(e.target.value, 10) || 10);
-                setPage(1);
-              }}
-              aria-label="Antal poster per sida"
+              onChange={(e) => setPageSize(parseInt(e.target.value, 10))}
             >
               <option value={10}>10</option>
-              <option value={15}>15</option>
               <option value={20}>20</option>
+              <option value={50}>50</option>
               <option value={1000}>Alla</option>
             </select>
           </div>
 
-          {/* Prio-legend */}
-          <div className="text-xs text-[#194C66]/70">
-            <span className="inline-flex items-center gap-1 mr-3">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />{" "}
-              Grön = &gt; 120 h
-            </span>
-            <span className="inline-flex items-center gap-1 mr-3">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" />{" "}
-              Orange = ≤ 120 h
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" />{" "}
-              Röd = ≤ 48 h
-            </span>
-          </div>
-
+          {/* ERROR */}
           {error && (
-            <div
-              className="rounded-lg bg-red-50 border border-red-200 text-red-700 p-3 text-sm"
-              role="alert"
-              aria-live="assertive"
-            >
+            <div className="bg-red-50 border border-red-200 p-3 rounded-xl text-red-700 text-sm">
               {error}
             </div>
           )}
 
-          <div className="bg-white rounded-xl shadow p-4">
+          {/* TABLE */}
+          <div className="bg-white rounded-2xl shadow border overflow-hidden">
             <div className="overflow-auto">
               <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="text-left text-[#194C66]/70">
-                    <th className="py-2 pr-3">Körorder</th>
-                    <th className="py-2 pr-3">Utresa</th>
-                    <th className="py-2 pr-3">Chaufför</th>
-                    <th className="py-2 pr-3">Fordon</th>
-                    <th className="py-2 pr-3">PAX</th>
-                    <th className="py-2 pr-3">Status</th>
-                    <th className="py-2 pr-3"></th>
+                <thead className="bg-[#f1f5f9] text-[#194C66] text-xs uppercase">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Körorder</th>
+                    <th className="px-4 py-3 text-left">Sträcka</th>
+                    <th className="px-4 py-3 text-left">Chaufför</th>
+                    <th className="px-4 py-3 text-left">Fordon</th>
+                    <th className="px-4 py-3 text-left">PAX</th>
+                    <th className="px-4 py-3 text-left">Status</th>
                   </tr>
                 </thead>
-                <tbody className="text-[#194C66]">
-                  {loading && skeletonRows}
+
+                <tbody>
+                  {loading && (
+                    <tr>
+                      <td colSpan={6} className="p-6 text-center text-gray-400">
+                        Laddar...
+                      </td>
+                    </tr>
+                  )}
+
                   {!loading && rows.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-4">
+                      <td colSpan={6} className="p-6 text-center text-gray-400">
                         Inga körordrar
                       </td>
                     </tr>
                   )}
-                  {!loading &&
-                    rows.map((r) => (
-                      <tr key={r.id} className="border-t">
-                        <td className="py-2 pr-3">
-                          <div className="font-semibold">
-                            {r.order_number ?? "—"}
-                          </div>
-                          <div
-                            className={`text-xs ${prioColor(
-                              r.out_date,
-                              r.out_time
-                            )}`}
-                          >
-                            {fmtDate(r.out_date)} {fmtTime(r.out_time)}
-                          </div>
-                        </td>
-                        <td className="py-2 pr-3">
-                          <div>
-                            {r.out_from ?? "—"} → {r.out_to ?? "—"}
-                          </div>
-                        </td>
-                        <td className="py-2 pr-3">
-                          <div>{r.driver_name ?? "—"}</div>
-                          <div className="text-xs text-[#194C66]/70">
-                            {r.driver_email ?? ""}
-                          </div>
-                        </td>
-                        <td className="py-2 pr-3">
-                          {r.vehicle_reg ?? "—"}
-                        </td>
-                        <td className="py-2 pr-3">
-                          {r.passengers ?? "—"}
-                        </td>
-                        <td className="py-2 pr-3">
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs ${clsStatusPill(
-                              r.status
-                            )}`}
-                          >
-                            {labelStatus(r.status)}
-                          </span>
-                        </td>
-                        <td className="py-2 pr-3 space-x-2">
-                          <a
-                            className="underline"
-                            href={`/driver-order/${r.id}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Öppna
-                          </a>
-                          <button
-                            className="underline disabled:opacity-50"
-                            onClick={() => resend(r.id)}
-                            disabled={resendingId === r.id}
-                            aria-label={`Skicka om körorder ${
-                              r.order_number ?? ""
-                            } till chaufför`}
-                          >
-                            {resendingId === r.id ? "Skickar…" : "Skicka om"}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+
+                  {rows.map((r) => (
+                    <tr key={r.id} className="border-t hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <div className="font-semibold">
+                          {r.order_number ?? "—"}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {fmtDate(r.out_date)} {fmtTime(r.out_time)}
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-3">
+                        {r.out_from} → {r.out_to}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <div>{r.driver_name}</div>
+                        <div className="text-xs text-gray-400">
+                          {r.driver_email}
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-3">
+                        {r.vehicle_reg}
+                      </td>
+
+                      <td className="px-4 py-3 font-medium">
+                        {r.passengers}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <span className={`px-3 py-1 rounded-full text-xs ${clsStatusPill(r.status)}`}>
+                          {labelStatus(r.status)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
 
+            {/* PAGINATION */}
             {total > pageSize && (
-              <div className="mt-4 flex items-center gap-2">
-                <button
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="px-3 py-1 border rounded disabled:opacity-50"
-                  aria-label="Föregående sida"
-                >
-                  Föregående
-                </button>
-                <div className="text-sm">
-                  Sida {page} / {totalPages}
+              <div className="p-4 flex justify-between items-center border-t text-sm">
+                <span className="text-[#194C66]/60">
+                  Sida {page} av {totalPages}
+                </span>
+
+                <div className="flex gap-2">
+                  <button
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => p - 1)}
+                    className="px-3 py-1 border rounded-full"
+                  >
+                    ←
+                  </button>
+                  <button
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                    className="px-3 py-1 border rounded-full"
+                  >
+                    →
+                  </button>
                 </div>
-                <button
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="px-3 py-1 border rounded disabled:opacity-50"
-                  aria-label="Nästa sida"
-                >
-                  Nästa
-                </button>
               </div>
             )}
           </div>
