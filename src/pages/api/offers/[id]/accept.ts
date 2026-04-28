@@ -8,7 +8,7 @@ const supabase =
   (admin as any).supabase ||
   (admin as any).default;
 
-// Försök med flera statusvärden om du har en check-constraint
+// Försök med flera statusvärden
 async function acceptWithFallback(offerId: string) {
   const variants = [
     { status: "godkänd", stampField: "accepted_at" as const },
@@ -17,8 +17,6 @@ async function acceptWithFallback(offerId: string) {
     { status: "bokad", stampField: "accepted_at" as const },
     { status: "booked", stampField: "accepted_at" as const },
   ];
-
-  const tried: string[] = [];
 
   for (const v of variants) {
     const payload: any = { status: v.status };
@@ -30,36 +28,36 @@ async function acceptWithFallback(offerId: string) {
       .eq("id", offerId);
 
     if (!error) return v.status;
-
-    const msg = String(error.message || "");
-    tried.push(v.status);
-
-    // Om felet inte beror på status-check, kasta direkt
-    if (!/status|check/i.test(msg)) throw new Error(error.message);
   }
 
-  throw new Error(
-    `Inget av statusvärdena tillåts av offers_status_check. Testade: ${tried.join(
-      ", "
-    )}`
-  );
+  throw new Error("Kunde inte uppdatera status");
 }
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  if (req.method !== "POST") {
+  // ✅ FIX: tillåt GET + POST
+  if (req.method !== "POST" && req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
-    const { id } = req.query as { id: string };
-    const { customerEmail } = req.body as { customerEmail?: string };
+    const idOrNumber =
+      req.method === "POST"
+        ? req.body.id
+        : req.query.id;
 
-    const idOrNumber = String(id);
+    const customerEmail =
+      req.method === "POST"
+        ? req.body.customerEmail
+        : undefined;
 
-    // Hämta offert på id ELLER offer_number
+    if (!idOrNumber) {
+      return res.status(400).json({ error: "Missing id" });
+    }
+
+    // Hämta offert
     const { data: offer, error } = await supabase
       .from("offers")
       .select("*")
@@ -67,48 +65,52 @@ export default async function handler(
       .maybeSingle();
 
     if (error) {
-      console.error("/api/offers/[id]/accept fetch error:", error);
       return res.status(500).json({ error: error.message });
     }
+
     if (!offer) {
       return res.status(404).json({ error: "Offer not found" });
     }
 
     const finalStatus = await acceptWithFallback(String(offer.id));
 
-    // Välj vem som ska få kund-mail
+    // 📧 Skicka mail
     const to =
-      (customerEmail as string | undefined) ||
-      (offer.contact_email as string | undefined) ||
-      (offer.customer_email as string | undefined) ||
+      customerEmail ||
+      offer.contact_email ||
+      offer.customer_email ||
       undefined;
 
     if (to) {
-      const passengers =
-        typeof offer.passengers === "number" ? offer.passengers : null;
-
       await sendOfferMail({
         offerId: String(offer.id),
         offerNumber: offer.offer_number ?? String(offer.id),
         customerEmail: to,
-        customerName:
-          (offer.contact_person as string | undefined) ||
-          (offer.customer_name as string | undefined) ||
-          undefined,
-        from: (offer.departure_place as string | undefined) ?? undefined,
-        to: (offer.destination as string | undefined) ?? undefined,
-        date: (offer.departure_date as string | undefined) ?? undefined,
-        time: (offer.departure_time as string | undefined) ?? undefined,
-        passengers,
-        subject: `Er offert ${
-          offer.offer_number ?? ""
-        } är nu ${finalStatus.toLowerCase()}`,
+        customerName: offer.contact_person ?? undefined,
+        from: offer.departure_place ?? undefined,
+        to: offer.destination ?? undefined,
+        date: offer.departure_date ?? undefined,
+        time: offer.departure_time ?? undefined,
+        passengers: offer.passengers ?? null,
+        subject: `Er offert ${offer.offer_number ?? ""} är nu ${finalStatus}`,
       });
     }
 
-    return res.status(200).json({ ok: true, status: finalStatus });
+    // ✅ NICE UX: redirect om GET (kund klick)
+    if (req.method === "GET") {
+      return res.redirect(
+        `/offert/${offer.offer_number}?accepted=true`
+      );
+    }
+
+    return res.status(200).json({
+      ok: true,
+      status: finalStatus,
+    });
+
   } catch (e: any) {
-    console.error("/api/offers/[id]/accept error:", e);
-    return res.status(500).json({ error: e?.message || "Server error" });
+    return res.status(500).json({
+      error: e?.message || "Server error",
+    });
   }
 }
