@@ -46,7 +46,7 @@ export default function AdminMenu() {
 <div>
   <button onClick={() => toggleMenu("best")} className={groupBtn}>
     <span className={label}>
-      <Icon src="/shop.svg" size={20} />
+      <Icon src="/shop.svg" />
       Beställningstrafik
     </span>
     <ChevronDownIcon
