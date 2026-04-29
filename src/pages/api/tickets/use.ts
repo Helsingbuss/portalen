@@ -1,7 +1,12 @@
+import type { NextApiRequest, NextApiResponse } from "next";
 import { prisma } from "@/lib/prisma";
 
-export default async function handler(req, res) {
-  const { id } = JSON.parse(req.body);
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  const { id } =
+    typeof req.body === "string" ? JSON.parse(req.body) : req.body;
 
   const ticket = await prisma.ticket.findUnique({
     where: { id },
@@ -10,7 +15,7 @@ export default async function handler(req, res) {
   if (!ticket) return res.status(404).end();
 
   // enkel biljett
-  if (!ticket.remaining && !ticket.validUntil) {
+  if (!ticket.ridesLeft && !ticket.validUntil) {
     await prisma.ticket.update({
       where: { id },
       data: { status: "used" },
@@ -18,11 +23,11 @@ export default async function handler(req, res) {
   }
 
   // klippkort
-  if (ticket.remaining !== null) {
+  if (ticket.ridesLeft !== null) {
     await prisma.ticket.update({
       where: { id },
       data: {
-        remaining: ticket.remaining - 1,
+        ridesLeft: ticket.ridesLeft - 1,
       },
     });
   }
