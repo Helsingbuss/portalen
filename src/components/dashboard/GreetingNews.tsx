@@ -2,11 +2,22 @@
 import React, { useEffect, useState } from "react";
 import { Plane } from "lucide-react";
 
-export default function AirportShuttleCard({
-  heightClass = "h-[320px]",
-}: {
+type Props = {
+  name?: string;
+  role?: string;
+  items?: {
+    title: string;
+    href: string;
+  }[];
   heightClass?: string;
-}) {
+};
+
+export default function AirportShuttleCard({
+  name,
+  role,
+  items,
+  heightClass = "h-[320px]",
+}: Props) {
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
