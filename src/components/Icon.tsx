@@ -7,10 +7,12 @@ export default function Icon({ src, size = 20 }: Props) {
   return (
     <img
       src={src}
-      width={size}
-      height={size}
-      style={{ width: size, height: size }}
       alt=""
+      style={{
+        width: size,
+        height: size,
+        objectFit: "contain",
+      }}
     />
   );
 }
