@@ -132,7 +132,14 @@ export default function CustomerPage() {
 }
 
 /* UI */
-function Card({ title, children }: any) {
+
+// ✅ FIXAD TYP
+type CardProps = {
+  title: string;
+  children: React.ReactNode;
+};
+
+function Card({ title, children }: CardProps) {
   return (
     <div className="bg-white p-4 rounded-xl shadow space-y-2">
       <h2 className="font-semibold text-[#194C66]">{title}</h2>
@@ -141,7 +148,15 @@ function Card({ title, children }: any) {
   );
 }
 
-function Input({ label, value, onChange, disabled }: any) {
+// ✅ FIXAD TYP (VIKTIGASTE)
+type InputProps = {
+  label: string;
+  value: string | number;
+  onChange?: (value: string) => void;
+  disabled?: boolean;
+};
+
+function Input({ label, value, onChange, disabled }: InputProps) {
   return (
     <div className="flex justify-between items-center">
       <span className="text-sm">{label}</span>
