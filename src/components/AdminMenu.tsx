@@ -4,7 +4,11 @@ import Link from "next/link";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
 import Icon from "./Icon";
 
-export default function AdminMenu() {
+type Props = {
+  active?: string;
+};
+
+export default function AdminMenu({ active }: Props) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const toggleMenu = (menu: string) => {
