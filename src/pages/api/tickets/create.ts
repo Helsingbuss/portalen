@@ -31,18 +31,13 @@ export default async function handler(
 
         ticketType: data.ticketType,
 
-        // 🔁 klippkort
-        remaining:
+        // 🔁 klippkort (FIXAD)
+        ridesLeft:
           data.ticketType?.includes("resor")
             ? parseInt(data.ticketType)
-            : null,
+            : 1,
 
-        // ⏱️ period
-        validFrom:
-          data.ticketType?.includes("dagar")
-            ? new Date()
-            : null,
-
+        // ⏱️ period (FIXAD)
         validUntil:
           data.ticketType?.includes("7 dagar")
             ? new Date(Date.now() + 7 * 86400000)
