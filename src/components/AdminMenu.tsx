@@ -146,7 +146,7 @@ export default function AdminMenu() {
 <div>
   <button onClick={() => toggleMenu("flygbuss")} className={groupBtn}>
     <span className={label}>
-      <Icon src="/H_icon.png" size={20} />
+      <Icon src="/H_icon.png" />
       Flygbuss - Airport Shuttle
     </span>
     <ChevronDownIcon
@@ -193,7 +193,7 @@ export default function AdminMenu() {
 <div>
   <button onClick={() => toggleMenu("crm")} className={groupBtn}>
     <span className={label}>
-      <Icon src="/users-alt.svg" size={20} />
+      <Icon src="/users-alt.svg" />
       Kunder (CRM)
     </span>
     <ChevronDownIcon
@@ -228,7 +228,7 @@ export default function AdminMenu() {
 <div>
   <button onClick={() => toggleMenu("operators")} className={groupBtn}>
     <span className={label}>
-      <Icon src="/people-network-partner.svg" size={20} />
+      <Icon src="/people-network-partner.svg" />
       Operatörer & partners
     </span>
     <ChevronDownIcon
@@ -262,7 +262,7 @@ export default function AdminMenu() {
 <div>
   <button onClick={() => toggleMenu("fleet")} className={groupBtn}>
     <span className={label}>
-      <Icon src="/car-bus.svg" size={20} />
+      <Icon src="/car-bus.svg" />
       Fordon & dokument
     </span>
     <ChevronDownIcon
@@ -305,7 +305,7 @@ export default function AdminMenu() {
 <div>
   <button onClick={() => toggleMenu("staff")} className={groupBtn}>
     <span className={label}>
-      <Icon src="/users-alt.svg" size={20} />
+      <Icon src="/users-alt.svg"/>
       Personal
     </span>
     <ChevronDownIcon
@@ -340,7 +340,7 @@ export default function AdminMenu() {
 <div>
   <button onClick={() => toggleMenu("salary")} className={groupBtn}>
     <span className={label}>
-      <Icon src="/payroll-calendar.svg" size={20} />
+      <Icon src="/payroll-calendar.svg"/>
       Lön
     </span>
     <ChevronDownIcon
@@ -390,7 +390,7 @@ export default function AdminMenu() {
 <div>
   <button onClick={() => toggleMenu("economy")} className={groupBtn}>
     <span className={label}>
-      <Icon src="/refund-alt.svg" size={20} />
+      <Icon src="/refund-alt.svg"/>
       Ekonomi
     </span>
     <ChevronDownIcon
@@ -448,7 +448,7 @@ export default function AdminMenu() {
 <div>
   <button onClick={() => toggleMenu("reports")} className={groupBtn}>
     <span className={label}>
-      <Icon src="/financial-analysis.svg" size={20} />
+      <Icon src="/financial-analysis.svg"/>
       Rapporter & analys
     </span>
     <ChevronDownIcon
@@ -494,7 +494,7 @@ export default function AdminMenu() {
 <div>
   <button onClick={() => toggleMenu("system")} className={groupBtn}>
     <span className={label}>
-      <Icon src="/operating-system-upgrade.svg" size={20} />
+      <Icon src="/operating-system-upgrade.svg" />
       System / inställningar
     </span>
     <ChevronDownIcon
