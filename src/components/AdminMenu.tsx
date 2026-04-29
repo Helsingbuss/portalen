@@ -2,8 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
-import Icon from "../Icon";
-
+import Icon from "./Icon";
 
 export default function AdminMenu() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);

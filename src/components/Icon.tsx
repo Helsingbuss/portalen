@@ -1,10 +1,13 @@
 // src/components/Icon.tsx
-type Props = {
+
+import React from "react";
+
+type Props = React.ImgHTMLAttributes<HTMLImageElement> & {
   src: string;
   size?: number;
 };
 
-export default function Icon({ src, size = 20 }: Props) {
+export default function Icon({ src, size = 20, style, ...rest }: Props) {
   return (
     <img
       src={src}
@@ -12,7 +15,10 @@ export default function Icon({ src, size = 20 }: Props) {
       style={{
         width: size,
         height: size,
+        objectFit: "contain",
+        ...style,
       }}
+      {...rest}
     />
   );
 }
