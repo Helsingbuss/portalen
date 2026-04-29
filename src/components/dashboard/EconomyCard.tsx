@@ -10,6 +10,7 @@ import {
 type Props = {
   from: string;
   to: string;
+  totals?: any; // 🔥 FIX
   loading?: boolean;
   heightClass?: string;
 };
@@ -17,6 +18,7 @@ type Props = {
 export default function EconomyCard({
   from,
   to,
+  totals, // 🔥 FIX (behöver finnas här)
   loading = false,
   heightClass = "h-[420px]",
 }: Props) {
