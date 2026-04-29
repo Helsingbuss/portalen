@@ -5,7 +5,11 @@ import Header from "@/components/Header";
 
 /* ===== TYPES ===== */
 type CategoryKey = "bestallning" | "brollop" | "forening";
-type BusTypeKey = "sprinter" | "turistbuss" | "helturistbuss" | "dubbeldackare";
+type BusTypeKey =
+  | "sprinter"
+  | "turistbuss"
+  | "helturistbuss"
+  | "dubbeldackare";
 
 type PriceFieldKey =
   | "grundavgift"
@@ -112,11 +116,9 @@ export default function PrislistorPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
-  /* DIESEL */
   const [dieselPrice, setDieselPrice] = useState(22);
   const [autoAdjust, setAutoAdjust] = useState(false);
 
-  /* ===== FETCH (BLOCKAR ÖVERSKRIVNING) ===== */
   useEffect(() => {
     (async () => {
       try {
@@ -136,7 +138,6 @@ export default function PrislistorPage() {
     })();
   }, []);
 
-  /* ===== UPDATE ===== */
   function handleChange(
     category: CategoryKey,
     bus: BusTypeKey,
@@ -155,7 +156,6 @@ export default function PrislistorPage() {
     }));
   }
 
-  /* ===== DIESEL ===== */
   function getAdjusted(field: PriceFieldKey, val: string) {
     const base = Number(val || 0);
     if (!autoAdjust || !field.startsWith("km")) return val;
@@ -164,7 +164,6 @@ export default function PrislistorPage() {
     return Math.round(base + diff * 0.35).toString();
   }
 
-  /* ===== SAVE ===== */
   async function handleSave() {
     setIsSaving(true);
     try {
@@ -188,14 +187,12 @@ export default function PrislistorPage() {
         <Header />
 
         <main className="p-6 space-y-6">
-
           <div>
             <h1 className="text-xl font-semibold text-[#194C66]">
               Prislistor
             </h1>
           </div>
 
-          {/* DIESEL */}
           <div className="bg-white p-4 rounded-xl shadow flex items-center gap-6">
             <div>
               <label className="text-sm text-[#194C66]/70">
@@ -219,7 +216,6 @@ export default function PrislistorPage() {
             </label>
           </div>
 
-          {/* TABS */}
           <div className="flex gap-2">
             {(Object.keys(CATEGORY_LABELS) as CategoryKey[]).map((c) => (
               <button
@@ -236,7 +232,6 @@ export default function PrislistorPage() {
             ))}
           </div>
 
-          {/* GRID */}
           <div className="grid lg:grid-cols-2 gap-4">
             {(Object.keys(prices[activeCategory]) as BusTypeKey[]).map(
               (bus) => {
@@ -248,17 +243,17 @@ export default function PrislistorPage() {
                       {BUS_LABELS[bus]}
                     </h3>
 
-                    <Input label="Grundavgift" value={data.grundavgift} onChange={(v)=>handleChange(activeCategory,bus,"grundavgift",v)} />
+                    <Input label="Grundavgift" value={data.grundavgift} onChange={(v: string)=>handleChange(activeCategory,bus,"grundavgift",v)} />
 
-                    <Input label="Tim vardag" value={data.tim_vardag} onChange={(v)=>handleChange(activeCategory,bus,"tim_vardag",v)} />
-                    <Input label="Tim kväll" value={data.tim_kvall} onChange={(v)=>handleChange(activeCategory,bus,"tim_kvall",v)} />
-                    <Input label="Tim helg" value={data.tim_helg} onChange={(v)=>handleChange(activeCategory,bus,"tim_helg",v)} />
+                    <Input label="Tim vardag" value={data.tim_vardag} onChange={(v: string)=>handleChange(activeCategory,bus,"tim_vardag",v)} />
+                    <Input label="Tim kväll" value={data.tim_kvall} onChange={(v: string)=>handleChange(activeCategory,bus,"tim_kvall",v)} />
+                    <Input label="Tim helg" value={data.tim_helg} onChange={(v: string)=>handleChange(activeCategory,bus,"tim_helg",v)} />
 
                     <div className="grid grid-cols-2 gap-2 mt-3">
-                      <Input label="0–25 km" value={getAdjusted("km_0_25", data.km_0_25)} onChange={(v)=>handleChange(activeCategory,bus,"km_0_25",v)} />
-                      <Input label="26–100 km" value={getAdjusted("km_26_100", data.km_26_100)} onChange={(v)=>handleChange(activeCategory,bus,"km_26_100",v)} />
-                      <Input label="101–250 km" value={getAdjusted("km_101_250", data.km_101_250)} onChange={(v)=>handleChange(activeCategory,bus,"km_101_250",v)} />
-                      <Input label="251+ km" value={getAdjusted("km_251_plus", data.km_251_plus)} onChange={(v)=>handleChange(activeCategory,bus,"km_251_plus",v)} />
+                      <Input label="0–25 km" value={getAdjusted("km_0_25", data.km_0_25)} onChange={(v: string)=>handleChange(activeCategory,bus,"km_0_25",v)} />
+                      <Input label="26–100 km" value={getAdjusted("km_26_100", data.km_26_100)} onChange={(v: string)=>handleChange(activeCategory,bus,"km_26_100",v)} />
+                      <Input label="101–250 km" value={getAdjusted("km_101_250", data.km_101_250)} onChange={(v: string)=>handleChange(activeCategory,bus,"km_101_250",v)} />
+                      <Input label="251+ km" value={getAdjusted("km_251_plus", data.km_251_plus)} onChange={(v: string)=>handleChange(activeCategory,bus,"km_251_plus",v)} />
                     </div>
                   </div>
                 );
@@ -266,7 +261,6 @@ export default function PrislistorPage() {
             )}
           </div>
 
-          {/* SAVE */}
           <div className="flex justify-end">
             <button
               onClick={handleSave}
@@ -279,7 +273,6 @@ export default function PrislistorPage() {
           {saveMessage && (
             <div className="text-sm text-green-600">{saveMessage}</div>
           )}
-
         </main>
       </div>
     </>
@@ -287,14 +280,22 @@ export default function PrislistorPage() {
 }
 
 /* INPUT */
-function Input({ label, value, onChange }: any) {
+function Input({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange?: (value: string) => void;
+}) {
   return (
     <div className="flex justify-between items-center mb-2">
       <span className="text-sm text-[#194C66]">{label}</span>
       <input
         type="number"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => onChange?.(e.target.value)}
         className="border rounded px-2 py-1 w-24 text-right"
       />
     </div>
