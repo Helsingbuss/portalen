@@ -10,21 +10,22 @@ export default async function handler(
   }
 
   const { id } = req.query;
+
   const offerId = Array.isArray(id) ? id[0] : id;
 
   if (!offerId) {
-    return res.status(400).json({ error: "Saknar id" });
+    return res.status(400).json({ error: "Saknar ID" });
   }
 
   try {
-    await prisma.offer.update({
+    await prisma.ticket.update({
       where: { id: offerId },
       data: { status: "arkiverad" },
     });
 
-    return res.status(200).json({ success: true });
-  } catch (error) {
-    console.error("[ARCHIVE_ERROR]", error);
-    return res.status(500).json({ error: "Kunde inte arkivera" });
+    res.status(200).json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Kunde inte arkivera" });
   }
 }
