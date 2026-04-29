@@ -515,8 +515,15 @@ export default function NewBookingAdmin() {
       assigned_driver_id: driverId || null,
 
       // kopplade offerter
-      source_offer_id: linkedOfferIds[0] || null,
-      linked_offer_ids: linkedOfferIds.length ? linkedOfferIds : null,
+source_offer_id: linkedOfferIds[0] || null,
+
+// behövs för relation i Supabase
+offer_id: linkedOfferIds[0] || null,
+
+// Supabase klarar inte array direkt
+linked_offer_ids: linkedOfferIds.length
+  ? JSON.stringify(linkedOfferIds)
+  : null,
 
       // övrigt / noteringar
       notes: _trim(freeNotes) || _trim(leg1?.notes) || null,
