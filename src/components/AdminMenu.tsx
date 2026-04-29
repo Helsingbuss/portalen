@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
+import Icon from "../Icon";
 
 
 export default function AdminMenu() {
@@ -86,7 +87,7 @@ export default function AdminMenu() {
 <div>
   <button onClick={() => toggleMenu("resor")} className={groupBtn}>
     <span className={label}>
-      <Icon src="/sundra_icon.svg" size={22} />
+      <Icon src="/sundra_icon.svg" />
       Resor - Sundra
     </span>
     <ChevronDownIcon
