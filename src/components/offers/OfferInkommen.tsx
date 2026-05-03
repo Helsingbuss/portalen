@@ -4,7 +4,6 @@ import OfferTopBar from "@/components/offers/OfferTopBar";
 import TripLegGrid from "@/components/offers/TripLegGrid";
 import TripLegCard from "@/components/offers/TripLegCard";
 import OfferFooterTerms from "@/components/offers/OfferFooterTerms";
-import OfferLeftSidebar from "@/components/offers/OfferLeftSidebar";
 import RightInfoCard from "@/components/offers/RightInfoCard";
 
 type OfferInkommenProps = { offer: any };
@@ -205,8 +204,8 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
 
       <div style={{ height: `calc(100vh - ${TOPBAR_PX}px)` }}>
         <div className="grid h-full grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_550px] gap-0">
-          <div className="h-full">
-            <OfferLeftSidebar />
+          <div className="h-full p-4 lg:p-6">
+            <IncomingLeftPanel />
           </div>
 
           <main className="h-full pl-4 lg:pl-6 pr-2 lg:pr-3 py-4 lg:py-6">
@@ -275,7 +274,7 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-6 lg:px-8 pb-6">
+              <div className="flex-1 overflow-y-auto px-6 lg:px-8 pb-16">
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <div>
                     <h2 className="text-lg font-semibold text-[#0f172a]">
@@ -454,5 +453,93 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
         </div>
       </div>
     </div>
+  );
+}
+
+function IncomingLeftPanel() {
+  const steps = [
+    "Förfrågan mottagen",
+    "Vi granskar resan",
+    "Offert tas fram",
+    "Ni får svar digitalt",
+  ];
+
+  const benefits = [
+    "Trygga och bekväma fordon",
+    "Tydliga priser utan krångel",
+    "Personlig hjälp från kundteamet",
+    "Planering anpassad efter er resa",
+  ];
+
+  return (
+    <aside className="h-full rounded-3xl bg-white border border-white/70 shadow-[0_18px_50px_rgba(15,23,42,0.08)] overflow-hidden flex flex-col">
+      <div className="bg-gradient-to-br from-[#194C66] to-[#0f3347] px-5 py-6 text-white">
+        <div className="text-xs uppercase tracking-[0.18em] text-white/60">
+          Helsingbuss
+        </div>
+        <h2 className="mt-2 text-xl font-semibold">Din resa planeras</h2>
+        <p className="mt-2 text-sm leading-relaxed text-white/75">
+          Vi går igenom er förfrågan och återkommer med en tydlig offert.
+        </p>
+      </div>
+
+      <div className="p-5">
+        <div className="text-sm font-semibold text-[#0f172a]">Processen</div>
+
+        <div className="mt-4 space-y-4">
+          {steps.map((step, index) => (
+            <div key={step} className="flex gap-3">
+              <div className="flex flex-col items-center">
+                <div
+                  className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-semibold ${
+                    index === 0
+                      ? "bg-[#194C66] text-white"
+                      : "bg-[#eef5f9] text-[#194C66]"
+                  }`}
+                >
+                  {index + 1}
+                </div>
+                {index < steps.length - 1 && (
+                  <div className="mt-1 h-8 w-px bg-[#dbe7ee]" />
+                )}
+              </div>
+
+              <div className="pt-1">
+                <div className="text-sm font-medium text-[#0f172a]">
+                  {step}
+                </div>
+                {index === 0 && (
+                  <div className="mt-1 text-xs text-slate-500">Just nu</div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 rounded-2xl bg-[#f8fafc] border border-[#e2e8f0] p-4">
+          <div className="text-sm font-semibold text-[#0f172a]">
+            Därför väljer kunder oss
+          </div>
+
+          <div className="mt-3 space-y-2">
+            {benefits.map((item) => (
+              <div key={item} className="flex gap-2 text-sm text-slate-600">
+                <span className="text-[#194C66]">✓</span>
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-auto p-5">
+        <div className="rounded-2xl bg-[#eef5f9] px-4 py-4 text-sm text-[#194C66]">
+          <div className="font-semibold">Behöver ni ändra något?</div>
+          <p className="mt-1 leading-relaxed">
+            Maila oss så uppdaterar vi förfrågan innan offerten skickas.
+          </p>
+        </div>
+      </div>
+    </aside>
   );
 }
