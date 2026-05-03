@@ -76,19 +76,19 @@ async function handler(
     const { data, error } = await supabaseAdmin
       .from("bus_price_profiles")
       .select(
-        [
-          "segment",
-          "bus_type",
-          "base_fee",
-          "hour_weekday_day",
-          "hour_weekday_evening",
-          "hour_weekend",
-          "km_0_25",
-          "km_26_100",
-          "km_101_250",
-          "km_251_plus",
-        ].join(",")
-      );
+  [
+    "category",
+    "bus_type",
+    "base_price",
+    "hour_price_day",
+    "hour_price_evening",
+    "hour_price_weekend",
+    "km_price_0_25",
+    "km_price_26_100",
+    "km_price_101_250",
+    "km_price_251_plus",
+  ].join(",")
+);
 
     if (error) {
       console.error("[prislistor/index] Supabase error:", error);

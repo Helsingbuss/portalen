@@ -165,8 +165,8 @@ async function handler(
     const { error } = await supabaseAdmin
       .from("bus_price_profiles")
       .upsert(rows, {
-        onConflict: "segment,bus_type",
-      });
+  onConflict: "category,bus_type",
+});
 
     if (error) {
       console.error("[prislistor/save] Supabase error:", error);
