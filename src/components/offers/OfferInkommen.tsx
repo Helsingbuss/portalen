@@ -12,28 +12,29 @@ type OfferInkommenProps = { offer: any };
 const TOPBAR_PX = 64;
 const LINE_HEIGHT = 1.5;
 
-// Visar sträng för allt utom null/undefined/""
 function v(x: any, fallback = "—") {
   if (x === null || x === undefined) return fallback;
   const s = String(x);
   return s.trim() === "" ? fallback : s;
 }
 
-// HH:MM (tål 800, 08:0, 08:00)
 function tidyTime(v?: any): string | null {
   if (v === null || v === undefined) return null;
   const s = String(v).trim();
   if (!s) return null;
+
   if (s.includes(":")) {
     const [hh, mm = "00"] = s.split(":");
     const HH = String(hh || "00").padStart(2, "0").slice(0, 2);
     const MM = String(mm || "00").padStart(2, "0").slice(0, 2);
     return `${HH}:${MM}`;
   }
+
   if (/^\d{3,4}$/.test(s)) {
     const pad = s.padStart(4, "0");
     return `${pad.slice(0, 2)}:${pad.slice(2, 4)}`;
   }
+
   return null;
 }
 
@@ -43,27 +44,31 @@ function fmtTime(v?: any, dash = "—") {
 
 function fmtDateSv(iso?: any, dash = "—") {
   if (!iso) return dash;
+
   const s =
     typeof iso === "string"
       ? iso.length >= 10
         ? iso.slice(0, 10)
         : iso
       : String(iso ?? "");
+
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return dash;
+
   const dt = new Date(`${s}T00:00:00`);
   if (isNaN(dt.getTime())) return dash;
+
   try {
-    return new Intl.DateTimeFormat("sv-SE", { dateStyle: "medium" }).format(dt);
+    return new Intl.DateTimeFormat("sv-SE", {
+      dateStyle: "medium",
+    }).format(dt);
   } catch {
     return s || dash;
   }
 }
 
 export default function OfferInkommen({ offer }: OfferInkommenProps) {
-  // Inrikes/utrikes
   const withinSweden = (offer?.trip_type || "sverige") !== "utrikes";
 
-  // Mer tolerant detektering av tur & retur
   const hasReturn =
     Boolean(offer?.round_trip) ||
     Boolean(offer?.return_date) ||
@@ -75,7 +80,6 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
   const customerNo = v(offer?.customer_number, "K10023");
   const status = v(offer?.status, "inkommen");
 
-  // Fallback till final_destination om destination saknas
   const toOut =
     v(offer?.destination, "").trim() !== ""
       ? v(offer?.destination)
@@ -86,8 +90,8 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
       ? v(offer?.return_destination)
       : v(offer?.departure_place, "—");
 
-  // ===== TRIPS: använd legs från DB om de finns, annars gamla ut/retur =====
   const rawLegs = (offer?.legs ?? offer?.trip_legs) as any;
+
   let trips:
     | {
         title: string;
@@ -100,10 +104,14 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
       }[];
 
   if (Array.isArray(rawLegs) && rawLegs.length > 0) {
-    trips = rawLegs.map((leg: any) => ({
-      title: withinSweden ? "Bussresa inom Sverige" : "Bussresa utomlands",
+    trips = rawLegs.map((leg: any, index: number) => ({
+      title: `${withinSweden ? "Bussresa inom Sverige" : "Bussresa utomlands"} ${
+        rawLegs.length > 1 ? `• Del ${index + 1}` : ""
+      }`,
       date: fmtDateSv(leg.date ?? leg.departure_date ?? offer?.departure_date),
-      time: fmtTime(leg.time ?? leg.start ?? leg.departure_time ?? offer?.departure_time),
+      time: fmtTime(
+        leg.time ?? leg.start ?? leg.departure_time ?? offer?.departure_time
+      ),
       from: v(leg.from ?? leg.departure_place ?? offer?.departure_place),
       to: v(
         leg.to ??
@@ -117,7 +125,9 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
     }));
   } else {
     const firstLeg = {
-      title: withinSweden ? "Bussresa inom Sverige" : "Bussresa utomlands",
+      title: withinSweden
+        ? "Bussresa inom Sverige • Utresa"
+        : "Bussresa utomlands • Utresa",
       date: fmtDateSv(offer?.departure_date),
       time: fmtTime(offer?.departure_time),
       from: v(offer?.departure_place),
@@ -128,7 +138,9 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
 
     const secondLeg = hasReturn
       ? {
-          title: withinSweden ? "Bussresa inom Sverige" : "Bussresa utomlands",
+          title: withinSweden
+            ? "Bussresa inom Sverige • Återresa"
+            : "Bussresa utomlands • Återresa",
           date: fmtDateSv(offer?.return_date),
           time: fmtTime(offer?.return_time),
           from:
@@ -144,7 +156,6 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
     trips = secondLeg ? [firstLeg, secondLeg] : [firstLeg];
   }
 
-  // === Kunduppgifter (höger kort) ===
   const offerDateRaw =
     offer?.offer_date ??
     (typeof offer?.created_at === "string"
@@ -182,8 +193,7 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
   ];
 
   return (
-    <div className="bg-[#f5f4f0] overflow-hidden">
-      {/* Topprad */}
+    <div className="bg-[#eef2f4] overflow-hidden">
       <div style={{ height: TOPBAR_PX }}>
         <OfferTopBar
           offerNumber={offerNo}
@@ -193,124 +203,252 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
         />
       </div>
 
-      {/* Arbetsyta */}
       <div style={{ height: `calc(100vh - ${TOPBAR_PX}px)` }}>
         <div className="grid h-full grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_550px] gap-0">
-          {/* Vänster */}
           <div className="h-full">
             <OfferLeftSidebar />
           </div>
 
-          {/* Mitten */}
           <main className="h-full pl-4 lg:pl-6 pr-2 lg:pr-3 py-4 lg:py-6">
-            <div className="h-full bg-white rounded-xl shadow flex flex-col">
-              <div className="px-6 pt-6">
-                <Image
-                  src="/mork_logo.png"
-                  alt="Helsingbuss"
-                  width={360}
-                  height={64}
-                  priority
-                />
+            <div className="h-full overflow-hidden rounded-3xl bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)] border border-white/70 flex flex-col">
+              <div className="relative px-6 lg:px-8 pt-7 pb-6 overflow-hidden">
+                <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-br from-[#194C66]/10 via-[#edf6f8] to-white pointer-events-none" />
 
-                <h1 className="mt-2 text-2xl font-semibold text-[#0f172a]">
-                  Offertförfrågan {offerNo}
-                </h1>
+                <div className="relative">
+                  <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
+                    <div>
+                      <div className="inline-flex items-center gap-2 rounded-full bg-[#194C66] px-3 py-1 text-[12px] font-semibold text-white shadow-sm">
+                        Offertförfrågan mottagen
+                      </div>
+
+                      <h1 className="mt-4 text-3xl lg:text-[34px] leading-tight font-semibold tracking-tight text-[#0f172a]">
+                        Tack, vi har tagit emot er förfrågan
+                      </h1>
+
+                      <p className="mt-2 text-sm text-slate-600">
+                        Offertförfrågan{" "}
+                        <span className="font-semibold text-[#194C66]">
+                          {offerNo}
+                        </span>{" "}
+                        granskas nu av Helsingbuss.
+                      </p>
+                    </div>
+
+                    <div className="shrink-0 rounded-2xl bg-white/80 border border-white shadow-sm px-5 py-4">
+                      <Image
+                        src="/mork_logo.png"
+                        alt="Helsingbuss"
+                        width={250}
+                        height={48}
+                        priority
+                      />
+                    </div>
+                  </div>
+
+                  <div
+                    className="mt-6 max-w-4xl rounded-2xl border border-[#dbe7ee] bg-white/85 px-5 py-4 text-[14px] text-[#0f172a]/80 shadow-sm"
+                    style={{ lineHeight: LINE_HEIGHT }}
+                  >
+                    <p>
+                      Hej!
+                      <br />
+                      Tack för förtroendet. Vi har tagit emot er förfrågan och
+                      går nu igenom detaljerna. Nedan kan ni dubbelkolla
+                      uppgifterna ni skickade in. Utifrån dessa återkommer vi
+                      med en skräddarsydd offert med tydliga tider, bussmodell
+                      och pris.
+                    </p>
+
+                    <p className="mt-3">
+                      Behöver ni ändra antal resenärer, hållplatser, bagage,
+                      barnstol/tillgänglighet eller service ombord? Maila oss
+                      på{" "}
+                      <a
+                        className="font-medium text-[#194C66] underline decoration-[#194C66]/30 underline-offset-4"
+                        href="mailto:kundteam@helsingbuss.se"
+                      >
+                        kundteam@helsingbuss.se
+                      </a>{" "}
+                      så uppdaterar vi direkt.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-6 lg:px-8 pb-6">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-[#0f172a]">
+                      Resedetaljer
+                    </h2>
+                    <p className="text-sm text-slate-500">
+                      Kontrollera datum, tider, platser och antal resenärer.
+                    </p>
+                  </div>
+
+                  <div className="hidden sm:flex items-center gap-2 rounded-full bg-[#f1f7f9] px-4 py-2 text-xs font-medium text-[#194C66]">
+                    {hasReturn ? "Tur & retur" : "Enkelresa"}
+                  </div>
+                </div>
+
+                <TripLegGrid>
+                  {trips.map((trip, idx) => (
+                    <TripLegCard
+                      key={idx}
+                      title={trip.title}
+                      subtitle="Avstånd och tider baseras preliminärt"
+                      date={trip.date}
+                      time={trip.time}
+                      from={trip.from}
+                      to={trip.to}
+                      pax={trip.pax}
+                      extra={trip.extra}
+                      iconSrc="/busie.png"
+                    />
+                  ))}
+                </TripLegGrid>
 
                 <div
-                  className="mt-5 text-[14px] text-[#0f172a]/80"
+                  className="mt-6 grid gap-4 lg:grid-cols-2 text-[14px]"
                   style={{ lineHeight: LINE_HEIGHT }}
                 >
-                  <p>
-                    Hej!
-                    <br />
-                    Tack för förtroendet. Vi har tagit emot er förfrågan och
-                    går nu igenom detaljerna. Nedan kan ni dubbelkolla
-                    uppgifterna ni skickade in. Utifrån dessa återkommer vi med
-                    en skräddarsydd offert med tydliga tider, bussmodell och
-                    pris. Behöver ni ändra antal resenärer, hållplatser, bagage,
-                    barnstol/tillgänglighet eller service ombord? Maila oss på{" "}
-                    <a
-                      className="underline"
-                      href="mailto:kundteam@helsingbuss.se"
-                    >
-                      kundteam@helsingbuss.se
-                    </a>{" "}
-                    så uppdaterar vi direkt. Luta er tillbaka – vi tar hand om
-                    resten.
-                  </p>
-                </div>
+                  <div className="rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-5 text-[#0f172a]/80">
+                    <div className="mb-2 text-sm font-semibold text-[#0f172a]">
+                      Nästa steg
+                    </div>
+                    <p>
+                      Vi kontrollerar kapacitet, rutt, tider och eventuella
+                      tillval. Därefter återkommer vi med en tydlig offert som
+                      ni kan godkänna digitalt.
+                    </p>
+                  </div>
 
-                <div className="mt-5">
-                  <TripLegGrid>
-                    {trips.map((trip, idx) => (
-                      <TripLegCard
-                        key={idx}
-                        title={trip.title}
-                        subtitle="Avstånd och tider baseras preliminärt"
-                        date={trip.date}
-                        time={trip.time}
-                        from={trip.from}
-                        to={trip.to}
-                        pax={trip.pax}
-                        extra={trip.extra}
-                        iconSrc="/busie.png"
-                      />
-                    ))}
-                  </TripLegGrid>
+                  <div className="rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-5 text-[#0f172a]/80">
+                    <div className="mb-2 text-sm font-semibold text-[#0f172a]">
+                      Viktig information
+                    </div>
+                    <p>
+                      Detta är endast en offertförfrågan. Bokningen är inte
+                      bindande förrän ni har fått och godkänt en skriftlig
+                      offert/bokningsbekräftelse från oss.
+                    </p>
+                  </div>
                 </div>
 
                 <div
-                  className="mt-6 text-[14px] text-[#0f172a]/80"
+                  className="mt-6 rounded-2xl bg-white border border-[#e2e8f0] p-5 text-[14px] text-[#0f172a]/80"
                   style={{ lineHeight: LINE_HEIGHT }}
                 >
                   <p>
                     Vid eventuell ändring av uppdragstiden eller körsträckan
-                    utöver det som anges i offerten tillkommer tilläggs
-                    debitering. Vi reserverar oss för flertalet frågor samt
-                    eventuella ändringar eller pålagor som ligger utanför vår
-                    kontroll. Vid behov av ombokning ansvarar beställaren för
-                    att ombokningstid följer.
+                    utöver det som anges i offerten tillkommer
+                    tilläggsdebitering. Vi reserverar oss för flertalet frågor
+                    samt eventuella ändringar eller pålagor som ligger utanför
+                    vår kontroll.
                   </p>
+
                   <p className="mt-3">
                     Har du frågor, funderingar eller vill bekräfta bokningen?
-                    Tveka inte att kontakta oss på{" "}
-                    <strong>010–405 38 38</strong> (vardagar kl. 08.00–17.00).
-                    För akuta ärenden utanför kontorstid når du vår jourtelefon
-                    på <strong>010–777 21 58</strong>.
+                    Kontakta oss på <strong>010–405 38 38</strong> vardagar
+                    kl. 08.00–17.00. För akuta ärenden utanför kontorstid når
+                    du vår jourtelefon på <strong>010–777 21 58</strong>.
                   </p>
-                  <p className="mt-4 uppercase text-[12px] tracking-wide font-semibold">
-                    OBS! detta är endast en offert, välkommen med din bokning!
+
+                  <p className="mt-4 rounded-xl bg-[#194C66] px-4 py-3 text-[12px] uppercase tracking-wide font-semibold text-white">
+                    OBS! Detta är endast en offertförfrågan – vi återkommer med
+                    offert.
                   </p>
                 </div>
               </div>
 
-              <div className="mt-auto px-6 pb-6">
-                <OfferFooterTerms
-                  termsParagraphs={[]}
-                  companyName="Helsingbuss"
-                  address1="Hofverbergsgatan 2B"
-                  address2="254 43 Helsingborg"
-                  website="helsingbuss.se"
-                  phoneMain="+46 (0)10-405 38 38"
-                  phoneEmergency="+46 (0)10-777 21 58"
-                  email="info@helsingbuss.se"
-                  bankgiro="763-4157"
-                  orgNumber="890101-3931"
-                  vatNumber="SE890101393101"
-                  bankName="Swedbank"
-                  iban="SE09 8000 0816 9581 4754 3998"
-                  bic="SWEDSESS"
-                />
+              <div className="px-6 lg:px-8 pb-6">
+                <div className="rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-4">
+                  <OfferFooterTerms
+                    termsParagraphs={[]}
+                    companyName="Helsingbuss"
+                    address1="Hofverbergsgatan 2B"
+                    address2="254 43 Helsingborg"
+                    website="helsingbuss.se"
+                    phoneMain="+46 (0)10-405 38 38"
+                    phoneEmergency="+46 (0)10-777 21 58"
+                    email="info@helsingbuss.se"
+                    bankgiro="763-4157"
+                    orgNumber="890101-3931"
+                    vatNumber="SE890101393101"
+                    bankName="Swedbank"
+                    iban="SE09 8000 0816 9581 4754 3998"
+                    bic="SWEDSESS"
+                  />
+                </div>
               </div>
             </div>
           </main>
 
-          {/* Höger – kunduppgifter */}
           <aside className="h-full p-4 lg:p-6">
-            <div className="h-full bg-white rounded-xl shadow flex flex-col">
-              <RightInfoCard title="Kunduppgifter" rows={customerRows} />
-              <div className="mt-auto pb-6" />
+            <div className="h-full rounded-3xl bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)] border border-white/70 flex flex-col overflow-hidden">
+              <div className="bg-gradient-to-br from-[#194C66] to-[#0f3347] px-6 py-6 text-white">
+                <div className="text-xs uppercase tracking-[0.18em] text-white/60">
+                  Kundöversikt
+                </div>
+                <h2 className="mt-2 text-2xl font-semibold">
+                  {customerName ?? "Kund"}
+                </h2>
+                <p className="mt-1 text-sm text-white/70">
+                  Vi använder dessa uppgifter när vi återkommer med offerten.
+                </p>
+              </div>
+
+              <div className="p-5">
+                <RightInfoCard title="Kunduppgifter" rows={customerRows} />
+              </div>
+
+              <div className="mx-5 mt-1 rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-4">
+                <div className="text-sm font-semibold text-[#0f172a]">
+                  Status
+                </div>
+                <div className="mt-2 inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                  {status}
+                </div>
+                <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                  Förfrågan är mottagen och inväntar offert från Helsingbuss.
+                </p>
+              </div>
+
+              <div className="mx-5 mt-4 rounded-2xl border border-[#e2e8f0] bg-white p-4">
+                <div className="text-sm font-semibold text-[#0f172a]">
+                  Snabb kontakt
+                </div>
+                <div className="mt-3 space-y-2 text-sm text-slate-600">
+                  <div>
+                    Telefon:{" "}
+                    <a
+                      href="tel:+46104053838"
+                      className="font-medium text-[#194C66]"
+                    >
+                      010–405 38 38
+                    </a>
+                  </div>
+                  <div>
+                    E-post:{" "}
+                    <a
+                      href="mailto:kundteam@helsingbuss.se"
+                      className="font-medium text-[#194C66]"
+                    >
+                      kundteam@helsingbuss.se
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-auto p-5">
+                <div className="rounded-2xl bg-[#eef5f9] px-4 py-4 text-sm text-[#194C66]">
+                  <div className="font-semibold">Vad händer nu?</div>
+                  <p className="mt-1 leading-relaxed">
+                    Vi tar fram en offert och skickar den till er så snart
+                    uppgifterna är kontrollerade.
+                  </p>
+                </div>
+              </div>
             </div>
           </aside>
         </div>
