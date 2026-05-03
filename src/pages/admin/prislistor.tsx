@@ -110,6 +110,41 @@ const INITIAL_STATE: PriceState = {
   forening: generate(0.9),
 };
 
+function hasRealPrices(input: any): boolean {
+  if (!input || typeof input !== "object") return false;
+
+  return Object.values(input).some((category: any) =>
+    Object.values(category || {}).some((bus: any) =>
+      Object.values(bus || {}).some((value: any) => {
+        const text = String(value ?? "").trim();
+        const num = Number(text.replace(",", "."));
+        return text !== "" && Number.isFinite(num) && num > 0;
+      })
+    )
+  );
+}
+
+function mergePricesWithFallback(apiPrices: PriceState): PriceState {
+  const merged: PriceState = structuredClone(INITIAL_STATE);
+
+  (Object.keys(apiPrices) as CategoryKey[]).forEach((category) => {
+    (Object.keys(apiPrices[category]) as BusTypeKey[]).forEach((bus) => {
+      (Object.keys(apiPrices[category][bus]) as PriceFieldKey[]).forEach(
+        (field) => {
+          const value = String(apiPrices[category][bus][field] ?? "").trim();
+          const num = Number(value.replace(",", "."));
+
+          if (value !== "" && Number.isFinite(num) && num > 0) {
+            merged[category][bus][field] = value;
+          }
+        }
+      );
+    });
+  });
+
+  return merged;
+}
+
 export default function PrislistorPage() {
   const [activeCategory, setActiveCategory] =
     useState<CategoryKey>("bestallning");
@@ -128,8 +163,8 @@ export default function PrislistorPage() {
         const res = await fetch("/api/admin/prislistor");
         const data = await res.json();
 
-        if (data?.ok && data?.prices) {
-          setPrices(data.prices);
+        if (data?.ok && data?.prices && hasRealPrices(data.prices)) {
+          setPrices(mergePricesWithFallback(data.prices));
         }
       } catch (e) {
         console.error(e);
@@ -177,7 +212,9 @@ export default function PrislistorPage() {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok || data?.error) {
-        throw new Error(data?.error || "Fel vid sparning");
+        throw new Error(
+          data?.supabaseError || data?.error || "Fel vid sparning"
+        );
       }
 
       setSaveMessage("Sparat ✔");
@@ -335,7 +372,9 @@ export default function PrislistorPage() {
           {saveMessage && (
             <div
               className={`text-sm ${
-                saveMessage.includes("Fel")
+                saveMessage.includes("Fel") ||
+                saveMessage.includes("permission") ||
+                saveMessage.includes("Kunde")
                   ? "text-red-600"
                   : "text-green-600"
               }`}
