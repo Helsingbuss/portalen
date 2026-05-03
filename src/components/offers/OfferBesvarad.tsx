@@ -4,11 +4,10 @@ import { useState } from "react";
 
 // ÅTERANVÄNDA komponenter/layout
 import OfferTopBar from "@/components/offers/OfferTopBar";
-import OfferLeftSidebar from "@/components/offers/OfferLeftSidebar";
 import TripLegGrid from "@/components/offers/TripLegGrid";
 import TripLegCard from "@/components/offers/TripLegCard";
 
-// --- layoutkonstanter (som på Inkommen)
+// --- layoutkonstanter
 const TOPBAR_PX = 64;
 const LINE_HEIGHT = 1.5;
 
@@ -29,7 +28,6 @@ type Breakdown = {
   };
 };
 
-// ✅ HELA KRONOR (inga ören)
 function money(n?: number | null) {
   if (n == null) return "—";
   const rounded = Math.round(Number(n));
@@ -46,7 +44,6 @@ function v(x: any, fallback = "—") {
 }
 
 export default function OfferBesvarad({ offer }: any) {
-  // Härled tur/retur även om round_trip saknas i DB
   const roundTrip = Boolean(
     offer?.round_trip ??
       offer?.return_date ??
@@ -60,7 +57,6 @@ export default function OfferBesvarad({ offer }: any) {
   const email: string | undefined =
     offer?.contact_email || offer?.customer_email || undefined;
 
-  // Mittens resekort (ut/retur)
   const trips = [
     {
       title: roundTrip ? "Utresa" : "Bussresa",
@@ -86,7 +82,6 @@ export default function OfferBesvarad({ offer }: any) {
       : []),
   ];
 
-  // totals & breakdown (om finns)
   const breakdown: Breakdown | null =
     typeof offer?.vat_breakdown === "object" && offer?.vat_breakdown
       ? (offer.vat_breakdown as Breakdown)
@@ -129,7 +124,6 @@ export default function OfferBesvarad({ offer }: any) {
     return null;
   })();
 
-  // ✅ Vi visar bara TOTALEN för kunden (inte uppdelat)
   const totalForCustomer: number | null = (() => {
     const candidates = [
       offer?.total_amount,
@@ -145,18 +139,15 @@ export default function OfferBesvarad({ offer }: any) {
 
   const tripLabel = roundTrip ? "Tur & retur" : "Enkelresa";
 
-  // --- actions-state & handlers
   const [busy, setBusy] = useState<"accept" | "decline" | "change" | null>(
     null
   );
 
-  // ✅ FIX: behåll token när vi skickar kunden vidare mellan vyer
   function getAuthQueryFromUrl() {
     if (typeof window === "undefined") return "";
     const sp = new URLSearchParams(window.location.search);
     const t = sp.get("token") || sp.get("t");
     if (!t) return "";
-    // Behåll båda för bakåtkompatibilitet
     return `&token=${encodeURIComponent(t)}&t=${encodeURIComponent(t)}`;
   }
 
@@ -173,6 +164,7 @@ export default function OfferBesvarad({ offer }: any) {
       });
       if (r.ok) return r;
     }
+
     return fetch(fallbackPath, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -180,7 +172,6 @@ export default function OfferBesvarad({ offer }: any) {
     });
   }
 
-  // Skapar bokning utifrån offert (använder din API-route /api/bookings/from-offer)
   async function createBookingFromOffer(): Promise<{ id?: string } | null> {
     try {
       const res = await fetch("/api/bookings/from-offer", {
@@ -194,6 +185,7 @@ export default function OfferBesvarad({ offer }: any) {
           notes: offer?.notes ?? null,
         }),
       });
+
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j?.error || `HTTP ${res.status}`);
       return j?.booking ?? null;
@@ -207,6 +199,7 @@ export default function OfferBesvarad({ offer }: any) {
       alert("Saknas uppgifter (offertnummer/e-post).");
       return;
     }
+
     try {
       setBusy("accept");
 
@@ -241,6 +234,7 @@ export default function OfferBesvarad({ offer }: any) {
       alert("Saknas uppgifter (offertnummer/e-post).");
       return;
     }
+
     try {
       setBusy("decline");
 
@@ -274,6 +268,7 @@ export default function OfferBesvarad({ offer }: any) {
       alert("Saknas uppgifter (offertnummer/e-post).");
       return;
     }
+
     try {
       setBusy("change");
 
@@ -306,7 +301,6 @@ export default function OfferBesvarad({ offer }: any) {
 
   return (
     <div className="bg-[#f5f4f0] overflow-hidden">
-      {/* TOPPRAD */}
       <div style={{ height: TOPBAR_PX }}>
         <OfferTopBar
           offerNumber={offer?.offer_number ?? "HB25XXXX"}
@@ -316,15 +310,12 @@ export default function OfferBesvarad({ offer }: any) {
         />
       </div>
 
-      {/* INNEHÅLLSYTA */}
       <div style={{ height: `calc(100vh - ${TOPBAR_PX}px)` }}>
         <div className="grid h-full grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_550px] gap-0">
-          {/* VÄNSTER */}
-          <div className="h-full">
-            <OfferLeftSidebar />
+          <div className="h-full p-4 lg:p-6">
+            <AnsweredLeftPanel />
           </div>
 
-          {/* MITTEN */}
           <main className="h-full pl-4 lg:pl-6 pr-2 lg:pr-3 py-4 lg:py-6">
             <div className="h-full bg-white rounded-xl shadow flex flex-col">
               <div className="px-6 pt-6">
@@ -335,6 +326,7 @@ export default function OfferBesvarad({ offer }: any) {
                   height={64}
                   priority
                 />
+
                 <h1 className="mt-2 text-2xl font-semibold text-[#0f172a]">
                   Offert {offer?.offer_number || "—"}
                 </h1>
@@ -364,7 +356,6 @@ export default function OfferBesvarad({ offer }: any) {
                   </p>
                 </div>
 
-                {/* RESEKORT – ✅ utan prisrader under varje resa */}
                 <div className="mt-5">
                   <TripLegGrid>
                     {trips.map((trip, idx) => (
@@ -399,6 +390,7 @@ export default function OfferBesvarad({ offer }: any) {
                     kontrolleras vid bokning och bekräftas först genom en
                     skriftlig bokningsbekräftelse från oss.
                   </p>
+
                   <p className="mt-3">
                     Vill ni boka eller har frågor/ändringar? Kontakta oss så
                     hjälper vi gärna. Våra öppettider är vardagar kl.
@@ -409,7 +401,7 @@ export default function OfferBesvarad({ offer }: any) {
                 </div>
               </div>
 
-              <div className="mt-auto px-6 pb-6">
+              <div className="mt-auto px-6 pb-10">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-[13px] text-[#0f172a]">
                   <div>
                     <div>Helsingbuss</div>
@@ -432,7 +424,6 @@ export default function OfferBesvarad({ offer }: any) {
             </div>
           </main>
 
-          {/* HÖGER – kund + ✅ bara totalpris */}
           <aside className="h-full p-4 lg:p-6">
             <div className="h-full bg-white rounded-xl shadow flex flex-col">
               <div className="px-6 pt-6">
@@ -473,6 +464,7 @@ export default function OfferBesvarad({ offer }: any) {
                     <div className="mt-3 text-sm text-[#0f172a]/70">
                       Totala kostnaden för denna offert är:
                     </div>
+
                     <div className="mt-1 text-2xl font-semibold text-[#0f172a]">
                       {money(totalForCustomer)}
                     </div>
@@ -532,7 +524,96 @@ export default function OfferBesvarad({ offer }: any) {
   );
 }
 
-/* Små hjälpare för DL-rader */
+function AnsweredLeftPanel() {
+  const steps = [
+    "Offerten är klar",
+    "Granska uppgifter",
+    "Godkänn eller ändra",
+    "Bokningen bekräftas",
+  ];
+
+  const benefits = [
+    "Tydligt totalpris",
+    "Trygga och bekväma fordon",
+    "Personlig hjälp vid ändringar",
+    "Planering anpassad efter er resa",
+  ];
+
+  return (
+    <aside className="h-full rounded-3xl bg-white border border-white/70 shadow-[0_18px_50px_rgba(15,23,42,0.08)] overflow-hidden flex flex-col">
+      <div className="bg-gradient-to-br from-[#194C66] to-[#0f3347] px-5 py-6 text-white">
+        <div className="text-xs uppercase tracking-[0.18em] text-white/60">
+          Helsingbuss
+        </div>
+        <h2 className="mt-2 text-xl font-semibold">Er offert är redo</h2>
+        <p className="mt-2 text-sm leading-relaxed text-white/75">
+          Granska offerten och välj om ni vill godkänna, avböja eller be om
+          ändring.
+        </p>
+      </div>
+
+      <div className="p-5">
+        <div className="text-sm font-semibold text-[#0f172a]">Processen</div>
+
+        <div className="mt-4 space-y-4">
+          {steps.map((step, index) => (
+            <div key={step} className="flex gap-3">
+              <div className="flex flex-col items-center">
+                <div
+                  className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-semibold ${
+                    index === 0
+                      ? "bg-[#194C66] text-white"
+                      : "bg-[#eef5f9] text-[#194C66]"
+                  }`}
+                >
+                  {index + 1}
+                </div>
+                {index < steps.length - 1 && (
+                  <div className="mt-1 h-8 w-px bg-[#dbe7ee]" />
+                )}
+              </div>
+
+              <div className="pt-1">
+                <div className="text-sm font-medium text-[#0f172a]">
+                  {step}
+                </div>
+                {index === 0 && (
+                  <div className="mt-1 text-xs text-slate-500">Just nu</div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 rounded-2xl bg-[#f8fafc] border border-[#e2e8f0] p-4">
+          <div className="text-sm font-semibold text-[#0f172a]">
+            Ingår i vår service
+          </div>
+
+          <div className="mt-3 space-y-2">
+            {benefits.map((item) => (
+              <div key={item} className="flex gap-2 text-sm text-slate-600">
+                <span className="text-[#194C66]">✓</span>
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-auto p-5">
+        <div className="rounded-2xl bg-[#eef5f9] px-4 py-4 text-sm text-[#194C66]">
+          <div className="font-semibold">Behöver ni ändra något?</div>
+          <p className="mt-1 leading-relaxed">
+            Klicka på “Ändra din offert” så återkommer vi med en uppdaterad
+            offert.
+          </p>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 function DT({ children }: { children: React.ReactNode }) {
   return (
     <dt className="font-semibold text-[#0f172a]/70 whitespace-nowrap">
