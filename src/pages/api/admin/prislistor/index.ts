@@ -5,7 +5,11 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { withCors } from "@/lib/cors";
 
 type PriceCategoryKey = "bestallning" | "brollop" | "forening";
-type BusTypeKey = "sprinter" | "turistbuss" | "helturistbuss" | "dubbeldackare";
+type BusTypeKey =
+  | "sprinter"
+  | "turistbuss"
+  | "helturistbuss"
+  | "dubbeldackare";
 
 type PriceFields = {
   grundavgift: string;
@@ -24,9 +28,8 @@ export type PriceFormValues = Record<
 >;
 
 type DbRow = {
-  id: string;
-  segment: string; // "bestallning" | "brollop" | "forening"
-  bus_type: string; // "sprinter" | "turistbuss" | "helturistbuss" | "dubbeldackare"
+  segment: string | null;
+  bus_type: string | null;
   base_fee: number | null;
   hour_weekday_day: number | null;
   hour_weekday_evening: number | null;
@@ -45,6 +48,7 @@ type ApiResponse =
   | {
       ok: false;
       error: string;
+      supabaseError?: string;
     };
 
 function emptyPriceFields(): PriceFields {
@@ -73,7 +77,6 @@ async function handler(
       .from("bus_price_profiles")
       .select(
         [
-          "id",
           "segment",
           "bus_type",
           "base_fee",
@@ -84,14 +87,16 @@ async function handler(
           "km_26_100",
           "km_101_250",
           "km_251_plus",
-        ].join(", ")
+        ].join(",")
       );
 
     if (error) {
       console.error("[prislistor/index] Supabase error:", error);
+
       return res.status(500).json({
         ok: false,
         error: "Kunde inte läsa prislistorna från databasen.",
+        supabaseError: error.message || String(error),
       });
     }
 
@@ -121,6 +126,7 @@ async function handler(
       "brollop",
       "forening",
     ];
+
     const validBusTypes: BusTypeKey[] = [
       "sprinter",
       "turistbuss",
@@ -128,8 +134,7 @@ async function handler(
       "dubbeldackare",
     ];
 
-    // 🔧 TS-workaround: kasta via unknown så den slutar klaga på GenericStringError
-    const rows: DbRow[] = ((data || []) as unknown) as DbRow[];
+    const rows = ((data || []) as unknown) as DbRow[];
 
     rows.forEach((row) => {
       const segment = row.segment as PriceCategoryKey;
@@ -154,9 +159,7 @@ async function handler(
           : target.tim_kvall;
 
       target.tim_helg =
-        row.hour_weekend != null
-          ? String(row.hour_weekend)
-          : target.tim_helg;
+        row.hour_weekend != null ? String(row.hour_weekend) : target.tim_helg;
 
       target.km_0_25 =
         row.km_0_25 != null ? String(row.km_0_25) : target.km_0_25;
@@ -165,18 +168,24 @@ async function handler(
         row.km_26_100 != null ? String(row.km_26_100) : target.km_26_100;
 
       target.km_101_250 =
-        row.km_101_250 != null ? String(row.km_101_250) : target.km_101_250;
+        row.km_101_250 != null
+          ? String(row.km_101_250)
+          : target.km_101_250;
 
       target.km_251_plus =
-        row.km_251_plus != null ? String(row.km_251_plus) : target.km_251_plus;
+        row.km_251_plus != null
+          ? String(row.km_251_plus)
+          : target.km_251_plus;
     });
 
     return res.status(200).json({ ok: true, prices });
   } catch (e: any) {
     console.error("[prislistor/index] Fatal error:", e?.message || e);
+
     return res.status(500).json({
       ok: false,
       error: "Internt fel vid hämtning av prislistor.",
+      supabaseError: e?.message || String(e),
     });
   }
 }
