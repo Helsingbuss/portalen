@@ -89,14 +89,17 @@ const BASE = {
 
 function generate(multiplier: number) {
   const result: any = {};
+
   for (const bus in BASE) {
     result[bus] = {};
+
     for (const key in BASE[bus as BusTypeKey]) {
       result[bus][key] = Math.round(
         BASE[bus as BusTypeKey][key as PriceFieldKey] * multiplier
       ).toString();
     }
   }
+
   return result;
 }
 
@@ -125,12 +128,8 @@ export default function PrislistorPage() {
         const res = await fetch("/api/admin/prislistor");
         const data = await res.json();
 
-        if (data?.prices) {
-          setPrices((prev) => ({
-            bestallning: prev.bestallning,
-            brollop: prev.brollop,
-            forening: prev.forening,
-          }));
+        if (data?.ok && data?.prices) {
+          setPrices(data.prices);
         }
       } catch (e) {
         console.error(e);
@@ -166,15 +165,25 @@ export default function PrislistorPage() {
 
   async function handleSave() {
     setIsSaving(true);
+    setSaveMessage(null);
+
     try {
-      await fetch("/api/admin/prislistor/save", {
+      const res = await fetch("/api/admin/prislistor/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prices }),
       });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || data?.error) {
+        throw new Error(data?.error || "Fel vid sparning");
+      }
+
       setSaveMessage("Sparat ✔");
-    } catch {
-      setSaveMessage("Fel vid sparning");
+    } catch (e: any) {
+      console.error(e);
+      setSaveMessage(e?.message || "Fel vid sparning");
     } finally {
       setIsSaving(false);
     }
@@ -243,17 +252,70 @@ export default function PrislistorPage() {
                       {BUS_LABELS[bus]}
                     </h3>
 
-                    <Input label="Grundavgift" value={data.grundavgift} onChange={(v: string)=>handleChange(activeCategory,bus,"grundavgift",v)} />
+                    <Input
+                      label="Grundavgift"
+                      value={data.grundavgift}
+                      onChange={(v: string) =>
+                        handleChange(activeCategory, bus, "grundavgift", v)
+                      }
+                    />
 
-                    <Input label="Tim vardag" value={data.tim_vardag} onChange={(v: string)=>handleChange(activeCategory,bus,"tim_vardag",v)} />
-                    <Input label="Tim kväll" value={data.tim_kvall} onChange={(v: string)=>handleChange(activeCategory,bus,"tim_kvall",v)} />
-                    <Input label="Tim helg" value={data.tim_helg} onChange={(v: string)=>handleChange(activeCategory,bus,"tim_helg",v)} />
+                    <Input
+                      label="Tim vardag"
+                      value={data.tim_vardag}
+                      onChange={(v: string) =>
+                        handleChange(activeCategory, bus, "tim_vardag", v)
+                      }
+                    />
+
+                    <Input
+                      label="Tim kväll"
+                      value={data.tim_kvall}
+                      onChange={(v: string) =>
+                        handleChange(activeCategory, bus, "tim_kvall", v)
+                      }
+                    />
+
+                    <Input
+                      label="Tim helg"
+                      value={data.tim_helg}
+                      onChange={(v: string) =>
+                        handleChange(activeCategory, bus, "tim_helg", v)
+                      }
+                    />
 
                     <div className="grid grid-cols-2 gap-2 mt-3">
-                      <Input label="0–25 km" value={getAdjusted("km_0_25", data.km_0_25)} onChange={(v: string)=>handleChange(activeCategory,bus,"km_0_25",v)} />
-                      <Input label="26–100 km" value={getAdjusted("km_26_100", data.km_26_100)} onChange={(v: string)=>handleChange(activeCategory,bus,"km_26_100",v)} />
-                      <Input label="101–250 km" value={getAdjusted("km_101_250", data.km_101_250)} onChange={(v: string)=>handleChange(activeCategory,bus,"km_101_250",v)} />
-                      <Input label="251+ km" value={getAdjusted("km_251_plus", data.km_251_plus)} onChange={(v: string)=>handleChange(activeCategory,bus,"km_251_plus",v)} />
+                      <Input
+                        label="0–25 km"
+                        value={getAdjusted("km_0_25", data.km_0_25)}
+                        onChange={(v: string) =>
+                          handleChange(activeCategory, bus, "km_0_25", v)
+                        }
+                      />
+
+                      <Input
+                        label="26–100 km"
+                        value={getAdjusted("km_26_100", data.km_26_100)}
+                        onChange={(v: string) =>
+                          handleChange(activeCategory, bus, "km_26_100", v)
+                        }
+                      />
+
+                      <Input
+                        label="101–250 km"
+                        value={getAdjusted("km_101_250", data.km_101_250)}
+                        onChange={(v: string) =>
+                          handleChange(activeCategory, bus, "km_101_250", v)
+                        }
+                      />
+
+                      <Input
+                        label="251+ km"
+                        value={getAdjusted("km_251_plus", data.km_251_plus)}
+                        onChange={(v: string) =>
+                          handleChange(activeCategory, bus, "km_251_plus", v)
+                        }
+                      />
                     </div>
                   </div>
                 );
@@ -271,7 +333,15 @@ export default function PrislistorPage() {
           </div>
 
           {saveMessage && (
-            <div className="text-sm text-green-600">{saveMessage}</div>
+            <div
+              className={`text-sm ${
+                saveMessage.includes("Fel")
+                  ? "text-red-600"
+                  : "text-green-600"
+              }`}
+            >
+              {saveMessage}
+            </div>
           )}
         </main>
       </div>
