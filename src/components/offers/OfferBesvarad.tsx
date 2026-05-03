@@ -19,6 +19,14 @@ type Breakdown = {
   grandTotal?: number;
   serviceFeeExVat?: number;
   legs?: any[];
+  fees?: {
+    includeBridgeFee?: boolean;
+    bridgeFeeTotal?: number;
+    includeBoatFee?: boolean;
+    boatFeeTotal?: number;
+    boatFeeQty?: number;
+    includedFeesText?: string | null;
+  };
 };
 
 // ✅ HELA KRONOR (inga ören)
@@ -84,6 +92,43 @@ export default function OfferBesvarad({ offer }: any) {
       ? (offer.vat_breakdown as Breakdown)
       : null;
 
+  const includedFeesText: string | null = (() => {
+    if (breakdown?.fees?.includedFeesText) {
+      return breakdown.fees.includedFeesText;
+    }
+
+    const parts: string[] = [];
+
+    if (
+      breakdown?.fees?.includeBridgeFee ||
+      Number(breakdown?.fees?.bridgeFeeTotal || 0) > 0
+    ) {
+      parts.push("broavgift");
+    }
+
+    if (
+      breakdown?.fees?.includeBoatFee ||
+      Number(breakdown?.fees?.boatFeeTotal || 0) > 0
+    ) {
+      const qty = breakdown?.fees?.boatFeeQty;
+      parts.push(qty ? `båtavgift (${qty} st, momsfri)` : "båtavgift");
+    }
+
+    if (parts.length > 0) {
+      return `Priset är inklusive ${parts.join(" och ")}.`;
+    }
+
+    const priceNote = String(offer?.price_note || "");
+    if (
+      priceNote.toLowerCase().includes("broavgift") ||
+      priceNote.toLowerCase().includes("båtavgift")
+    ) {
+      return priceNote;
+    }
+
+    return null;
+  })();
+
   // ✅ Vi visar bara TOTALEN för kunden (inte uppdelat)
   const totalForCustomer: number | null = (() => {
     const candidates = [
@@ -101,7 +146,9 @@ export default function OfferBesvarad({ offer }: any) {
   const tripLabel = roundTrip ? "Tur & retur" : "Enkelresa";
 
   // --- actions-state & handlers
-  const [busy, setBusy] = useState<"accept" | "decline" | "change" | null>(null);
+  const [busy, setBusy] = useState<"accept" | "decline" | "change" | null>(
+    null
+  );
 
   // ✅ FIX: behåll token när vi skickar kunden vidare mellan vyer
   function getAuthQueryFromUrl() {
@@ -302,13 +349,18 @@ export default function OfferBesvarad({ offer }: any) {
                     Er offert är nu klar och sammanställer en tydlig plan för
                     resan. Nedan ser ni rutt och hållplatser, tider, bussmodell,
                     pris och villkor. Kontrollera uppgifterna innan ni godkänner
-                    och klicka på <strong>Acceptera offert</strong> för att säkra
-                    kapacitet och planering. Önskar ni justera antal resenärer,
-                    bagage, barnstol/tillgänglighet eller service ombord? Maila{" "}
-                    <a className="underline" href="mailto:kundteam@helsingbuss.se">
+                    och klicka på <strong>Acceptera offert</strong> för att
+                    säkra kapacitet och planering. Önskar ni justera antal
+                    resenärer, bagage, barnstol/tillgänglighet eller service
+                    ombord? Maila{" "}
+                    <a
+                      className="underline"
+                      href="mailto:kundteam@helsingbuss.se"
+                    >
                       kundteam@helsingbuss.se
                     </a>{" "}
-                    så uppdaterar vi direkt. Luta er tillbaka – vi ordnar resten.
+                    så uppdaterar vi direkt. Luta er tillbaka – vi ordnar
+                    resten.
                   </p>
                 </div>
 
@@ -331,7 +383,6 @@ export default function OfferBesvarad({ offer }: any) {
                         pax={trip.pax}
                         extra={trip.extra}
                         iconSrc="/busie.png"
-                        // footer borttagen medvetet
                       />
                     ))}
                   </TripLegGrid>
@@ -342,17 +393,18 @@ export default function OfferBesvarad({ offer }: any) {
                   style={{ lineHeight: LINE_HEIGHT }}
                 >
                   <p>
-                    Genom att godkänna offerten bekräftar ni att ni har tagit del
-                    av våra resevillkor (läs dem här). Observera att datum och
-                    tider är i mån av tillgänglighet; slutlig kapacitet kontrolleras
-                    vid bokning och bekräftas först genom en skriftlig bokningsbekräftelse
-                    från oss.
+                    Genom att godkänna offerten bekräftar ni att ni har tagit
+                    del av våra resevillkor (läs dem här). Observera att datum
+                    och tider är i mån av tillgänglighet; slutlig kapacitet
+                    kontrolleras vid bokning och bekräftas först genom en
+                    skriftlig bokningsbekräftelse från oss.
                   </p>
                   <p className="mt-3">
-                    Vill ni boka eller har frågor/ändringar? Kontakta oss så hjälper
-                    vi gärna. Våra öppettider är vardagar kl. 08:00–17:00. För akuta
-                    ärenden eller bokningar med kortare varsel än två arbetsdagar,
-                    ring vårt journummer: <strong>010–777 21 58</strong>.
+                    Vill ni boka eller har frågor/ändringar? Kontakta oss så
+                    hjälper vi gärna. Våra öppettider är vardagar kl.
+                    08:00–17:00. För akuta ärenden eller bokningar med kortare
+                    varsel än två arbetsdagar, ring vårt journummer:{" "}
+                    <strong>010–777 21 58</strong>.
                   </p>
                 </div>
               </div>
@@ -412,7 +464,10 @@ export default function OfferBesvarad({ offer }: any) {
 
                   <div className="mt-3 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-4">
                     <div className="text-sm text-[#0f172a]/70">
-                      Resa: <span className="font-semibold text-[#0f172a]">{tripLabel}</span>
+                      Resa:{" "}
+                      <span className="font-semibold text-[#0f172a]">
+                        {tripLabel}
+                      </span>
                     </div>
 
                     <div className="mt-3 text-sm text-[#0f172a]/70">
@@ -421,6 +476,12 @@ export default function OfferBesvarad({ offer }: any) {
                     <div className="mt-1 text-2xl font-semibold text-[#0f172a]">
                       {money(totalForCustomer)}
                     </div>
+
+                    {includedFeesText && (
+                      <div className="mt-2 rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2 text-[13px] text-emerald-700">
+                        ✔ {includedFeesText}
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-6 text-[13px] text-[#0f172a]/80 leading-relaxed">
@@ -428,8 +489,9 @@ export default function OfferBesvarad({ offer }: any) {
                       Betalningsvillkor
                     </div>
                     <p>
-                      10 dagar netto om det är företag/förening, faktura kommer efter uppdrag.
-                      För privatperson ska fakturan vara betald minst 3 dagar innan uppdraget.
+                      10 dagar netto om det är företag/förening, faktura kommer
+                      efter uppdrag. För privatperson ska fakturan vara betald
+                      minst 3 dagar innan uppdraget.
                     </p>
                   </div>
                 </div>
@@ -478,6 +540,7 @@ function DT({ children }: { children: React.ReactNode }) {
     </dt>
   );
 }
+
 function DD({ children }: { children: React.ReactNode }) {
   return <dd className="text-[#0f172a] break-words">{children}</dd>;
 }
