@@ -4,8 +4,6 @@ type OfferCalculatorProps = {
   offerId: string;
   offerNumber: string;
   customerEmail?: string | null;
-
-// 🔥 NYTT
   tripType?: "sverige" | "utland";
   includeBridge?: boolean;
 };
@@ -36,21 +34,22 @@ type PriceFields = {
 
 type PriceFormValues = Record<PriceCategoryKey, Record<BusTypeKey, PriceFields>>;
 
+const BOAT_FEE = 2397; // momsfri, enkelresa
+const BRIDGE_FEE = 2456;
+
 function sek(value: number): string {
   if (!Number.isFinite(value)) return "—";
-  const rounded = Math.round(value);
   return new Intl.NumberFormat("sv-SE", {
     style: "currency",
     currency: "SEK",
     maximumFractionDigits: 0,
-  }).format(rounded);
+  }).format(Math.round(value));
 }
 
 function toNumber(v: string | number | null | undefined): number {
   if (v == null) return 0;
   if (typeof v === "number") return v;
-  const normalized = v.replace(",", ".").trim();
-  const n = Number(normalized);
+  const n = Number(v.replace(",", ".").trim());
   return Number.isFinite(n) ? n : 0;
 }
 
@@ -72,34 +71,24 @@ export default function OfferCalculator({
   tripType = "sverige",
   includeBridge = false,
 }: OfferCalculatorProps) {
-  // Prislista-data från /api/admin/prislistor
   const [priceTable, setPriceTable] = useState<PriceFormValues | null>(null);
-  const [selectedCategory, setSelectedCategory] =
-    useState<PriceCategoryKey>("bestallning");
-  const [selectedBusType, setSelectedBusType] =
-    useState<BusTypeKey>("turistbuss");
+  const [selectedCategory, setSelectedCategory] = useState<PriceCategoryKey>("bestallning");
+  const [selectedBusType, setSelectedBusType] = useState<BusTypeKey>("turistbuss");
   const [kmBand, setKmBand] = useState<KmBandKey>("26_100");
-  // 🔥 BROAVGIFT
-const [bridgeCost, setBridgeCost] = useState<number>(0);
 
-  // Grundpriser (kan överstyras manuellt i fälten)
   const [kmPrice, setKmPrice] = useState<number>(0);
   const [hourDay, setHourDay] = useState<number>(0);
   const [hourEve, setHourEve] = useState<number>(0);
   const [hourWknd, setHourWknd] = useState<number>(0);
   const [serviceFee, setServiceFee] = useState<number>(0);
   const [includeServiceFee, setIncludeServiceFee] = useState<boolean>(true);
-  const [serviceFeeMode, setServiceFeeMode] = useState<"perLeg" | "once">(
-    "once"
-  );
-  const [vatRate, setVatRate] = useState<number>(0.06); // 6 % standard
+  const [serviceFeeMode, setServiceFeeMode] = useState<"perLeg" | "once">("once");
+  const [vatRate, setVatRate] = useState<number>(0.06);
 
-  // Antal bussar & SynergyBus
   const [numBuses, setNumBuses] = useState<number>(1);
   const [useSynergy, setUseSynergy] = useState<boolean>(false);
-  const [synergyPercent, setSynergyPercent] = useState<number>(0.07); // 7 %
+  const [synergyPercent, setSynergyPercent] = useState<number>(0.07);
 
-  // Sträckor
   const [includeReturn, setIncludeReturn] = useState<boolean>(false);
   const [leg1, setLeg1] = useState<LegInput>({
     km: 0,
@@ -116,8 +105,11 @@ const [bridgeCost, setBridgeCost] = useState<number>(0);
   const [leg1Domain, setLeg1Domain] = useState<TripDomain>("sverige");
   const [leg2Domain, setLeg2Domain] = useState<TripDomain>("sverige");
 
-  const [note, setNote] = useState<string>("");
+  const [includeBridgeFee, setIncludeBridgeFee] = useState<boolean>(includeBridge);
+  const [includeBoatFee, setIncludeBoatFee] = useState<boolean>(false);
+  const [boatFeeQty, setBoatFeeQty] = useState<number>(1);
 
+  const [note, setNote] = useState<string>("");
   const [saving, setSaving] = useState<boolean>(false);
   const [sending, setSending] = useState<boolean>(false);
   const [lastError, setLastError] = useState<string | null>(null);
@@ -126,63 +118,40 @@ const [bridgeCost, setBridgeCost] = useState<number>(0);
   const busesCount = numBuses > 0 ? numBuses : 1;
   const legsCount = 1 + (includeReturn ? 1 : 0);
 
-  // Hämta prislistor vid start
+  const bridgeFeeTotal = includeBridgeFee ? BRIDGE_FEE : 0;
+  const boatFeeQtySafe = Math.max(1, boatFeeQty || 1);
+  const boatFeeTotal = includeBoatFee ? BOAT_FEE * boatFeeQtySafe : 0;
+
   useEffect(() => {
     async function fetchPrices() {
       try {
         const res = await fetch("/api/admin/prislistor");
-        if (!res.ok) {
-          console.error("Misslyckades läsa prislistor", res.status);
-          return;
-        }
+        if (!res.ok) return;
+
         const json = await res.json();
-        if (json && json.ok && json.prices) {
+        if (json?.ok && json?.prices) {
           setPriceTable(json.prices as PriceFormValues);
         }
       } catch (e) {
         console.error("Fel vid hämtning av prislistor", e);
       }
     }
+
     fetchPrices();
   }, []);
 
-  // Knyt Resa: Sverige / Utomlands till moms:
-  // Minst en sträcka i Sverige => 6 % moms, annars 0 %.
   useEffect(() => {
-  // 🔥 om admin styr → använd den
-  if (tripType) {
     setVatRate(tripType === "sverige" ? 0.06 : 0);
-    return;
-  }
+  }, [tripType]);
 
-  // fallback (om ingen admin styrning finns)
-  const anySweden =
-    leg1Domain === "sverige" ||
-    (includeReturn && leg2Domain === "sverige");
+  useEffect(() => {
+    setIncludeBridgeFee(includeBridge);
+  }, [includeBridge]);
 
-  setVatRate(anySweden ? 0.06 : 0);
-}, [leg1Domain, leg2Domain, includeReturn, tripType]);
-  // 🔥 OVERRIDE från admin (Sverige / Utland)
-useEffect(() => {
-  setVatRate(tripType === "sverige" ? 0.06 : 0);
-}, [tripType]);
-// 🔥 BROAVGIFT logik
-useEffect(() => {
-  if (!includeBridge) {
-    setBridgeCost(0);
-    return;
-  }
-
-  // Standard bro (kan göras smart sen)
-  setBridgeCost(1500);
-}, [includeBridge]);
-
-  // Applicera prisprofil när kategori / busstyp / km-band ändras
   useEffect(() => {
     if (!priceTable) return;
-    const cat = priceTable[selectedCategory];
-    if (!cat) return;
-    const profile = cat[selectedBusType];
+
+    const profile = priceTable[selectedCategory]?.[selectedBusType];
     if (!profile) return;
 
     setServiceFee(toNumber(profile.grundavgift));
@@ -190,65 +159,65 @@ useEffect(() => {
     setHourEve(toNumber(profile.tim_kvall));
     setHourWknd(toNumber(profile.tim_helg));
 
-    let kmValue: string | undefined;
-    switch (kmBand) {
-      case "0_25":
-        kmValue = profile.km_0_25;
-        break;
-      case "26_100":
-        kmValue = profile.km_26_100;
-        break;
-      case "101_250":
-        kmValue = profile.km_101_250;
-        break;
-      case "251_plus":
-        kmValue = profile.km_251_plus;
-        break;
-    }
+    const kmValue =
+      kmBand === "0_25"
+        ? profile.km_0_25
+        : kmBand === "26_100"
+        ? profile.km_26_100
+        : kmBand === "101_250"
+        ? profile.km_101_250
+        : profile.km_251_plus;
+
     setKmPrice(toNumber(kmValue));
   }, [priceTable, selectedCategory, selectedBusType, kmBand]);
 
   function legCost(input: LegInput): number {
-    const kmCost = input.km * kmPrice;
-    const dayCost = input.hoursDay * hourDay;
-    const eveCost = input.hoursEvening * hourEve;
-    const wkndCost = input.hoursWeekend * hourWknd;
-    return kmCost + dayCost + eveCost + wkndCost;
+    return (
+      input.km * kmPrice +
+      input.hoursDay * hourDay +
+      input.hoursEvening * hourEve +
+      input.hoursWeekend * hourWknd
+    );
   }
 
-  // Per buss (exkl moms) per sträcka
   const exLeg1 = legCost(leg1);
   const exLeg2 = includeReturn ? legCost(leg2) : 0;
 
-  // ✅ FIX: serviceFeeMode "perLeg" ska faktiskt påverka totalen
-  const serviceFeePerBus =
-    includeServiceFee
-      ? serviceFeeMode === "once"
-        ? serviceFee
-        : serviceFee * legsCount
-      : 0;
+  const serviceFeePerBus = includeServiceFee
+    ? serviceFeeMode === "once"
+      ? serviceFee
+      : serviceFee * legsCount
+    : 0;
 
   const exVatPerBus = exLeg1 + exLeg2 + serviceFeePerBus;
-  const vatPerBus = round2(exVatPerBus * vatRate);
-  const totalPerBus = exVatPerBus + vatPerBus;
 
-  // Alla bussar (bas)
-  const baseExVatAll = exVatPerBus * busesCount + bridgeCost;
+  // Broavgift räknas med i momsbasen.
+  // Båtavgift är momsfri och läggs på efter moms.
+  const baseExVatAll = exVatPerBus * busesCount + bridgeFeeTotal;
   const baseVatAll = round2(baseExVatAll * vatRate);
-  const baseTotalAll = baseExVatAll + baseVatAll;
 
-  // Synergy (påslag/provision)
   const synergyRate = useSynergy ? synergyPercent : 0;
   const synergyMultiplier = synergyRate > 0 ? 1 / (1 - synergyRate) : 1;
 
   const finalExVatAll = round2(baseExVatAll * synergyMultiplier);
   const finalVatAll = round2(finalExVatAll * vatRate);
-  const finalTotalAll = finalExVatAll + finalVatAll;
+  const finalTotalAll = finalExVatAll + finalVatAll + boatFeeTotal;
 
   function copyLeg1ToLeg2() {
     setLeg2(leg1);
     setLeg2Domain(leg1Domain);
     setIncludeReturn(true);
+  }
+
+  function includedFeesText() {
+    const parts: string[] = [];
+
+    if (includeBridgeFee) parts.push("broavgift");
+    if (includeBoatFee) parts.push(`båtavgift (${boatFeeQtySafe} st, momsfri)`);
+
+    if (!parts.length) return null;
+
+    return `Priset är inklusive ${parts.join(" och ")}.`;
   }
 
   function buildInputPayload() {
@@ -269,6 +238,16 @@ useEffect(() => {
         useSynergy,
         synergyPercent,
       },
+      fees: {
+        includeBridgeFee,
+        bridgeFee: BRIDGE_FEE,
+        bridgeFeeTotal,
+        includeBoatFee,
+        boatFee: BOAT_FEE,
+        boatFeeQty: boatFeeQtySafe,
+        boatFeeTotal,
+        boatFeeVat: 0,
+      },
       leg1: {
         ...leg1,
         domain: leg1Domain,
@@ -283,44 +262,35 @@ useEffect(() => {
     };
   }
 
-  // ✅ Det här är breakdown-formatet som din quote.ts vill ha
   function buildQuoteBreakdown() {
-    // Fördela service fee per leg så att legs summerar till totalen
     const serviceLeg1Ex =
       includeServiceFee && serviceFeeMode === "once"
         ? serviceFee * busesCount
         : includeServiceFee && serviceFeeMode === "perLeg"
-          ? serviceFee * busesCount
-          : 0;
+        ? serviceFee * busesCount
+        : 0;
 
     const serviceLeg2Ex =
       includeReturn && includeServiceFee && serviceFeeMode === "perLeg"
         ? serviceFee * busesCount
         : 0;
 
-    // Bas per leg (alla bussar)
     const baseLeg1Ex = exLeg1 * busesCount + serviceLeg1Ex;
     const baseLeg2Ex = includeReturn ? exLeg2 * busesCount + serviceLeg2Ex : 0;
-    {includeBridge && (
-  <div className="text-[11px] text-[#194C66]/70">
-    ✔ Pris inkluderar broavgifter
-  </div>
-)}
 
-    // Synergy: skala samma proportioner
     let leg1Ex = round2(baseLeg1Ex * synergyMultiplier);
     let leg2Ex = includeReturn ? round2(baseLeg2Ex * synergyMultiplier) : 0;
 
-    // Rounding fix så att leg1+leg2 == finalExVatAll
-    const sumLegsEx = leg1Ex + leg2Ex;
+    const feesEx = round2(bridgeFeeTotal * synergyMultiplier);
+    const sumLegsEx = leg1Ex + leg2Ex + feesEx;
     const diffEx = round2(finalExVatAll - sumLegsEx);
     leg1Ex = round2(leg1Ex + diffEx);
 
     let leg1Vat = round2(leg1Ex * vatRate);
     let leg2Vat = includeReturn ? round2(leg2Ex * vatRate) : 0;
+    const feesVat = round2(feesEx * vatRate);
 
-    // Rounding fix för moms
-    const sumVat = leg1Vat + leg2Vat;
+    const sumVat = leg1Vat + leg2Vat + feesVat;
     const diffVat = round2(finalVatAll - sumVat);
     leg1Vat = round2(leg1Vat + diffVat);
 
@@ -346,12 +316,28 @@ useEffect(() => {
       grandVat: finalVatAll,
       grandTotal: finalTotalAll,
       serviceFeeExVat: includeServiceFee ? serviceFee : 0,
+      fees: {
+        includeBridgeFee,
+        bridgeFee: BRIDGE_FEE,
+        bridgeFeeTotal,
+        includeBoatFee,
+        boatFee: BOAT_FEE,
+        boatFeeQty: boatFeeQtySafe,
+        boatFeeTotal,
+        boatFeeVat: 0,
+        includedFeesText: includedFeesText(),
+      },
       legs,
     };
   }
 
   function buildPriceMeta(mode: "draft" | "send") {
     const nowIso = new Date().toISOString();
+    const feeText = includedFeesText();
+
+    const finalNote = [note?.trim() || "", feeText || ""]
+      .filter(Boolean)
+      .join("\n");
 
     return {
       price_amount: round2(finalTotalAll),
@@ -361,7 +347,7 @@ useEffect(() => {
           ? `Inkl. moms (${Math.round(vatRate * 100)}%)`
           : "Ingen moms (0%)",
       internal_cost: round2(baseExVatAll),
-      price_note: note?.trim() ? note.trim() : null,
+      price_note: finalNote || null,
       valid_until: addDaysToTodayISO(14),
       price_last_updated_at: nowIso,
       price_status: mode === "send" ? "Skickat prisförslag" : "Kalkyl sparad",
@@ -376,11 +362,7 @@ useEffect(() => {
       input: buildInputPayload(),
       breakdown: buildQuoteBreakdown(),
       customerEmail: customerEmail ?? undefined,
-
-      // Nya prisfält – top-level för enkel backend-hantering
       ...priceMeta,
-
-      // Extra fallback om quote-routen vill läsa ett eget objekt
       priceMeta,
     };
   }
@@ -388,25 +370,21 @@ useEffect(() => {
   async function saveDraft() {
     setSaving(true);
     setLastError(null);
-    try {
-      const payload = buildQuotePayload("draft");
 
+    try {
       const res = await fetch(`/api/offers/${offerId}/quote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(buildQuotePayload("draft")),
       });
 
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(
-          `Kunde inte spara offertkalkylen (${res.status}): ${text}`
-        );
+        throw new Error(`Kunde inte spara offertkalkylen (${res.status}): ${text}`);
       }
 
       setLastSavedAt(new Date().toLocaleTimeString("sv-SE"));
     } catch (e: any) {
-      console.error("saveDraft error", e);
       setLastError(e?.message || "Något gick fel vid sparandet.");
     } finally {
       setSaving(false);
@@ -423,23 +401,17 @@ useEffect(() => {
     setLastError(null);
 
     try {
-      // ✅ Skicka via samma endpoint som sparar + sätter status=besvarad + mailar
-      const payload = buildQuotePayload("send");
-
       const res = await fetch(`/api/offers/${offerId}/quote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(buildQuotePayload("send")),
       });
 
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(
-          `Kunde inte skicka prisförslag (${res.status}): ${text}`
-        );
+        throw new Error(`Kunde inte skicka prisförslag (${res.status}): ${text}`);
       }
     } catch (e: any) {
-      console.error("sendProposal error", e);
       setLastError(e?.message || "Något gick fel vid utskick.");
     } finally {
       setSending(false);
@@ -457,6 +429,7 @@ useEffect(() => {
             Kopplad till prislistorna och anpassad för Helsingbuss.
           </p>
         </div>
+
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700">
             {offerNumber}
@@ -469,34 +442,32 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Rad 1 – prislista & bussinställningar */}
       <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,3fr)]">
         <div className="flex flex-wrap items-center gap-3 text-xs md:text-sm text-[#194C66]">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium">Prislista:</span>
+
             <select
               className="rounded-lg border border-[#D0DCE7] bg-white px-2 py-1 text-xs md:text-sm"
               value={selectedCategory}
-              onChange={(e) =>
-                setSelectedCategory(e.target.value as PriceCategoryKey)
-              }
+              onChange={(e) => setSelectedCategory(e.target.value as PriceCategoryKey)}
             >
               <option value="bestallning">Beställningstrafik</option>
               <option value="brollop">Bröllop</option>
               <option value="forening">Föreningar</option>
             </select>
+
             <select
               className="rounded-lg border border-[#D0DCE7] bg-white px-2 py-1 text-xs md:text-sm"
               value={selectedBusType}
-              onChange={(e) =>
-                setSelectedBusType(e.target.value as BusTypeKey)
-              }
+              onChange={(e) => setSelectedBusType(e.target.value as BusTypeKey)}
             >
               <option value="sprinter">Sprinter (upp till 19)</option>
               <option value="turistbuss">Turistbuss (upp till 39)</option>
               <option value="helturistbuss">Helturistbuss (upp till 63)</option>
               <option value="dubbeldackare">Dubbeldäckare (upp till 81)</option>
             </select>
+
             <select
               className="rounded-lg border border-[#D0DCE7] bg-white px-2 py-1 text-xs md:text-sm"
               value={kmBand}
@@ -517,9 +488,7 @@ useEffect(() => {
               max={10}
               className="w-16 rounded-lg border border-[#D0DCE7] px-2 py-1 text-xs md:text-sm"
               value={busesCount}
-              onChange={(e) =>
-                setNumBuses(Math.max(1, Number(e.target.value) || 1))
-              }
+              onChange={(e) => setNumBuses(Math.max(1, Number(e.target.value) || 1))}
             />
           </div>
 
@@ -534,6 +503,7 @@ useEffect(() => {
               />
               <span className="text-xs md:text-sm">Aktivera provision</span>
             </label>
+
             <select
               className="rounded-lg border border-[#D0DCE7] bg-white px-2 py-1 text-xs md:text-sm disabled:opacity-40"
               disabled={!useSynergy}
@@ -548,135 +518,76 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Rad 2 – prisparametrar */}
       <div className="mt-4 grid gap-3 md:grid-cols-5">
-        <LabeledNumber
-          label="Kilometerpris"
-          suffix="kr/km"
-          value={kmPrice}
-          onChange={setKmPrice}
-          min={0}
-          step={1}
-        />
-        <LabeledNumber
-          label="Timpris dag (vardag)"
-          suffix="kr/tim"
-          value={hourDay}
-          onChange={setHourDay}
-          min={0}
-          step={1}
-        />
-        <LabeledNumber
-          label="Timpris kväll"
-          suffix="kr/tim"
-          value={hourEve}
-          onChange={setHourEve}
-          min={0}
-          step={1}
-        />
-        <LabeledNumber
-          label="Timpris helg"
-          suffix="kr/tim"
-          value={hourWknd}
-          onChange={setHourWknd}
-          min={0}
-          step={1}
-        />
-        <LabeledNumber
-          label="Serviceavgift / grundavgift"
-          suffix="kr"
-          value={serviceFee}
-          onChange={setServiceFee}
-          min={0}
-          step={100}
-        />
+        <LabeledNumber label="Kilometerpris" suffix="kr/km" value={kmPrice} onChange={setKmPrice} min={0} step={1} />
+        <LabeledNumber label="Timpris dag (vardag)" suffix="kr/tim" value={hourDay} onChange={setHourDay} min={0} step={1} />
+        <LabeledNumber label="Timpris kväll" suffix="kr/tim" value={hourEve} onChange={setHourEve} min={0} step={1} />
+        <LabeledNumber label="Timpris helg" suffix="kr/tim" value={hourWknd} onChange={setHourWknd} min={0} step={1} />
+        <LabeledNumber label="Serviceavgift / grundavgift" suffix="kr" value={serviceFee} onChange={setServiceFee} min={0} step={100} />
       </div>
 
-      {/* Rad 3 – inställningar */}
       <div className="mt-4 flex flex-wrap items-center gap-3 text-xs md:text-sm text-[#194C66]">
         <label className="inline-flex items-center gap-2">
-          <input
-            type="checkbox"
-            className="h-3 w-3 md:h-4 md:w-4 accent-[#007764]"
-            checked={includeServiceFee}
-            onChange={(e) => setIncludeServiceFee(e.target.checked)}
-          />
+          <input type="checkbox" className="h-3 w-3 md:h-4 md:w-4 accent-[#007764]" checked={includeServiceFee} onChange={(e) => setIncludeServiceFee(e.target.checked)} />
           <span>Ta med serviceavgift i beräkningen</span>
         </label>
 
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-500">Hur ofta:</span>
-          <button
-            type="button"
-            onClick={() => setServiceFeeMode("once")}
-            className={`rounded-full px-3 py-1 text-xs ${
-              serviceFeeMode === "once"
-                ? "bg-[#007764] text-white"
-                : "bg-slate-100 text-slate-600"
-            }`}
-          >
+          <button type="button" onClick={() => setServiceFeeMode("once")} className={`rounded-full px-3 py-1 text-xs ${serviceFeeMode === "once" ? "bg-[#007764] text-white" : "bg-slate-100 text-slate-600"}`}>
             Per uppdrag
           </button>
-          <button
-            type="button"
-            onClick={() => setServiceFeeMode("perLeg")}
-            className={`rounded-full px-3 py-1 text-xs ${
-              serviceFeeMode === "perLeg"
-                ? "bg-[#007764] text-white"
-                : "bg-slate-100 text-slate-600"
-            }`}
-          >
+          <button type="button" onClick={() => setServiceFeeMode("perLeg")} className={`rounded-full px-3 py-1 text-xs ${serviceFeeMode === "perLeg" ? "bg-[#007764] text-white" : "bg-slate-100 text-slate-600"}`}>
             Per sträcka
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500">Moms (styrd av resa):</span>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] md:text-xs text-slate-700">
-            {vatRate === 0.06 ? "6% – Sverige" : "0% – Utomlands"}
-          </span>
-        </div>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] md:text-xs text-slate-700">
+          {vatRate === 0.06 ? "6% – Sverige" : "0% – Utomlands"}
+        </span>
 
         <label className="inline-flex items-center gap-2">
-          <input
-            type="checkbox"
-            className="h-3 w-3 md:h-4 md:w-4 accent-[#007764]"
-            checked={includeReturn}
-            onChange={(e) => setIncludeReturn(e.target.checked)}
-          />
+          <input type="checkbox" className="h-3 w-3 md:h-4 md:w-4 accent-[#007764]" checked={includeReturn} onChange={(e) => setIncludeReturn(e.target.checked)} />
           <span>Inkludera returresa</span>
         </label>
 
-        <button
-          type="button"
-          onClick={copyLeg1ToLeg2}
-          className="rounded-full border border-[#D0DCE7] px-3 py-1 text-xs text-[#194C66] hover:bg-slate-50"
-        >
+        <button type="button" onClick={copyLeg1ToLeg2} className="rounded-full border border-[#D0DCE7] px-3 py-1 text-xs text-[#194C66] hover:bg-slate-50">
           Kopiera utresa till retur
         </button>
       </div>
 
-      {/* Sträckor */}
-      <div className="mt-5 grid gap-4 md:grid-cols-2">
-        <LegCard
-          title="Utresa"
-          leg={leg1}
-          domain={leg1Domain}
-          onChange={setLeg1}
-          onChangeDomain={setLeg1Domain}
-        />
-        {includeReturn && (
-          <LegCard
-            title="Returresa"
-            leg={leg2}
-            domain={leg2Domain}
-            onChange={setLeg2}
-            onChangeDomain={setLeg2Domain}
-          />
+      <div className="mt-4 flex flex-wrap items-center gap-3 text-xs md:text-sm text-[#194C66]">
+        <label className="inline-flex items-center gap-2">
+          <input type="checkbox" className="h-3 w-3 md:h-4 md:w-4 accent-[#007764]" checked={includeBridgeFee} onChange={(e) => setIncludeBridgeFee(e.target.checked)} />
+          <span>Inkludera broavgift ({sek(BRIDGE_FEE)})</span>
+        </label>
+
+        <label className="inline-flex items-center gap-2">
+          <input type="checkbox" className="h-3 w-3 md:h-4 md:w-4 accent-[#007764]" checked={includeBoatFee} onChange={(e) => setIncludeBoatFee(e.target.checked)} />
+          <span>Inkludera båtavgift ({sek(BOAT_FEE)} momsfri)</span>
+        </label>
+
+        {includeBoatFee && (
+          <div className="flex items-center gap-2">
+            <span>Antal båtavgifter:</span>
+            <input
+              type="number"
+              min={1}
+              className="w-16 rounded-lg border border-[#D0DCE7] px-2 py-1 text-xs md:text-sm"
+              value={boatFeeQtySafe}
+              onChange={(e) => setBoatFeeQty(Math.max(1, Number(e.target.value) || 1))}
+            />
+          </div>
         )}
       </div>
 
-      {/* Notering */}
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <LegCard title="Utresa" leg={leg1} domain={leg1Domain} onChange={setLeg1} onChangeDomain={setLeg1Domain} />
+        {includeReturn && (
+          <LegCard title="Returresa" leg={leg2} domain={leg2Domain} onChange={setLeg2} onChangeDomain={setLeg2Domain} />
+        )}
+      </div>
+
       <div className="mt-4">
         <label className="block text-xs font-medium text-[#194C66]">
           Intern notering / kommentar till priset
@@ -690,35 +601,34 @@ useEffect(() => {
         />
       </div>
 
-      {/* Summering & knappar */}
       <div className="mt-5 flex flex-wrap items-start justify-between gap-4 border-t border-[#E3EBF2] pt-4">
         <div className="flex flex-wrap gap-4">
           <KPI label="Pris exkl. moms (alla bussar)" value={finalExVatAll} />
           <KPI label="Moms" value={finalVatAll} />
           <KPI label="Totalt pris inkl. moms" value={finalTotalAll} />
+
+          {includeBridgeFee && <KPI label="Broavgift inkluderad" value={bridgeFeeTotal} />}
+          {includeBoatFee && <KPI label={`Båtavgift inkluderad (${boatFeeQtySafe} st)`} value={boatFeeTotal} />}
         </div>
 
         <div className="flex flex-col items-end gap-2 text-xs">
+          {includedFeesText() && (
+            <div className="max-w-xs rounded-lg bg-emerald-50 px-3 py-2 text-[11px] text-emerald-700">
+              ✔ {includedFeesText()}
+            </div>
+          )}
+
           {lastError && (
             <div className="max-w-xs rounded-lg bg-red-50 px-3 py-2 text-[11px] text-red-700">
               {lastError}
             </div>
           )}
+
           <div className="flex flex-wrap justify-end gap-2">
-            <button
-              type="button"
-              onClick={saveDraft}
-              disabled={saving}
-              className="rounded-full border border-[#D0DCE7] px-4 py-2 text-xs font-medium text-[#194C66] hover:bg-slate-50 disabled:opacity-60"
-            >
+            <button type="button" onClick={saveDraft} disabled={saving} className="rounded-full border border-[#D0DCE7] px-4 py-2 text-xs font-medium text-[#194C66] hover:bg-slate-50 disabled:opacity-60">
               {saving ? "Sparar…" : "Spara kalkyl"}
             </button>
-            <button
-              type="button"
-              onClick={sendProposal}
-              disabled={sending}
-              className="rounded-full bg-[#007764] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#006555] disabled:opacity-60"
-            >
+            <button type="button" onClick={sendProposal} disabled={sending} className="rounded-full bg-[#007764] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#006555] disabled:opacity-60">
               {sending ? "Skickar…" : "Skicka prisförslag till kund"}
             </button>
           </div>
@@ -738,15 +648,7 @@ type LabeledNumberProps = {
   step?: number;
 };
 
-function LabeledNumber({
-  label,
-  suffix,
-  value,
-  onChange,
-  min,
-  max,
-  step,
-}: LabeledNumberProps) {
+function LabeledNumber({ label, suffix, value, onChange, min, max, step }: LabeledNumberProps) {
   return (
     <label className="flex flex-col gap-1 rounded-xl border border-[#E3EBF2] bg-slate-50 px-3 py-2 text-xs md:text-sm text-[#194C66]">
       <span className="font-medium">{label}</span>
@@ -760,11 +662,7 @@ function LabeledNumber({
           max={max}
           step={step}
         />
-        {suffix && (
-          <span className="whitespace-nowrap text-[11px] md:text-xs text-slate-500">
-            {suffix}
-          </span>
-        )}
+        {suffix && <span className="whitespace-nowrap text-[11px] md:text-xs text-slate-500">{suffix}</span>}
       </div>
     </label>
   );
@@ -778,13 +676,7 @@ type LegCardProps = {
   onChangeDomain: (domain: TripDomain) => void;
 };
 
-function LegCard({
-  title,
-  leg,
-  domain,
-  onChange,
-  onChangeDomain,
-}: LegCardProps) {
+function LegCard({ title, leg, domain, onChange, onChangeDomain }: LegCardProps) {
   function update<K extends keyof LegInput>(key: K, value: number) {
     onChange({ ...leg, [key]: value });
   }
@@ -795,26 +687,10 @@ function LegCard({
         <h3 className="text-sm font-semibold text-[#194C66]">{title}</h3>
         <div className="flex items-center gap-2 text-[11px] md:text-xs text-slate-500">
           <span>Resa:</span>
-          <button
-            type="button"
-            onClick={() => onChangeDomain("sverige")}
-            className={`rounded-full px-2 py-1 ${
-              domain === "sverige"
-                ? "bg-[#007764] text-white"
-                : "bg-white text-slate-600 border border-[#D0DCE7]"
-            } text-[11px] md:text-xs`}
-          >
+          <button type="button" onClick={() => onChangeDomain("sverige")} className={`rounded-full px-2 py-1 ${domain === "sverige" ? "bg-[#007764] text-white" : "bg-white text-slate-600 border border-[#D0DCE7]"} text-[11px] md:text-xs`}>
             Sverige
           </button>
-          <button
-            type="button"
-            onClick={() => onChangeDomain("utomlands")}
-            className={`rounded-full px-2 py-1 ${
-              domain === "utomlands"
-                ? "bg-[#007764] text-white"
-                : "bg-white text-slate-600 border border-[#D0DCE7]"
-            } text-[11px] md:text-xs`}
-          >
+          <button type="button" onClick={() => onChangeDomain("utomlands")} className={`rounded-full px-2 py-1 ${domain === "utomlands" ? "bg-[#007764] text-white" : "bg-white text-slate-600 border border-[#D0DCE7]"} text-[11px] md:text-xs`}>
             Utomlands
           </button>
         </div>
@@ -823,47 +699,22 @@ function LegCard({
       <div className="grid grid-cols-2 gap-3 text-xs md:text-sm text-[#194C66]">
         <label className="flex flex-col gap-1">
           <span>Kilometer</span>
-          <input
-            type="number"
-            className="w-full rounded-lg border border-[#D0DCE7] bg-white px-2 py-1 text-xs md:text-sm text-slate-800 outline-none focus:border-[#007764]"
-            value={leg.km || ""}
-            onChange={(e) => update("km", Number(e.target.value) || 0)}
-            min={0}
-          />
+          <input type="number" className="w-full rounded-lg border border-[#D0DCE7] bg-white px-2 py-1 text-xs md:text-sm text-slate-800 outline-none focus:border-[#007764]" value={leg.km || ""} onChange={(e) => update("km", Number(e.target.value) || 0)} min={0} />
         </label>
+
         <label className="flex flex-col gap-1">
           <span>Timmar dag (vardag)</span>
-          <input
-            type="number"
-            className="w-full rounded-lg border border-[#D0DCE7] bg-white px-2 py-1 text-xs md:text-sm text-slate-800 outline-none focus:border-[#007764]"
-            value={leg.hoursDay || ""}
-            onChange={(e) => update("hoursDay", Number(e.target.value) || 0)}
-            min={0}
-          />
+          <input type="number" className="w-full rounded-lg border border-[#D0DCE7] bg-white px-2 py-1 text-xs md:text-sm text-slate-800 outline-none focus:border-[#007764]" value={leg.hoursDay || ""} onChange={(e) => update("hoursDay", Number(e.target.value) || 0)} min={0} />
         </label>
+
         <label className="flex flex-col gap-1">
           <span>Timmar kväll</span>
-          <input
-            type="number"
-            className="w-full rounded-lg border border-[#D0DCE7] bg-white px-2 py-1 text-xs md:text-sm text-slate-800 outline-none focus:border-[#007764]"
-            value={leg.hoursEvening || ""}
-            onChange={(e) =>
-              update("hoursEvening", Number(e.target.value) || 0)
-            }
-            min={0}
-          />
+          <input type="number" className="w-full rounded-lg border border-[#D0DCE7] bg-white px-2 py-1 text-xs md:text-sm text-slate-800 outline-none focus:border-[#007764]" value={leg.hoursEvening || ""} onChange={(e) => update("hoursEvening", Number(e.target.value) || 0)} min={0} />
         </label>
+
         <label className="flex flex-col gap-1">
           <span>Timmar helg</span>
-          <input
-            type="number"
-            className="w-full rounded-lg border border-[#D0DCE7] bg-white px-2 py-1 text-xs md:text-sm text-slate-800 outline-none focus:border-[#007764]"
-            value={leg.hoursWeekend || ""}
-            onChange={(e) =>
-              update("hoursWeekend", Number(e.target.value) || 0)
-            }
-            min={0}
-          />
+          <input type="number" className="w-full rounded-lg border border-[#D0DCE7] bg-white px-2 py-1 text-xs md:text-sm text-slate-800 outline-none focus:border-[#007764]" value={leg.hoursWeekend || ""} onChange={(e) => update("hoursWeekend", Number(e.target.value) || 0)} min={0} />
         </label>
       </div>
     </div>
