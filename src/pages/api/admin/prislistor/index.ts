@@ -4,7 +4,11 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { withCors } from "@/lib/cors";
 
 type PriceCategoryKey = "bestallning" | "brollop" | "forening";
-type BusTypeKey = "sprinter" | "turistbuss" | "helturistbuss" | "dubbeldackare";
+type BusTypeKey =
+  | "sprinter"
+  | "turistbuss"
+  | "helturistbuss"
+  | "dubbeldackare";
 
 type PriceFields = {
   grundavgift: string;
@@ -17,7 +21,10 @@ type PriceFields = {
   km_251_plus: string;
 };
 
-type PriceFormValues = Record<PriceCategoryKey, Record<BusTypeKey, PriceFields>>;
+type PriceFormValues = Record<
+  PriceCategoryKey,
+  Record<BusTypeKey, PriceFields>
+>;
 
 type DbRow = {
   category: string | null;
@@ -56,8 +63,16 @@ function emptyPriceFields(): PriceFields {
   };
 }
 
-function n(v: number | null | undefined) {
-  return v == null ? "" : String(v);
+function pickPrice(primary?: number | null, fallback?: number | null) {
+  if (primary !== null && primary !== undefined && Number(primary) > 0) {
+    return String(primary);
+  }
+
+  if (fallback !== null && fallback !== undefined && Number(fallback) > 0) {
+    return String(fallback);
+  }
+
+  return "";
 }
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -119,7 +134,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       });
     }
 
-    const validCategories: PriceCategoryKey[] = ["bestallning", "brollop", "forening"];
+    const validCategories: PriceCategoryKey[] = [
+      "bestallning",
+      "brollop",
+      "forening",
+    ];
+
     const validBusTypes: BusTypeKey[] = [
       "sprinter",
       "turistbuss",
@@ -137,14 +157,17 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       if (!validBusTypes.includes(busType)) return;
 
       prices[category][busType] = {
-        grundavgift: n(row.base_price ?? row.base_fee),
-        tim_vardag: n(row.hour_price_day ?? row.hour_weekday_day),
-        tim_kvall: n(row.hour_price_evening ?? row.hour_weekday_evening),
-        tim_helg: n(row.hour_price_weekend ?? row.hour_weekend),
-        km_0_25: n(row.km_price_0_25 ?? row.km_0_25),
-        km_26_100: n(row.km_price_26_100 ?? row.km_26_100),
-        km_101_250: n(row.km_price_101_250 ?? row.km_101_250),
-        km_251_plus: n(row.km_price_251_plus ?? row.km_251_plus),
+        grundavgift: pickPrice(row.base_price, row.base_fee),
+        tim_vardag: pickPrice(row.hour_price_day, row.hour_weekday_day),
+        tim_kvall: pickPrice(
+          row.hour_price_evening,
+          row.hour_weekday_evening
+        ),
+        tim_helg: pickPrice(row.hour_price_weekend, row.hour_weekend),
+        km_0_25: pickPrice(row.km_price_0_25, row.km_0_25),
+        km_26_100: pickPrice(row.km_price_26_100, row.km_26_100),
+        km_101_250: pickPrice(row.km_price_101_250, row.km_101_250),
+        km_251_plus: pickPrice(row.km_price_251_plus, row.km_251_plus),
       };
     });
 
