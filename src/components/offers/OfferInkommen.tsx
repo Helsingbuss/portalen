@@ -203,8 +203,8 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
       </div>
 
       <div style={{ height: `calc(100vh - ${TOPBAR_PX}px)` }}>
-        <div className="grid h-full grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_550px] gap-0">
-          <div className="h-full p-4 lg:p-6">
+        <div className="grid h-full grid-cols-1 lg:grid-cols-[420px_minmax(0,1fr)_550px] gap-0">
+          <div className="h-full p-4 lg:p-6 pb-10">
             <IncomingLeftPanel />
           </div>
 
@@ -274,7 +274,7 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-6 lg:px-8 pb-16">
+              <div className="flex-1 overflow-y-auto px-6 lg:px-8 pb-24">
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <div>
                     <h2 className="text-lg font-semibold text-[#0f172a]">
