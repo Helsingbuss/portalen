@@ -207,12 +207,12 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
         style={{ height: `calc(100vh - ${TOPBAR_PX}px)` }}
       >
         <div className="grid h-full grid-cols-1 lg:grid-cols-[420px_minmax(0,1fr)_550px] gap-0 overflow-hidden">
-          <div className="h-full p-4 lg:p-6 pb-10 overflow-hidden">
+          <div className="h-full p-4 lg:p-6 pb-10">
             <IncomingLeftPanel />
           </div>
 
-          <main className="h-full overflow-y-auto pl-4 lg:pl-6 pr-2 lg:pr-3 py-4 lg:py-6 pb-24">
-            <div className="min-h-full overflow-hidden rounded-3xl bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)] border border-white/70 flex flex-col">
+          <main className="h-full pl-4 lg:pl-6 pr-2 lg:pr-3 py-4 lg:py-6 overflow-hidden">
+            <div className="h-full overflow-y-auto rounded-3xl bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)] border border-white/70 flex flex-col">
               <div className="relative px-6 lg:px-8 pt-7 pb-6 overflow-hidden">
                 <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-br from-[#194C66]/10 via-[#edf6f8] to-white pointer-events-none" />
 
@@ -277,7 +277,7 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
                 </div>
               </div>
 
-              <div className="px-6 lg:px-8 pb-10">
+              <div className="px-6 lg:px-8 pb-40">
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <div>
                     <h2 className="text-lg font-semibold text-[#0f172a]">
@@ -361,10 +361,8 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
                     offert.
                   </p>
                 </div>
-              </div>
 
-              <div className="px-6 lg:px-8 pb-16">
-                <div className="rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-4">
+                <div className="mt-6 rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-4">
                   <OfferFooterTerms
                     termsParagraphs={[]}
                     companyName="Helsingbuss"
@@ -386,7 +384,7 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
             </div>
           </main>
 
-          <aside className="h-full p-4 lg:p-6 overflow-hidden">
+          <aside className="h-full p-4 lg:p-6">
             <div className="h-full rounded-3xl bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)] border border-white/70 flex flex-col overflow-hidden">
               <div className="bg-gradient-to-br from-[#194C66] to-[#0f3347] px-6 py-6 text-white">
                 <div className="text-xs uppercase tracking-[0.18em] text-white/60">
