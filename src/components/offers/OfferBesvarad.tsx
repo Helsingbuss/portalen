@@ -2,16 +2,13 @@
 import Image from "next/image";
 import { useState } from "react";
 
-// ÅTERANVÄNDA komponenter/layout
 import OfferTopBar from "@/components/offers/OfferTopBar";
 import TripLegGrid from "@/components/offers/TripLegGrid";
 import TripLegCard from "@/components/offers/TripLegCard";
 
-// --- layoutkonstanter
 const TOPBAR_PX = 64;
 const LINE_HEIGHT = 1.5;
 
-// --- helpers
 type Breakdown = {
   grandExVat?: number;
   grandVat?: number;
@@ -164,7 +161,6 @@ export default function OfferBesvarad({ offer }: any) {
       });
       if (r.ok) return r;
     }
-
     return fetch(fallbackPath, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -185,7 +181,6 @@ export default function OfferBesvarad({ offer }: any) {
           notes: offer?.notes ?? null,
         }),
       });
-
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j?.error || `HTTP ${res.status}`);
       return j?.booking ?? null;
@@ -300,7 +295,7 @@ export default function OfferBesvarad({ offer }: any) {
   }
 
   return (
-    <div className="bg-[#f5f4f0] overflow-hidden">
+    <div className="bg-[#eef2f4] overflow-hidden">
       <div style={{ height: TOPBAR_PX }}>
         <OfferTopBar
           offerNumber={offer?.offer_number ?? "HB25XXXX"}
@@ -310,85 +305,143 @@ export default function OfferBesvarad({ offer }: any) {
         />
       </div>
 
-      <div style={{ height: `calc(100vh - ${TOPBAR_PX}px)` }}>
-        <div className="grid h-full grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_550px] gap-0">
-          <div className="h-full p-4 lg:p-6">
+      <div
+        className="overflow-hidden"
+        style={{ height: `calc(100vh - ${TOPBAR_PX}px)` }}
+      >
+        <div className="grid h-full grid-cols-1 lg:grid-cols-[420px_minmax(0,1fr)_550px] gap-0 overflow-hidden">
+          <div className="h-full p-4 lg:p-6 pb-10">
             <AnsweredLeftPanel />
           </div>
 
-          <main className="h-full pl-4 lg:pl-6 pr-2 lg:pr-3 py-4 lg:py-6">
-            <div className="h-full bg-white rounded-xl shadow flex flex-col">
-              <div className="px-6 pt-6">
-                <Image
-                  src="/mork_logo.png"
-                  alt="Helsingbuss"
-                  width={360}
-                  height={64}
-                  priority
-                />
+          <main className="h-full pl-4 lg:pl-6 pr-2 lg:pr-3 py-4 lg:py-6 overflow-hidden">
+            <div className="h-full overflow-hidden rounded-3xl bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)] border border-white/70 flex flex-col">
+              <div className="relative px-6 lg:px-8 pt-7 pb-6 overflow-hidden">
+                <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-br from-[#194C66]/10 via-[#edf6f8] to-white pointer-events-none" />
 
-                <h1 className="mt-2 text-2xl font-semibold text-[#0f172a]">
-                  Offert {offer?.offer_number || "—"}
-                </h1>
+                <div className="relative">
+                  <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
+                    <div>
+                      <div className="inline-flex items-center gap-2 rounded-full bg-[#194C66] px-3 py-1 text-[12px] font-semibold text-white shadow-sm">
+                        Offert klar
+                      </div>
+
+                      <h1 className="mt-4 text-3xl lg:text-[34px] leading-tight font-semibold tracking-tight text-[#0f172a]">
+                        Er offert är klar
+                      </h1>
+
+                      <p className="mt-2 text-sm text-slate-600">
+                        Offert{" "}
+                        <span className="font-semibold text-[#194C66]">
+                          {offer?.offer_number || "—"}
+                        </span>{" "}
+                        är besvarad och redo att godkännas.
+                      </p>
+                    </div>
+
+                    <div className="shrink-0 rounded-2xl bg-white/80 border border-white shadow-sm px-5 py-4">
+                      <Image
+                        src="/mork_logo.png"
+                        alt="Helsingbuss"
+                        width={250}
+                        height={48}
+                        priority
+                      />
+                    </div>
+                  </div>
+
+                  <div
+                    className="mt-6 max-w-4xl rounded-2xl border border-[#dbe7ee] bg-white/85 px-5 py-4 text-[14px] text-[#0f172a]/80 shadow-sm"
+                    style={{ lineHeight: LINE_HEIGHT }}
+                  >
+                    <p>
+                      Hej!
+                      <br />
+                      Er offert är nu klar och sammanställer en tydlig plan för
+                      resan. Nedan ser ni rutt, tider, pris och villkor.
+                      Kontrollera uppgifterna innan ni godkänner.
+                    </p>
+
+                    <p className="mt-3">
+                      Önskar ni justera antal resenärer, hållplatser, bagage,
+                      barnstol/tillgänglighet eller service ombord? Klicka på{" "}
+                      <strong>Ändra din offert</strong> så återkommer vi med en
+                      uppdaterad offert.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-6 lg:px-8 pb-40">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-[#0f172a]">
+                      Resedetaljer
+                    </h2>
+                    <p className="text-sm text-slate-500">
+                      Kontrollera datum, tider, platser och antal resenärer.
+                    </p>
+                  </div>
+
+                  <div className="hidden sm:flex items-center gap-2 rounded-full bg-[#f1f7f9] px-4 py-2 text-xs font-medium text-[#194C66]">
+                    {tripLabel}
+                  </div>
+                </div>
+
+                <TripLegGrid>
+                  {trips.map((trip, idx) => (
+                    <TripLegCard
+                      key={idx}
+                      title={
+                        withinSweden
+                          ? `Bussresa inom Sverige • ${trip.title}`
+                          : `Bussresa utomlands • ${trip.title}`
+                      }
+                      subtitle="Avstånd och tider baseras preliminärt"
+                      date={trip.date}
+                      time={trip.time}
+                      from={trip.from}
+                      to={trip.to}
+                      pax={trip.pax}
+                      extra={trip.extra}
+                      iconSrc="/busie.png"
+                    />
+                  ))}
+                </TripLegGrid>
 
                 <div
-                  className="mt-5 text-[14px] text-[#0f172a]/80"
+                  className="mt-6 grid gap-4 lg:grid-cols-2 text-[14px]"
                   style={{ lineHeight: LINE_HEIGHT }}
                 >
-                  <p>
-                    Hej!
-                    <br />
-                    Er offert är nu klar och sammanställer en tydlig plan för
-                    resan. Nedan ser ni rutt och hållplatser, tider, bussmodell,
-                    pris och villkor. Kontrollera uppgifterna innan ni godkänner
-                    och klicka på <strong>Acceptera offert</strong> för att
-                    säkra kapacitet och planering. Önskar ni justera antal
-                    resenärer, bagage, barnstol/tillgänglighet eller service
-                    ombord? Maila{" "}
-                    <a
-                      className="underline"
-                      href="mailto:kundteam@helsingbuss.se"
-                    >
-                      kundteam@helsingbuss.se
-                    </a>{" "}
-                    så uppdaterar vi direkt. Luta er tillbaka – vi ordnar
-                    resten.
-                  </p>
-                </div>
+                  <div className="rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-5 text-[#0f172a]/80">
+                    <div className="mb-2 text-sm font-semibold text-[#0f172a]">
+                      Nästa steg
+                    </div>
+                    <p>
+                      Godkänn offerten digitalt för att vi ska kunna gå vidare
+                      med bokningen och säkra kapacitet för resan.
+                    </p>
+                  </div>
 
-                <div className="mt-5">
-                  <TripLegGrid>
-                    {trips.map((trip, idx) => (
-                      <TripLegCard
-                        key={idx}
-                        title={
-                          withinSweden
-                            ? `Bussresa inom Sverige • ${trip.title}`
-                            : `Bussresa utomlands • ${trip.title}`
-                        }
-                        subtitle="Avstånd och tider baseras preliminärt"
-                        date={trip.date}
-                        time={trip.time}
-                        from={trip.from}
-                        to={trip.to}
-                        pax={trip.pax}
-                        extra={trip.extra}
-                        iconSrc="/busie.png"
-                      />
-                    ))}
-                  </TripLegGrid>
+                  <div className="rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-5 text-[#0f172a]/80">
+                    <div className="mb-2 text-sm font-semibold text-[#0f172a]">
+                      Viktig information
+                    </div>
+                    <p>
+                      Slutlig kapacitet bekräftas först genom en skriftlig
+                      bokningsbekräftelse från Helsingbuss.
+                    </p>
+                  </div>
                 </div>
 
                 <div
-                  className="mt-6 text-[14px] text-[#0f172a]/80"
+                  className="mt-6 rounded-2xl bg-white border border-[#e2e8f0] p-5 text-[14px] text-[#0f172a]/80"
                   style={{ lineHeight: LINE_HEIGHT }}
                 >
                   <p>
                     Genom att godkänna offerten bekräftar ni att ni har tagit
-                    del av våra resevillkor (läs dem här). Observera att datum
-                    och tider är i mån av tillgänglighet; slutlig kapacitet
-                    kontrolleras vid bokning och bekräftas först genom en
-                    skriftlig bokningsbekräftelse från oss.
+                    del av våra resevillkor. Datum och tider är i mån av
+                    tillgänglighet tills bokningen är skriftligt bekräftad.
                   </p>
 
                   <p className="mt-3">
@@ -398,26 +451,31 @@ export default function OfferBesvarad({ offer }: any) {
                     varsel än två arbetsdagar, ring vårt journummer:{" "}
                     <strong>010–777 21 58</strong>.
                   </p>
-                </div>
-              </div>
 
-              <div className="mt-auto px-6 pb-10">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-[13px] text-[#0f172a]">
-                  <div>
-                    <div>Helsingbuss</div>
-                    <div>Hofverbergsgatan 2B</div>
-                    <div>254 43 Helsingborg</div>
-                    <div>helsingbuss.se</div>
-                  </div>
-                  <div>
-                    <div>Tel. +46 (0) 405 38 38</div>
-                    <div>Jour. +46 (0) 777 21 58</div>
-                    <div>info@helsingbuss.se</div>
-                  </div>
-                  <div>
-                    <div>Bankgiro: 763-4157</div>
-                    <div>Org.nr: 890101-3931</div>
-                    <div>VAT nr: SE890101393101</div>
+                  <p className="mt-4 rounded-xl bg-[#194C66] px-4 py-3 text-[12px] uppercase tracking-wide font-semibold text-white">
+                    Kontrollera uppgifterna och godkänn offerten för att gå
+                    vidare.
+                  </p>
+                </div>
+
+                <div className="mt-6 rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-[13px] text-[#0f172a]">
+                    <div>
+                      <div>Helsingbuss</div>
+                      <div>Hofverbergsgatan 2B</div>
+                      <div>254 43 Helsingborg</div>
+                      <div>helsingbuss.se</div>
+                    </div>
+                    <div>
+                      <div>Tel. +46 (0) 405 38 38</div>
+                      <div>Jour. +46 (0) 777 21 58</div>
+                      <div>info@helsingbuss.se</div>
+                    </div>
+                    <div>
+                      <div>Bankgiro: 763-4157</div>
+                      <div>Org.nr: 890101-3931</div>
+                      <div>VAT nr: SE890101393101</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -425,7 +483,19 @@ export default function OfferBesvarad({ offer }: any) {
           </main>
 
           <aside className="h-full p-4 lg:p-6">
-            <div className="h-full bg-white rounded-xl shadow flex flex-col">
+            <div className="h-full rounded-3xl bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)] border border-white/70 flex flex-col overflow-hidden">
+              <div className="bg-gradient-to-br from-[#194C66] to-[#0f3347] px-6 py-6 text-white">
+                <div className="text-xs uppercase tracking-[0.18em] text-white/60">
+                  Offertöversikt
+                </div>
+                <h2 className="mt-2 text-2xl font-semibold">
+                  {offer?.contact_person ?? "Kund"}
+                </h2>
+                <p className="mt-1 text-sm text-white/70">
+                  Här ser ni pris, betalningsvillkor och kan svara på offerten.
+                </p>
+              </div>
+
               <div className="px-6 pt-6">
                 <div className="inline-flex items-center rounded-full bg-[#eef5f9] px-3 py-1 text-sm text-[#194C66] font-medium">
                   Kunduppgifter
@@ -448,71 +518,65 @@ export default function OfferBesvarad({ offer }: any) {
                   <DD>{v(email, "—")}</DD>
                 </dl>
 
-                <div className="mt-6">
-                  <div className="font-semibold text-[#0f172a]">
-                    Offertinformation om kostnad
+                <div className="mt-6 rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-4">
+                  <div className="text-sm text-[#0f172a]/70">
+                    Resa:{" "}
+                    <span className="font-semibold text-[#0f172a]">
+                      {tripLabel}
+                    </span>
                   </div>
 
-                  <div className="mt-3 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-4">
-                    <div className="text-sm text-[#0f172a]/70">
-                      Resa:{" "}
-                      <span className="font-semibold text-[#0f172a]">
-                        {tripLabel}
-                      </span>
-                    </div>
-
-                    <div className="mt-3 text-sm text-[#0f172a]/70">
-                      Totala kostnaden för denna offert är:
-                    </div>
-
-                    <div className="mt-1 text-2xl font-semibold text-[#0f172a]">
-                      {money(totalForCustomer)}
-                    </div>
-
-                    {includedFeesText && (
-                      <div className="mt-2 rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2 text-[13px] text-emerald-700">
-                        ✔ {includedFeesText}
-                      </div>
-                    )}
+                  <div className="mt-3 text-sm text-[#0f172a]/70">
+                    Totala kostnaden för denna offert är:
                   </div>
 
-                  <div className="mt-6 text-[13px] text-[#0f172a]/80 leading-relaxed">
-                    <div className="font-semibold text-[#0f172a] mb-1">
-                      Betalningsvillkor
-                    </div>
-                    <p>
-                      10 dagar netto om det är företag/förening, faktura kommer
-                      efter uppdrag. För privatperson ska fakturan vara betald
-                      minst 3 dagar innan uppdraget.
-                    </p>
+                  <div className="mt-1 text-3xl font-semibold text-[#0f172a]">
+                    {money(totalForCustomer)}
                   </div>
+
+                  {includedFeesText && (
+                    <div className="mt-3 rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2 text-[13px] text-emerald-700">
+                      ✔ {includedFeesText}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-[#e2e8f0] bg-white p-4">
+                  <div className="font-semibold text-[#0f172a] mb-1">
+                    Betalningsvillkor
+                  </div>
+                  <p className="text-[13px] text-[#0f172a]/80 leading-relaxed">
+                    10 dagar netto om det är företag/förening, faktura kommer
+                    efter uppdrag. För privatperson ska fakturan vara betald
+                    minst 3 dagar innan uppdraget.
+                  </p>
                 </div>
               </div>
 
-              <div className="mt-auto px-6 pb-6">
-                <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+              <div className="mt-auto px-6 pb-6 pt-5">
+                <div className="flex flex-col gap-3">
                   <button
-                    onClick={onDeclineOffer}
+                    onClick={onAcceptOffer}
                     disabled={busy !== null}
-                    className="px-5 py-3 rounded-lg border border-[#e2e8f0] text-[#0f172a] bg-white hover:bg-[#f8fafc] disabled:opacity-60"
+                    className="w-full px-5 py-3 rounded-xl bg-[#194C66] text-white font-semibold hover:bg-[#163b4d] disabled:opacity-60"
                   >
-                    {busy === "decline" ? "Avböjer…" : "Avböj"}
+                    {busy === "accept" ? "Accepterar…" : "Acceptera offert"}
                   </button>
 
                   <button
                     onClick={onRequestChange}
                     disabled={busy !== null}
-                    className="px-5 py-3 rounded-lg border border-[#e2e8f0] text-[#0f172a] bg-white hover:bg-[#f8fafc] disabled:opacity-60"
+                    className="w-full px-5 py-3 rounded-xl border border-[#e2e8f0] text-[#0f172a] bg-white hover:bg-[#f8fafc] disabled:opacity-60"
                   >
                     {busy === "change" ? "Skickar…" : "Ändra din offert"}
                   </button>
 
                   <button
-                    onClick={onAcceptOffer}
+                    onClick={onDeclineOffer}
                     disabled={busy !== null}
-                    className="px-5 py-3 rounded-lg bg-[#194C66] text-white font-medium hover:bg-[#163b4d] disabled:opacity-60"
+                    className="w-full px-5 py-3 rounded-xl border border-red-100 text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-60"
                   >
-                    {busy === "accept" ? "Accepterar…" : "Acceptera offert"}
+                    {busy === "decline" ? "Avböjer…" : "Avböj offert"}
                   </button>
                 </div>
               </div>
@@ -526,17 +590,17 @@ export default function OfferBesvarad({ offer }: any) {
 
 function AnsweredLeftPanel() {
   const steps = [
-    "Offerten är klar",
-    "Granska uppgifter",
-    "Godkänn eller ändra",
-    "Bokningen bekräftas",
+    "Förfrågan mottagen",
+    "Offert framtagen",
+    "Ni väljer svar",
+    "Bokning bekräftas",
   ];
 
   const benefits = [
-    "Tydligt totalpris",
-    "Trygga och bekväma fordon",
+    "Tydlig offert med totalpris",
+    "Digitalt godkännande",
     "Personlig hjälp vid ändringar",
-    "Planering anpassad efter er resa",
+    "Trygg planering hela vägen",
   ];
 
   return (
@@ -545,10 +609,10 @@ function AnsweredLeftPanel() {
         <div className="text-xs uppercase tracking-[0.18em] text-white/60">
           Helsingbuss
         </div>
-        <h2 className="mt-2 text-xl font-semibold">Er offert är redo</h2>
+        <h2 className="mt-2 text-xl font-semibold">Offerten är klar</h2>
         <p className="mt-2 text-sm leading-relaxed text-white/75">
-          Granska offerten och välj om ni vill godkänna, avböja eller be om
-          ändring.
+          Kontrollera uppgifterna och välj om ni vill godkänna, ändra eller
+          avböja offerten.
         </p>
       </div>
 
@@ -561,7 +625,7 @@ function AnsweredLeftPanel() {
               <div className="flex flex-col items-center">
                 <div
                   className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-semibold ${
-                    index === 0
+                    index <= 1
                       ? "bg-[#194C66] text-white"
                       : "bg-[#eef5f9] text-[#194C66]"
                   }`}
@@ -577,7 +641,7 @@ function AnsweredLeftPanel() {
                 <div className="text-sm font-medium text-[#0f172a]">
                   {step}
                 </div>
-                {index === 0 && (
+                {index === 1 && (
                   <div className="mt-1 text-xs text-slate-500">Just nu</div>
                 )}
               </div>
@@ -587,7 +651,7 @@ function AnsweredLeftPanel() {
 
         <div className="mt-6 rounded-2xl bg-[#f8fafc] border border-[#e2e8f0] p-4">
           <div className="text-sm font-semibold text-[#0f172a]">
-            Ingår i vår service
+            Därför väljer kunder oss
           </div>
 
           <div className="mt-3 space-y-2">
@@ -603,10 +667,10 @@ function AnsweredLeftPanel() {
 
       <div className="mt-auto p-5">
         <div className="rounded-2xl bg-[#eef5f9] px-4 py-4 text-sm text-[#194C66]">
-          <div className="font-semibold">Behöver ni ändra något?</div>
+          <div className="font-semibold">Behöver ni hjälp?</div>
           <p className="mt-1 leading-relaxed">
-            Klicka på “Ändra din offert” så återkommer vi med en uppdaterad
-            offert.
+            Välj “Ändra din offert” om något behöver justeras innan ni
+            godkänner.
           </p>
         </div>
       </div>
