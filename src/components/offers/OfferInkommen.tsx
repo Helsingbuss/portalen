@@ -212,7 +212,7 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
           </div>
 
           <main className="h-full pl-4 lg:pl-6 pr-2 lg:pr-3 py-4 lg:py-6 overflow-hidden">
-            <div className="h-full overflow-y-auto rounded-3xl bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)] border border-white/70 flex flex-col">
+            <div className="h-full overflow-hidden rounded-3xl bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)] border border-white/70 flex flex-col">
               <div className="relative px-6 lg:px-8 pt-7 pb-6 overflow-hidden">
                 <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-br from-[#194C66]/10 via-[#edf6f8] to-white pointer-events-none" />
 
@@ -277,7 +277,7 @@ export default function OfferInkommen({ offer }: OfferInkommenProps) {
                 </div>
               </div>
 
-              <div className="px-6 lg:px-8 pb-40">
+              <div className="flex-1 overflow-y-auto px-6 lg:px-8 pb-40">
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <div>
                     <h2 className="text-lg font-semibold text-[#0f172a]">
