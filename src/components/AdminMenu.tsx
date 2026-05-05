@@ -80,7 +80,7 @@ export default function AdminMenu({ active }: Props) {
       <div className="text-[10px] text-gray-400 mt-2">Körorder & körningar</div>
       <Link href="/admin/orders/new" className={subLink}>Skapa körorder</Link>
       <Link href="/admin/orders" className={subLink}>Kommande körningar</Link>
-      <Link href="#" className={subLink}>Avvikelser</Link>
+      <Link href="/admin/avvikelser" className={subLink}>Avvikelser</Link>
 
     </div>
   )}
