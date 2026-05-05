@@ -121,7 +121,7 @@ export default function AvvikelseDetailPage() {
       <AdminMenu />
 
       <div className="flex flex-1 flex-col">
-        <Header title="Avvikelse" />
+        <Header />
 
         <main className="p-6">
           <div className="mb-6 flex items-center justify-between gap-4">

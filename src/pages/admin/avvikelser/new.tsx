@@ -55,7 +55,7 @@ export default function NewAvvikelsePage() {
       <AdminMenu />
 
       <div className="flex-1 flex flex-col">
-        <Header title="Ny avvikelse" />
+        <Header />
 
         <main className="p-6">
           <div className="mb-6 flex items-center justify-between">
