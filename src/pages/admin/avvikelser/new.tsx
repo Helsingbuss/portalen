@@ -9,7 +9,12 @@ export default function NewAvvikelsePage() {
   const [error, setError] = useState("");
 
   const [form, setForm] = useState({
-    booking_number: "",
+    booking_number:
+      typeof router.query.booking_number === "string"
+        ? router.query.booking_number
+        : "",
+    booking_id:
+      typeof router.query.booking_id === "string" ? router.query.booking_id : "",
     title: "",
     type: "övrigt",
     severity: "normal",
@@ -51,13 +56,13 @@ export default function NewAvvikelsePage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#f5f4f0]">
+    <>
       <AdminMenu />
 
-      <div className="flex-1 flex flex-col">
+      <div className="min-h-screen bg-[#f5f4f0] lg:pl-64">
         <Header />
 
-        <main className="p-6">
+        <main className="p-6 pt-24 space-y-6">
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-semibold text-[#0f172a]">
@@ -71,7 +76,7 @@ export default function NewAvvikelsePage() {
 
             <button
               onClick={() => router.push("/admin/avvikelser")}
-              className="rounded-lg border px-4 py-2 text-sm hover:bg-white"
+              className="rounded-lg border bg-white px-4 py-2 text-sm hover:bg-gray-50"
             >
               Tillbaka
             </button>
@@ -146,6 +151,7 @@ export default function NewAvvikelsePage() {
                     <option value="öppen">Öppen</option>
                     <option value="pågår">Pågår</option>
                     <option value="klar">Klar</option>
+                    <option value="arkiverad">Arkiverad</option>
                   </select>
                 </Field>
 
@@ -211,7 +217,7 @@ export default function NewAvvikelsePage() {
               </div>
             </section>
 
-            <aside className="rounded-xl bg-white p-5 shadow h-fit">
+            <aside className="h-fit rounded-xl bg-white p-5 shadow">
               <h2 className="text-lg font-semibold text-[#194C66]">
                 Sammanfattning
               </h2>
@@ -238,7 +244,7 @@ export default function NewAvvikelsePage() {
           </div>
         </main>
       </div>
-    </div>
+    </>
   );
 }
 
