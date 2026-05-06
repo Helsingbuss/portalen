@@ -105,8 +105,8 @@ export default function AdminMenu({ active }: Props) {
 
       {/* RESOR */}
       <div className="text-[10px] text-gray-400 mt-1">Resor</div>
-      <Link href="#" className={subLink}>Skapa resa</Link>
-      <Link href="#" className={subLink}>Reselista</Link>
+      <Link href="/admin/sundra/resor/new" className={subLink}>Skapa resa</Link>
+      <Link href="/admin/sundra/resor" className={subLink}>Reselista</Link>
 
       {/* AVGÅNGAR */}
       <div className="text-[10px] text-gray-400 mt-2">Avgångar</div>
