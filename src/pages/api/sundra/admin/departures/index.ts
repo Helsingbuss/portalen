@@ -3,15 +3,6 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const { id } = req.query;
-
-    if (!id || typeof id !== "string") {
-      return res.status(400).json({
-        ok: false,
-        error: "ID saknas.",
-      });
-    }
-
     if (req.method === "GET") {
       const { data, error } = await supabaseAdmin
         .from("sundra_departures")
@@ -25,27 +16,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             destination
           )
         `)
-        .eq("id", id)
-        .single();
+        .order("departure_date", { ascending: true });
 
       if (error) throw error;
 
+      const departures = (data || []).map((row: any) => ({
+        ...row,
+        title: row.sundra_trips?.title || "—",
+        slug: row.sundra_trips?.slug || null,
+        category: row.sundra_trips?.category || null,
+        destination: row.sundra_trips?.destination || null,
+        seats_total: row.capacity ?? 0,
+        seats_booked: row.booked_count ?? 0,
+        booking_open: row.status === "open",
+      }));
+
       return res.status(200).json({
         ok: true,
-        departure: {
-          ...data,
-          trip_title: data?.sundra_trips?.title || null,
-          trip_slug: data?.sundra_trips?.slug || null,
-        },
+        departures,
       });
     }
 
-    if (req.method === "PATCH" || req.method === "PUT") {
+    if (req.method === "POST") {
       const body = req.body || {};
 
-      const updateData = {
-        trip_id: body.trip_id || null,
-        departure_date: body.departure_date || null,
+      if (!body.trip_id) {
+        return res.status(400).json({
+          ok: false,
+          error: "Resa saknas.",
+        });
+      }
+
+      if (!body.departure_date) {
+        return res.status(400).json({
+          ok: false,
+          error: "Avgångsdatum saknas.",
+        });
+      }
+
+      const insertData = {
+        trip_id: body.trip_id,
+        departure_date: body.departure_date,
         departure_time: body.departure_time || null,
         return_date: body.return_date || null,
         return_time: body.return_time || null,
@@ -65,29 +76,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const { data, error } = await supabaseAdmin
         .from("sundra_departures")
-        .update(updateData)
-        .eq("id", id)
+        .insert(insertData)
         .select()
         .single();
 
       if (error) throw error;
 
-      return res.status(200).json({
+      return res.status(201).json({
         ok: true,
         departure: data,
-      });
-    }
-
-    if (req.method === "DELETE") {
-      const { error } = await supabaseAdmin
-        .from("sundra_departures")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
-
-      return res.status(200).json({
-        ok: true,
       });
     }
 
@@ -96,11 +93,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       error: "Method not allowed",
     });
   } catch (e: any) {
-    console.error("/api/admin/sundra/departures/[id] error:", e?.message || e);
+    console.error("/api/admin/sundra/departures error:", e?.message || e);
 
     return res.status(500).json({
       ok: false,
-      error: e?.message || "Kunde inte hantera avgången.",
+      error: e?.message || "Kunde inte hantera avgångar.",
     });
   }
 }

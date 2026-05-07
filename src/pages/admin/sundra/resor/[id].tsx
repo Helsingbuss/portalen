@@ -3,132 +3,113 @@ import { useRouter } from "next/router";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
 
-type TripForm = {
-  title: string;
-  slug: string;
-  category: string;
-  destination: string;
-  short_description: string;
-  description: string;
-  program: string;
-  included: string;
-  not_included: string;
-  terms: string;
-  image_url: string;
-  price_from: string;
-  currency: string;
-  status: string;
-  is_featured: boolean;
-  seo_title: string;
-  seo_description: string;
-};
-
-const EMPTY_FORM: TripForm = {
-  title: "",
-  slug: "",
-  category: "",
-  destination: "",
-  short_description: "",
-  description: "",
-  program: "",
-  included: "",
-  not_included: "",
-  terms: "",
-  image_url: "",
-  price_from: "",
-  currency: "SEK",
-  status: "draft",
-  is_featured: false,
-  seo_title: "",
-  seo_description: "",
-};
-
-export default function SundraTripDetailPage() {
+export default function EditSundraTripPage() {
   const router = useRouter();
   const { id } = router.query;
 
-  const [form, setForm] = useState<TripForm>(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
   const [error, setError] = useState("");
-  const [savedMessage, setSavedMessage] = useState("");
 
-  useEffect(() => {
-    if (!id || typeof id !== "string") return;
+  const [form, setForm] = useState<any>({
+    title: "",
+    slug: "",
 
-    async function load() {
-      setLoading(true);
-      setError("");
+    category: "",
+    destination: "",
+    location: "",
+    country: "Sverige",
 
-      try {
-        const res = await fetch(`/api/admin/sundra/trips/${id}`);
-        const json = await res.json().catch(() => ({}));
+    trip_type: "day",
 
-        if (!res.ok || !json?.ok) {
-          throw new Error(json?.error || "Kunde inte hämta resan.");
-        }
+    short_description: "",
+    description: "",
+    program: "",
 
-        const trip = json.trip;
+    image_url: "",
 
-        setForm({
-          title: trip.title || "",
-          slug: trip.slug || "",
-          category: trip.category || "",
-          destination: trip.destination || "",
-          short_description: trip.short_description || "",
-          description: trip.description || "",
-          program: trip.program || "",
-          included: trip.included || "",
-          not_included: trip.not_included || "",
-          terms: trip.terms || "",
-          image_url: trip.image_url || "",
-          price_from:
-            trip.price_from === null || trip.price_from === undefined
-              ? ""
-              : String(trip.price_from),
-          currency: trip.currency || "SEK",
-          status: trip.status || "draft",
-          is_featured: Boolean(trip.is_featured),
-          seo_title: trip.seo_title || "",
-          seo_description: trip.seo_description || "",
-        });
-      } catch (e: any) {
-        setError(e?.message || "Något gick fel.");
-      } finally {
-        setLoading(false);
-      }
-    }
+    duration_days: 1,
+    duration_nights: 0,
 
-    load();
-  }, [id]);
+    price_from: "",
 
-  function update(key: keyof TripForm, value: any) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    setSavedMessage("");
+    hero_badge: "",
+
+    campaign_label: "",
+    campaign_text: "",
+
+    card_title: "",
+    card_description: "",
+
+    card_badge: "",
+
+    price_prefix: "fr.",
+    price_suffix: "",
+    price_subtext: "",
+
+    card_theme: "red",
+
+    is_featured: false,
+    enable_price_calendar: true,
+    enable_rooms: false,
+    enable_options: true,
+  });
+
+  function update(key: string, value: any) {
+    setForm((prev: any) => ({
+      ...prev,
+      [key]: value,
+    }));
   }
 
-  async function save() {
-    if (!id || typeof id !== "string") return;
+  async function loadTrip() {
+    try {
+      setLoading(true);
 
+      const res = await fetch(`/api/admin/sundra/trips/${id}`);
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json?.error || "Kunde inte hämta resa.");
+      }
+
+      setForm({
+        ...form,
+        ...json.trip,
+      });
+    } catch (e: any) {
+      setError(e?.message || "Något gick fel.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (id) {
+      loadTrip();
+    }
+  }, [id]);
+
+  async function save() {
     setSaving(true);
     setError("");
-    setSavedMessage("");
 
     try {
       const res = await fetch(`/api/admin/sundra/trips/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(form),
       });
 
       const json = await res.json().catch(() => ({}));
 
-      if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Kunde inte spara resan.");
+      if (!res.ok) {
+        throw new Error(json?.error || "Kunde inte spara resa.");
       }
 
-      setSavedMessage("Sparat ✔");
+      alert("Resan sparades.");
     } catch (e: any) {
       setError(e?.message || "Något gick fel.");
     } finally {
@@ -137,10 +118,8 @@ export default function SundraTripDetailPage() {
   }
 
   async function removeTrip() {
-    if (!id || typeof id !== "string") return;
-
     const ok = confirm(
-      "Är du säker på att du vill ta bort resan? Alla avgångar kopplade till resan tas också bort."
+      "Är du säker på att du vill ta bort resan?"
     );
 
     if (!ok) return;
@@ -152,298 +131,341 @@ export default function SundraTripDetailPage() {
 
       const json = await res.json().catch(() => ({}));
 
-      if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Kunde inte ta bort resan.");
+      if (!res.ok) {
+        throw new Error(json?.error || "Kunde inte ta bort resa.");
       }
 
       router.push("/admin/sundra/resor");
     } catch (e: any) {
-      setError(e?.message || "Något gick fel vid borttagning.");
+      alert(e?.message || "Något gick fel.");
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex min-h-screen bg-[#f5f4f0]">
+        <AdminMenu />
+
+        <div className="flex flex-1 flex-col">
+          <Header />
+
+          <main className="p-6 pt-24">
+            <div className="rounded-2xl bg-white p-6 shadow">
+              Laddar resa...
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <>
+    <div className="flex min-h-screen bg-[#f5f4f0]">
       <AdminMenu />
 
-      <div className="min-h-screen bg-[#f5f4f0] lg:pl-64">
+      <div className="flex flex-1 flex-col">
         <Header />
 
-        <main className="p-6 pt-24 space-y-6">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
+        <main className="p-6 pt-24">
+          <div className="mb-6 flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-semibold text-[#194C66]">
+              <h1 className="text-2xl font-semibold text-[#194C66]">
                 Redigera resa
               </h1>
-              <p className="text-sm text-[#194C66]/60">
-                Uppdatera informationen som visas på resesidan och resekortet.
+
+              <p className="mt-1 text-sm text-[#194C66]/70">
+                Uppdatera information för resan.
               </p>
             </div>
 
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex items-center gap-3">
               <button
-                onClick={() => router.push("/admin/sundra/resor")}
-                className="rounded-[25px] border bg-white px-4 py-2 text-sm text-[#194C66] hover:bg-gray-50"
+                onClick={() =>
+                  router.push("/admin/sundra/resor")
+                }
+                className="rounded-xl border bg-white px-4 py-2 text-sm hover:bg-[#f8fafc]"
               >
                 Tillbaka
               </button>
 
               <button
-                onClick={() =>
-                  router.push(`/admin/sundra/avganger/new?trip_id=${id}`)
-                }
-                className="rounded-[25px] bg-[#0f766e] px-4 py-2 text-sm text-white"
+                onClick={removeTrip}
+                className="rounded-xl border border-red-300 bg-white px-4 py-2 text-sm text-red-700 hover:bg-red-50"
               >
-                + Skapa avgång
+                Ta bort
               </button>
             </div>
           </div>
 
-          {loading && (
-            <div className="rounded-xl bg-white p-6 text-sm text-gray-500 shadow">
-              Laddar resa...
-            </div>
-          )}
-
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {error}
             </div>
           )}
 
-          {!loading && (
-            <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-              <section className="rounded-xl bg-white p-5 shadow space-y-5">
-                <div>
-                  <h2 className="text-lg font-semibold text-[#194C66]">
-                    Resans information
-                  </h2>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Ändra texter, bild, pris och status för resan.
-                  </p>
-                </div>
+          <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+            {/* VÄNSTER */}
+            <section className="rounded-2xl bg-white p-5 shadow">
+              <h2 className="mb-4 text-lg font-semibold text-[#194C66]">
+                Resinformation
+              </h2>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Titel">
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Titel">
+                  <input
+                    value={form.title || ""}
+                    onChange={(e) =>
+                      update("title", e.target.value)
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
+                  />
+                </Field>
+
+                <Field label="Slug">
+                  <input
+                    value={form.slug || ""}
+                    onChange={(e) =>
+                      update("slug", e.target.value)
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
+                  />
+                </Field>
+
+                <Field label="Destination">
+                  <input
+                    value={form.destination || ""}
+                    onChange={(e) =>
+                      update("destination", e.target.value)
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
+                  />
+                </Field>
+
+                <Field label="Land">
+                  <input
+                    value={form.country || ""}
+                    onChange={(e) =>
+                      update("country", e.target.value)
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
+                  />
+                </Field>
+
+                <Field label="Kategori">
+                  <input
+                    value={form.category || ""}
+                    onChange={(e) =>
+                      update("category", e.target.value)
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
+                  />
+                </Field>
+
+                <Field label="Resetyp">
+                  <select
+                    value={form.trip_type || "day"}
+                    onChange={(e) =>
+                      update("trip_type", e.target.value)
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
+                  >
+                    <option value="day">Dagstur</option>
+                    <option value="hotel">Övernattning</option>
+                    <option value="multi">Flerdagarsresa</option>
+                  </select>
+                </Field>
+              </div>
+
+              <div className="mt-4">
+                <Field label="Kort beskrivning">
+                  <textarea
+                    rows={3}
+                    value={form.short_description || ""}
+                    onChange={(e) =>
+                      update(
+                        "short_description",
+                        e.target.value
+                      )
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-4">
+                <Field label="Beskrivning">
+                  <textarea
+                    rows={7}
+                    value={form.description || ""}
+                    onChange={(e) =>
+                      update("description", e.target.value)
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-4">
+                <Field label="Program">
+                  <textarea
+                    rows={6}
+                    value={form.program || ""}
+                    onChange={(e) =>
+                      update("program", e.target.value)
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-4">
+                <Field label="Bild URL">
+                  <input
+                    value={form.image_url || ""}
+                    onChange={(e) =>
+                      update("image_url", e.target.value)
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
+                  />
+                </Field>
+              </div>
+            </section>
+
+            {/* HÖGER */}
+            <aside className="space-y-6">
+              <section className="rounded-2xl bg-white p-5 shadow">
+                <h2 className="text-lg font-semibold text-[#194C66]">
+                  Kampanjkort
+                </h2>
+
+                <div className="mt-4 space-y-4">
+                  <Field label="Kampanj etikett">
                     <input
-                      value={form.title}
-                      onChange={(e) => update("title", e.target.value)}
-                      className="w-full rounded-lg border px-3 py-2"
+                      value={form.campaign_label || ""}
+                      onChange={(e) =>
+                        update(
+                          "campaign_label",
+                          e.target.value
+                        )
+                      }
+                      className="w-full rounded-xl border px-3 py-2"
                     />
                   </Field>
 
-                  <Field label="Slug / länk">
+                  <Field label="Kampanjtext">
                     <input
-                      value={form.slug}
-                      onChange={(e) => update("slug", e.target.value)}
-                      className="w-full rounded-lg border px-3 py-2"
+                      value={form.campaign_text || ""}
+                      onChange={(e) =>
+                        update(
+                          "campaign_text",
+                          e.target.value
+                        )
+                      }
+                      className="w-full rounded-xl border px-3 py-2"
                     />
                   </Field>
 
-                  <Field label="Kategori">
+                  <Field label="Korttitel">
+                    <input
+                      value={form.card_title || ""}
+                      onChange={(e) =>
+                        update("card_title", e.target.value)
+                      }
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+
+                  <Field label="Kortbeskrivning">
+                    <textarea
+                      rows={3}
+                      value={form.card_description || ""}
+                      onChange={(e) =>
+                        update(
+                          "card_description",
+                          e.target.value
+                        )
+                      }
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+
+                  <Field label="Badge">
+                    <input
+                      value={form.card_badge || ""}
+                      onChange={(e) =>
+                        update("card_badge", e.target.value)
+                      }
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+
+                  <Field label="Tema">
                     <select
-                      value={form.category}
-                      onChange={(e) => update("category", e.target.value)}
-                      className="w-full rounded-lg border px-3 py-2"
+                      value={form.card_theme || "red"}
+                      onChange={(e) =>
+                        update("card_theme", e.target.value)
+                      }
+                      className="w-full rounded-xl border px-3 py-2"
                     >
-                      <option value="">Välj kategori</option>
-                      <option value="shopping">Shoppingresa</option>
-                      <option value="noje">Nöje & upplevelse</option>
-                      <option value="kryssning">Kryssning</option>
-                      <option value="familj">Familjeresa</option>
-                      <option value="event">Eventresa</option>
-                      <option value="annat">Annat</option>
+                      <option value="red">Röd</option>
+                      <option value="teal">Turkos</option>
+                      <option value="blue">Blå</option>
+                      <option value="green">Grön</option>
+                      <option value="dark">Mörk</option>
                     </select>
-                  </Field>
-
-                  <Field label="Destination">
-                    <input
-                      value={form.destination}
-                      onChange={(e) => update("destination", e.target.value)}
-                      className="w-full rounded-lg border px-3 py-2"
-                    />
                   </Field>
 
                   <Field label="Pris från">
                     <input
                       type="number"
-                      value={form.price_from}
-                      onChange={(e) => update("price_from", e.target.value)}
-                      className="w-full rounded-lg border px-3 py-2"
-                    />
-                  </Field>
-
-                  <Field label="Status">
-                    <select
-                      value={form.status}
-                      onChange={(e) => update("status", e.target.value)}
-                      className="w-full rounded-lg border px-3 py-2"
-                    >
-                      <option value="draft">Utkast</option>
-                      <option value="published">Publicerad</option>
-                      <option value="hidden">Dold</option>
-                    </select>
-                  </Field>
-                </div>
-
-                <Field label="Bild URL">
-                  <input
-                    value={form.image_url}
-                    onChange={(e) => update("image_url", e.target.value)}
-                    placeholder="https://..."
-                    className="w-full rounded-lg border px-3 py-2"
-                  />
-                </Field>
-
-                <Field label="Kort säljtext">
-                  <textarea
-                    value={form.short_description}
-                    onChange={(e) =>
-                      update("short_description", e.target.value)
-                    }
-                    rows={3}
-                    className="w-full rounded-lg border px-3 py-2"
-                  />
-                </Field>
-
-                <Field label="Lång beskrivning">
-                  <textarea
-                    value={form.description}
-                    onChange={(e) => update("description", e.target.value)}
-                    rows={6}
-                    className="w-full rounded-lg border px-3 py-2"
-                  />
-                </Field>
-
-                <Field label="Reseprogram">
-                  <textarea
-                    value={form.program}
-                    onChange={(e) => update("program", e.target.value)}
-                    rows={6}
-                    className="w-full rounded-lg border px-3 py-2"
-                  />
-                </Field>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Ingår i resan">
-                    <textarea
-                      value={form.included}
-                      onChange={(e) => update("included", e.target.value)}
-                      rows={5}
-                      className="w-full rounded-lg border px-3 py-2"
-                    />
-                  </Field>
-
-                  <Field label="Ingår inte">
-                    <textarea
-                      value={form.not_included}
-                      onChange={(e) => update("not_included", e.target.value)}
-                      rows={5}
-                      className="w-full rounded-lg border px-3 py-2"
-                    />
-                  </Field>
-                </div>
-
-                <Field label="Villkor / bra att veta">
-                  <textarea
-                    value={form.terms}
-                    onChange={(e) => update("terms", e.target.value)}
-                    rows={5}
-                    className="w-full rounded-lg border px-3 py-2"
-                  />
-                </Field>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="SEO-titel">
-                    <input
-                      value={form.seo_title}
-                      onChange={(e) => update("seo_title", e.target.value)}
-                      className="w-full rounded-lg border px-3 py-2"
-                    />
-                  </Field>
-
-                  <Field label="SEO-beskrivning">
-                    <input
-                      value={form.seo_description}
+                      value={form.price_from || ""}
                       onChange={(e) =>
-                        update("seo_description", e.target.value)
+                        update("price_from", e.target.value)
                       }
-                      className="w-full rounded-lg border px-3 py-2"
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+
+                  <Field label="Pris prefix">
+                    <input
+                      value={form.price_prefix || ""}
+                      onChange={(e) =>
+                        update(
+                          "price_prefix",
+                          e.target.value
+                        )
+                      }
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+
+                  <Field label="Pris text under">
+                    <input
+                      value={form.price_subtext || ""}
+                      onChange={(e) =>
+                        update(
+                          "price_subtext",
+                          e.target.value
+                        )
+                      }
+                      className="w-full rounded-xl border px-3 py-2"
                     />
                   </Field>
                 </div>
-              </section>
-
-              <aside className="h-fit rounded-xl bg-white p-5 shadow">
-                <h2 className="text-lg font-semibold text-[#194C66]">
-                  Förhandsinfo
-                </h2>
-
-                <div className="mt-4 overflow-hidden rounded-xl border bg-[#f8fafc]">
-                  {form.image_url ? (
-                    <img
-                      src={form.image_url}
-                      alt={form.title || "Resebild"}
-                      className="h-40 w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-40 items-center justify-center bg-[#e5eef3] text-sm text-[#194C66]/60">
-                      Ingen bild vald
-                    </div>
-                  )}
-
-                  <div className="p-4">
-                    <div className="text-xs uppercase tracking-wide text-[#194C66]/60">
-                      {form.category || "Kategori"}
-                    </div>
-                    <div className="mt-1 text-lg font-semibold text-[#0f172a]">
-                      {form.title || "Resans titel"}
-                    </div>
-                    <p className="mt-2 text-sm text-gray-600">
-                      {form.short_description ||
-                        "Kort beskrivning visas här på resekortet."}
-                    </p>
-                    <div className="mt-3 font-semibold text-[#194C66]">
-                      Från {form.price_from || "0"} {form.currency}
-                    </div>
-                  </div>
-                </div>
-
-                <label className="mt-5 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.is_featured}
-                    onChange={(e) => update("is_featured", e.target.checked)}
-                  />
-                  Visa som utvald resa
-                </label>
 
                 <button
                   onClick={save}
-                  disabled={saving || !form.title.trim()}
-                  className="mt-5 w-full rounded-lg bg-[#194C66] px-4 py-3 font-medium text-white hover:bg-[#163b4d] disabled:opacity-50"
+                  disabled={saving}
+                  className="mt-6 w-full rounded-xl bg-[#194C66] px-4 py-3 font-medium text-white hover:bg-[#16384d] disabled:opacity-50"
                 >
-                  {saving ? "Sparar..." : "Spara ändringar"}
+                  {saving ? "Sparar..." : "Spara resa"}
                 </button>
-
-                {savedMessage && (
-                  <div className="mt-3 rounded-lg bg-green-50 p-3 text-sm text-green-700">
-                    {savedMessage}
-                  </div>
-                )}
-
-                <button
-                  onClick={removeTrip}
-                  className="mt-3 w-full rounded-lg border border-red-200 bg-white px-4 py-3 text-sm font-medium text-red-700 hover:bg-red-50"
-                >
-                  Ta bort resa
-                </button>
-              </aside>
-            </div>
-          )}
+              </section>
+            </aside>
+          </div>
         </main>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -456,7 +478,10 @@ function Field({
 }) {
   return (
     <label className="block">
-      <div className="mb-1 text-sm font-medium text-[#194C66]">{label}</div>
+      <div className="mb-1 text-sm font-medium text-[#194C66]">
+        {label}
+      </div>
+
       {children}
     </label>
   );

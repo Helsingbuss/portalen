@@ -12,6 +12,31 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
+function toNumber(value: any, fallback = 0) {
+  if (value === "" || value === null || value === undefined) return fallback;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function toNullableNumber(value: any) {
+  if (value === "" || value === null || value === undefined) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function toJsonArray(value: any) {
+  if (Array.isArray(value)) return value;
+
+  if (typeof value === "string") {
+    return value
+      .split("\n")
+      .map((x) => x.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const { id } = req.query;
@@ -26,7 +51,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === "GET") {
       const { data, error } = await supabaseAdmin
         .from("sundra_trips")
-        .select("*")
+        .select(`
+          *,
+          sundra_trip_options (*),
+          sundra_trip_rooms (*)
+        `)
         .eq("id", id)
         .single();
 
@@ -54,8 +83,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const updateData = {
         title,
         slug,
+
         category: body.category || null,
         destination: body.destination || null,
+        location: body.location || null,
+        country: body.country || null,
+
+        trip_type: body.trip_type || "day",
+        duration_days: toNumber(body.duration_days, 1),
+        duration_nights: toNumber(body.duration_nights, 0),
 
         short_description: body.short_description || null,
         description: body.description || null,
@@ -64,20 +100,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         not_included: body.not_included || null,
         terms: body.terms || null,
 
+        hero_badge: body.hero_badge || null,
+        booking_intro: body.booking_intro || null,
+        overview_text: body.overview_text || null,
+
+        facts: toJsonArray(body.facts),
+        highlights: toJsonArray(body.highlights),
+        departure_points: toJsonArray(body.departure_points),
+
         image_url: body.image_url || null,
         gallery: Array.isArray(body.gallery) ? body.gallery : [],
 
-        price_from:
-          body.price_from === "" || body.price_from == null
-            ? 0
-            : Number(body.price_from),
-
+        price_from: toNumber(body.price_from, 0),
         currency: body.currency || "SEK",
+
+        min_passengers: toNumber(body.min_passengers, 1),
+        max_passengers: toNullableNumber(body.max_passengers),
+
+        enable_options: Boolean(body.enable_options),
+        enable_rooms: Boolean(body.enable_rooms),
+        enable_price_calendar:
+          body.enable_price_calendar === undefined
+            ? true
+            : Boolean(body.enable_price_calendar),
+
         status: body.status || "draft",
         is_featured: Boolean(body.is_featured),
 
         seo_title: body.seo_title || null,
         seo_description: body.seo_description || null,
+
         updated_at: new Date().toISOString(),
       };
 

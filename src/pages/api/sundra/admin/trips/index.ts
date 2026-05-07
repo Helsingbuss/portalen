@@ -1,87 +1,159 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { supabaseAdmin } from "@/lib/sundra/supabaseAdmin";
-import { slugifyTitle } from "@/lib/sundra/trips/slug";
-import type { TripRecord, TripType, TripStatus } from "@/lib/sundra/trips/types";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-function dbToTrip(row: any): TripRecord {
-  return {
-    id: row.id,
-    createdAt: row.created_at ?? null,
-    updatedAt: row.updated_at ?? null,
-    status: row.status,
-    type: row.type,
-    title: row.title,
-    slug: row.slug,
-    metaLine: row.meta_line ?? null,
-    intro: row.intro ?? null,
-    description: row.description ?? null,
-    fromPriceSEK: row.from_price_sek ?? null,
-    tags: row.tags ?? null,
-    facts: row.facts ?? null,
-    itinerary: row.itinerary ?? null,
-    media: row.media ?? null,
-    ratings: { average: row.rating_average ?? null, count: row.rating_count ?? null },
-  };
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/å/g, "a")
+    .replace(/ä/g, "a")
+    .replace(/ö/g, "o")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function toNumber(value: any, fallback = 0) {
+  if (value === "" || value === null || value === undefined) return fallback;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function toNullableNumber(value: any) {
+  if (value === "" || value === null || value === undefined) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function toJsonArray(value: any) {
+  if (Array.isArray(value)) return value;
+
+  if (typeof value === "string") {
+    return value
+      .split("\n")
+      .map((x) => x.trim())
+      .filter(Boolean);
+  }
+
+  return [];
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (req.method === "GET") {
-      const status = (req.query.status as TripStatus | undefined) || undefined;
-      const type = (req.query.type as TripType | undefined) || undefined;
-      const q = (req.query.q as string | undefined) || "";
+      const { data, error } = await supabaseAdmin
+        .from("sundra_trips")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-      let query = supabaseAdmin.from("trips").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
 
-      if (status) query = query.eq("status", status);
-      if (type) query = query.eq("type", type);
-      if (q.trim()) query = query.ilike("title", `%${q.trim()}%`);
-
-      const { data, error } = await query;
-      if (error) return res.status(500).json({ error: error.message });
-
-      return res.status(200).json({ trips: (data ?? []).map(dbToTrip) });
+      return res.status(200).json({
+        ok: true,
+        trips: data || [],
+      });
     }
 
     if (req.method === "POST") {
-      const { title, type } = req.body as { title?: string; type?: TripType };
+      const body = req.body || {};
 
-      if (!title?.trim()) return res.status(400).json({ error: "Titel saknas." });
-      if (!type) return res.status(400).json({ error: "Typ saknas." });
+      if (!body.title || !String(body.title).trim()) {
+        return res.status(400).json({
+          ok: false,
+          error: "Titel saknas.",
+        });
+      }
 
-      const baseSlug = slugifyTitle(title);
-      let slug = baseSlug || `resa-${Date.now()}`;
+      const title = String(body.title).trim();
+      const slug = body.slug?.trim() || slugify(title);
 
-      // försök undvika duplicate slug
-      const { data: existing } = await supabaseAdmin.from("trips").select("id").eq("slug", slug).maybeSingle();
-      if (existing?.id) slug = `${slug}-${Math.floor(Math.random() * 1000)}`;
-
-      const insertRow = {
-        status: "draft",
-        type,
-        title: title.trim(),
+      const insertData = {
+        title,
         slug,
-        meta_line: null,
-        intro: null,
-        description: null,
-        from_price_sek: null,
-        tags: [],
-        facts: null,
-        itinerary: [],
-        media: { heroVideoUrl: null, heroImageUrl: null, gallery: [] },
-        rating_average: null,
-        rating_count: null,
+
+        category: body.category || null,
+        destination: body.destination || null,
+        location: body.location || null,
+        country: body.country || null,
+
+        trip_type: body.trip_type || "day",
+        duration_days: toNumber(body.duration_days, 1),
+        duration_nights: toNumber(body.duration_nights, 0),
+
+        short_description: body.short_description || null,
+        description: body.description || null,
+        program: body.program || null,
+        included: body.included || null,
+        not_included: body.not_included || null,
+        terms: body.terms || null,
+
+        hero_badge: body.hero_badge || null,
+        booking_intro: body.booking_intro || null,
+        overview_text: body.overview_text || null,
+
+        facts: toJsonArray(body.facts),
+        highlights: toJsonArray(body.highlights),
+        departure_points: toJsonArray(body.departure_points),
+
+        image_url: body.image_url || null,
+        gallery: Array.isArray(body.gallery) ? body.gallery : [],
+
+        price_from: toNumber(body.price_from, 0),
+        currency: body.currency || "SEK",
+
+        min_passengers: toNumber(body.min_passengers, 1),
+        max_passengers: toNullableNumber(body.max_passengers),
+
+        enable_options: Boolean(body.enable_options),
+        enable_rooms: Boolean(body.enable_rooms),
+        enable_price_calendar:
+          body.enable_price_calendar === undefined
+            ? true
+            : Boolean(body.enable_price_calendar),
+
+        campaign_label: body.campaign_label || null,
+        campaign_text: body.campaign_text || null,
+        card_title: body.card_title || null,
+        card_description: body.card_description || null,
+        price_prefix: body.price_prefix || "fr.",
+        price_suffix: body.price_suffix || null,
+        price_subtext: body.price_subtext || null,
+        card_badge: body.card_badge || null,
+        card_theme: body.card_theme || "red",
+
+        status: body.status || "draft",
+        is_featured: Boolean(body.is_featured),
+
+        seo_title: body.seo_title || null,
+        seo_description: body.seo_description || null,
+
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
-      const { data, error } = await supabaseAdmin.from("trips").insert(insertRow).select("*").single();
-      if (error) return res.status(500).json({ error: error.message });
+      const { data, error } = await supabaseAdmin
+        .from("sundra_trips")
+        .insert(insertData)
+        .select()
+        .single();
 
-      return res.status(200).json(dbToTrip(data));
+      if (error) throw error;
+
+      return res.status(201).json({
+        ok: true,
+        trip: data,
+      });
     }
 
-    res.setHeader("Allow", "GET, POST");
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({
+      ok: false,
+      error: "Method not allowed",
+    });
   } catch (e: any) {
-    return res.status(500).json({ error: e?.message ?? "Server error" });
+    console.error("/api/admin/sundra/trips error:", e?.message || e);
+
+    return res.status(500).json({
+      ok: false,
+      error: e?.message || "Kunde inte hantera resor.",
+    });
   }
 }

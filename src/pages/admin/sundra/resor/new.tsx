@@ -5,31 +5,59 @@ import Header from "@/components/Header";
 
 export default function NewSundraTripPage() {
   const router = useRouter();
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const [form, setForm] = useState({
     title: "",
     slug: "",
+
     category: "",
     destination: "",
+    location: "",
+    country: "Sverige",
+
+    trip_type: "day",
+
     short_description: "",
     description: "",
     program: "",
-    included: "",
-    not_included: "",
-    terms: "",
+
     image_url: "",
+
+    duration_days: 1,
+    duration_nights: 0,
+
     price_from: "",
-    currency: "SEK",
-    status: "draft",
+
+    hero_badge: "",
+
+    campaign_label: "",
+    campaign_text: "",
+
+    card_title: "",
+    card_description: "",
+
+    card_badge: "",
+
+    price_prefix: "fr.",
+    price_suffix: "",
+    price_subtext: "",
+
+    card_theme: "red",
+
     is_featured: false,
-    seo_title: "",
-    seo_description: "",
+    enable_price_calendar: true,
+    enable_rooms: false,
+    enable_options: true,
   });
 
   function update(key: string, value: any) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
   }
 
   async function save() {
@@ -39,17 +67,19 @@ export default function NewSundraTripPage() {
     try {
       const res = await fetch("/api/admin/sundra/trips", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(form),
       });
 
       const json = await res.json().catch(() => ({}));
 
-      if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Kunde inte skapa resan.");
+      if (!res.ok) {
+        throw new Error(json?.error || "Kunde inte skapa resa.");
       }
 
-      router.push("/admin/sundra/resor");
+      router.push(`/admin/sundra/resor/${json.trip.id}`);
     } catch (e: any) {
       setError(e?.message || "Något gick fel.");
     } finally {
@@ -58,269 +88,301 @@ export default function NewSundraTripPage() {
   }
 
   return (
-    <>
+    <div className="flex min-h-screen bg-[#f5f4f0]">
       <AdminMenu />
 
-      <div className="min-h-screen bg-[#f5f4f0] lg:pl-64">
+      <div className="flex flex-1 flex-col">
         <Header />
 
-        <main className="p-6 pt-24 space-y-6">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
+        <main className="p-6 pt-24">
+          <div className="mb-6 flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-semibold text-[#194C66]">
+              <h1 className="text-2xl font-semibold text-[#194C66]">
                 Skapa resa
               </h1>
-              <p className="text-sm text-[#194C66]/60">
-                Lägg upp grundinformationen för resan. Avgångar och datum skapas
-                separat efteråt.
+
+              <p className="text-sm text-[#194C66]/70 mt-1">
+                Skapa nya resor för Sundra & Helsingbuss.
               </p>
             </div>
 
             <button
               onClick={() => router.push("/admin/sundra/resor")}
-              className="rounded-[25px] border bg-white px-4 py-2 text-sm text-[#194C66] hover:bg-gray-50"
+              className="rounded-xl border bg-white px-4 py-2 text-sm hover:bg-[#f8fafc]"
             >
               Tillbaka
             </button>
           </div>
 
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {error}
             </div>
           )}
 
-          <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-            <section className="rounded-xl bg-white p-5 shadow space-y-5">
-              <div>
-                <h2 className="text-lg font-semibold text-[#194C66]">
-                  Resans grundinformation
-                </h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Detta används för resekortet och resans informationssida.
-                </p>
-              </div>
+          <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+            {/* VÄNSTER */}
+            <section className="rounded-2xl bg-white p-5 shadow">
+              <h2 className="mb-4 text-lg font-semibold text-[#194C66]">
+                Resinformation
+              </h2>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Titel">
                   <input
                     value={form.title}
                     onChange={(e) => update("title", e.target.value)}
-                    placeholder="Ex. Gekås Ullared"
-                    className="w-full rounded-lg border px-3 py-2"
+                    placeholder="Ex. Ullared Weekend"
+                    className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
 
-                <Field label="Slug / länk">
+                <Field label="Slug">
                   <input
                     value={form.slug}
                     onChange={(e) => update("slug", e.target.value)}
-                    placeholder="Lämna tomt för automatisk"
-                    className="w-full rounded-lg border px-3 py-2"
+                    placeholder="ullared-weekend"
+                    className="w-full rounded-xl border px-3 py-2"
                   />
-                </Field>
-
-                <Field label="Kategori">
-                  <select
-                    value={form.category}
-                    onChange={(e) => update("category", e.target.value)}
-                    className="w-full rounded-lg border px-3 py-2"
-                  >
-                    <option value="">Välj kategori</option>
-                    <option value="shopping">Shoppingresa</option>
-                    <option value="noje">Nöje & upplevelse</option>
-                    <option value="kryssning">Kryssning</option>
-                    <option value="familj">Familjeresa</option>
-                    <option value="event">Eventresa</option>
-                    <option value="annat">Annat</option>
-                  </select>
                 </Field>
 
                 <Field label="Destination">
                   <input
                     value={form.destination}
                     onChange={(e) => update("destination", e.target.value)}
-                    placeholder="Ex. Ullared"
-                    className="w-full rounded-lg border px-3 py-2"
+                    placeholder="Ullared"
+                    className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
 
-                <Field label="Pris från">
+                <Field label="Land">
                   <input
-                    type="number"
-                    value={form.price_from}
-                    onChange={(e) => update("price_from", e.target.value)}
-                    placeholder="Ex. 349"
-                    className="w-full rounded-lg border px-3 py-2"
+                    value={form.country}
+                    onChange={(e) => update("country", e.target.value)}
+                    className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
 
-                <Field label="Status">
+                <Field label="Reskategori">
+                  <input
+                    value={form.category}
+                    onChange={(e) => update("category", e.target.value)}
+                    placeholder="Shoppingresa"
+                    className="w-full rounded-xl border px-3 py-2"
+                  />
+                </Field>
+
+                <Field label="Typ av resa">
                   <select
-                    value={form.status}
-                    onChange={(e) => update("status", e.target.value)}
-                    className="w-full rounded-lg border px-3 py-2"
+                    value={form.trip_type}
+                    onChange={(e) => update("trip_type", e.target.value)}
+                    className="w-full rounded-xl border px-3 py-2"
                   >
-                    <option value="draft">Utkast</option>
-                    <option value="published">Publicerad</option>
-                    <option value="hidden">Dold</option>
+                    <option value="day">Dagstur</option>
+                    <option value="hotel">Övernattning</option>
+                    <option value="multi">Flerdagarsresa</option>
                   </select>
                 </Field>
-              </div>
 
-              <Field label="Bild URL">
-                <input
-                  value={form.image_url}
-                  onChange={(e) => update("image_url", e.target.value)}
-                  placeholder="https://..."
-                  className="w-full rounded-lg border px-3 py-2"
-                />
-              </Field>
-
-              <Field label="Kort säljtext">
-                <textarea
-                  value={form.short_description}
-                  onChange={(e) => update("short_description", e.target.value)}
-                  rows={3}
-                  placeholder="Kort text som visas på resekortet."
-                  className="w-full rounded-lg border px-3 py-2"
-                />
-              </Field>
-
-              <Field label="Lång beskrivning">
-                <textarea
-                  value={form.description}
-                  onChange={(e) => update("description", e.target.value)}
-                  rows={6}
-                  placeholder="Beskriv resan mer utförligt."
-                  className="w-full rounded-lg border px-3 py-2"
-                />
-              </Field>
-
-              <Field label="Reseprogram">
-                <textarea
-                  value={form.program}
-                  onChange={(e) => update("program", e.target.value)}
-                  rows={6}
-                  placeholder="Ex. 07:00 Avresa, 10:00 Ankomst, 16:00 Hemresa..."
-                  className="w-full rounded-lg border px-3 py-2"
-                />
-              </Field>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Ingår i resan">
-                  <textarea
-                    value={form.included}
-                    onChange={(e) => update("included", e.target.value)}
-                    rows={5}
-                    placeholder="Ex. Bussresa, bokningsavgift..."
-                    className="w-full rounded-lg border px-3 py-2"
+                <Field label="Dagar">
+                  <input
+                    type="number"
+                    value={form.duration_days}
+                    onChange={(e) =>
+                      update("duration_days", Number(e.target.value))
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
 
-                <Field label="Ingår inte">
-                  <textarea
-                    value={form.not_included}
-                    onChange={(e) => update("not_included", e.target.value)}
-                    rows={5}
-                    placeholder="Ex. Mat, entrébiljett..."
-                    className="w-full rounded-lg border px-3 py-2"
+                <Field label="Nätter">
+                  <input
+                    type="number"
+                    value={form.duration_nights}
+                    onChange={(e) =>
+                      update("duration_nights", Number(e.target.value))
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
               </div>
 
-              <Field label="Villkor / bra att veta">
-                <textarea
-                  value={form.terms}
-                  onChange={(e) => update("terms", e.target.value)}
-                  rows={5}
-                  placeholder="Avbokning, minsta antal resenärer, tider kan ändras..."
-                  className="w-full rounded-lg border px-3 py-2"
-                />
-              </Field>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="SEO-titel">
-                  <input
-                    value={form.seo_title}
-                    onChange={(e) => update("seo_title", e.target.value)}
-                    placeholder="Titel för Google"
-                    className="w-full rounded-lg border px-3 py-2"
+              <div className="mt-4">
+                <Field label="Kort beskrivning">
+                  <textarea
+                    rows={3}
+                    value={form.short_description}
+                    onChange={(e) =>
+                      update("short_description", e.target.value)
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
+              </div>
 
-                <Field label="SEO-beskrivning">
+              <div className="mt-4">
+                <Field label="Full beskrivning">
+                  <textarea
+                    rows={7}
+                    value={form.description}
+                    onChange={(e) =>
+                      update("description", e.target.value)
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-4">
+                <Field label="Program">
+                  <textarea
+                    rows={6}
+                    value={form.program}
+                    onChange={(e) =>
+                      update("program", e.target.value)
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-4">
+                <Field label="Bild URL">
                   <input
-                    value={form.seo_description}
-                    onChange={(e) => update("seo_description", e.target.value)}
-                    placeholder="Kort Google-beskrivning"
-                    className="w-full rounded-lg border px-3 py-2"
+                    value={form.image_url}
+                    onChange={(e) => update("image_url", e.target.value)}
+                    placeholder="https://..."
+                    className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
               </div>
             </section>
 
-            <aside className="h-fit rounded-xl bg-white p-5 shadow">
-              <h2 className="text-lg font-semibold text-[#194C66]">
-                Förhandsinfo
-              </h2>
+            {/* HÖGER */}
+            <aside className="space-y-6">
+              <section className="rounded-2xl bg-white p-5 shadow">
+                <h2 className="text-lg font-semibold text-[#194C66]">
+                  Kampanjkort
+                </h2>
 
-              <div className="mt-4 overflow-hidden rounded-xl border bg-[#f8fafc]">
-                {form.image_url ? (
-                  <img
-                    src={form.image_url}
-                    alt={form.title || "Resebild"}
-                    className="h-40 w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-40 items-center justify-center bg-[#e5eef3] text-sm text-[#194C66]/60">
-                    Ingen bild vald
-                  </div>
-                )}
+                <div className="mt-4 space-y-4">
+                  <Field label="Kampanj etikett">
+                    <input
+                      value={form.campaign_label}
+                      onChange={(e) =>
+                        update("campaign_label", e.target.value)
+                      }
+                      placeholder="Spara upp till 40%"
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
 
-                <div className="p-4">
-                  <div className="text-xs uppercase tracking-wide text-[#194C66]/60">
-                    {form.category || "Kategori"}
-                  </div>
-                  <div className="mt-1 text-lg font-semibold text-[#0f172a]">
-                    {form.title || "Resans titel"}
-                  </div>
-                  <p className="mt-2 text-sm text-gray-600">
-                    {form.short_description ||
-                      "Kort beskrivning visas här på resekortet."}
-                  </p>
-                  <div className="mt-3 font-semibold text-[#194C66]">
-                    Från {form.price_from || "0"} {form.currency}
-                  </div>
+                  <Field label="Kampanjtext">
+                    <input
+                      value={form.campaign_text}
+                      onChange={(e) =>
+                        update("campaign_text", e.target.value)
+                      }
+                      placeholder="Populär resa"
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+
+                  <Field label="Korttitel">
+                    <input
+                      value={form.card_title}
+                      onChange={(e) =>
+                        update("card_title", e.target.value)
+                      }
+                      placeholder="Shoppingweekend"
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+
+                  <Field label="Kortbeskrivning">
+                    <textarea
+                      rows={3}
+                      value={form.card_description}
+                      onChange={(e) =>
+                        update("card_description", e.target.value)
+                      }
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+
+                  <Field label="Badge">
+                    <input
+                      value={form.card_badge}
+                      onChange={(e) =>
+                        update("card_badge", e.target.value)
+                      }
+                      placeholder="Nyhet"
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+
+                  <Field label="Tema">
+                    <select
+                      value={form.card_theme}
+                      onChange={(e) =>
+                        update("card_theme", e.target.value)
+                      }
+                      className="w-full rounded-xl border px-3 py-2"
+                    >
+                      <option value="red">Röd</option>
+                      <option value="teal">Turkos</option>
+                      <option value="blue">Blå</option>
+                      <option value="green">Grön</option>
+                      <option value="dark">Mörk</option>
+                    </select>
+                  </Field>
+
+                  <Field label="Pris från">
+                    <input
+                      type="number"
+                      value={form.price_from}
+                      onChange={(e) =>
+                        update("price_from", e.target.value)
+                      }
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+
+                  <Field label="Pris prefix">
+                    <input
+                      value={form.price_prefix}
+                      onChange={(e) =>
+                        update("price_prefix", e.target.value)
+                      }
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+
+                  <Field label="Pris text under">
+                    <input
+                      value={form.price_subtext}
+                      onChange={(e) =>
+                        update("price_subtext", e.target.value)
+                      }
+                      placeholder="2 dagar med buss"
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
                 </div>
-              </div>
 
-              <label className="mt-5 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form.is_featured}
-                  onChange={(e) => update("is_featured", e.target.checked)}
-                />
-                Visa som utvald resa
-              </label>
-
-              <button
-                onClick={save}
-                disabled={saving || !form.title.trim()}
-                className="mt-5 w-full rounded-lg bg-[#194C66] px-4 py-3 font-medium text-white hover:bg-[#163b4d] disabled:opacity-50"
-              >
-                {saving ? "Sparar..." : "Skapa resa"}
-              </button>
-
-              <p className="mt-3 text-xs text-gray-500">
-                Efter att resan skapats går vi vidare och skapar avgångar/datum
-                kopplade till resan.
-              </p>
+                <button
+                  onClick={save}
+                  disabled={saving || !form.title.trim()}
+                  className="mt-6 w-full rounded-xl bg-[#194C66] px-4 py-3 font-medium text-white hover:bg-[#16384d] disabled:opacity-50"
+                >
+                  {saving ? "Sparar..." : "Skapa resa"}
+                </button>
+              </section>
             </aside>
           </div>
         </main>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -333,7 +395,10 @@ function Field({
 }) {
   return (
     <label className="block">
-      <div className="mb-1 text-sm font-medium text-[#194C66]">{label}</div>
+      <div className="mb-1 text-sm font-medium text-[#194C66]">
+        {label}
+      </div>
+
       {children}
     </label>
   );
