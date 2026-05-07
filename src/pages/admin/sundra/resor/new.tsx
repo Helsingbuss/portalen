@@ -119,20 +119,20 @@ export default function NewSundraTripPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#f5f4f0]">
+    <>
       <AdminMenu />
 
-      <div className="flex flex-1 flex-col">
+      <div className="min-h-screen bg-[#f5f4f0] lg:pl-64">
         <Header />
 
         <main className="p-6 pt-24">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-6 flex items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold text-[#194C66]">
                 Skapa resa
               </h1>
 
-              <p className="text-sm text-[#194C66]/70 mt-1">
+              <p className="mt-1 text-sm text-[#194C66]/70">
                 Skapa nya resor för Sundra & Helsingbuss.
               </p>
             </div>
@@ -152,7 +152,6 @@ export default function NewSundraTripPage() {
           )}
 
           <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-            {/* VÄNSTER */}
             <section className="rounded-2xl bg-white p-5 shadow">
               <h2 className="mb-4 text-lg font-semibold text-[#194C66]">
                 Resinformation
@@ -325,7 +324,6 @@ export default function NewSundraTripPage() {
               </div>
             </section>
 
-            {/* HÖGER */}
             <aside className="space-y-6">
               <section className="rounded-2xl bg-white p-5 shadow">
                 <h2 className="text-lg font-semibold text-[#194C66]">
@@ -435,7 +433,7 @@ export default function NewSundraTripPage() {
           </div>
         </main>
       </div>
-    </div>
+    </>
   );
 }
 
