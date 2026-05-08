@@ -49,10 +49,16 @@ export default function NewSundraTripPage() {
 
     card_theme: "red",
 
+    is_public: true,
     is_featured: false,
     enable_price_calendar: true,
     enable_rooms: false,
     enable_options: true,
+
+    google_title: "",
+    google_description: "",
+    google_keywords: "",
+    google_ads_tags: "",
   });
 
   function update(key: string, value: any) {
@@ -152,179 +158,278 @@ export default function NewSundraTripPage() {
           )}
 
           <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-            <section className="rounded-2xl bg-white p-5 shadow">
-              <h2 className="mb-4 text-lg font-semibold text-[#194C66]">
-                Resinformation
-              </h2>
+            <section className="space-y-6">
+              <div className="rounded-2xl bg-white p-5 shadow">
+                <h2 className="mb-4 text-lg font-semibold text-[#194C66]">
+                  Resinformation
+                </h2>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Titel">
-                  <input
-                    value={form.title}
-                    onChange={(e) => update("title", e.target.value)}
-                    placeholder="Ex. Ullared Weekend"
-                    className="w-full rounded-xl border px-3 py-2"
-                  />
-                </Field>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Titel">
+                    <input
+                      value={form.title}
+                      onChange={(e) => update("title", e.target.value)}
+                      placeholder="Ex. Ullared Weekend"
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
 
-                <Field label="Slug">
-                  <input
-                    value={form.slug}
-                    onChange={(e) => update("slug", e.target.value)}
-                    placeholder="ullared-weekend"
-                    className="w-full rounded-xl border px-3 py-2"
-                  />
-                </Field>
+                  <Field label="Slug">
+                    <input
+                      value={form.slug}
+                      onChange={(e) => update("slug", e.target.value)}
+                      placeholder="ullared-weekend"
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
 
-                <Field label="Destination">
-                  <input
-                    value={form.destination}
-                    onChange={(e) => update("destination", e.target.value)}
-                    placeholder="Ullared"
-                    className="w-full rounded-xl border px-3 py-2"
-                  />
-                </Field>
+                  <Field label="Destination">
+                    <input
+                      value={form.destination}
+                      onChange={(e) => update("destination", e.target.value)}
+                      placeholder="Ullared"
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
 
-                <Field label="Land">
-                  <input
-                    value={form.country}
-                    onChange={(e) => update("country", e.target.value)}
-                    className="w-full rounded-xl border px-3 py-2"
-                  />
-                </Field>
+                  <Field label="Land">
+                    <input
+                      value={form.country}
+                      onChange={(e) => update("country", e.target.value)}
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
 
-                <Field label="Reskategori">
-                  <input
-                    value={form.category}
-                    onChange={(e) => update("category", e.target.value)}
-                    placeholder="Shoppingresa"
-                    className="w-full rounded-xl border px-3 py-2"
-                  />
-                </Field>
+                  <Field label="Reskategori">
+                    <input
+                      value={form.category}
+                      onChange={(e) => update("category", e.target.value)}
+                      placeholder="Shoppingresa"
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
 
-                <Field label="Typ av resa">
-                  <select
-                    value={form.trip_type}
-                    onChange={(e) => update("trip_type", e.target.value)}
-                    className="w-full rounded-xl border px-3 py-2"
-                  >
-                    <option value="day">Dagstur</option>
-                    <option value="hotel">Övernattning</option>
-                    <option value="multi">Flerdagarsresa</option>
-                  </select>
-                </Field>
+                  <Field label="Typ av resa">
+                    <select
+                      value={form.trip_type}
+                      onChange={(e) => update("trip_type", e.target.value)}
+                      className="w-full rounded-xl border px-3 py-2"
+                    >
+                      <option value="day">Dagstur</option>
+                      <option value="hotel">Övernattning</option>
+                      <option value="multi">Flerdagarsresa</option>
+                    </select>
+                  </Field>
 
-                <Field label="Dagar">
-                  <input
-                    type="number"
-                    value={form.duration_days}
-                    onChange={(e) =>
-                      update("duration_days", Number(e.target.value))
-                    }
-                    className="w-full rounded-xl border px-3 py-2"
-                  />
-                </Field>
+                  <Field label="Dagar">
+                    <input
+                      type="number"
+                      value={form.duration_days}
+                      onChange={(e) =>
+                        update("duration_days", Number(e.target.value))
+                      }
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
 
-                <Field label="Nätter">
-                  <input
-                    type="number"
-                    value={form.duration_nights}
-                    onChange={(e) =>
-                      update("duration_nights", Number(e.target.value))
-                    }
-                    className="w-full rounded-xl border px-3 py-2"
-                  />
-                </Field>
-              </div>
+                  <Field label="Nätter">
+                    <input
+                      type="number"
+                      value={form.duration_nights}
+                      onChange={(e) =>
+                        update("duration_nights", Number(e.target.value))
+                      }
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+                </div>
 
-              <div className="mt-4">
-                <Field label="Kort beskrivning">
-                  <textarea
-                    rows={3}
-                    value={form.short_description}
-                    onChange={(e) =>
-                      update("short_description", e.target.value)
-                    }
-                    className="w-full rounded-xl border px-3 py-2"
-                  />
-                </Field>
-              </div>
+                <div className="mt-4">
+                  <Field label="Kort beskrivning">
+                    <textarea
+                      rows={3}
+                      value={form.short_description}
+                      onChange={(e) =>
+                        update("short_description", e.target.value)
+                      }
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+                </div>
 
-              <div className="mt-4">
-                <Field label="Full beskrivning">
-                  <textarea
-                    rows={7}
-                    value={form.description}
-                    onChange={(e) => update("description", e.target.value)}
-                    className="w-full rounded-xl border px-3 py-2"
-                  />
-                </Field>
-              </div>
+                <div className="mt-4">
+                  <Field label="Full beskrivning">
+                    <textarea
+                      rows={7}
+                      value={form.description}
+                      onChange={(e) => update("description", e.target.value)}
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+                </div>
 
-              <div className="mt-4">
-                <Field label="Program">
-                  <textarea
-                    rows={6}
-                    value={form.program}
-                    onChange={(e) => update("program", e.target.value)}
-                    className="w-full rounded-xl border px-3 py-2"
-                  />
-                </Field>
-              </div>
+                <div className="mt-4">
+                  <Field label="Program">
+                    <textarea
+                      rows={6}
+                      value={form.program}
+                      onChange={(e) => update("program", e.target.value)}
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+                </div>
 
-              <div className="mt-4">
-                <Field label="Resebild">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => handleImageSelect(e.target.files?.[0])}
-                  />
+                <div className="mt-4">
+                  <Field label="Resebild">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleImageSelect(e.target.files?.[0])}
+                    />
 
-                  <div className="rounded-2xl border border-dashed border-[#cbd5e1] bg-[#f8fafc] p-4">
-                    {form.image_url ? (
-                      <img
-                        src={form.image_url}
-                        alt="Vald resebild"
-                        className="mb-4 h-56 w-full rounded-xl object-cover"
-                      />
-                    ) : (
-                      <div className="mb-4 flex h-56 items-center justify-center rounded-xl bg-white text-sm text-gray-500">
-                        Ingen bild vald ännu
+                    <div className="rounded-2xl border border-dashed border-[#cbd5e1] bg-[#f8fafc] p-4">
+                      {form.image_url ? (
+                        <img
+                          src={form.image_url}
+                          alt="Vald resebild"
+                          className="mb-4 h-56 w-full rounded-xl object-cover"
+                        />
+                      ) : (
+                        <div className="mb-4 flex h-56 items-center justify-center rounded-xl bg-white text-sm text-gray-500">
+                          Ingen bild vald ännu
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={imageUploading}
+                          className="rounded-xl bg-[#194C66] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                        >
+                          {imageUploading ? "Laddar upp..." : "Välj bild"}
+                        </button>
+
+                        <input
+                          value={form.image_url}
+                          onChange={(e) => update("image_url", e.target.value)}
+                          placeholder="Eller klistra in bild-URL här"
+                          className="min-w-[260px] flex-1 rounded-xl border px-3 py-2 text-sm"
+                        />
                       </div>
-                    )}
 
-                    <div className="flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={imageUploading}
-                        className="rounded-xl bg-[#194C66] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-                      >
-                        {imageUploading ? "Laddar upp..." : "Välj bild"}
-                      </button>
-
-                      <input
-                        value={form.image_url}
-                        onChange={(e) => update("image_url", e.target.value)}
-                        placeholder="Eller klistra in bild-URL här"
-                        className="min-w-[260px] flex-1 rounded-xl border px-3 py-2 text-sm"
-                      />
+                      <p className="mt-3 text-xs leading-relaxed text-gray-500">
+                        Endast admin: Rekommenderad bildstorlek är{" "}
+                        <strong>1600 × 1000 px</strong> eller större. Använd
+                        gärna liggande bild i 16:10 eller 3:2-format. Bilden
+                        används på resekort, widget, priskalender och resesidan.
+                      </p>
                     </div>
+                  </Field>
+                </div>
+              </div>
 
-                    <p className="mt-3 text-xs leading-relaxed text-gray-500">
-                      Endast admin: Rekommenderad bildstorlek är{" "}
-                      <strong>1600 × 1000 px</strong> eller större. Använd gärna
-                      liggande bild i 16:10 eller 3:2-format. Bilden används på
-                      resekort, widget, priskalender och resesidan.
-                    </p>
-                  </div>
-                </Field>
+              <div className="rounded-2xl bg-white p-5 shadow">
+                <h2 className="mb-4 text-lg font-semibold text-[#194C66]">
+                  Google & annonser
+                </h2>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Google titel">
+                    <input
+                      value={form.google_title}
+                      onChange={(e) => update("google_title", e.target.value)}
+                      placeholder="Ex. Bussresa till Ullared med Helsingbuss"
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+
+                  <Field label="Google sökord">
+                    <input
+                      value={form.google_keywords}
+                      onChange={(e) =>
+                        update("google_keywords", e.target.value)
+                      }
+                      placeholder="ullared, bussresa, shoppingresa"
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+                </div>
+
+                <div className="mt-4">
+                  <Field label="Google beskrivning">
+                    <textarea
+                      rows={3}
+                      value={form.google_description}
+                      onChange={(e) =>
+                        update("google_description", e.target.value)
+                      }
+                      placeholder="Kort säljande text som kan användas för SEO och annonser."
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+                </div>
+
+                <div className="mt-4">
+                  <Field label="Ads tags / kampanjtaggar">
+                    <input
+                      value={form.google_ads_tags}
+                      onChange={(e) =>
+                        update("google_ads_tags", e.target.value)
+                      }
+                      placeholder="ex. sundra_ullared, google_ads, sommarresa"
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+                </div>
               </div>
             </section>
 
             <aside className="space-y-6">
+              <section className="rounded-2xl bg-white p-5 shadow">
+                <h2 className="text-lg font-semibold text-[#194C66]">
+                  Synlighet
+                </h2>
+
+                <div className="mt-4 space-y-3">
+                  <label className="flex items-start gap-3 rounded-xl border bg-[#f8fafc] p-3">
+                    <input
+                      type="checkbox"
+                      checked={form.is_public}
+                      onChange={(e) => update("is_public", e.target.checked)}
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="block font-semibold text-[#194C66]">
+                        Visa på Våra resor
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        Resan visas i widgeten för alla resor på hemsidan.
+                      </span>
+                    </span>
+                  </label>
+
+                  <label className="flex items-start gap-3 rounded-xl border bg-[#f8fafc] p-3">
+                    <input
+                      type="checkbox"
+                      checked={form.is_featured}
+                      onChange={(e) => update("is_featured", e.target.checked)}
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="block font-semibold text-[#194C66]">
+                        Rekommenderad resa
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        Resan kan visas på startsidan som utvald/förvald resa.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              </section>
+
               <section className="rounded-2xl bg-white p-5 shadow">
                 <h2 className="text-lg font-semibold text-[#194C66]">
                   Kampanjkort
