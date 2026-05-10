@@ -125,13 +125,13 @@ export default function AdminMenu({ active }: Props) {
       {/* BILJETTER & KUNDER */}
       <div className="text-[10px] text-gray-400 mt-2">Biljetter & kunder</div>
       <Link href="/admin/sundra/biljetter" className={subLink}>Biljetter</Link>
-      <Link href="#" className={subLink}>Passagerare</Link>
-      <Link href="#" className={subLink}>Återbetalningar</Link>
-      <Link href="#" className={subLink}>Avbokningar</Link>
+      <Link href="/admin/sundra/passagerare" className={subLink}>Passagerare</Link>
+      <Link href="/admin/sundra/aterbetalningar" className={subLink}>Återbetalningar</Link>
+      <Link href="/admin/sundra/avbokningar" className={subLink}>Avbokningar</Link>
 
       {/* KAMPANJER */}
       <div className="text-[10px] text-gray-400 mt-2">Kampanjer</div>
-      <Link href="#" className={subLink}>Kampanjer & rabatter</Link>
+      <Link href="/admin/sundra/kampanjer" className={subLink}>Kampanjer & rabatter</Link>
 
     </div>
   )}

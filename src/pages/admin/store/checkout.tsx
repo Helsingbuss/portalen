@@ -82,6 +82,11 @@ export default function StoreCheckout() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
+  const [discountCode, setDiscountCode] = useState("");
+  const [discountLoading, setDiscountLoading] = useState(false);
+  const [discountError, setDiscountError] = useState("");
+  const [discountData, setDiscountData] = useState<any>(null);
+
   const [showFlygbuss, setShowFlygbuss] = useState(false);
   const [paymentLink, setPaymentLink] = useState("");
   const [loading, setLoading] = useState(false);
@@ -135,11 +140,18 @@ export default function StoreCheckout() {
 
   function addToCart(product: Product) {
     setPaymentLink("");
+    setDiscountData(null);
+    setDiscountError("");
+    setDiscountCode("");
     setCart([product]);
     setQtyMap({ [product.id]: 1 });
   }
 
   function updateQty(id: string, value: number) {
+    setPaymentLink("");
+    setDiscountData(null);
+    setDiscountError("");
+
     setQtyMap((prev) => ({
       ...prev,
       [id]: value < 1 ? 1 : value,
@@ -150,6 +162,51 @@ export default function StoreCheckout() {
     const qty = qtyMap[item.id] || 1;
     return sum + item.price * qty;
   }, 0);
+
+  const discountAmount = Number(discountData?.discount_amount || 0);
+  const totalAfterDiscount = Math.max(0, total - discountAmount);
+
+  async function applyDiscount() {
+    try {
+      setDiscountLoading(true);
+      setDiscountError("");
+      setDiscountData(null);
+
+      if (!cart.length) {
+        throw new Error("Välj en produkt först.");
+      }
+
+      if (!discountCode.trim()) {
+        throw new Error("Fyll i rabattkod.");
+      }
+
+      const product = cart[0];
+
+      const res = await fetch("/api/public/sundra/campaigns/validate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          code: discountCode,
+          trip_id: product.tripId || null,
+          subtotal: total,
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Rabattkoden kunde inte användas.");
+      }
+
+      setDiscountData(json);
+    } catch (e: any) {
+      setDiscountError(e?.message || "Fel vid rabattkod.");
+    } finally {
+      setDiscountLoading(false);
+    }
+  }
 
   async function handlePayment() {
     try {
@@ -201,8 +258,10 @@ export default function StoreCheckout() {
 
             notes: "Skapad via Butik/Kassa i portalen.",
 
-            subtotal: product.price * qty,
-            total_amount: product.price * qty,
+            subtotal: total,
+            discount_code: discountData?.campaign?.code || null,
+            discount_amount: discountAmount,
+            total_amount: totalAfterDiscount,
             currency: "SEK",
           }),
         });
@@ -248,7 +307,10 @@ export default function StoreCheckout() {
 
         price: product.price,
         qty,
-        total,
+        subtotal: total,
+        discountCode: discountData?.campaign?.code || null,
+        discountAmount,
+        total: totalAfterDiscount,
 
         ticketType: "enkel",
       };
@@ -405,10 +467,62 @@ export default function StoreCheckout() {
               })}
             </div>
 
-            <div className="mt-4 border-t pt-3">
+            <div className="mt-4 rounded-xl border bg-[#f8fafc] p-3">
+              <p className="mb-2 text-sm font-semibold text-[#194C66]">
+                Rabattkod
+              </p>
+
+              <div className="flex gap-2">
+                <input
+                  placeholder="Ex. SOMMAR100"
+                  value={discountCode}
+                  onChange={(e) => {
+                    setDiscountCode(e.target.value.toUpperCase());
+                    setDiscountData(null);
+                    setDiscountError("");
+                    setPaymentLink("");
+                  }}
+                  className="min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm uppercase"
+                />
+
+                <button
+                  type="button"
+                  onClick={applyDiscount}
+                  disabled={discountLoading || cart.length === 0}
+                  className="rounded-lg bg-[#0f766e] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {discountLoading ? "Kollar..." : "Aktivera"}
+                </button>
+              </div>
+
+              {discountError && (
+                <p className="mt-2 text-xs text-red-600">{discountError}</p>
+              )}
+
+              {discountData?.ok && (
+                <p className="mt-2 text-xs text-green-700">
+                  Rabattkod {discountData.campaign.code} aktiverad: -
+                  {money(discountAmount)}
+                </p>
+              )}
+            </div>
+
+            <div className="mt-4 space-y-2 border-t pt-3">
+              <div className="flex justify-between text-sm">
+                <span>Delsumma</span>
+                <span>{money(total)}</span>
+              </div>
+
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-sm text-green-700">
+                  <span>Rabatt</span>
+                  <span>-{money(discountAmount)}</span>
+                </div>
+              )}
+
               <div className="flex justify-between font-semibold">
                 <span>Totalt</span>
-                <span>{money(total)}</span>
+                <span>{money(totalAfterDiscount)}</span>
               </div>
             </div>
 
@@ -440,7 +554,9 @@ export default function StoreCheckout() {
               disabled={loading || cart.length === 0}
               className="mt-4 w-full rounded-full bg-[#194C66] py-3 font-medium text-white disabled:opacity-50"
             >
-              {loading ? "Skapar..." : `Skapa betalningslänk (${money(total)})`}
+              {loading
+                ? "Skapar..."
+                : `Skapa betalningslänk (${money(totalAfterDiscount)})`}
             </button>
 
             {paymentLink && (
@@ -488,6 +604,11 @@ export default function StoreCheckout() {
             image: data.image,
             departureDate: data.date || null,
           };
+
+          setPaymentLink("");
+          setDiscountData(null);
+          setDiscountError("");
+          setDiscountCode("");
 
           setCart([product]);
           setQtyMap({ [product.id]: data.qty || 1 });
