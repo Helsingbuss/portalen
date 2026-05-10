@@ -6,19 +6,42 @@ const supabase: any =
   (admin as any).supabase ||
   (admin as any).default;
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   try {
     if (req.method !== "POST") {
-      return res.status(405).json({ ok: false, error: "Method not allowed" });
+      return res.status(405).json({
+        ok: false,
+        error: "Method not allowed",
+      });
     }
 
     const body = req.body || {};
-    const rows = Array.isArray(body) ? body : body.rows || body.prices || [];
 
-    if (!Array.isArray(rows)) {
+    console.log("PRISLISTOR BODY:", body);
+
+    // FLEXIBEL INPUT
+    let rows: any[] = [];
+
+    if (Array.isArray(body)) {
+      rows = body;
+    } else if (Array.isArray(body.rows)) {
+      rows = body.rows;
+    } else if (Array.isArray(body.prices)) {
+      rows = body.prices;
+    } else if (Array.isArray(body.data)) {
+      rows = body.data;
+    } else if (typeof body === "object") {
+      rows = [body];
+    }
+
+    if (!rows.length) {
       return res.status(400).json({
         ok: false,
-        error: "Fel format. Skicka rows/prices som array.",
+        error:
+          "Ingen data skickades till prislistor.",
       });
     }
 
@@ -29,22 +52,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const { data, error } = await supabase
       .from("pricing_rules")
-      .upsert(payload, { onConflict: "id" })
+      .upsert(payload, {
+        onConflict: "id",
+      })
       .select();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return res.status(200).json({
       ok: true,
-      prices: data || [],
       rows: data || [],
     });
   } catch (e: any) {
-    console.error("/api/admin/prislistor/save error:", e);
+    console.error(
+      "/api/admin/prislistor/save error:",
+      e
+    );
 
     return res.status(500).json({
       ok: false,
-      error: e?.message || "Kunde inte spara prislistor.",
+      error:
+        e?.message ||
+        "Kunde inte spara prislistor.",
     });
   }
 }
