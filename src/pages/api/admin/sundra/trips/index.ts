@@ -1,82 +1,171 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import * as admin from "@/lib/supabaseAdmin";
 
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/å/g, "a")
-    .replace(/ä/g, "a")
-    .replace(/ö/g, "o")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+const supabase: any =
+  (admin as any).supabaseAdmin ||
+  (admin as any).supabase ||
+  (admin as any).default;
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   try {
+    // =========================
+    // GET
+    // =========================
     if (req.method === "GET") {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabase
         .from("sundra_trips")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", {
+          ascending: false,
+        });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
-      return res.status(200).json({ ok: true, trips: data || [] });
+      return res.status(200).json({
+        ok: true,
+        trips: data || [],
+      });
     }
 
+    // =========================
+    // POST
+    // =========================
     if (req.method === "POST") {
       const body = req.body || {};
 
-      if (!body.title || !String(body.title).trim()) {
+      if (!body.title?.trim()) {
         return res.status(400).json({
           ok: false,
           error: "Titel saknas.",
         });
       }
 
-      const title = String(body.title).trim();
-      const slug = body.slug?.trim() || slugify(title);
-
       const insertData = {
-        title,
-        slug,
-        category: body.category || null,
-        destination: body.destination || null,
+        title:
+          body.title || null,
 
-        short_description: body.short_description || null,
-        description: body.description || null,
-        program: body.program || null,
-        included: body.included || null,
-        not_included: body.not_included || null,
-        terms: body.terms || null,
+        slug:
+          body.slug || null,
 
-        image_url: body.image_url || null,
-        gallery: Array.isArray(body.gallery) ? body.gallery : [],
+        category:
+          body.category || null,
+
+        destination:
+          body.destination || null,
+
+        location:
+          body.location || null,
+
+        country:
+          body.country || "Sverige",
+
+        trip_type:
+          body.trip_type || "day",
+
+        short_description:
+          body.short_description || null,
+
+        description:
+          body.description || null,
+
+        program:
+          body.program || null,
+
+        image_url:
+          body.image_url || null,
+
+        duration_days:
+          Number(body.duration_days || 1),
+
+        duration_nights:
+          Number(body.duration_nights || 0),
 
         price_from:
-          body.price_from === "" || body.price_from == null
-            ? 0
-            : Number(body.price_from),
+          body.price_from
+            ? Number(body.price_from)
+            : null,
 
-        currency: body.currency || "SEK",
-        status: body.status || "draft",
-        is_featured: Boolean(body.is_featured),
+        hero_badge:
+          body.hero_badge || null,
 
-        seo_title: body.seo_title || null,
-        seo_description: body.seo_description || null,
-        updated_at: new Date().toISOString(),
+        campaign_label:
+          body.campaign_label || null,
+
+        campaign_text:
+          body.campaign_text || null,
+
+        card_title:
+          body.card_title || null,
+
+        card_description:
+          body.card_description || null,
+
+        card_badge:
+          body.card_badge || null,
+
+        price_prefix:
+          body.price_prefix || "fr.",
+
+        price_suffix:
+          body.price_suffix || null,
+
+        price_subtext:
+          body.price_subtext || null,
+
+        card_theme:
+          body.card_theme || "red",
+
+        google_tags:
+          body.google_tags || null,
+
+        seo_keywords:
+          body.seo_keywords || null,
+
+        is_featured:
+          Boolean(body.is_featured),
+
+        show_on_frontpage:
+          Boolean(body.show_on_frontpage),
+
+        show_on_vara_resor:
+          body.show_on_vara_resor !== false,
+
+        enable_price_calendar:
+          body.enable_price_calendar !== false,
+
+        enable_rooms:
+          Boolean(body.enable_rooms),
+
+        enable_options:
+          body.enable_options !== false,
+
+        created_at:
+          new Date().toISOString(),
+
+        updated_at:
+          new Date().toISOString(),
       };
 
-      const { data, error } = await supabaseAdmin
-        .from("sundra_trips")
-        .insert(insertData)
-        .select()
-        .single();
+      const { data, error } =
+        await supabase
+          .from("sundra_trips")
+          .insert(insertData)
+          .select()
+          .single();
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
-      return res.status(201).json({ ok: true, trip: data });
+      return res.status(201).json({
+        ok: true,
+        trip: data,
+      });
     }
 
     return res.status(405).json({
@@ -84,11 +173,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       error: "Method not allowed",
     });
   } catch (e: any) {
-    console.error("/api/admin/sundra/trips error:", e?.message || e);
+    console.error(
+      "/api/admin/sundra/trips error:",
+      e
+    );
 
     return res.status(500).json({
       ok: false,
-      error: e?.message || "Kunde inte hantera resor.",
+      error:
+        e?.message ||
+        "Kunde inte hantera resor.",
     });
   }
 }

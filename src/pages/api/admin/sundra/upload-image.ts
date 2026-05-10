@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import formidable from "formidable";
-import fs from "fs/promises";
+import fs from "fs";
 
 export const config = {
   api: {
@@ -8,11 +8,49 @@ export const config = {
   },
 };
 
-function sanitizeFileName(name: string) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9.-]/g, "-")
-    .replace(/-+/g, "-");
+async function uploadToCloudinary(filePath: string) {
+  const cloudName =
+    process.env.CLOUDINARY_CLOUD_NAME;
+
+  const uploadPreset =
+    process.env.CLOUDINARY_UPLOAD_PRESET;
+
+  if (!cloudName || !uploadPreset) {
+    throw new Error(
+      "Cloudinary saknas i env. Lägg till CLOUDINARY_CLOUD_NAME och CLOUDINARY_UPLOAD_PRESET."
+    );
+  }
+
+  const formData = new FormData();
+
+  formData.append(
+    "file",
+    new Blob([fs.readFileSync(filePath)])
+  );
+
+  formData.append(
+    "upload_preset",
+    uploadPreset
+  );
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  const json = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      json?.error?.message ||
+        "Cloudinary upload misslyckades."
+    );
+  }
+
+  return json;
 }
 
 export default async function handler(
@@ -29,80 +67,41 @@ export default async function handler(
     const form = formidable({
       multiples: false,
       keepExtensions: true,
-      maxFileSize: 15 * 1024 * 1024,
     });
 
-    const [, files] = await form.parse(req);
+    const [fields, files] =
+      await form.parse(req);
 
-    const uploaded: any = files.file;
+    const file =
+      (files.file as any)?.[0] ||
+      files.file;
 
-    if (!uploaded) {
+    if (!file?.filepath) {
       return res.status(400).json({
-        error: "Ingen fil vald.",
+        error: "Ingen fil skickades.",
       });
     }
 
-    const file = Array.isArray(uploaded)
-      ? uploaded[0]
-      : uploaded;
-
-    const buffer = await fs.readFile(file.filepath);
-
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
-
-    if (!cloudName || !uploadPreset) {
-      return res.status(500).json({
-        error:
-          "Cloudinary saknas i env. Lägg till CLOUDINARY_CLOUD_NAME och CLOUDINARY_UPLOAD_PRESET.",
-      });
-    }
-
-    const formData = new FormData();
-
-    const blob = new Blob([buffer], {
-      type: file.mimetype || "image/jpeg",
-    });
-
-    formData.append(
-      "file",
-      blob,
-      sanitizeFileName(file.originalFilename || "image.jpg")
-    );
-
-    formData.append("upload_preset", uploadPreset);
-    formData.append("folder", "sundra/trips");
-
-    const cloudinaryRes = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-      {
-        method: "POST",
-        body: formData,
-      }
-    );
-
-    const json = await cloudinaryRes.json();
-
-    if (!cloudinaryRes.ok) {
-      console.error("Cloudinary upload error:", json);
-
-      return res.status(500).json({
-        error: json?.error?.message || "Cloudinary upload misslyckades.",
-      });
-    }
+    const uploaded =
+      await uploadToCloudinary(
+        file.filepath
+      );
 
     return res.status(200).json({
       ok: true,
-      url: json.secure_url,
-      public_id: json.public_id,
-      width: json.width,
-      height: json.height,
+      url: uploaded.secure_url,
+      public_id: uploaded.public_id,
     });
   } catch (e: any) {
-    console.error("/api/admin/sundra/upload-image error:", e);
+    console.error(
+      "/api/admin/sundra/upload-image error:",
+      e
+    );
 
     return res.status(500).json({
-      error: e?.message || "Kunde inte ladda upp bilden.",
+      error:
+        e?.message ||
+        "Kunde inte ladda upp bild.",
     });
   }
 }

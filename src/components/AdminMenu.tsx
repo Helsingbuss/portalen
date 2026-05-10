@@ -110,19 +110,21 @@ export default function AdminMenu({ active }: Props) {
 
       {/* AVGÅNGAR */}
       <div className="text-[10px] text-gray-400 mt-2">Avgångar</div>
-      <Link href="#" className={subLink}>Alla avgångar</Link>
-      <Link href="#" className={subLink}>Skapa avgång</Link>
-      <Link href="#" className={subLink}>Kapacitet / beläggning</Link>
+      <Link href="/admin/sundra/avgangar" className={subLink}>Alla avgångar</Link>
+      <Link href="/admin/sundra/avgangar/new" className={subLink}>Skapa avgång</Link>
+      <Link href="/admin/sundra/avgangar/kapacitet" className={subLink}>Kapacitet / beläggning</Link>
+      <Link href="/admin/sundra/scanner" className={subLink}>SCANNER</Link>
+      <Link href="/admin/sundra/scans" className={subLink}>Scanhistorik</Link>
 
       {/* NÄT & HÅLLPLATSER */}
       <div className="text-[10px] text-gray-400 mt-2">Nät & hållplatser</div>
-      <Link href="#" className={subLink}>Tidtabeller</Link>
-      <Link href="#" className={subLink}>Linjer</Link>
-      <Link href="#" className={subLink}>Hållplatser</Link>
+      <Link href="/admin/sundra/tidtabeller" className={subLink}>Tidtabeller</Link>
+      <Link href="/admin/sundra/linjer" className={subLink}>Linjer</Link>
+      <Link href="/admin/sundra/hallplatser" className={subLink}>Hållplatser</Link>
 
       {/* BILJETTER & KUNDER */}
       <div className="text-[10px] text-gray-400 mt-2">Biljetter & kunder</div>
-      <Link href="#" className={subLink}>Biljetter</Link>
+      <Link href="/admin/sundra/biljetter" className={subLink}>Biljetter</Link>
       <Link href="#" className={subLink}>Passagerare</Link>
       <Link href="#" className={subLink}>Återbetalningar</Link>
       <Link href="#" className={subLink}>Avbokningar</Link>

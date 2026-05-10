@@ -1,43 +1,15 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import * as admin from "@/lib/supabaseAdmin";
 
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/å/g, "a")
-    .replace(/ä/g, "a")
-    .replace(/ö/g, "o")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+const supabase: any =
+  (admin as any).supabaseAdmin ||
+  (admin as any).supabase ||
+  (admin as any).default;
 
-function toNumber(value: any, fallback = 0) {
-  if (value === "" || value === null || value === undefined) return fallback;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-function toNullableNumber(value: any) {
-  if (value === "" || value === null || value === undefined) return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-}
-
-function toJsonArray(value: any) {
-  if (Array.isArray(value)) return value;
-
-  if (typeof value === "string") {
-    return value
-      .split("\n")
-      .map((x) => x.trim())
-      .filter(Boolean);
-  }
-
-  return [];
-}
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   try {
     const { id } = req.query;
 
@@ -48,99 +20,158 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
+    // =========================
+    // GET
+    // =========================
     if (req.method === "GET") {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabase
         .from("sundra_trips")
         .select(`
           *,
-          sundra_trip_options (*),
-          sundra_trip_rooms (*)
+          sundra_departures (
+            id,
+            departure_date,
+            departure_time,
+            return_date,
+            return_time,
+            capacity,
+            booked_count,
+            status
+          )
         `)
         .eq("id", id)
         .single();
 
-      if (error) throw error;
-
-      return res.status(200).json({
-        ok: true,
-        trip: data,
-      });
-    }
-
-    if (req.method === "PUT" || req.method === "PATCH") {
-      const body = req.body || {};
-
-      if (!body.title || !String(body.title).trim()) {
-        return res.status(400).json({
-          ok: false,
-          error: "Titel saknas.",
-        });
+      if (error) {
+        throw error;
       }
 
-      const title = String(body.title).trim();
-      const slug = body.slug?.trim() || slugify(title);
+      return res.status(200).json({
+        ok: true,
+        trip: data,
+      });
+    }
+
+    // =========================
+    // PUT
+    // =========================
+    if (req.method === "PUT") {
+      const body = req.body || {};
 
       const updateData = {
-        title,
-        slug,
+        title:
+          body.title || null,
 
-        category: body.category || null,
-        destination: body.destination || null,
-        location: body.location || null,
-        country: body.country || null,
+        slug:
+          body.slug || null,
 
-        trip_type: body.trip_type || "day",
-        duration_days: toNumber(body.duration_days, 1),
-        duration_nights: toNumber(body.duration_nights, 0),
+        category:
+          body.category || null,
 
-        short_description: body.short_description || null,
-        description: body.description || null,
-        program: body.program || null,
-        included: body.included || null,
-        not_included: body.not_included || null,
-        terms: body.terms || null,
+        destination:
+          body.destination || null,
 
-        hero_badge: body.hero_badge || null,
-        booking_intro: body.booking_intro || null,
-        overview_text: body.overview_text || null,
+        location:
+          body.location || null,
 
-        facts: toJsonArray(body.facts),
-        highlights: toJsonArray(body.highlights),
-        departure_points: toJsonArray(body.departure_points),
+        country:
+          body.country || "Sverige",
 
-        image_url: body.image_url || null,
-        gallery: Array.isArray(body.gallery) ? body.gallery : [],
+        trip_type:
+          body.trip_type || "day",
 
-        price_from: toNumber(body.price_from, 0),
-        currency: body.currency || "SEK",
+        short_description:
+          body.short_description || null,
 
-        min_passengers: toNumber(body.min_passengers, 1),
-        max_passengers: toNullableNumber(body.max_passengers),
+        description:
+          body.description || null,
 
-        enable_options: Boolean(body.enable_options),
-        enable_rooms: Boolean(body.enable_rooms),
+        program:
+          body.program || null,
+
+        image_url:
+          body.image_url || null,
+
+        duration_days:
+          Number(body.duration_days || 1),
+
+        duration_nights:
+          Number(body.duration_nights || 0),
+
+        price_from:
+          body.price_from
+            ? Number(body.price_from)
+            : null,
+
+        hero_badge:
+          body.hero_badge || null,
+
+        campaign_label:
+          body.campaign_label || null,
+
+        campaign_text:
+          body.campaign_text || null,
+
+        card_title:
+          body.card_title || null,
+
+        card_description:
+          body.card_description || null,
+
+        card_badge:
+          body.card_badge || null,
+
+        price_prefix:
+          body.price_prefix || "fr.",
+
+        price_suffix:
+          body.price_suffix || null,
+
+        price_subtext:
+          body.price_subtext || null,
+
+        card_theme:
+          body.card_theme || "red",
+
+        google_tags:
+          body.google_tags || null,
+
+        seo_keywords:
+          body.seo_keywords || null,
+
+        is_featured:
+          Boolean(body.is_featured),
+
+        show_on_frontpage:
+          Boolean(body.show_on_frontpage),
+
+        show_on_vara_resor:
+          body.show_on_vara_resor !== false,
+
         enable_price_calendar:
-          body.enable_price_calendar === undefined
-            ? true
-            : Boolean(body.enable_price_calendar),
+          body.enable_price_calendar !== false,
 
-        status: body.status || "draft",
-        is_featured: Boolean(body.is_featured),
+        enable_rooms:
+          Boolean(body.enable_rooms),
 
-        seo_title: body.seo_title || null,
-        seo_description: body.seo_description || null,
+        enable_options:
+          body.enable_options !== false,
 
-        updated_at: new Date().toISOString(),
+        updated_at:
+          new Date().toISOString(),
       };
 
-      const { data, error } = await supabaseAdmin
-        .from("sundra_trips")
-        .update(updateData)
-        .eq("id", id)
-        .select()
-        .single();
+      const { data, error } =
+        await supabase
+          .from("sundra_trips")
+          .update(updateData)
+          .eq("id", id)
+          .select()
+          .single();
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       return res.status(200).json({
         ok: true,
@@ -148,13 +179,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
+    // =========================
+    // DELETE
+    // =========================
     if (req.method === "DELETE") {
-      const { error } = await supabaseAdmin
-        .from("sundra_trips")
-        .delete()
-        .eq("id", id);
+      const { error } =
+        await supabase
+          .from("sundra_trips")
+          .delete()
+          .eq("id", id);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       return res.status(200).json({
         ok: true,
@@ -166,11 +203,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       error: "Method not allowed",
     });
   } catch (e: any) {
-    console.error("/api/admin/sundra/trips/[id] error:", e?.message || e);
+    console.error(
+      "/api/admin/sundra/trips/[id] error:",
+      e
+    );
 
     return res.status(500).json({
       ok: false,
-      error: e?.message || "Kunde inte hantera resan.",
+      error:
+        e?.message ||
+        "Kunde inte hantera resa.",
     });
   }
 }

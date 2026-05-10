@@ -5,87 +5,110 @@ import Header from "@/components/Header";
 
 type Trip = {
   id: string;
-  title: string;
-  destination?: string | null;
+  title?: string;
+  destination?: string;
 };
 
-export default function NewSundraDeparturePage() {
+export default function NewDeparturePage() {
   const router = useRouter();
 
-  const [trips, setTrips] = useState<Trip[]>([]);
   const [saving, setSaving] = useState(false);
   const [loadingTrips, setLoadingTrips] = useState(true);
   const [error, setError] = useState("");
 
+  const [trips, setTrips] = useState<Trip[]>([]);
+
   const [form, setForm] = useState({
-    trip_id: typeof router.query.trip_id === "string" ? router.query.trip_id : "",
+    trip_id: "",
+
     departure_date: "",
     departure_time: "",
+
     return_date: "",
     return_time: "",
+
     price: "",
-    capacity: "",
-    booked_count: "0",
+    capacity: "50",
+
+    booking_deadline: "",
+
+    departure_location: "",
+    destination_location: "",
+
     status: "open",
-    last_booking_date: "",
+
+    notes: "",
   });
 
-  useEffect(() => {
-    async function loadTrips() {
-      try {
-        const res = await fetch("/api/admin/sundra/trips");
-        const json = await res.json().catch(() => ({}));
-
-        setTrips(Array.isArray(json?.trips) ? json.trips : []);
-
-        if (!form.trip_id && typeof router.query.trip_id === "string") {
-          setForm((prev) => ({ ...prev, trip_id: router.query.trip_id as string }));
-        }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoadingTrips(false);
-      }
-    }
-
-    loadTrips();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router.query.trip_id]);
-
   function update(key: string, value: any) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
   }
 
-  async function save() {
-    setSaving(true);
-    setError("");
-
+  async function loadTrips() {
     try {
+      setLoadingTrips(true);
+
+      const res = await fetch("/api/admin/sundra/trips");
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Kunde inte hämta resor.");
+      }
+
+      setTrips(json.trips || []);
+    } catch (e: any) {
+      setError(e?.message || "Kunde inte hämta resor.");
+    } finally {
+      setLoadingTrips(false);
+    }
+  }
+
+  useEffect(() => {
+    loadTrips();
+  }, []);
+
+  async function save() {
+    try {
+      setSaving(true);
+      setError("");
+
+      if (!form.trip_id) {
+        throw new Error("Välj en resa.");
+      }
+
+      if (!form.departure_date) {
+        throw new Error("Välj avgångsdatum.");
+      }
+
       const res = await fetch("/api/admin/sundra/departures", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...form,
+          price: Number(form.price || 0),
+          capacity: Number(form.capacity || 0),
+        }),
       });
 
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Kunde inte skapa avgången.");
+        throw new Error(json?.error || "Kunde inte skapa avgång.");
       }
 
-      router.push(`/admin/sundra/avganger/${json.departure.id}`);
+      router.push(`/admin/sundra/avgangar/${json.departure.id}`);
     } catch (e: any) {
       setError(e?.message || "Något gick fel.");
     } finally {
       setSaving(false);
     }
   }
-
-  const selectedTrip = trips.find((trip) => trip.id === form.trip_id);
-
-  const capacity = Number(form.capacity || 0);
-  const booked = Number(form.booked_count || 0);
-  const seatsLeft = Math.max(0, capacity - booked);
 
   return (
     <>
@@ -94,68 +117,83 @@ export default function NewSundraDeparturePage() {
       <div className="min-h-screen bg-[#f5f4f0] lg:pl-64">
         <Header />
 
-        <main className="p-6 pt-24 space-y-6">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
+        <main className="p-6 pt-24">
+          <div className="mb-6 flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-semibold text-[#194C66]">
+              <h1 className="text-2xl font-semibold text-[#194C66]">
                 Skapa avgång
               </h1>
-              <p className="text-sm text-[#194C66]/60">
-                Lägg upp ett bokningsbart datum för en Sundra-resa.
+
+              <p className="mt-1 text-sm text-[#194C66]/70">
+                Skapa ny avgång för Sundra-resor.
               </p>
             </div>
 
             <button
-              onClick={() => router.push("/admin/sundra/avganger")}
-              className="rounded-[25px] border bg-white px-4 py-2 text-sm text-[#194C66] hover:bg-gray-50"
+              onClick={() => router.push("/admin/sundra/avgangar")}
+              className="rounded-xl border bg-white px-4 py-2 text-sm hover:bg-[#f8fafc]"
             >
               Tillbaka
             </button>
           </div>
 
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
               {error}
             </div>
           )}
 
-          <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-            <section className="rounded-xl bg-white p-5 shadow space-y-5">
-              <div>
-                <h2 className="text-lg font-semibold text-[#194C66]">
-                  Avgångsinformation
-                </h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Välj resa, datum, tider, pris och antal platser.
-                </p>
-              </div>
-
-              <Field label="Resa">
-                <select
-                  value={form.trip_id}
-                  onChange={(e) => update("trip_id", e.target.value)}
-                  disabled={loadingTrips}
-                  className="w-full rounded-lg border px-3 py-2"
-                >
-                  <option value="">
-                    {loadingTrips ? "Laddar resor..." : "Välj resa"}
-                  </option>
-                  {trips.map((trip) => (
-                    <option key={trip.id} value={trip.id}>
-                      {trip.title}
-                      {trip.destination ? ` – ${trip.destination}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+          <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+            <section className="rounded-3xl bg-white p-6 shadow">
+              <h2 className="mb-5 text-lg font-semibold text-[#194C66]">
+                Avgångsinformation
+              </h2>
 
               <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Resa">
+                  <select
+                    value={form.trip_id}
+                    onChange={(e) => update("trip_id", e.target.value)}
+                    className="w-full rounded-xl border px-3 py-2"
+                    disabled={loadingTrips}
+                  >
+                    <option value="">
+                      {loadingTrips
+                        ? "Laddar resor..."
+                        : "Välj resa"}
+                    </option>
+
+                    {trips.map((trip) => (
+                      <option key={trip.id} value={trip.id}>
+                        {trip.title}
+                        {trip.destination
+                          ? ` • ${trip.destination}`
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Status">
+                  <select
+                    value={form.status}
+                    onChange={(e) => update("status", e.target.value)}
+                    className="w-full rounded-xl border px-3 py-2"
+                  >
+                    <option value="open">Öppen</option>
+                    <option value="draft">Utkast</option>
+                    <option value="closed">Stängd</option>
+                  </select>
+                </Field>
+
                 <Field label="Avgångsdatum">
                   <input
                     type="date"
                     value={form.departure_date}
-                    onChange={(e) => update("departure_date", e.target.value)}
-                    className="w-full rounded-lg border px-3 py-2"
+                    onChange={(e) =>
+                      update("departure_date", e.target.value)
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
 
@@ -163,8 +201,10 @@ export default function NewSundraDeparturePage() {
                   <input
                     type="time"
                     value={form.departure_time}
-                    onChange={(e) => update("departure_time", e.target.value)}
-                    className="w-full rounded-lg border px-3 py-2"
+                    onChange={(e) =>
+                      update("departure_time", e.target.value)
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
 
@@ -172,8 +212,10 @@ export default function NewSundraDeparturePage() {
                   <input
                     type="date"
                     value={form.return_date}
-                    onChange={(e) => update("return_date", e.target.value)}
-                    className="w-full rounded-lg border px-3 py-2"
+                    onChange={(e) =>
+                      update("return_date", e.target.value)
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
 
@@ -181,94 +223,123 @@ export default function NewSundraDeparturePage() {
                   <input
                     type="time"
                     value={form.return_time}
-                    onChange={(e) => update("return_time", e.target.value)}
-                    className="w-full rounded-lg border px-3 py-2"
+                    onChange={(e) =>
+                      update("return_time", e.target.value)
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
-              </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Pris">
                   <input
                     type="number"
                     value={form.price}
                     onChange={(e) => update("price", e.target.value)}
-                    placeholder="Ex. 495"
-                    className="w-full rounded-lg border px-3 py-2"
+                    placeholder="699"
+                    className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
 
-                <Field label="Kapacitet / antal platser">
+                <Field label="Kapacitet">
                   <input
                     type="number"
                     value={form.capacity}
-                    onChange={(e) => update("capacity", e.target.value)}
-                    placeholder="Ex. 49"
-                    className="w-full rounded-lg border px-3 py-2"
+                    onChange={(e) =>
+                      update("capacity", e.target.value)
+                    }
+                    placeholder="50"
+                    className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
 
-                <Field label="Bokade platser">
+                <Field label="Påstigning">
                   <input
-                    type="number"
-                    value={form.booked_count}
-                    onChange={(e) => update("booked_count", e.target.value)}
-                    className="w-full rounded-lg border px-3 py-2"
+                    value={form.departure_location}
+                    onChange={(e) =>
+                      update("departure_location", e.target.value)
+                    }
+                    placeholder="Malmö C"
+                    className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
 
-                <Field label="Sista bokningsdag">
+                <Field label="Destination">
                   <input
-                    type="date"
-                    value={form.last_booking_date}
-                    onChange={(e) => update("last_booking_date", e.target.value)}
-                    className="w-full rounded-lg border px-3 py-2"
+                    value={form.destination_location}
+                    onChange={(e) =>
+                      update("destination_location", e.target.value)
+                    }
+                    placeholder="Ullared"
+                    className="w-full rounded-xl border px-3 py-2"
+                  />
+                </Field>
+
+                <Field label="Bokningsstopp">
+                  <input
+                    type="datetime-local"
+                    value={form.booking_deadline}
+                    onChange={(e) =>
+                      update("booking_deadline", e.target.value)
+                    }
+                    className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
               </div>
 
-              <Field label="Status">
-                <select
-                  value={form.status}
-                  onChange={(e) => update("status", e.target.value)}
-                  className="w-full rounded-lg border px-3 py-2"
-                >
-                  <option value="open">Öppen för bokning</option>
-                  <option value="closed">Stängd</option>
-                  <option value="full">Fullbokad</option>
-                  <option value="cancelled">Inställd</option>
-                </select>
-              </Field>
+              <div className="mt-4">
+                <Field label="Intern notering">
+                  <textarea
+                    rows={5}
+                    value={form.notes}
+                    onChange={(e) => update("notes", e.target.value)}
+                    placeholder="Intern info till personal/chaufför..."
+                    className="w-full rounded-xl border px-3 py-2"
+                  />
+                </Field>
+              </div>
             </section>
 
-            <aside className="h-fit rounded-xl bg-white p-5 shadow">
-              <h2 className="text-lg font-semibold text-[#194C66]">
-                Sammanfattning
-              </h2>
+            <aside className="space-y-6">
+              <section className="rounded-3xl bg-white p-6 shadow">
+                <h2 className="text-lg font-semibold text-[#194C66]">
+                  Publicering
+                </h2>
 
-              <div className="mt-4 space-y-3 text-sm">
-                <Summary label="Resa" value={selectedTrip?.title || "—"} />
-                <Summary label="Datum" value={form.departure_date || "—"} />
-                <Summary label="Tid" value={form.departure_time || "—"} />
-                <Summary label="Pris" value={`${form.price || "0"} SEK`} />
-                <Summary label="Kapacitet" value={`${capacity} platser`} />
-                <Summary label="Bokade" value={`${booked} platser`} />
-                <Summary label="Lediga" value={`${seatsLeft} platser`} />
-                <Summary label="Status" value={form.status} />
-              </div>
+                <div className="mt-4 rounded-2xl bg-[#f8fafc] p-4 text-sm text-gray-600">
+                  Avgången blir direkt bokningsbar om status är satt till:
+                  <strong className="ml-1 text-[#194C66]">
+                    Öppen
+                  </strong>
+                </div>
 
-              <button
-                onClick={save}
-                disabled={saving || !form.trip_id || !form.departure_date}
-                className="mt-6 w-full rounded-lg bg-[#194C66] px-4 py-3 font-medium text-white hover:bg-[#163b4d] disabled:opacity-50"
-              >
-                {saving ? "Sparar..." : "Skapa avgång"}
-              </button>
+                <button
+                  onClick={save}
+                  disabled={saving}
+                  className="mt-6 w-full rounded-2xl bg-[#194C66] px-4 py-3 font-semibold text-white hover:bg-[#16384d] disabled:opacity-50"
+                >
+                  {saving ? "Sparar..." : "Skapa avgång"}
+                </button>
+              </section>
 
-              <p className="mt-3 text-xs text-gray-500">
-                När avgången är skapad kan vi senare koppla på hållplatser,
-                tider och bokningsflöde.
-              </p>
+              <section className="rounded-3xl bg-white p-6 shadow">
+                <h2 className="text-lg font-semibold text-[#194C66]">
+                  Tips
+                </h2>
+
+                <ul className="mt-4 space-y-3 text-sm text-gray-600">
+                  <li>
+                    • Kapacitet används för live beläggning.
+                  </li>
+
+                  <li>
+                    • Bokningsstopp kan användas för att automatiskt stänga avgång.
+                  </li>
+
+                  <li>
+                    • Avgången syns direkt på resesidan när den är öppen.
+                  </li>
+                </ul>
+              </section>
             </aside>
           </div>
         </main>
@@ -286,17 +357,13 @@ function Field({
 }) {
   return (
     <label className="block">
-      <div className="mb-1 text-sm font-medium text-[#194C66]">{label}</div>
+      <div className="mb-1 text-sm font-medium text-[#194C66]">
+        {label}
+      </div>
+
       {children}
     </label>
   );
 }
 
-function Summary({ label, value }: { label: string; value: any }) {
-  return (
-    <div className="flex justify-between gap-4 border-b pb-2">
-      <span className="text-gray-500">{label}</span>
-      <span className="text-right font-medium text-[#0f172a]">{value}</span>
-    </div>
-  );
-}
+

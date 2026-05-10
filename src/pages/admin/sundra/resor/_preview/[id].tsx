@@ -127,3 +127,5 @@ export default function TripPreviewPage() {
     </div>
   );
 }
+
+
