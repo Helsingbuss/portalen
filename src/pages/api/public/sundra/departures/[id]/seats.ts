@@ -6,6 +6,25 @@ const supabase: any =
   (admin as any).supabase ||
   (admin as any).default;
 
+function sortSeats(seats: any[] = []) {
+  const order: Record<string, number> = {
+    A: 1,
+    B: 2,
+    C: 3,
+    D: 4,
+  };
+
+  return [...seats].sort((a, b) => {
+    const colA = String(a.seat_column || "").toUpperCase();
+    const colB = String(b.seat_column || "").toUpperCase();
+
+    const colDiff = (order[colA] || 99) - (order[colB] || 99);
+    if (colDiff !== 0) return colDiff;
+
+    return Number(a.row_number || 0) - Number(b.row_number || 0);
+  });
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -35,6 +54,7 @@ export default async function handler(
         sundra_bus_maps (
           id,
           name,
+          bus_type,
           seats_count,
           sundra_bus_map_seats (
             id,
@@ -60,13 +80,17 @@ export default async function handler(
       });
     }
 
-    if (!departure.bus_map_id || !departure.sundra_bus_maps) {
+    const busMap = Array.isArray(departure.sundra_bus_maps)
+      ? departure.sundra_bus_maps[0]
+      : departure.sundra_bus_maps;
+
+    if (!departure.bus_map_id || !busMap) {
       return res.status(200).json({
         ok: true,
         departure_id: id,
         bus_map: null,
         seats: [],
-        message: "Ingen busskarta är kopplad till denna avgång.",
+        message: "Ingen platskarta är kopplad till denna avgång.",
       });
     }
 
@@ -85,9 +109,7 @@ export default async function handler(
       `)
       .not("seat_number", "is", null);
 
-    if (passengerError) {
-      throw passengerError;
-    }
+    if (passengerError) throw passengerError;
 
     const occupiedSeats = new Set(
       (passengers || [])
@@ -97,34 +119,28 @@ export default async function handler(
             : p.sundra_bookings;
 
           return (
-            booking?.departure_id === id &&
-            booking?.status !== "cancelled"
+            String(booking?.departure_id) === String(id) &&
+            booking?.status !== "cancelled" &&
+            booking?.payment_status !== "refunded"
           );
         })
-        .map((p: any) => p.seat_number)
+        .map((p: any) => String(p.seat_number).toUpperCase())
     );
 
-    const busMap = Array.isArray(departure.sundra_bus_maps)
-      ? departure.sundra_bus_maps[0]
-      : departure.sundra_bus_maps;
+    const seats = sortSeats(busMap?.sundra_bus_map_seats || []).map(
+      (seat: any) => {
+        const seatNumber = String(seat.seat_number || "").toUpperCase();
 
-    const seats = (busMap?.sundra_bus_map_seats || [])
-      .sort((a: any, b: any) => {
-        const rowDiff = Number(a.row_number || 0) - Number(b.row_number || 0);
-        if (rowDiff !== 0) return rowDiff;
-        return String(a.seat_column || "").localeCompare(
-          String(b.seat_column || "")
-        );
-      })
-      .map((seat: any) => {
-        const occupied = occupiedSeats.has(seat.seat_number);
+        const occupied = occupiedSeats.has(seatNumber);
         const blocked = Boolean(seat.is_blocked);
         const active = seat.is_active !== false;
         const selectable = seat.is_selectable !== false;
 
+        const isAvailable = active && selectable && !blocked && !occupied;
+
         return {
           id: seat.id,
-          seat_number: seat.seat_number,
+          seat_number: seatNumber,
           row_number: seat.row_number,
           seat_column: seat.seat_column,
 
@@ -137,9 +153,12 @@ export default async function handler(
           is_blocked: blocked,
 
           is_occupied: occupied,
-          is_available: active && selectable && !blocked && !occupied,
+          is_available: isAvailable,
+
+          status: blocked || occupied ? "occupied" : "available",
         };
-      });
+      }
+    );
 
     return res.status(200).json({
       ok: true,
@@ -147,9 +166,12 @@ export default async function handler(
       bus_map: {
         id: busMap.id,
         name: busMap.name,
+        bus_type: busMap.bus_type,
         seats_count: busMap.seats_count,
       },
       seats,
+      occupied_count: seats.filter((seat: any) => seat.is_occupied).length,
+      available_count: seats.filter((seat: any) => seat.is_available).length,
     });
   } catch (e: any) {
     console.error("/api/public/sundra/departures/[id]/seats error:", e);
