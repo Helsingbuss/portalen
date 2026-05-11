@@ -129,6 +129,13 @@ export default function AdminMenu({ active }: Props) {
       <Link href="/admin/sundra/aterbetalningar" className={subLink}>Återbetalningar</Link>
       <Link href="/admin/sundra/avbokningar" className={subLink}>Avbokningar</Link>
 
+      {/* Fordon & platskartor */}
+      <div className="text-[10px] text-gray-400 mt-2">Fordon & platskartor</div>
+      <Link href="/admin/sundra/busskartor" className={subLink}>Skapa platskarta</Link>
+      <Link href="#" className={subLink}>Alla platskartor</Link>
+      <Link href="#" className={subLink}>Lägg till fordon</Link>
+      <Link href="#" className={subLink}>Fordonslista</Link>
+
       {/* KAMPANJER */}
       <div className="text-[10px] text-gray-400 mt-2">Kampanjer</div>
       <Link href="/admin/sundra/kampanjer" className={subLink}>Kampanjer & rabatter</Link>
