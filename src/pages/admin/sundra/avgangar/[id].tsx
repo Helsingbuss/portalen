@@ -9,28 +9,44 @@ type Trip = {
   destination?: string | null;
 };
 
+type BusMap = {
+  id: string;
+  name: string;
+  seats_count?: number | null;
+  bus_type?: string | null;
+  status?: string | null;
+};
+
 type DepartureForm = {
   trip_id: string;
+  bus_map_id: string;
+
   departure_date: string;
   departure_time: string;
   return_date: string;
   return_time: string;
+
   price: string;
   capacity: string;
   booked_count: string;
+
   status: string;
   last_booking_date: string;
 };
 
 const EMPTY_FORM: DepartureForm = {
   trip_id: "",
+  bus_map_id: "",
+
   departure_date: "",
   departure_time: "",
   return_date: "",
   return_time: "",
+
   price: "",
   capacity: "",
   booked_count: "0",
+
   status: "open",
   last_booking_date: "",
 };
@@ -100,10 +116,13 @@ export default function SundraDepartureDetailPage() {
   const { id } = router.query;
 
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [busMaps, setBusMaps] = useState<BusMap[]>([]);
+
   const [form, setForm] = useState<DepartureForm>(EMPTY_FORM);
 
   const [loading, setLoading] = useState(true);
   const [loadingTrips, setLoadingTrips] = useState(true);
+  const [loadingBusMaps, setLoadingBusMaps] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const [error, setError] = useState("");
@@ -111,6 +130,7 @@ export default function SundraDepartureDetailPage() {
 
   useEffect(() => {
     loadTrips();
+    loadBusMaps();
   }, []);
 
   useEffect(() => {
@@ -134,6 +154,27 @@ export default function SundraDepartureDetailPage() {
     }
   }
 
+  async function loadBusMaps() {
+    try {
+      setLoadingBusMaps(true);
+
+      const res = await fetch("/api/admin/sundra/bus-maps");
+      const json = await res.json().catch(() => ({}));
+
+      if (res.ok && json?.ok) {
+        const activeMaps = (json.bus_maps || []).filter(
+          (map: BusMap) => map.status !== "inactive"
+        );
+
+        setBusMaps(activeMaps);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingBusMaps(false);
+    }
+  }
+
   async function loadDeparture(departureId: string) {
     try {
       setLoading(true);
@@ -150,6 +191,8 @@ export default function SundraDepartureDetailPage() {
 
       setForm({
         trip_id: departure.trip_id || "",
+        bus_map_id: departure.bus_map_id || "",
+
         departure_date: departure.departure_date || "",
         departure_time: departure.departure_time
           ? String(departure.departure_time).slice(0, 5)
@@ -158,19 +201,22 @@ export default function SundraDepartureDetailPage() {
         return_time: departure.return_time
           ? String(departure.return_time).slice(0, 5)
           : "",
+
         price:
           departure.price === null || departure.price === undefined
             ? ""
             : String(departure.price),
+
         capacity:
           departure.capacity === null || departure.capacity === undefined
             ? ""
             : String(departure.capacity),
+
         booked_count:
-          departure.booked_count === null ||
-          departure.booked_count === undefined
+          departure.booked_count === null || departure.booked_count === undefined
             ? "0"
             : String(departure.booked_count),
+
         status: departure.status || "open",
         last_booking_date: departure.last_booking_date || "",
       });
@@ -197,7 +243,13 @@ export default function SundraDepartureDetailPage() {
       const res = await fetch(`/api/admin/sundra/departures/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          bus_map_id: form.bus_map_id || null,
+          price: Number(form.price || 0),
+          capacity: Number(form.capacity || 0),
+          booked_count: Number(form.booked_count || 0),
+        }),
       });
 
       const json = await res.json().catch(() => ({}));
@@ -236,13 +288,14 @@ export default function SundraDepartureDetailPage() {
         throw new Error(json?.error || "Kunde inte ta bort avgången.");
       }
 
-      router.push("/admin/sundra/avganger");
+      router.push("/admin/sundra/avgangar");
     } catch (e: any) {
       setError(e?.message || "Något gick fel vid borttagning.");
     }
   }
 
   const selectedTrip = trips.find((trip) => trip.id === form.trip_id);
+  const selectedBusMap = busMaps.find((map) => map.id === form.bus_map_id);
 
   const capacity = Number(form.capacity || 0);
   const booked = Number(form.booked_count || 0);
@@ -268,20 +321,20 @@ export default function SundraDepartureDetailPage() {
       <div className="min-h-screen bg-[#f5f4f0] lg:pl-64">
         <Header />
 
-        <main className="p-6 pt-24 space-y-6">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
+        <main className="space-y-6 p-6 pt-24">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h1 className="text-xl font-semibold text-[#194C66]">
                 {loading ? "Laddar avgång..." : title}
               </h1>
               <p className="text-sm text-[#194C66]/60">
-                Hantera datum, kapacitet, pris och bokningsstatus.
+                Hantera datum, kapacitet, pris, säteskarta och bokningsstatus.
               </p>
             </div>
 
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => router.push("/admin/sundra/avganger")}
+                onClick={() => router.push("/admin/sundra/avgangar")}
                 className="rounded-[25px] border bg-white px-4 py-2 text-sm text-[#194C66] hover:bg-gray-50"
               >
                 Tillbaka
@@ -289,9 +342,7 @@ export default function SundraDepartureDetailPage() {
 
               {form.trip_id && (
                 <button
-                  onClick={() =>
-                    router.push(`/admin/sundra/resor/${form.trip_id}`)
-                  }
+                  onClick={() => router.push(`/admin/sundra/resor/${form.trip_id}`)}
                   className="rounded-[25px] border bg-white px-4 py-2 text-sm text-[#194C66] hover:bg-gray-50"
                 >
                   Öppna resa
@@ -313,36 +364,20 @@ export default function SundraDepartureDetailPage() {
           ) : (
             <>
               <section className="grid gap-4 md:grid-cols-4">
-                <StatCard
-                  label="Kapacitet"
-                  value={`${capacity || 0}`}
-                  sub="platser totalt"
-                />
-                <StatCard
-                  label="Bokade"
-                  value={`${booked || 0}`}
-                  sub="platser bokade"
-                />
-                <StatCard
-                  label="Lediga"
-                  value={`${seatsLeft}`}
-                  sub="platser kvar"
-                />
-                <StatCard
-                  label="Beläggning"
-                  value={`${fillPercent}%`}
-                  sub={bookingStatusText}
-                />
+                <StatCard label="Kapacitet" value={`${capacity || 0}`} sub="platser totalt" />
+                <StatCard label="Bokade" value={`${booked || 0}`} sub="platser bokade" />
+                <StatCard label="Lediga" value={`${seatsLeft}`} sub="platser kvar" />
+                <StatCard label="Beläggning" value={`${fillPercent}%`} sub={bookingStatusText} />
               </section>
 
               <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-                <section className="rounded-xl bg-white p-5 shadow space-y-5">
+                <section className="space-y-5 rounded-xl bg-white p-5 shadow">
                   <div>
                     <h2 className="text-lg font-semibold text-[#194C66]">
                       Avgångsinformation
                     </h2>
                     <p className="mt-1 text-sm text-gray-500">
-                      Redigera datum, tider, pris och bokningsläge.
+                      Redigera datum, tider, pris, busskarta och bokningsläge.
                     </p>
                   </div>
 
@@ -365,14 +400,49 @@ export default function SundraDepartureDetailPage() {
                     </select>
                   </Field>
 
+                  <Field label="Busskarta / säteskarta">
+                    <select
+                      value={form.bus_map_id}
+                      onChange={(e) => {
+                        const busMapId = e.target.value;
+                        update("bus_map_id", busMapId);
+
+                        const map = busMaps.find((m) => m.id === busMapId);
+                        if (map?.seats_count) {
+                          update("capacity", String(map.seats_count));
+                        }
+                      }}
+                      disabled={loadingBusMaps}
+                      className="w-full rounded-lg border px-3 py-2"
+                    >
+                      <option value="">
+                        {loadingBusMaps
+                          ? "Laddar busskartor..."
+                          : "Ingen busskarta vald"}
+                      </option>
+
+                      {busMaps.map((map) => (
+                        <option key={map.id} value={map.id}>
+                          {map.name}
+                          {map.seats_count ? ` – ${map.seats_count} platser` : ""}
+                        </option>
+                      ))}
+                    </select>
+
+                    {selectedBusMap && (
+                      <p className="mt-2 text-xs text-[#194C66]/70">
+                        Vald karta: {selectedBusMap.name} ·{" "}
+                        {selectedBusMap.seats_count || 0} platser
+                      </p>
+                    )}
+                  </Field>
+
                   <div className="grid gap-4 md:grid-cols-2">
                     <Field label="Avgångsdatum">
                       <input
                         type="date"
                         value={form.departure_date}
-                        onChange={(e) =>
-                          update("departure_date", e.target.value)
-                        }
+                        onChange={(e) => update("departure_date", e.target.value)}
                         className="w-full rounded-lg border px-3 py-2"
                       />
                     </Field>
@@ -381,9 +451,7 @@ export default function SundraDepartureDetailPage() {
                       <input
                         type="time"
                         value={form.departure_time}
-                        onChange={(e) =>
-                          update("departure_time", e.target.value)
-                        }
+                        onChange={(e) => update("departure_time", e.target.value)}
                         className="w-full rounded-lg border px-3 py-2"
                       />
                     </Field>
@@ -439,9 +507,7 @@ export default function SundraDepartureDetailPage() {
                       <input
                         type="date"
                         value={form.last_booking_date}
-                        onChange={(e) =>
-                          update("last_booking_date", e.target.value)
-                        }
+                        onChange={(e) => update("last_booking_date", e.target.value)}
                         className="w-full rounded-lg border px-3 py-2"
                       />
                     </Field>
@@ -492,6 +558,13 @@ export default function SundraDepartureDetailPage() {
                       </span>
                     </div>
 
+                    <div className="mt-4 flex items-center justify-between">
+                      <span className="text-sm text-gray-500">Busskarta</span>
+                      <span className="max-w-[170px] text-right text-sm font-semibold text-[#194C66]">
+                        {selectedBusMap?.name || "Ingen vald"}
+                      </span>
+                    </div>
+
                     <div className="mt-4">
                       <div className="mb-1 flex justify-between text-xs text-gray-500">
                         <span>
@@ -521,8 +594,15 @@ export default function SundraDepartureDetailPage() {
 
                   <div className="mt-4 space-y-3 text-sm">
                     <Summary label="Lediga platser" value={`${seatsLeft}`} />
-                    <Summary label="Sista bokningsdag" value={form.last_booking_date || "—"} />
+                    <Summary
+                      label="Sista bokningsdag"
+                      value={form.last_booking_date || "—"}
+                    />
                     <Summary label="Bokningsläge" value={bookingStatusText} />
+                    <Summary
+                      label="Sätesval"
+                      value={form.bus_map_id ? "Aktivt" : "Ej aktivt"}
+                    />
                   </div>
 
                   <button
@@ -549,7 +629,7 @@ export default function SundraDepartureDetailPage() {
               </div>
 
               <section className="rounded-xl bg-white p-5 shadow">
-                <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-semibold text-[#194C66]">
                       Resenärer
@@ -617,5 +697,3 @@ function Summary({ label, value }: { label: string; value: any }) {
     </div>
   );
 }
-
-

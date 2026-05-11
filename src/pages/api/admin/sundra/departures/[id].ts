@@ -20,9 +20,6 @@ export default async function handler(
       });
     }
 
-    // =========================
-    // GET
-    // =========================
     if (req.method === "GET") {
       const { data, error } = await supabase
         .from("sundra_departures")
@@ -39,14 +36,18 @@ export default async function handler(
             name,
             code,
             color
+          ),
+          sundra_bus_maps (
+            id,
+            name,
+            seats_count,
+            bus_type
           )
         `)
         .eq("id", id)
         .single();
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       return res.status(200).json({
         ok: true,
@@ -54,64 +55,69 @@ export default async function handler(
       });
     }
 
-    // =========================
-    // PUT
-    // =========================
-    if (req.method === "PUT") {
+    if (req.method === "PUT" || req.method === "PATCH") {
       const body = req.body || {};
 
       const updateData = {
-        trip_id:
-          body.trip_id || null,
+        trip_id: body.trip_id || null,
+        line_id: body.line_id || null,
+        bus_map_id: body.bus_map_id || null,
 
-        line_id:
-          body.line_id || null,
+        departure_date: body.departure_date || null,
+        departure_time: body.departure_time || null,
 
-        departure_date:
-          body.departure_date || null,
+        return_date: body.return_date || null,
+        return_time: body.return_time || null,
 
-        departure_time:
-          body.departure_time || null,
+        departure_location: body.departure_location || null,
+        destination_location: body.destination_location || null,
 
-        return_date:
-          body.return_date || null,
+        price:
+          body.price === "" || body.price === null || body.price === undefined
+            ? null
+            : Number(body.price),
 
-        return_time:
-          body.return_time || null,
+        capacity: Number(body.capacity || 0),
+        booked_count: Number(body.booked_count || 0),
 
-        departure_location:
-          body.departure_location || null,
+        status: body.status || "open",
 
-        destination_location:
-          body.destination_location || null,
+        last_booking_date: body.last_booking_date || null,
+        booking_deadline: body.booking_deadline || null,
 
-        capacity:
-          Number(body.capacity || 0),
+        notes: body.notes || null,
 
-        booked_count:
-          Number(body.booked_count || 0),
-
-        status:
-          body.status || "open",
-
-        notes:
-          body.notes || null,
-
-        updated_at:
-          new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
-      const { data, error } =
-        await supabase
-          .from("sundra_departures")
-          .update(updateData)
-          .eq("id", id)
-          .select()
-          .single();
+      const { data, error } = await supabase
+        .from("sundra_departures")
+        .update(updateData)
+        .eq("id", id)
+        .select(`
+          *,
+          sundra_trips (
+            id,
+            title,
+            destination,
+            image_url
+          ),
+          sundra_lines (
+            id,
+            name,
+            code,
+            color
+          ),
+          sundra_bus_maps (
+            id,
+            name,
+            seats_count,
+            bus_type
+          )
+        `)
+        .single();
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       return res.status(200).json({
         ok: true,
@@ -119,19 +125,13 @@ export default async function handler(
       });
     }
 
-    // =========================
-    // DELETE
-    // =========================
     if (req.method === "DELETE") {
-      const { error } =
-        await supabase
-          .from("sundra_departures")
-          .delete()
-          .eq("id", id);
+      const { error } = await supabase
+        .from("sundra_departures")
+        .delete()
+        .eq("id", id);
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       return res.status(200).json({
         ok: true,
@@ -143,16 +143,11 @@ export default async function handler(
       error: "Method not allowed",
     });
   } catch (e: any) {
-    console.error(
-      "/api/admin/sundra/departures/[id] error:",
-      e
-    );
+    console.error("/api/admin/sundra/departures/[id] error:", e);
 
     return res.status(500).json({
       ok: false,
-      error:
-        e?.message ||
-        "Kunde inte hantera avgång.",
+      error: e?.message || "Kunde inte hantera avgång.",
     });
   }
 }

@@ -9,17 +9,28 @@ type Trip = {
   destination?: string;
 };
 
+type BusMap = {
+  id: string;
+  name: string;
+  seats_count?: number | null;
+  bus_type?: string | null;
+  status?: string | null;
+};
+
 export default function NewDeparturePage() {
   const router = useRouter();
 
   const [saving, setSaving] = useState(false);
   const [loadingTrips, setLoadingTrips] = useState(true);
+  const [loadingBusMaps, setLoadingBusMaps] = useState(true);
   const [error, setError] = useState("");
 
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [busMaps, setBusMaps] = useState<BusMap[]>([]);
 
   const [form, setForm] = useState({
     trip_id: "",
+    bus_map_id: "",
 
     departure_date: "",
     departure_time: "",
@@ -52,7 +63,6 @@ export default function NewDeparturePage() {
       setLoadingTrips(true);
 
       const res = await fetch("/api/admin/sundra/trips");
-
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok || !json?.ok) {
@@ -67,8 +77,32 @@ export default function NewDeparturePage() {
     }
   }
 
+  async function loadBusMaps() {
+    try {
+      setLoadingBusMaps(true);
+
+      const res = await fetch("/api/admin/sundra/bus-maps");
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Kunde inte hämta busskartor.");
+      }
+
+      const activeMaps = (json.bus_maps || []).filter(
+        (map: BusMap) => map.status !== "inactive"
+      );
+
+      setBusMaps(activeMaps);
+    } catch (e: any) {
+      setError(e?.message || "Kunde inte hämta busskartor.");
+    } finally {
+      setLoadingBusMaps(false);
+    }
+  }
+
   useEffect(() => {
     loadTrips();
+    loadBusMaps();
   }, []);
 
   async function save() {
@@ -91,6 +125,7 @@ export default function NewDeparturePage() {
         },
         body: JSON.stringify({
           ...form,
+          bus_map_id: form.bus_map_id || null,
           price: Number(form.price || 0),
           capacity: Number(form.capacity || 0),
         }),
@@ -109,6 +144,8 @@ export default function NewDeparturePage() {
       setSaving(false);
     }
   }
+
+  const selectedBusMap = busMaps.find((map) => map.id === form.bus_map_id);
 
   return (
     <>
@@ -158,17 +195,13 @@ export default function NewDeparturePage() {
                     disabled={loadingTrips}
                   >
                     <option value="">
-                      {loadingTrips
-                        ? "Laddar resor..."
-                        : "Välj resa"}
+                      {loadingTrips ? "Laddar resor..." : "Välj resa"}
                     </option>
 
                     {trips.map((trip) => (
                       <option key={trip.id} value={trip.id}>
                         {trip.title}
-                        {trip.destination
-                          ? ` • ${trip.destination}`
-                          : ""}
+                        {trip.destination ? ` • ${trip.destination}` : ""}
                       </option>
                     ))}
                   </select>
@@ -186,13 +219,59 @@ export default function NewDeparturePage() {
                   </select>
                 </Field>
 
+                <Field label="Busskarta / säteskarta">
+                  <select
+                    value={form.bus_map_id}
+                    onChange={(e) => {
+                      const busMapId = e.target.value;
+                      update("bus_map_id", busMapId);
+
+                      const map = busMaps.find((m) => m.id === busMapId);
+
+                      if (map?.seats_count) {
+                        update("capacity", String(map.seats_count));
+                      }
+                    }}
+                    className="w-full rounded-xl border px-3 py-2"
+                    disabled={loadingBusMaps}
+                  >
+                    <option value="">
+                      {loadingBusMaps
+                        ? "Laddar busskartor..."
+                        : "Ingen busskarta vald"}
+                    </option>
+
+                    {busMaps.map((map) => (
+                      <option key={map.id} value={map.id}>
+                        {map.name}
+                        {map.seats_count ? ` • ${map.seats_count} platser` : ""}
+                      </option>
+                    ))}
+                  </select>
+
+                  {selectedBusMap && (
+                    <p className="mt-2 text-xs text-[#194C66]/70">
+                      Vald karta: {selectedBusMap.name} ·{" "}
+                      {selectedBusMap.seats_count || 0} platser
+                    </p>
+                  )}
+                </Field>
+
+                <Field label="Kapacitet">
+                  <input
+                    type="number"
+                    value={form.capacity}
+                    onChange={(e) => update("capacity", e.target.value)}
+                    placeholder="50"
+                    className="w-full rounded-xl border px-3 py-2"
+                  />
+                </Field>
+
                 <Field label="Avgångsdatum">
                   <input
                     type="date"
                     value={form.departure_date}
-                    onChange={(e) =>
-                      update("departure_date", e.target.value)
-                    }
+                    onChange={(e) => update("departure_date", e.target.value)}
                     className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
@@ -201,9 +280,7 @@ export default function NewDeparturePage() {
                   <input
                     type="time"
                     value={form.departure_time}
-                    onChange={(e) =>
-                      update("departure_time", e.target.value)
-                    }
+                    onChange={(e) => update("departure_time", e.target.value)}
                     className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
@@ -212,9 +289,7 @@ export default function NewDeparturePage() {
                   <input
                     type="date"
                     value={form.return_date}
-                    onChange={(e) =>
-                      update("return_date", e.target.value)
-                    }
+                    onChange={(e) => update("return_date", e.target.value)}
                     className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
@@ -223,9 +298,7 @@ export default function NewDeparturePage() {
                   <input
                     type="time"
                     value={form.return_time}
-                    onChange={(e) =>
-                      update("return_time", e.target.value)
-                    }
+                    onChange={(e) => update("return_time", e.target.value)}
                     className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
@@ -240,14 +313,11 @@ export default function NewDeparturePage() {
                   />
                 </Field>
 
-                <Field label="Kapacitet">
+                <Field label="Bokningsstopp">
                   <input
-                    type="number"
-                    value={form.capacity}
-                    onChange={(e) =>
-                      update("capacity", e.target.value)
-                    }
-                    placeholder="50"
+                    type="datetime-local"
+                    value={form.booking_deadline}
+                    onChange={(e) => update("booking_deadline", e.target.value)}
                     className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
@@ -270,17 +340,6 @@ export default function NewDeparturePage() {
                       update("destination_location", e.target.value)
                     }
                     placeholder="Ullared"
-                    className="w-full rounded-xl border px-3 py-2"
-                  />
-                </Field>
-
-                <Field label="Bokningsstopp">
-                  <input
-                    type="datetime-local"
-                    value={form.booking_deadline}
-                    onChange={(e) =>
-                      update("booking_deadline", e.target.value)
-                    }
                     className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
@@ -307,9 +366,7 @@ export default function NewDeparturePage() {
 
                 <div className="mt-4 rounded-2xl bg-[#f8fafc] p-4 text-sm text-gray-600">
                   Avgången blir direkt bokningsbar om status är satt till:
-                  <strong className="ml-1 text-[#194C66]">
-                    Öppen
-                  </strong>
+                  <strong className="ml-1 text-[#194C66]">Öppen</strong>
                 </div>
 
                 <button
@@ -323,18 +380,27 @@ export default function NewDeparturePage() {
 
               <section className="rounded-3xl bg-white p-6 shadow">
                 <h2 className="text-lg font-semibold text-[#194C66]">
+                  Sätesval
+                </h2>
+
+                <div className="mt-4 rounded-2xl bg-[#f8fafc] p-4 text-sm text-gray-600">
+                  Välj busskarta om kunden ska kunna välja plats själv i
+                  kassan. Om ingen busskarta väljs kan systemet senare tilldela
+                  plats automatiskt utan säteskarta.
+                </div>
+              </section>
+
+              <section className="rounded-3xl bg-white p-6 shadow">
+                <h2 className="text-lg font-semibold text-[#194C66]">
                   Tips
                 </h2>
 
                 <ul className="mt-4 space-y-3 text-sm text-gray-600">
+                  <li>• Kapacitet används för live beläggning.</li>
                   <li>
-                    • Kapacitet används för live beläggning.
+                    • Väljer du busskarta sätts kapaciteten automatiskt efter
+                    antal säten.
                   </li>
-
-                  <li>
-                    • Bokningsstopp kan användas för att automatiskt stänga avgång.
-                  </li>
-
                   <li>
                     • Avgången syns direkt på resesidan när den är öppen.
                   </li>
@@ -357,13 +423,8 @@ function Field({
 }) {
   return (
     <label className="block">
-      <div className="mb-1 text-sm font-medium text-[#194C66]">
-        {label}
-      </div>
-
+      <div className="mb-1 text-sm font-medium text-[#194C66]">{label}</div>
       {children}
     </label>
   );
 }
-
-
