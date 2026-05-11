@@ -131,10 +131,10 @@ export default function AdminMenu({ active }: Props) {
 
       {/* Fordon & platskartor */}
       <div className="text-[10px] text-gray-400 mt-2">Fordon & platskartor</div>
-      <Link href="/admin/sundra/busskartor" className={subLink}>Skapa platskarta</Link>
-      <Link href="#" className={subLink}>Alla platskartor</Link>
-      <Link href="#" className={subLink}>Lägg till fordon</Link>
-      <Link href="#" className={subLink}>Fordonslista</Link>
+      <Link href="/admin/sundra/busskartor/new" className={subLink}>Skapa platskarta</Link>
+      <Link href="/admin/sundra/busskartor" className={subLink}>Alla platskartor</Link>
+      <Link href="/admin/sundra/fordon/new" className={subLink}>Lägg till fordon</Link>
+      <Link href="/admin/sundra/fordon" className={subLink}>Fordonslista</Link>
 
       {/* KAMPANJER */}
       <div className="text-[10px] text-gray-400 mt-2">Kampanjer</div>
