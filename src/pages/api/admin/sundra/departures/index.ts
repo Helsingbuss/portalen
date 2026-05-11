@@ -11,9 +11,6 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    // =========================
-    // GET
-    // =========================
     if (req.method === "GET") {
       const { data, error } = await supabase
         .from("sundra_departures")
@@ -30,6 +27,25 @@ export default async function handler(
             name,
             code,
             color
+          ),
+          sundra_bus_maps (
+            id,
+            name,
+            seats_count,
+            bus_type
+          ),
+          sundra_vehicles (
+            id,
+            name,
+            registration_number,
+            operator_name,
+            seats_count,
+            bus_map_id,
+            sundra_bus_maps (
+              id,
+              name,
+              seats_count
+            )
           )
         `)
         .order("departure_date", {
@@ -46,9 +62,6 @@ export default async function handler(
       });
     }
 
-    // =========================
-    // POST
-    // =========================
     if (req.method === "POST") {
       const body = req.body || {};
 
@@ -59,54 +72,82 @@ export default async function handler(
         });
       }
 
+      let busMapId = body.bus_map_id || null;
+
+      if (body.vehicle_id && !busMapId) {
+        const { data: vehicle } = await supabase
+          .from("sundra_vehicles")
+          .select("bus_map_id, seats_count")
+          .eq("id", body.vehicle_id)
+          .maybeSingle();
+
+        if (vehicle?.bus_map_id) {
+          busMapId = vehicle.bus_map_id;
+        }
+      }
+
       const insertData = {
         trip_id: body.trip_id,
-
         line_id: body.line_id || null,
 
-        departure_date:
-          body.departure_date || null,
+        vehicle_id: body.vehicle_id || null,
+        bus_map_id: busMapId,
 
-        departure_time:
-          body.departure_time || null,
+        departure_date: body.departure_date || null,
+        departure_time: body.departure_time || null,
 
-        return_date:
-          body.return_date || null,
+        return_date: body.return_date || null,
+        return_time: body.return_time || null,
 
-        return_time:
-          body.return_time || null,
+        departure_location: body.departure_location || null,
+        destination_location: body.destination_location || null,
 
-        departure_location:
-          body.departure_location || null,
+        price:
+          body.price === "" || body.price === null || body.price === undefined
+            ? null
+            : Number(body.price),
 
-        destination_location:
-          body.destination_location || null,
+        capacity: Number(body.capacity || 0),
+        booked_count: Number(body.booked_count || 0),
 
-        capacity:
-          Number(body.capacity || 0),
+        status: body.status || "open",
 
-        booked_count:
-          Number(body.booked_count || 0),
+        booking_deadline: body.booking_deadline || null,
+        last_booking_date: body.last_booking_date || null,
 
-        status:
-          body.status || "open",
+        notes: body.notes || null,
 
-        notes:
-          body.notes || null,
-
-        created_at:
-          new Date().toISOString(),
-
-        updated_at:
-          new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
-      const { data, error } =
-        await supabase
-          .from("sundra_departures")
-          .insert(insertData)
-          .select()
-          .single();
+      const { data, error } = await supabase
+        .from("sundra_departures")
+        .insert(insertData)
+        .select(`
+          *,
+          sundra_trips (
+            id,
+            title,
+            destination,
+            image_url
+          ),
+          sundra_bus_maps (
+            id,
+            name,
+            seats_count,
+            bus_type
+          ),
+          sundra_vehicles (
+            id,
+            name,
+            registration_number,
+            operator_name,
+            seats_count,
+            bus_map_id
+          )
+        `)
+        .single();
 
       if (error) {
         throw error;
@@ -123,16 +164,11 @@ export default async function handler(
       error: "Method not allowed",
     });
   } catch (e: any) {
-    console.error(
-      "/api/admin/sundra/departures error:",
-      e
-    );
+    console.error("/api/admin/sundra/departures error:", e);
 
     return res.status(500).json({
       ok: false,
-      error:
-        e?.message ||
-        "Kunde inte hantera avgångar.",
+      error: e?.message || "Kunde inte hantera avgångar.",
     });
   }
 }

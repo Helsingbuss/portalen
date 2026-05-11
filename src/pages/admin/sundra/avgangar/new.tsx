@@ -17,19 +17,37 @@ type BusMap = {
   status?: string | null;
 };
 
+type Vehicle = {
+  id: string;
+  name: string;
+  registration_number?: string | null;
+  operator_name?: string | null;
+  seats_count?: number | null;
+  bus_map_id?: string | null;
+  status?: string | null;
+  sundra_bus_maps?: {
+    id: string;
+    name: string;
+    seats_count?: number | null;
+  } | null;
+};
+
 export default function NewDeparturePage() {
   const router = useRouter();
 
   const [saving, setSaving] = useState(false);
   const [loadingTrips, setLoadingTrips] = useState(true);
   const [loadingBusMaps, setLoadingBusMaps] = useState(true);
+  const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [error, setError] = useState("");
 
   const [trips, setTrips] = useState<Trip[]>([]);
   const [busMaps, setBusMaps] = useState<BusMap[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
 
   const [form, setForm] = useState({
     trip_id: "",
+    vehicle_id: "",
     bus_map_id: "",
 
     departure_date: "",
@@ -100,9 +118,33 @@ export default function NewDeparturePage() {
     }
   }
 
+  async function loadVehicles() {
+    try {
+      setLoadingVehicles(true);
+
+      const res = await fetch("/api/admin/sundra/vehicles");
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Kunde inte hämta fordon.");
+      }
+
+      const activeVehicles = (json.vehicles || []).filter(
+        (vehicle: Vehicle) => vehicle.status !== "inactive"
+      );
+
+      setVehicles(activeVehicles);
+    } catch (e: any) {
+      setError(e?.message || "Kunde inte hämta fordon.");
+    } finally {
+      setLoadingVehicles(false);
+    }
+  }
+
   useEffect(() => {
     loadTrips();
     loadBusMaps();
+    loadVehicles();
   }, []);
 
   async function save() {
@@ -125,6 +167,7 @@ export default function NewDeparturePage() {
         },
         body: JSON.stringify({
           ...form,
+          vehicle_id: form.vehicle_id || null,
           bus_map_id: form.bus_map_id || null,
           price: Number(form.price || 0),
           capacity: Number(form.capacity || 0),
@@ -144,6 +187,10 @@ export default function NewDeparturePage() {
       setSaving(false);
     }
   }
+
+  const selectedVehicle = vehicles.find(
+    (vehicle) => vehicle.id === form.vehicle_id
+  );
 
   const selectedBusMap = busMaps.find((map) => map.id === form.bus_map_id);
 
@@ -217,6 +264,53 @@ export default function NewDeparturePage() {
                     <option value="draft">Utkast</option>
                     <option value="closed">Stängd</option>
                   </select>
+                </Field>
+
+                <Field label="Fordon">
+                  <select
+                    value={form.vehicle_id}
+                    onChange={(e) => {
+                      const vehicleId = e.target.value;
+                      update("vehicle_id", vehicleId);
+
+                      const vehicle = vehicles.find((v) => v.id === vehicleId);
+
+                      if (vehicle?.bus_map_id) {
+                        update("bus_map_id", vehicle.bus_map_id);
+                      }
+
+                      if (vehicle?.seats_count) {
+                        update("capacity", String(vehicle.seats_count));
+                      }
+                    }}
+                    className="w-full rounded-xl border px-3 py-2"
+                    disabled={loadingVehicles}
+                  >
+                    <option value="">
+                      {loadingVehicles ? "Laddar fordon..." : "Inget fordon valt"}
+                    </option>
+
+                    {vehicles.map((vehicle) => (
+                      <option key={vehicle.id} value={vehicle.id}>
+                        {vehicle.name}
+                        {vehicle.registration_number
+                          ? ` • ${vehicle.registration_number}`
+                          : ""}
+                        {vehicle.seats_count
+                          ? ` • ${vehicle.seats_count} platser`
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+
+                  {selectedVehicle && (
+                    <p className="mt-2 text-xs text-[#194C66]/70">
+                      Vald buss: {selectedVehicle.name}
+                      {selectedVehicle.registration_number
+                        ? ` · ${selectedVehicle.registration_number}`
+                        : ""}
+                    </p>
+                  )}
                 </Field>
 
                 <Field label="Busskarta / säteskarta">
@@ -380,13 +474,12 @@ export default function NewDeparturePage() {
 
               <section className="rounded-3xl bg-white p-6 shadow">
                 <h2 className="text-lg font-semibold text-[#194C66]">
-                  Sätesval
+                  Fordon & sätesval
                 </h2>
 
                 <div className="mt-4 rounded-2xl bg-[#f8fafc] p-4 text-sm text-gray-600">
-                  Välj busskarta om kunden ska kunna välja plats själv i
-                  kassan. Om ingen busskarta väljs kan systemet senare tilldela
-                  plats automatiskt utan säteskarta.
+                  Välj fordon om avgången ska kopplas till en specifik buss.
+                  Fordonets platskarta används sedan för kundens sätesval.
                 </div>
               </section>
 
@@ -398,8 +491,7 @@ export default function NewDeparturePage() {
                 <ul className="mt-4 space-y-3 text-sm text-gray-600">
                   <li>• Kapacitet används för live beläggning.</li>
                   <li>
-                    • Väljer du busskarta sätts kapaciteten automatiskt efter
-                    antal säten.
+                    • Väljer du fordon sätts platskarta och kapacitet automatiskt.
                   </li>
                   <li>
                     • Avgången syns direkt på resesidan när den är öppen.

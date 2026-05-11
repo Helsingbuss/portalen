@@ -17,8 +17,19 @@ type BusMap = {
   status?: string | null;
 };
 
+type Vehicle = {
+  id: string;
+  name: string;
+  registration_number?: string | null;
+  operator_name?: string | null;
+  seats_count?: number | null;
+  bus_map_id?: string | null;
+  status?: string | null;
+};
+
 type DepartureForm = {
   trip_id: string;
+  vehicle_id: string;
   bus_map_id: string;
 
   departure_date: string;
@@ -36,6 +47,7 @@ type DepartureForm = {
 
 const EMPTY_FORM: DepartureForm = {
   trip_id: "",
+  vehicle_id: "",
   bus_map_id: "",
 
   departure_date: "",
@@ -117,12 +129,14 @@ export default function SundraDepartureDetailPage() {
 
   const [trips, setTrips] = useState<Trip[]>([]);
   const [busMaps, setBusMaps] = useState<BusMap[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
 
   const [form, setForm] = useState<DepartureForm>(EMPTY_FORM);
 
   const [loading, setLoading] = useState(true);
   const [loadingTrips, setLoadingTrips] = useState(true);
   const [loadingBusMaps, setLoadingBusMaps] = useState(true);
+  const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const [error, setError] = useState("");
@@ -131,6 +145,7 @@ export default function SundraDepartureDetailPage() {
   useEffect(() => {
     loadTrips();
     loadBusMaps();
+    loadVehicles();
   }, []);
 
   useEffect(() => {
@@ -175,6 +190,27 @@ export default function SundraDepartureDetailPage() {
     }
   }
 
+  async function loadVehicles() {
+    try {
+      setLoadingVehicles(true);
+
+      const res = await fetch("/api/admin/sundra/vehicles");
+      const json = await res.json().catch(() => ({}));
+
+      if (res.ok && json?.ok) {
+        const activeVehicles = (json.vehicles || []).filter(
+          (vehicle: Vehicle) => vehicle.status !== "inactive"
+        );
+
+        setVehicles(activeVehicles);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingVehicles(false);
+    }
+  }
+
   async function loadDeparture(departureId: string) {
     try {
       setLoading(true);
@@ -191,6 +227,7 @@ export default function SundraDepartureDetailPage() {
 
       setForm({
         trip_id: departure.trip_id || "",
+        vehicle_id: departure.vehicle_id || "",
         bus_map_id: departure.bus_map_id || "",
 
         departure_date: departure.departure_date || "",
@@ -245,6 +282,7 @@ export default function SundraDepartureDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          vehicle_id: form.vehicle_id || null,
           bus_map_id: form.bus_map_id || null,
           price: Number(form.price || 0),
           capacity: Number(form.capacity || 0),
@@ -295,6 +333,7 @@ export default function SundraDepartureDetailPage() {
   }
 
   const selectedTrip = trips.find((trip) => trip.id === form.trip_id);
+  const selectedVehicle = vehicles.find((v) => v.id === form.vehicle_id);
   const selectedBusMap = busMaps.find((map) => map.id === form.bus_map_id);
 
   const capacity = Number(form.capacity || 0);
@@ -328,7 +367,8 @@ export default function SundraDepartureDetailPage() {
                 {loading ? "Laddar avgång..." : title}
               </h1>
               <p className="text-sm text-[#194C66]/60">
-                Hantera datum, kapacitet, pris, säteskarta och bokningsstatus.
+                Hantera datum, kapacitet, pris, fordon, säteskarta och
+                bokningsstatus.
               </p>
             </div>
 
@@ -377,7 +417,7 @@ export default function SundraDepartureDetailPage() {
                       Avgångsinformation
                     </h2>
                     <p className="mt-1 text-sm text-gray-500">
-                      Redigera datum, tider, pris, busskarta och bokningsläge.
+                      Redigera datum, tider, pris, fordon och bokningsläge.
                     </p>
                   </div>
 
@@ -398,6 +438,53 @@ export default function SundraDepartureDetailPage() {
                         </option>
                       ))}
                     </select>
+                  </Field>
+
+                  <Field label="Fordon">
+                    <select
+                      value={form.vehicle_id}
+                      onChange={(e) => {
+                        const vehicleId = e.target.value;
+                        update("vehicle_id", vehicleId);
+
+                        const vehicle = vehicles.find((v) => v.id === vehicleId);
+
+                        if (vehicle?.bus_map_id) {
+                          update("bus_map_id", vehicle.bus_map_id);
+                        }
+
+                        if (vehicle?.seats_count) {
+                          update("capacity", String(vehicle.seats_count));
+                        }
+                      }}
+                      disabled={loadingVehicles}
+                      className="w-full rounded-lg border px-3 py-2"
+                    >
+                      <option value="">
+                        {loadingVehicles ? "Laddar fordon..." : "Inget fordon valt"}
+                      </option>
+
+                      {vehicles.map((vehicle) => (
+                        <option key={vehicle.id} value={vehicle.id}>
+                          {vehicle.name}
+                          {vehicle.registration_number
+                            ? ` – ${vehicle.registration_number}`
+                            : ""}
+                          {vehicle.seats_count
+                            ? ` – ${vehicle.seats_count} platser`
+                            : ""}
+                        </option>
+                      ))}
+                    </select>
+
+                    {selectedVehicle && (
+                      <p className="mt-2 text-xs text-[#194C66]/70">
+                        Vald buss: {selectedVehicle.name}
+                        {selectedVehicle.registration_number
+                          ? ` · ${selectedVehicle.registration_number}`
+                          : ""}
+                      </p>
+                    )}
                   </Field>
 
                   <Field label="Busskarta / säteskarta">
@@ -555,6 +642,13 @@ export default function SundraDepartureDetailPage() {
                       <span className="text-sm text-gray-500">Pris</span>
                       <span className="font-semibold text-[#194C66]">
                         {money(form.price)}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between">
+                      <span className="text-sm text-gray-500">Fordon</span>
+                      <span className="max-w-[170px] text-right text-sm font-semibold text-[#194C66]">
+                        {selectedVehicle?.name || "Inget valt"}
                       </span>
                     </div>
 

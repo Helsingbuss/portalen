@@ -42,6 +42,19 @@ export default async function handler(
             name,
             seats_count,
             bus_type
+          ),
+          sundra_vehicles (
+            id,
+            name,
+            registration_number,
+            operator_name,
+            seats_count,
+            bus_map_id,
+            sundra_bus_maps (
+              id,
+              name,
+              seats_count
+            )
           )
         `)
         .eq("id", id)
@@ -58,10 +71,26 @@ export default async function handler(
     if (req.method === "PUT" || req.method === "PATCH") {
       const body = req.body || {};
 
+      let busMapId = body.bus_map_id || null;
+
+      if (body.vehicle_id && !busMapId) {
+        const { data: vehicle } = await supabase
+          .from("sundra_vehicles")
+          .select("bus_map_id, seats_count")
+          .eq("id", body.vehicle_id)
+          .maybeSingle();
+
+        if (vehicle?.bus_map_id) {
+          busMapId = vehicle.bus_map_id;
+        }
+      }
+
       const updateData = {
         trip_id: body.trip_id || null,
         line_id: body.line_id || null,
-        bus_map_id: body.bus_map_id || null,
+
+        vehicle_id: body.vehicle_id || null,
+        bus_map_id: busMapId,
 
         departure_date: body.departure_date || null,
         departure_time: body.departure_time || null,
@@ -113,6 +142,19 @@ export default async function handler(
             name,
             seats_count,
             bus_type
+          ),
+          sundra_vehicles (
+            id,
+            name,
+            registration_number,
+            operator_name,
+            seats_count,
+            bus_map_id,
+            sundra_bus_maps (
+              id,
+              name,
+              seats_count
+            )
           )
         `)
         .single();
