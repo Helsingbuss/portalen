@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
 import FlygbussModal from "@/components/store/FlygbussModal";
+import SeatMap, { SeatMapSeat } from "@/components/sundra/SeatMap";
 
 type SundraTrip = {
   id: string;
@@ -87,13 +88,34 @@ export default function StoreCheckout() {
   const [discountError, setDiscountError] = useState("");
   const [discountData, setDiscountData] = useState<any>(null);
 
+  const [seatLoading, setSeatLoading] = useState(false);
+  const [seatError, setSeatError] = useState("");
+  const [seatMapName, setSeatMapName] = useState("");
+  const [seats, setSeats] = useState<SeatMapSeat[]>([]);
+  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
+
   const [showFlygbuss, setShowFlygbuss] = useState(false);
   const [paymentLink, setPaymentLink] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const selectedProduct = cart[0] || null;
+  const selectedQty = selectedProduct ? qtyMap[selectedProduct.id] || 1 : 1;
+
   useEffect(() => {
     loadSundraTrips();
   }, []);
+
+  useEffect(() => {
+    if (selectedProduct?.type === "sundra" && selectedProduct.departureId) {
+      loadSeats(selectedProduct.departureId);
+    } else {
+      setSeats([]);
+      setSelectedSeats([]);
+      setSeatMapName("");
+      setSeatError("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProduct?.departureId]);
 
   async function loadSundraTrips() {
     try {
@@ -134,15 +156,48 @@ export default function StoreCheckout() {
     }
   }
 
+  async function loadSeats(departureId: string) {
+    try {
+      setSeatLoading(true);
+      setSeatError("");
+      setSeats([]);
+      setSelectedSeats([]);
+
+      const res = await fetch(`/api/public/sundra/departures/${departureId}/seats`);
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Kunde inte hämta platskarta.");
+      }
+
+      setSeatMapName(json.bus_map?.name || "");
+      setSeats(json.seats || []);
+    } catch (e: any) {
+      setSeatError(e?.message || "Kunde inte hämta säten.");
+      setSeats([]);
+      setSeatMapName("");
+    } finally {
+      setSeatLoading(false);
+    }
+  }
+
   const products = useMemo(() => {
     return [...staticProducts, ...sundraTrips];
   }, [sundraTrips]);
 
-  function addToCart(product: Product) {
+  function resetCheckoutExtra() {
     setPaymentLink("");
     setDiscountData(null);
     setDiscountError("");
     setDiscountCode("");
+    setSelectedSeats([]);
+    setSeats([]);
+    setSeatMapName("");
+    setSeatError("");
+  }
+
+  function addToCart(product: Product) {
+    resetCheckoutExtra();
     setCart([product]);
     setQtyMap({ [product.id]: 1 });
   }
@@ -152,19 +207,53 @@ export default function StoreCheckout() {
     setDiscountData(null);
     setDiscountError("");
 
+    const nextQty = value < 1 ? 1 : value;
+
     setQtyMap((prev) => ({
       ...prev,
-      [id]: value < 1 ? 1 : value,
+      [id]: nextQty,
     }));
+
+    setSelectedSeats((prev) => prev.slice(0, nextQty));
   }
 
-  const total = cart.reduce((sum, item) => {
+  function toggleSeat(seat: SeatMapSeat) {
+    setPaymentLink("");
+
+    setSelectedSeats((prev) => {
+      const exists = prev.includes(seat.seat_number);
+
+      if (exists) {
+        return prev.filter((s) => s !== seat.seat_number);
+      }
+
+      if (prev.length >= selectedQty) {
+        alert(`Du kan bara välja ${selectedQty} plats(er).`);
+        return prev;
+      }
+
+      return [...prev, seat.seat_number];
+    });
+  }
+
+  const baseTotal = cart.reduce((sum, item) => {
     const qty = qtyMap[item.id] || 1;
     return sum + item.price * qty;
   }, 0);
 
+  const selectedSeatObjects = useMemo(() => {
+    return seats.filter((seat) => selectedSeats.includes(seat.seat_number));
+  }, [seats, selectedSeats]);
+
+  const seatExtraTotal = selectedSeatObjects.reduce(
+    (sum, seat) => sum + Number(seat.seat_price || 0),
+    0
+  );
+
+  const totalBeforeDiscount = baseTotal + seatExtraTotal;
+
   const discountAmount = Number(discountData?.discount_amount || 0);
-  const totalAfterDiscount = Math.max(0, total - discountAmount);
+  const totalAfterDiscount = Math.max(0, totalBeforeDiscount - discountAmount);
 
   async function applyDiscount() {
     try {
@@ -190,7 +279,7 @@ export default function StoreCheckout() {
         body: JSON.stringify({
           code: discountCode,
           trip_id: product.tripId || null,
-          subtotal: total,
+          subtotal: totalBeforeDiscount,
         }),
       });
 
@@ -228,16 +317,29 @@ export default function StoreCheckout() {
           return;
         }
 
+        if (seats.length > 0 && selectedSeats.length > 0 && selectedSeats.length !== qty) {
+          alert(`Du har valt ${selectedSeats.length} säte(n), men antal resenärer är ${qty}.`);
+          setLoading(false);
+          return;
+        }
+
         const [firstName, ...lastParts] = name.trim().split(" ");
         const lastName = lastParts.join(" ") || "";
 
-        const passengers = Array.from({ length: qty }).map((_, index) => ({
-          first_name: index === 0 ? firstName : "",
-          last_name: index === 0 ? lastName : "",
-          passenger_type: "adult",
-          date_of_birth: "",
-          special_requests: "",
-        }));
+        const passengers = Array.from({ length: qty }).map((_, index) => {
+          const seatNumber = selectedSeats[index] || "";
+          const seat = seats.find((s) => s.seat_number === seatNumber);
+
+          return {
+            first_name: index === 0 ? firstName : "",
+            last_name: index === 0 ? lastName : "",
+            passenger_type: "adult",
+            date_of_birth: "",
+            special_requests: "",
+            seat_number: seatNumber || null,
+            seat_price: Number(seat?.seat_price || 0),
+          };
+        });
 
         const res = await fetch("/api/public/sundra/bookings/create", {
           method: "POST",
@@ -256,9 +358,15 @@ export default function StoreCheckout() {
             customer_phone: phone,
             customer_address: null,
 
-            notes: "Skapad via Butik/Kassa i portalen.",
+            notes: [
+              "Skapad via Butik/Kassa i portalen.",
+              selectedSeats.length ? `Valda säten: ${selectedSeats.join(", ")}` : "",
+            ]
+              .filter(Boolean)
+              .join("\n"),
 
-            subtotal: total,
+            subtotal: baseTotal,
+            seat_extra_total: seatExtraTotal,
             discount_code: discountData?.campaign?.code || null,
             discount_amount: discountAmount,
             total_amount: totalAfterDiscount,
@@ -307,7 +415,9 @@ export default function StoreCheckout() {
 
         price: product.price,
         qty,
-        subtotal: total,
+        subtotal: baseTotal,
+        seatExtraTotal,
+        selectedSeats,
         discountCode: discountData?.campaign?.code || null,
         discountAmount,
         total: totalAfterDiscount,
@@ -414,6 +524,33 @@ export default function StoreCheckout() {
                 </div>
               )}
             </section>
+
+            {selectedProduct?.type === "sundra" && selectedProduct.departureId && (
+              <section className="rounded-2xl bg-white p-5 shadow">
+                {seatLoading ? (
+                  <div className="text-sm text-gray-500">Laddar platskarta...</div>
+                ) : seatError ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+                    {seatError}
+                  </div>
+                ) : seats.length === 0 ? (
+                  <div className="rounded-xl border bg-[#f8fafc] p-4 text-sm text-gray-500">
+                    Ingen platskarta är kopplad till denna avgång.
+                  </div>
+                ) : (
+                  <SeatMap
+                    seats={seats}
+                    selectedSeats={selectedSeats}
+                    maxSelectable={selectedQty}
+                    showLegend
+                    showSummary={false}
+                    title="Välj plats"
+                    subtitle={`${seatMapName || "Platskarta"} · välj ${selectedQty} plats(er) eller lämna tomt för automatisk placering.`}
+                    onSeatClick={toggleSeat}
+                  />
+                )}
+              </section>
+            )}
           </div>
 
           <aside className="h-fit rounded-2xl bg-white p-5 shadow">
@@ -467,6 +604,21 @@ export default function StoreCheckout() {
               })}
             </div>
 
+            {selectedSeats.length > 0 && (
+              <div className="mt-4 rounded-xl border border-[#b7e7df] bg-[#eafaf7] p-3 text-sm">
+                <p className="font-semibold text-[#006b5b]">Valda säten</p>
+                <p className="mt-1 text-[#006b5b]">
+                  {selectedSeats.join(", ")}
+                </p>
+
+                {seatExtraTotal > 0 && (
+                  <p className="mt-1 text-xs text-[#006b5b]">
+                    Extra sätespris: {money(seatExtraTotal)}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="mt-4 rounded-xl border bg-[#f8fafc] p-3">
               <p className="mb-2 text-sm font-semibold text-[#194C66]">
                 Rabattkod
@@ -510,8 +662,15 @@ export default function StoreCheckout() {
             <div className="mt-4 space-y-2 border-t pt-3">
               <div className="flex justify-between text-sm">
                 <span>Delsumma</span>
-                <span>{money(total)}</span>
+                <span>{money(baseTotal)}</span>
               </div>
+
+              {seatExtraTotal > 0 && (
+                <div className="flex justify-between text-sm text-[#194C66]">
+                  <span>Sätesval</span>
+                  <span>{money(seatExtraTotal)}</span>
+                </div>
+              )}
 
               {discountAmount > 0 && (
                 <div className="flex justify-between text-sm text-green-700">
@@ -605,10 +764,7 @@ export default function StoreCheckout() {
             departureDate: data.date || null,
           };
 
-          setPaymentLink("");
-          setDiscountData(null);
-          setDiscountError("");
-          setDiscountCode("");
+          resetCheckoutExtra();
 
           setCart([product]);
           setQtyMap({ [product.id]: data.qty || 1 });

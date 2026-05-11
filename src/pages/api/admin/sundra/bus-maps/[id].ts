@@ -6,6 +6,28 @@ const supabase: any =
   (admin as any).supabase ||
   (admin as any).default;
 
+function sortSeats(seats: any[] = []) {
+  return [...seats].sort((a, b) => {
+    const rowA = Number(a.row_number || 0);
+    const rowB = Number(b.row_number || 0);
+
+    if (rowA !== rowB) return rowA - rowB;
+
+    return String(a.seat_column || "").localeCompare(
+      String(b.seat_column || "")
+    );
+  });
+}
+
+function normalizeBusMap(map: any) {
+  if (!map) return map;
+
+  return {
+    ...map,
+    sundra_bus_map_seats: sortSeats(map.sundra_bus_map_seats || []),
+  };
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -45,30 +67,44 @@ export default async function handler(
 
       return res.status(200).json({
         ok: true,
-        bus_map: data,
+        bus_map: normalizeBusMap(data),
       });
     }
 
-    if (req.method === "PUT") {
+    if (req.method === "PUT" || req.method === "PATCH") {
       const body = req.body || {};
 
-      const { data: updatedMap, error: updateError } = await supabase
+      const mapUpdate: any = {
+        updated_at: new Date().toISOString(),
+      };
+
+      if (body.name !== undefined) {
+        mapUpdate.name = body.name || "Platskarta";
+      }
+
+      if (body.bus_type !== undefined) {
+        mapUpdate.bus_type = body.bus_type || "standard_52";
+      }
+
+      if (body.description !== undefined) {
+        mapUpdate.description = body.description || null;
+      }
+
+      if (body.status !== undefined) {
+        mapUpdate.status = body.status || "active";
+      }
+
+      const { error: updateError } = await supabase
         .from("sundra_bus_maps")
-        .update({
-          name: body.name,
-          bus_type: body.bus_type,
-          description: body.description,
-          status: body.status,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id)
-        .select()
-        .single();
+        .update(mapUpdate)
+        .eq("id", id);
 
       if (updateError) throw updateError;
 
       if (Array.isArray(body.seats)) {
         for (const seat of body.seats) {
+          if (!seat.id) continue;
+
           const { error: seatError } = await supabase
             .from("sundra_bus_map_seats")
             .update({
@@ -80,7 +116,8 @@ export default async function handler(
               is_blocked: seat.is_blocked ?? false,
               updated_at: new Date().toISOString(),
             })
-            .eq("id", seat.id);
+            .eq("id", seat.id)
+            .eq("bus_map_id", id);
 
           if (seatError) throw seatError;
         }
@@ -110,7 +147,7 @@ export default async function handler(
 
       return res.status(200).json({
         ok: true,
-        bus_map: finalMap,
+        bus_map: normalizeBusMap(finalMap),
       });
     }
 

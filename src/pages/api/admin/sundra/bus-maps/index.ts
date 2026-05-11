@@ -6,28 +6,126 @@ const supabase: any =
   (admin as any).supabase ||
   (admin as any).default;
 
-function buildSeats(busMapId: string, rows: number, columns: string[]) {
-  const seats: any[] = [];
+type SeatDef = {
+  seat_number: string;
+  row_number: number;
+  seat_column: string;
+};
+
+function buildTourismo57SeatNumbers(): SeatDef[] {
+  const seats: SeatDef[] = [];
+
+  for (let i = 1; i <= 12; i++) {
+    seats.push({
+      seat_number: `A${i}`,
+      row_number: i,
+      seat_column: "A",
+    });
+  }
+
+  for (let i = 1; i <= 12; i++) {
+    seats.push({
+      seat_number: `B${i}`,
+      row_number: i,
+      seat_column: "B",
+    });
+  }
+
+  for (let i = 1; i <= 14; i++) {
+    seats.push({
+      seat_number: `C${i}`,
+      row_number: i,
+      seat_column: "C",
+    });
+  }
+
+  for (let i = 1; i <= 18; i++) {
+    seats.push({
+      seat_number: `D${i}`,
+      row_number: i,
+      seat_column: "D",
+    });
+  }
+
+  return seats;
+}
+
+function buildStandardSeatNumbers(rows: number, columns: string[]): SeatDef[] {
+  const seats: SeatDef[] = [];
 
   for (let row = 1; row <= rows; row++) {
     for (const col of columns) {
       seats.push({
-        bus_map_id: busMapId,
-        seat_number: `${row}${col}`,
+        seat_number: `${col}${row}`,
         row_number: row,
         seat_column: col,
-        seat_type: "standard",
-        seat_label: null,
-        seat_price: 0,
-        is_active: true,
-        is_selectable: true,
-        is_blocked: false,
-        updated_at: new Date().toISOString(),
       });
     }
   }
 
   return seats;
+}
+
+function getSeatDefinitions(template: string, rowsInput: number, columnsInput?: string[]) {
+  if (template === "tourismo_57") {
+    return buildTourismo57SeatNumbers();
+  }
+
+  const columns =
+    Array.isArray(columnsInput) && columnsInput.length > 0
+      ? columnsInput
+      : ["A", "B", "C", "D"];
+
+  if (template === "standard_52") {
+    return buildStandardSeatNumbers(13, columns);
+  }
+
+  if (template === "sprinter_19") {
+    return buildStandardSeatNumbers(5, columns).filter(
+      (seat) => seat.seat_number !== "D5"
+    );
+  }
+
+  if (template === "doubledeck_81") {
+    return [
+      ...buildStandardSeatNumbers(20, columns),
+      {
+        seat_number: "A21",
+        row_number: 21,
+        seat_column: "A",
+      },
+    ];
+  }
+
+  return buildStandardSeatNumbers(Number(rowsInput || 13), columns);
+}
+
+function buildSeats(
+  busMapId: string,
+  template: string,
+  rowsInput: number,
+  columnsInput?: string[]
+) {
+  const now = new Date().toISOString();
+
+  return getSeatDefinitions(template, rowsInput, columnsInput).map((seat) => ({
+    bus_map_id: busMapId,
+
+    seat_number: seat.seat_number,
+    row_number: seat.row_number,
+    seat_column: seat.seat_column,
+
+    seat_type: "standard",
+    seat_label: null,
+    seat_price: 0,
+
+    is_active: true,
+    is_selectable: true,
+    is_blocked: false,
+
+    created_at: now,
+    updated_at: now,
+  }));
 }
 
 export default async function handler(
@@ -73,18 +171,20 @@ export default async function handler(
         });
       }
 
-      const rows = Number(body.rows || 14);
+      const template = body.bus_type || body.template || "standard_52";
+      const rows = Number(body.rows || 13);
       const columns = Array.isArray(body.columns)
         ? body.columns
         : ["A", "B", "C", "D"];
 
-      const seatsCount = rows * columns.length;
+      const tempSeats = buildSeats("TEMP_ID", template, rows, columns);
+      const seatsCount = tempSeats.length;
 
       const { data: busMap, error: mapError } = await supabase
         .from("sundra_bus_maps")
         .insert({
           name: body.name,
-          bus_type: body.bus_type || "standard",
+          bus_type: template,
           seats_count: seatsCount,
           description: body.description || null,
           status: body.status || "active",
@@ -95,11 +195,11 @@ export default async function handler(
 
       if (mapError) throw mapError;
 
-      const seats = buildSeats(busMap.id, rows, columns);
+      const finalSeats = buildSeats(busMap.id, template, rows, columns);
 
       const { error: seatsError } = await supabase
         .from("sundra_bus_map_seats")
-        .insert(seats);
+        .insert(finalSeats);
 
       if (seatsError) throw seatsError;
 

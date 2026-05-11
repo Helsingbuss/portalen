@@ -20,6 +20,9 @@ function cleanPassenger(p: any) {
     passenger_type: p?.passenger_type || "adult",
     date_of_birth: p?.date_of_birth || null,
     special_requests: p?.special_requests || null,
+
+    seat_number: p?.seat_number || null,
+    seat_price: toNumber(p?.seat_price, 0),
   };
 }
 
@@ -49,13 +52,8 @@ async function createSumUpCheckout({
   const apiKey = process.env.SUMUP_API_KEY;
   const merchantCode = process.env.SUMUP_MERCHANT_CODE;
 
-  if (!apiKey) {
-    throw new Error("SUMUP_API_KEY saknas i env.");
-  }
-
-  if (!merchantCode) {
-    throw new Error("SUMUP_MERCHANT_CODE saknas i env.");
-  }
+  if (!apiKey) throw new Error("SUMUP_API_KEY saknas i env.");
+  if (!merchantCode) throw new Error("SUMUP_MERCHANT_CODE saknas i env.");
 
   const successUrl = `${baseUrl()}/boka/bekraftelse/${bookingId}?payment=sumup`;
   const cancelUrl = `${baseUrl()}/boka/bekraftelse/${bookingId}?payment=cancelled`;
@@ -74,7 +72,6 @@ async function createSumUpCheckout({
       description,
       return_url: successUrl,
       redirect_url: successUrl,
-      pay_to_email: undefined,
     }),
   });
 
@@ -82,16 +79,71 @@ async function createSumUpCheckout({
 
   if (!response.ok) {
     console.error("SumUp checkout error:", json);
-    throw new Error(json?.message || json?.error || "Kunde inte skapa SumUp-betalning.");
+    throw new Error(
+      json?.message || json?.error || "Kunde inte skapa SumUp-betalning."
+    );
   }
 
   return {
     id: json.id,
     checkout_reference: json.checkout_reference,
-    checkout_url: json.checkout_url || json.redirect_url || json.hosted_checkout_url || null,
+    checkout_url:
+      json.checkout_url || json.redirect_url || json.hosted_checkout_url || null,
     raw: json,
     cancel_url: cancelUrl,
   };
+}
+
+async function validateSelectedSeats({
+  departureId,
+  passengers,
+}: {
+  departureId: string;
+  passengers: any[];
+}) {
+  const selectedSeats = passengers
+    .map((p) => p?.seat_number)
+    .filter(Boolean);
+
+  if (selectedSeats.length === 0) return;
+
+  const uniqueSeats = new Set(selectedSeats);
+
+  if (uniqueSeats.size !== selectedSeats.length) {
+    throw new Error("Samma säte har valts flera gånger.");
+  }
+
+  const { data: occupiedPassengers, error } = await supabaseAdmin
+    .from("sundra_booking_passengers")
+    .select(`
+      id,
+      seat_number,
+      sundra_bookings (
+        id,
+        departure_id,
+        status
+      )
+    `)
+    .in("seat_number", selectedSeats);
+
+  if (error) throw error;
+
+  const occupied = (occupiedPassengers || []).filter((p: any) => {
+    const booking = Array.isArray(p.sundra_bookings)
+      ? p.sundra_bookings[0]
+      : p.sundra_bookings;
+
+    return (
+      booking?.departure_id === departureId &&
+      booking?.status !== "cancelled"
+    );
+  });
+
+  if (occupied.length > 0) {
+    throw new Error(
+      `Säte ${occupied.map((p: any) => p.seat_number).join(", ")} är redan bokat.`
+    );
+  }
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -120,6 +172,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const passengersCount = Math.max(1, toNumber(body.passengers_count, 1));
+    const passengers = Array.isArray(body.passengers) ? body.passengers : [];
 
     const { data: departure, error: depError } = await supabaseAdmin
       .from("sundra_departures")
@@ -173,17 +226,46 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
+    await validateSelectedSeats({
+      departureId: body.departure_id,
+      passengers,
+    });
+
     const trip: any = Array.isArray(departure.sundra_trips)
       ? departure.sundra_trips[0]
       : departure.sundra_trips;
 
     const unitPrice = toNumber(departure.price, 0);
-    const subtotal = unitPrice * passengersCount;
+
+    const subtotalFromBody = toNumber(body.subtotal, 0);
+    const calculatedSubtotal = unitPrice * passengersCount;
+    const subtotal = subtotalFromBody > 0 ? subtotalFromBody : calculatedSubtotal;
+
     const optionsTotal = toNumber(body.options_total, 0);
     const roomTotal = toNumber(body.room_total, 0);
-    const totalAmount = subtotal + optionsTotal + roomTotal;
-    const currency = body.currency || trip?.currency || "SEK";
+    const seatExtraTotalFromBody = toNumber(body.seat_extra_total, 0);
 
+    const seatExtraTotalFromPassengers = passengers.reduce(
+      (sum: number, p: any) => sum + toNumber(p?.seat_price, 0),
+      0
+    );
+
+    const seatExtraTotal =
+      seatExtraTotalFromBody > 0
+        ? seatExtraTotalFromBody
+        : seatExtraTotalFromPassengers;
+
+    const discountAmount = toNumber(body.discount_amount, 0);
+    const totalBeforeDiscount =
+      subtotal + optionsTotal + roomTotal + seatExtraTotal;
+
+    const totalAmountFromBody = toNumber(body.total_amount, 0);
+    const totalAmount =
+      totalAmountFromBody > 0
+        ? totalAmountFromBody
+        : Math.max(0, totalBeforeDiscount - discountAmount);
+
+    const currency = body.currency || trip?.currency || "SEK";
     const bookingNumber = makeBookingNumber();
 
     const { data: booking, error: bookingError } = await supabaseAdmin
@@ -206,6 +288,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         subtotal,
         options_total: optionsTotal,
         room_total: roomTotal,
+        seat_extra_total: seatExtraTotal,
+
+        discount_code: body.discount_code || null,
+        discount_amount: discountAmount,
+
         total_amount: totalAmount,
         currency,
 
@@ -221,8 +308,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .single();
 
     if (bookingError) throw bookingError;
-
-    const passengers = Array.isArray(body.passengers) ? body.passengers : [];
 
     if (passengers.length > 0) {
       const passengerRows = passengers.map((p: any) => ({
