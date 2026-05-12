@@ -2,7 +2,7 @@
 
 (async function () {
   const API_BASE = "https://kund.helsingbuss.se";
-  const SITE_BASE = "https://www.helsingbuss.se";
+  const SITE_BASE = "https://kund.helsingbuss.se";
 
   const widgets = document.querySelectorAll("[data-sundra-widget]");
 
@@ -83,10 +83,9 @@
       : "Fler datum";
 
     const price = trip.next_departure?.price || trip.price_from || null;
-
     const slug = escapeHtml(trip.slug || "");
-    const href = `${SITE_BASE}/vara-resor/${slug}`;
 
+    const href = `${SITE_BASE}/resor/${slug}`;
     const imageUrl = trip.image_url || `${API_BASE}/placeholder.jpg`;
 
     return `
@@ -101,11 +100,7 @@
 
           ${
             trip.card_badge
-              ? `
-            <div class="hb-sundra-badge">
-              ${escapeHtml(trip.card_badge)}
-            </div>
-          `
+              ? `<div class="hb-sundra-badge">${escapeHtml(trip.card_badge)}</div>`
               : ""
           }
 
@@ -113,17 +108,10 @@
             trip.campaign_label
               ? `
             <div class="hb-sundra-save">
-              <div class="hb-sundra-save-top">
-                ${escapeHtml(trip.campaign_label)}
-              </div>
-
+              <div class="hb-sundra-save-top">${escapeHtml(trip.campaign_label)}</div>
               ${
                 trip.campaign_text
-                  ? `
-                <div class="hb-sundra-save-bottom">
-                  ${escapeHtml(trip.campaign_text)}
-                </div>
-              `
+                  ? `<div class="hb-sundra-save-bottom">${escapeHtml(trip.campaign_text)}</div>`
                   : ""
               }
             </div>
@@ -152,43 +140,26 @@
             <div>
               ${
                 trip.price_subtext
-                  ? `
-                <div class="hb-sundra-subtext">
-                  ${escapeHtml(trip.price_subtext)}
-                </div>
-              `
+                  ? `<div class="hb-sundra-subtext">${escapeHtml(trip.price_subtext)}</div>`
                   : ""
               }
 
               <div class="hb-sundra-price">
                 ${
                   trip.price_prefix
-                    ? `
-                  <span class="hb-sundra-price-prefix">
-                    ${escapeHtml(trip.price_prefix)}
-                  </span>
-                `
+                    ? `<span class="hb-sundra-price-prefix">${escapeHtml(trip.price_prefix)}</span>`
                     : ""
                 }
-
                 ${price ? formatPrice(price) : ""}
-
                 ${
                   trip.price_suffix
-                    ? `
-                  <span class="hb-sundra-price-suffix">
-                    ${escapeHtml(trip.price_suffix)}
-                  </span>
-                `
+                    ? `<span class="hb-sundra-price-suffix">${escapeHtml(trip.price_suffix)}</span>`
                     : ""
                 }
               </div>
             </div>
 
-            <div
-              class="hb-sundra-arrow"
-              style="background:${theme.bg};"
-            >
+            <div class="hb-sundra-arrow" style="background:${theme.bg};">
               →
             </div>
           </div>
@@ -197,22 +168,46 @@
     `;
   }
 
+  function widgetClass(type) {
+    if (type === "featured") return "hb-sundra-widget hb-sundra-featured";
+    return "hb-sundra-widget hb-sundra-all";
+  }
+
   if (!document.getElementById("hb-sundra-widget-style")) {
     const style = document.createElement("style");
     style.id = "hb-sundra-widget-style";
 
     style.innerHTML = `
+      .hb-sundra-widget{
+        width:100%;
+      }
+
       .hb-sundra-grid{
         display:grid;
-        grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-        gap:24px;
+        gap:22px;
+        width:100%;
+      }
+
+      .hb-sundra-featured .hb-sundra-grid{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+      }
+
+      .hb-sundra-all .hb-sundra-grid{
+        grid-template-columns:repeat(4,minmax(0,1fr));
+      }
+
+      @media (min-width:1500px){
+        .hb-sundra-all .hb-sundra-grid{
+          grid-template-columns:repeat(5,minmax(0,1fr));
+        }
       }
 
       .hb-sundra-card{
         display:flex;
         flex-direction:column;
+        min-width:0;
         background:#fff;
-        border-radius:24px;
+        border-radius:22px;
         overflow:hidden;
         text-decoration:none!important;
         box-shadow:0 10px 30px rgba(0,0,0,.08);
@@ -228,9 +223,13 @@
 
       .hb-sundra-image-wrap{
         position:relative;
-        height:240px;
+        height:190px;
         overflow:hidden;
         background:#eef2f5;
+      }
+
+      .hb-sundra-featured .hb-sundra-image-wrap{
+        height:210px;
       }
 
       .hb-sundra-image{
@@ -247,104 +246,116 @@
 
       .hb-sundra-badge{
         position:absolute;
-        left:16px;
-        top:16px;
+        left:14px;
+        top:14px;
         background:#fff;
         color:#0f172a;
-        font-size:13px;
+        font-size:12px;
         font-weight:700;
         border-radius:999px;
-        padding:8px 14px;
+        padding:7px 12px;
       }
 
       .hb-sundra-save{
         position:absolute;
-        right:16px;
-        top:16px;
+        right:14px;
+        top:14px;
         background:#fff;
-        border-radius:18px;
-        padding:10px 14px;
+        border-radius:16px;
+        padding:9px 12px;
         text-align:right;
         box-shadow:0 8px 20px rgba(0,0,0,.12);
       }
 
       .hb-sundra-save-top{
-        font-size:13px;
+        font-size:12px;
         font-weight:700;
         color:#A61E22;
       }
 
       .hb-sundra-save-bottom{
-        font-size:12px;
+        font-size:11px;
         color:#475569;
         margin-top:2px;
       }
 
       .hb-sundra-content{
-        padding:22px;
+        padding:18px;
       }
 
       .hb-sundra-date{
         display:inline-flex;
         align-items:center;
         border-radius:999px;
-        padding:8px 14px;
-        font-size:13px;
+        padding:7px 12px;
+        font-size:12px;
         font-weight:700;
-        margin-bottom:14px;
+        margin-bottom:12px;
       }
 
       .hb-sundra-title{
-        font-size:24px;
+        font-size:20px;
         line-height:1.2;
         margin:0;
         font-weight:800;
         color:#0f172a;
       }
 
+      .hb-sundra-featured .hb-sundra-title{
+        font-size:22px;
+      }
+
       .hb-sundra-text{
-        margin-top:12px;
-        font-size:15px;
-        line-height:1.6;
+        margin-top:10px;
+        font-size:14px;
+        line-height:1.55;
         color:#475569;
+        display:-webkit-box;
+        -webkit-line-clamp:3;
+        -webkit-box-orient:vertical;
+        overflow:hidden;
       }
 
       .hb-sundra-footer{
-        margin-top:22px;
+        margin-top:18px;
         display:flex;
         align-items:flex-end;
         justify-content:space-between;
-        gap:14px;
+        gap:12px;
       }
 
       .hb-sundra-subtext{
-        font-size:12px;
+        font-size:11px;
         color:#64748b;
         margin-bottom:4px;
       }
 
       .hb-sundra-price{
-        font-size:28px;
+        font-size:23px;
         font-weight:800;
         color:#0f172a;
       }
 
+      .hb-sundra-featured .hb-sundra-price{
+        font-size:26px;
+      }
+
       .hb-sundra-price-prefix,
       .hb-sundra-price-suffix{
-        font-size:14px;
+        font-size:13px;
         font-weight:600;
         color:#64748b;
       }
 
       .hb-sundra-arrow{
-        width:52px;
-        height:52px;
+        width:46px;
+        height:46px;
         border-radius:999px;
         display:flex;
         align-items:center;
         justify-content:center;
         color:#fff;
-        font-size:22px;
+        font-size:20px;
         font-weight:700;
         flex-shrink:0;
       }
@@ -365,17 +376,47 @@
         background:#fff5f5;
       }
 
+      @media (max-width:1100px){
+        .hb-sundra-featured .hb-sundra-grid,
+        .hb-sundra-all .hb-sundra-grid{
+          grid-template-columns:repeat(2,minmax(0,1fr));
+        }
+      }
+
       @media (max-width:768px){
         .hb-sundra-grid{
-          grid-template-columns:1fr;
+          display:flex;
+          overflow-x:auto;
+          gap:16px;
+          padding:4px 18px 18px 4px;
+          scroll-snap-type:x mandatory;
+          -webkit-overflow-scrolling:touch;
         }
 
-        .hb-sundra-title{
-          font-size:22px;
+        .hb-sundra-grid::-webkit-scrollbar{
+          display:none;
         }
 
-        .hb-sundra-image-wrap{
-          height:220px;
+        .hb-sundra-card{
+          min-width:84%;
+          max-width:84%;
+          scroll-snap-align:start;
+          border-radius:22px;
+        }
+
+        .hb-sundra-image-wrap,
+        .hb-sundra-featured .hb-sundra-image-wrap{
+          height:205px;
+        }
+
+        .hb-sundra-title,
+        .hb-sundra-featured .hb-sundra-title{
+          font-size:21px;
+        }
+
+        .hb-sundra-price,
+        .hb-sundra-featured .hb-sundra-price{
+          font-size:24px;
         }
       }
     `;
@@ -387,6 +428,8 @@
     const type = widget.getAttribute("data-sundra-widget") || "all";
 
     try {
+      widget.className = `${widget.className || ""} ${widgetClass(type)}`.trim();
+
       widget.innerHTML = `
         <div class="hb-sundra-loading">
           Laddar resor...
