@@ -3,7 +3,38 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  // =========================
+  // CORS
+  // =========================
+
+  res.setHeader(
+    "Access-Control-Allow-Origin",
+    "https://www.helsingbuss.se"
+  );
+
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, OPTIONS"
+  );
+
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization"
+  );
+
+  res.setHeader(
+    "Access-Control-Allow-Credentials",
+    "true"
+  );
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   try {
     if (req.method !== "GET") {
       return res.status(405).json({
@@ -70,7 +101,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const departures = (trip.sundra_departures || [])
         .filter((dep: any) => dep.status === "open")
         .sort((a: any, b: any) =>
-          String(a.departure_date).localeCompare(String(b.departure_date))
+          String(a.departure_date).localeCompare(
+            String(b.departure_date)
+          )
         );
 
       const nextDeparture = departures[0] || null;
@@ -111,13 +144,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         next_departure: nextDeparture
           ? {
               id: nextDeparture.id,
-              departure_date: nextDeparture.departure_date,
-              departure_time: nextDeparture.departure_time,
+              departure_date:
+                nextDeparture.departure_date,
+              departure_time:
+                nextDeparture.departure_time,
               return_date: nextDeparture.return_date,
               return_time: nextDeparture.return_time,
               price: nextDeparture.price,
               capacity: nextDeparture.capacity,
-              booked_count: nextDeparture.booked_count,
+              booked_count:
+                nextDeparture.booked_count,
               seats_left: seatsLeft,
             }
           : null,
@@ -132,11 +168,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       trips,
     });
   } catch (e: any) {
-    console.error("/api/public/sundra/trips error:", e?.message || e);
+    console.error(
+      "/api/public/sundra/trips error:",
+      e?.message || e
+    );
 
     return res.status(500).json({
       ok: false,
-      error: e?.message || "Kunde inte hämta publika resor.",
+      error:
+        e?.message ||
+        "Kunde inte hämta publika resor.",
     });
   }
 }
