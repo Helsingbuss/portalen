@@ -2,7 +2,7 @@
 
 (async function () {
   const API_BASE = "https://kund.helsingbuss.se";
-const SITE_BASE = "https://www.helsingbuss.se";
+  const SITE_BASE = "https://www.helsingbuss.se";
 
   const widgets = document.querySelectorAll("[data-sundra-widget]");
 
@@ -44,12 +44,16 @@ const SITE_BASE = "https://www.helsingbuss.se";
     switch (theme) {
       case "blue":
         return { bg: "#194C66", badge: "#cce7ff", badgeText: "#194C66" };
+
       case "green":
         return { bg: "#1f5c4d", badge: "#d7f5e8", badgeText: "#1f5c4d" };
+
       case "dark":
         return { bg: "#25292C", badge: "#ffffff", badgeText: "#25292C" };
+
       case "teal":
         return { bg: "#006A6A", badge: "#d9ffff", badgeText: "#006A6A" };
+
       default:
         return { bg: "#A61E22", badge: "#ffe4e4", badgeText: "#A61E22" };
     }
@@ -83,13 +87,20 @@ const SITE_BASE = "https://www.helsingbuss.se";
       : "Fler datum";
 
     const price = trip.next_departure?.price || trip.price_from || null;
+
     const slug = escapeHtml(trip.slug || "");
 
     const href = `${SITE_BASE}/vara-resor/${slug}`;
-    const imageUrl = trip.image_url || `${API_BASE}/placeholder.jpg`;
+
+    const imageUrl =
+      trip.image_url || `${API_BASE}/placeholder.jpg`;
 
     return `
-      <a href="${href}" class="hb-sundra-card">
+      <a
+        href="${href}"
+        class="hb-sundra-card"
+        data-hb-trip-link="${href}"
+      >
         <div class="hb-sundra-image-wrap">
           <img
             src="${escapeHtml(imageUrl)}"
@@ -100,22 +111,33 @@ const SITE_BASE = "https://www.helsingbuss.se";
 
           ${
             trip.card_badge
-              ? `<div class="hb-sundra-badge">${escapeHtml(trip.card_badge)}</div>`
+              ? `
+                <div class="hb-sundra-badge">
+                  ${escapeHtml(trip.card_badge)}
+                </div>
+              `
               : ""
           }
 
           ${
             trip.campaign_label
               ? `
-            <div class="hb-sundra-save">
-              <div class="hb-sundra-save-top">${escapeHtml(trip.campaign_label)}</div>
-              ${
-                trip.campaign_text
-                  ? `<div class="hb-sundra-save-bottom">${escapeHtml(trip.campaign_text)}</div>`
-                  : ""
-              }
-            </div>
-          `
+                <div class="hb-sundra-save">
+                  <div class="hb-sundra-save-top">
+                    ${escapeHtml(trip.campaign_label)}
+                  </div>
+
+                  ${
+                    trip.campaign_text
+                      ? `
+                        <div class="hb-sundra-save-bottom">
+                          ${escapeHtml(trip.campaign_text)}
+                        </div>
+                      `
+                      : ""
+                  }
+                </div>
+              `
               : ""
           }
         </div>
@@ -133,33 +155,54 @@ const SITE_BASE = "https://www.helsingbuss.se";
           </h3>
 
           <p class="hb-sundra-text">
-            ${escapeHtml(trip.card_description || trip.short_description || "")}
+            ${escapeHtml(
+              trip.card_description ||
+              trip.short_description ||
+              ""
+            )}
           </p>
 
           <div class="hb-sundra-footer">
             <div>
               ${
                 trip.price_subtext
-                  ? `<div class="hb-sundra-subtext">${escapeHtml(trip.price_subtext)}</div>`
+                  ? `
+                    <div class="hb-sundra-subtext">
+                      ${escapeHtml(trip.price_subtext)}
+                    </div>
+                  `
                   : ""
               }
 
               <div class="hb-sundra-price">
                 ${
                   trip.price_prefix
-                    ? `<span class="hb-sundra-price-prefix">${escapeHtml(trip.price_prefix)}</span>`
+                    ? `
+                      <span class="hb-sundra-price-prefix">
+                        ${escapeHtml(trip.price_prefix)}
+                      </span>
+                    `
                     : ""
                 }
+
                 ${price ? formatPrice(price) : ""}
+
                 ${
                   trip.price_suffix
-                    ? `<span class="hb-sundra-price-suffix">${escapeHtml(trip.price_suffix)}</span>`
+                    ? `
+                      <span class="hb-sundra-price-suffix">
+                        ${escapeHtml(trip.price_suffix)}
+                      </span>
+                    `
                     : ""
                 }
               </div>
             </div>
 
-            <div class="hb-sundra-arrow" style="background:${theme.bg};">
+            <div
+              class="hb-sundra-arrow"
+              style="background:${theme.bg};"
+            >
               →
             </div>
           </div>
@@ -169,12 +212,16 @@ const SITE_BASE = "https://www.helsingbuss.se";
   }
 
   function widgetClass(type) {
-    if (type === "featured") return "hb-sundra-widget hb-sundra-featured";
+    if (type === "featured") {
+      return "hb-sundra-widget hb-sundra-featured";
+    }
+
     return "hb-sundra-widget hb-sundra-all";
   }
 
   if (!document.getElementById("hb-sundra-widget-style")) {
     const style = document.createElement("style");
+
     style.id = "hb-sundra-widget-style";
 
     style.innerHTML = `
@@ -214,6 +261,7 @@ const SITE_BASE = "https://www.helsingbuss.se";
         transition:.25s ease;
         color:#0f172a;
         position:relative;
+        cursor:pointer;
       }
 
       .hb-sundra-card:hover{
@@ -425,7 +473,8 @@ const SITE_BASE = "https://www.helsingbuss.se";
   }
 
   for (const widget of widgets) {
-    const type = widget.getAttribute("data-sundra-widget") || "all";
+    const type =
+      widget.getAttribute("data-sundra-widget") || "all";
 
     try {
       widget.className = `${widget.className || ""} ${widgetClass(type)}`.trim();
@@ -462,4 +511,19 @@ const SITE_BASE = "https://www.helsingbuss.se";
       `;
     }
   }
+
+  document.addEventListener("click", function (e) {
+    const card = e.target.closest(".hb-sundra-card");
+
+    if (!card) return;
+
+    const url =
+      card.getAttribute("data-hb-trip-link") ||
+      card.getAttribute("href");
+
+    if (url) {
+      e.preventDefault();
+      window.location.href = url;
+    }
+  });
 })();
