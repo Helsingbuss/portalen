@@ -106,6 +106,10 @@ export default function TripPage() {
   const [qty, setQty] = useState(1);
   const [seatChoiceEnabled, setSeatChoiceEnabled] = useState(false);
 
+  const [showTripInfo, setShowTripInfo] = useState(false);
+  const [showMoreFacts, setShowMoreFacts] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -132,7 +136,9 @@ export default function TripPage() {
   }, [trip]);
 
   const calendarDays = useMemo(() => {
-    const base = selectedDeparture?.departure_date || sortedDepartures[0]?.departure_date;
+    const base =
+      selectedDeparture?.departure_date || sortedDepartures[0]?.departure_date;
+
     if (!base) return [];
 
     const baseDate = new Date(`${base}T00:00:00`);
@@ -141,9 +147,12 @@ export default function TripPage() {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
     const departuresByDay = new Map<number, Departure>();
+
     sortedDepartures.forEach((dep) => {
       if (!dep.departure_date) return;
+
       const d = new Date(`${dep.departure_date}T00:00:00`);
+
       if (d.getFullYear() === year && d.getMonth() === month) {
         departuresByDay.set(d.getDate(), dep);
       }
@@ -164,13 +173,20 @@ export default function TripPage() {
   }, [slug]);
 
   useEffect(() => {
-    const names = Array.from({ length: qty }).map((_, index) => passengerNames[index] || "");
+    const names = Array.from({ length: qty }).map(
+      (_, index) => passengerNames[index] || ""
+    );
+
     setPassengerNames(names);
     setSelectedSeats((prev) => prev.slice(0, qty));
   }, [qty]);
 
   useEffect(() => {
-    if (!seatChoiceEnabled || !selectedDeparture?.id || !selectedDeparture.has_seat_map) {
+    if (
+      !seatChoiceEnabled ||
+      !selectedDeparture?.id ||
+      !selectedDeparture.has_seat_map
+    ) {
       setSeats([]);
       setSelectedSeats([]);
       return;
@@ -252,8 +268,16 @@ export default function TripPage() {
       return;
     }
 
-    if (step === 3 && seatChoiceEnabled && selectedDeparture?.has_seat_map && selectedSeats.length > 0 && selectedSeats.length !== qty) {
-      alert(`Du har valt ${selectedSeats.length} säte(n), men antal resenärer är ${qty}.`);
+    if (
+      step === 3 &&
+      seatChoiceEnabled &&
+      selectedDeparture?.has_seat_map &&
+      selectedSeats.length > 0 &&
+      selectedSeats.length !== qty
+    ) {
+      alert(
+        `Du har valt ${selectedSeats.length} säte(n), men antal resenärer är ${qty}.`
+      );
       return;
     }
 
@@ -305,7 +329,9 @@ export default function TripPage() {
         selectedSeats.length > 0 &&
         selectedSeats.length !== qty
       ) {
-        alert(`Du har valt ${selectedSeats.length} säte(n), men antal resenärer är ${qty}.`);
+        alert(
+          `Du har valt ${selectedSeats.length} säte(n), men antal resenärer är ${qty}.`
+        );
         setStep(3);
         return;
       }
@@ -313,7 +339,9 @@ export default function TripPage() {
       setBookingLoading(true);
 
       const passengers = Array.from({ length: qty }).map((_, index) => {
-        const passengerName = passengerNames[index] || (index === 0 ? customerName : "");
+        const passengerName =
+          passengerNames[index] || (index === 0 ? customerName : "");
+
         const seatNumber = selectedSeats[index] || null;
         const seat = seats.find((s) => s.seat_number === seatNumber);
 
@@ -359,9 +387,12 @@ export default function TripPage() {
       }
 
       const link = json.checkout_url || json.payment_url || json.redirect_url;
+
       if (!link) throw new Error("Ingen betalningslänk skapades.");
 
-      window.location.href = link.startsWith("http") ? link : `${API_BASE}${link}`;
+      window.location.href = link.startsWith("http")
+        ? link
+        : `${API_BASE}${link}`;
     } catch (e: any) {
       alert(e?.message || "Något gick fel vid bokning.");
     } finally {
@@ -370,7 +401,11 @@ export default function TripPage() {
   }
 
   if (loading) {
-    return <div className="min-h-screen bg-white p-8 text-[#006f7f]">Laddar resa...</div>;
+    return (
+      <div className="min-h-screen bg-white p-8 text-[#006f7f]">
+        Laddar resa...
+      </div>
+    );
   }
 
   if (error || !trip) {
@@ -382,13 +417,15 @@ export default function TripPage() {
   }
 
   const firstDeparture = selectedDeparture || sortedDepartures[0];
-  const selectedShort = fmtShortDate(firstDeparture?.departure_date);
 
   return (
     <>
       <Head>
         <title>{trip.seo_title || trip.title}</title>
-        <meta name="description" content={trip.seo_description || trip.short_description || ""} />
+        <meta
+          name="description"
+          content={trip.seo_description || trip.short_description || ""}
+        />
       </Head>
 
       <div className="min-h-screen bg-white text-[#111827]">
@@ -397,87 +434,191 @@ export default function TripPage() {
 
           {step === 1 && (
             <section>
-              <h1 className="mb-4 text-3xl font-bold text-[#5d6670]">Välj resa</h1>
+              <h1 className="mb-7 text-4xl font-black tracking-[-0.04em] text-[#1f2937]">
+                Välj resa
+              </h1>
 
-              <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                <div className="grid gap-0 lg:grid-cols-[340px_1fr]">
-                  <div className="p-7">
-                    <div className="mb-3 inline-flex rounded-md border px-3 py-1 text-sm font-semibold text-[#007f91]">
-                      📍 {trip.destination || trip.country || "Destination"}
+              <div className="rounded-[22px] border border-gray-200 bg-white p-6 shadow-[0_12px_35px_rgba(15,23,42,.07)]">
+                <div className="grid gap-8 lg:grid-cols-[300px_1fr]">
+                  <div>
+                    <div className="mb-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-[#00866f]">
+                      📍 {trip.destination || trip.location || "Destination"}
                     </div>
 
-                    <h2 className="text-2xl font-bold text-[#111827]">{trip.title}</h2>
+                    <h2 className="text-3xl font-black tracking-[-0.04em] text-[#111827]">
+                      {trip.title}
+                    </h2>
 
-                    <div className="mt-2 inline-flex rounded-md bg-[#2aa89a] px-4 py-2 text-sm font-bold text-white">
+                    <div className="mt-4 inline-flex rounded-xl bg-[#00866f] px-5 py-2 text-sm font-black text-white shadow">
                       {trip.category || "Helsingbuss Resor"}
                     </div>
 
-                    <p className="mt-5 leading-7 text-gray-700">
-                      {trip.short_description || "Följ med på en bekväm och trygg resa med Helsingbuss."}
+                    <p className="mt-6 text-base leading-8 text-gray-700">
+                      {trip.short_description ||
+                        "Följ med Helsingbuss på en bekväm resa med tydlig information och trygg bokning från start till mål."}
                     </p>
 
-                    <button className="mt-4 font-bold text-[#00879a]">
+                    <button
+                      type="button"
+                      onClick={() => setShowTripInfo((prev) => !prev)}
+                      className="mt-5 flex items-center gap-2 text-sm font-black text-[#00866f]"
+                    >
                       Läs mer om resan
+                      <span>{showTripInfo ? "⌃" : "⌄"}</span>
                     </button>
 
-                    <div className="mt-5 rounded-2xl bg-[#ddf3ed] p-5">
-                      <div className="mb-3 text-lg font-bold text-[#5d6670]">Fakta</div>
+                    <div className="mt-6 rounded-[22px] bg-[#e2f7f1] p-6">
+                      <h3 className="mb-5 text-2xl font-black text-[#5d6670]">
+                        Fakta
+                      </h3>
+
                       <FactRow label="Kategori" value={trip.category || "Resa"} />
-                      <FactRow label="Destination" value={trip.destination || "Ej angivet"} />
+                      <FactRow
+                        label="Destination"
+                        value={trip.destination || "Ej angivet"}
+                      />
                       <FactRow label="Land" value={trip.country || "Sverige"} />
-                      <FactRow label="Avgångar" value={`${sortedDepartures.length}`} />
+                      <FactRow
+                        label="Avgångar"
+                        value={`${sortedDepartures.length}`}
+                      />
                       <FactRow label="Pris från" value={money(trip.price_from)} />
 
-                      <button className="mt-4 rounded-full bg-[#00866f] px-6 py-2 text-sm font-bold text-white">
-                        Mer fakta
+                      <button
+                        type="button"
+                        onClick={() => setShowMoreFacts((prev) => !prev)}
+                        className="mt-6 rounded-full bg-[#00866f] px-7 py-3 text-sm font-black text-white shadow"
+                      >
+                        Mer fakta {showMoreFacts ? "⌃" : "⌄"}
                       </button>
                     </div>
                   </div>
 
-                  <div className="grid gap-2 p-6 lg:grid-cols-[1fr_220px]">
-                    <div className="min-h-[420px] overflow-hidden rounded-sm bg-gray-100">
-                      {trip.image_url ? (
-                        <img src={trip.image_url} alt={trip.title} className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-gray-400">Bild saknas</div>
-                      )}
+                  <div>
+                    <div className="grid gap-4 lg:grid-cols-[1fr_210px]">
+                      <button
+                        type="button"
+                        onClick={() => setGalleryOpen(true)}
+                        className="h-[430px] overflow-hidden rounded-xl bg-gray-100"
+                      >
+                        {trip.image_url ? (
+                          <img
+                            src={trip.image_url}
+                            alt={trip.title}
+                            className="h-full w-full object-cover transition duration-500 hover:scale-[1.03]"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-gray-400">
+                            Bild saknas
+                          </div>
+                        )}
+                      </button>
+
+                      <div className="grid gap-4">
+                        <button
+                          type="button"
+                          onClick={() => setGalleryOpen(true)}
+                          className="overflow-hidden rounded-xl bg-gray-100"
+                        >
+                          {trip.image_url && (
+                            <img
+                              src={trip.image_url}
+                              alt=""
+                              className="h-full w-full object-cover transition duration-500 hover:scale-[1.04]"
+                            />
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setGalleryOpen(true)}
+                          className="relative overflow-hidden rounded-xl bg-gray-100"
+                        >
+                          {trip.image_url && (
+                            <img
+                              src={trip.image_url}
+                              alt=""
+                              className="h-full w-full object-cover transition duration-500 hover:scale-[1.04]"
+                            />
+                          )}
+
+                          <div className="absolute bottom-4 right-4 rounded-xl bg-[#1f2937] px-5 py-3 text-sm font-black text-white shadow">
+                            🖼 Fler bilder
+                          </div>
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="hidden gap-2 lg:grid">
-                      <div className="overflow-hidden rounded-sm bg-gray-100">
-                        {trip.image_url && <img src={trip.image_url} alt="" className="h-full w-full object-cover" />}
+                    {trip.campaign_text && (
+                      <div className="ml-auto mt-5 max-w-[380px] rounded-2xl bg-white p-5 text-sm italic text-gray-700 shadow-[0_12px_30px_rgba(15,23,42,.12)]">
+                        “{trip.campaign_text}”
                       </div>
-                      <div className="relative overflow-hidden rounded-sm bg-gray-100">
-                        {trip.image_url && <img src={trip.image_url} alt="" className="h-full w-full object-cover" />}
-                        <div className="absolute bottom-3 right-3 rounded-full bg-[#006f7f] px-3 py-2 text-sm font-bold text-white">
-                          📷 fler
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="lg:col-span-2">
-                      <div className="mt-3 rounded-xl bg-white p-4 shadow-md lg:ml-auto lg:w-[360px]">
-                        <em className="text-sm text-gray-700">
-                          “{trip.campaign_text || "En välplanerad resa med trygg bokning och tydlig information."}”
-                        </em>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <NavigationButtons
-                step={step}
-                onPrevious={previousStep}
-                onNext={nextStep}
-                nextLabel="Nästa steg"
-              />
+              {showTripInfo && (
+                <InfoAccordion
+                  icon="🚌"
+                  title="Om resan"
+                  text={
+                    trip.description ||
+                    trip.short_description ||
+                    "Här visas mer information om resans upplägg, tider, komfort och vad som är bra att veta inför avresa."
+                  }
+                />
+              )}
+
+              {showMoreFacts && (
+                <InfoAccordion
+                  icon="ℹ️"
+                  title="Mer fakta"
+                  text={`Destination: ${trip.destination || "Ej angivet"}\nKategori: ${
+                    trip.category || "Resa"
+                  }\nLand: ${trip.country || "Sverige"}\nAntal avgångar: ${
+                    sortedDepartures.length
+                  }\nPris från: ${money(trip.price_from)}`}
+                />
+              )}
+
+              <div className="mt-8 flex flex-wrap items-center justify-between gap-5">
+                <div className="flex items-center gap-3 text-sm text-gray-600">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#e2f7f1] text-2xl">
+                    🌍
+                  </div>
+                  <div>
+                    <div className="font-bold text-[#1f2937]">
+                      Res tryggt med Helsingbuss
+                    </div>
+                    <div>Smidig bokning från start till mål</div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="rounded-full bg-[#00866f] px-12 py-4 text-base font-black text-white shadow-[0_12px_28px_rgba(0,134,111,.25)] transition hover:translate-y-[-2px]"
+                >
+                  Nästa steg →
+                </button>
+              </div>
+
+              {galleryOpen && (
+                <ImageGalleryModal
+                  title={trip.title}
+                  imageUrl={trip.image_url}
+                  onClose={() => setGalleryOpen(false)}
+                />
+              )}
             </section>
           )}
 
           {step === 2 && (
             <section>
-              <h1 className="mb-2 text-3xl font-bold text-[#5d6670]">Priskalender</h1>
+              <h1 className="mb-2 text-3xl font-bold text-[#5d6670]">
+                Priskalender
+              </h1>
 
               <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
                 <div className="mb-5 flex items-center justify-between text-[#00879a]">
@@ -489,11 +630,16 @@ export default function TripPage() {
                 </div>
 
                 <div className="grid grid-cols-7 gap-3 text-center">
-                  {["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"].map((day) => (
-                    <div key={day} className="pb-2 text-lg font-semibold text-[#111827]">
-                      {day}
-                    </div>
-                  ))}
+                  {["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"].map(
+                    (day) => (
+                      <div
+                        key={day}
+                        className="pb-2 text-lg font-semibold text-[#111827]"
+                      >
+                        {day}
+                      </div>
+                    )
+                  )}
 
                   {calendarDays.map(({ day, departure }) => {
                     const active = departure?.id === selectedDepartureId;
@@ -512,8 +658,8 @@ export default function TripPage() {
                           active
                             ? "border-[#008aa0] bg-[#e4fbff] shadow"
                             : available
-                              ? "border-gray-300 bg-white hover:border-[#008aa0]"
-                              : "border-gray-200 bg-gray-100 text-gray-400"
+                            ? "border-gray-300 bg-white hover:border-[#008aa0]"
+                            : "border-gray-200 bg-gray-100 text-gray-400"
                         }`}
                       >
                         {active && (
@@ -531,7 +677,9 @@ export default function TripPage() {
                               {money(departure?.price || trip.price_from)}
                             </div>
                             <div className="mt-1 text-xs text-[#00879a]">
-                              {active ? "Vald ✓" : `${departure?.seats_left ?? 0} platser`}
+                              {active
+                                ? "Vald ✓"
+                                : `${departure?.seats_left ?? 0} platser`}
                             </div>
                           </>
                         ) : (
@@ -592,9 +740,12 @@ export default function TripPage() {
 
               {seatChoiceEnabled && (
                 <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                  <h2 className="text-2xl font-bold text-[#5d6670]">Välj plats i bussen</h2>
+                  <h2 className="text-2xl font-bold text-[#5d6670]">
+                    Välj plats i bussen
+                  </h2>
                   <p className="mt-1 text-sm text-gray-600">
-                    Du kan välja upp till {qty} plats(er). Om du inte väljer plats placerar vi dig automatiskt.
+                    Du kan välja upp till {qty} plats(er). Om du inte väljer plats
+                    placerar vi dig automatiskt.
                   </p>
 
                   {!selectedDeparture?.has_seat_map ? (
@@ -602,9 +753,13 @@ export default function TripPage() {
                       Det finns ingen platskarta kopplad till denna avgång ännu.
                     </p>
                   ) : seatLoading ? (
-                    <p className="mt-5 text-sm text-gray-500">Laddar platskarta...</p>
+                    <p className="mt-5 text-sm text-gray-500">
+                      Laddar platskarta...
+                    </p>
                   ) : seats.length === 0 ? (
-                    <p className="mt-5 text-sm text-gray-500">Platskarta saknas för denna avgång.</p>
+                    <p className="mt-5 text-sm text-gray-500">
+                      Platskarta saknas för denna avgång.
+                    </p>
                   ) : (
                     <div className="mt-5">
                       <SeatMap
@@ -658,38 +813,69 @@ export default function TripPage() {
 
                 <div className="grid gap-5">
                   <FormRow label="E-post *">
-                    <input value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} className="hb-input" />
+                    <input
+                      value={customerEmail}
+                      onChange={(e) => setCustomerEmail(e.target.value)}
+                      className="hb-input"
+                    />
                   </FormRow>
 
                   <FormRow label="Mobiltelefon *">
-                    <input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} className="hb-input" />
+                    <input
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      className="hb-input"
+                    />
                   </FormRow>
 
                   <FormRow label="Namn *">
-                    <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="hb-input" />
+                    <input
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="hb-input"
+                    />
                   </FormRow>
 
                   <FormRow label="Adress">
-                    <input value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} className="hb-input" />
+                    <input
+                      value={customerAddress}
+                      onChange={(e) => setCustomerAddress(e.target.value)}
+                      className="hb-input"
+                    />
                   </FormRow>
 
                   <FormRow label="Postnummer">
-                    <input value={customerZip} onChange={(e) => setCustomerZip(e.target.value)} className="hb-input" />
+                    <input
+                      value={customerZip}
+                      onChange={(e) => setCustomerZip(e.target.value)}
+                      className="hb-input"
+                    />
                   </FormRow>
 
                   <FormRow label="Stad">
-                    <input value={customerCity} onChange={(e) => setCustomerCity(e.target.value)} className="hb-input" />
+                    <input
+                      value={customerCity}
+                      onChange={(e) => setCustomerCity(e.target.value)}
+                      className="hb-input"
+                    />
                   </FormRow>
                 </div>
               </div>
 
               <div className="mt-8 rounded-xl border border-gray-200 bg-[#f7f7f7] p-6">
-                <h2 className="mb-4 text-xl font-bold text-[#5d6670]">Resenärer</h2>
+                <h2 className="mb-4 text-xl font-bold text-[#5d6670]">
+                  Resenärer
+                </h2>
 
                 <div className="space-y-4">
                   {Array.from({ length: qty }).map((_, index) => (
-                    <div key={index} className="grid gap-3 rounded-lg bg-white p-4 md:grid-cols-[120px_1fr]">
-                      <div className="font-bold text-gray-700">Resenär {index + 1}</div>
+                    <div
+                      key={index}
+                      className="grid gap-3 rounded-lg bg-white p-4 md:grid-cols-[120px_1fr]"
+                    >
+                      <div className="font-bold text-gray-700">
+                        Resenär {index + 1}
+                      </div>
                       <input
                         value={passengerNames[index] || ""}
                         onChange={(e) => {
@@ -706,10 +892,13 @@ export default function TripPage() {
               </div>
 
               <div className="mt-8 rounded-xl border border-gray-200 bg-[#f7f7f7] p-6">
-                <h2 className="mb-3 text-lg font-bold text-[#5d6670]">Bekräftelse</h2>
+                <h2 className="mb-3 text-lg font-bold text-[#5d6670]">
+                  Bekräftelse
+                </h2>
                 <label className="flex gap-3 text-sm text-gray-700">
                   <input type="checkbox" className="mt-1" />
-                  Jag bekräftar att uppgifterna stämmer och att jag vill fortsätta till betalning.
+                  Jag bekräftar att uppgifterna stämmer och att jag vill fortsätta
+                  till betalning.
                 </label>
               </div>
 
@@ -735,7 +924,8 @@ export default function TripPage() {
                 </h1>
 
                 <p className="mb-6 text-gray-700">
-                  Kontrollera att uppgifterna stämmer. När du går vidare skapas bokningen och du skickas till säker betalning.
+                  Kontrollera att uppgifterna stämmer. När du går vidare skapas
+                  bokningen och du skickas till säker betalning.
                 </p>
 
                 <TravelOverview
@@ -747,7 +937,9 @@ export default function TripPage() {
                 />
 
                 <div className="mt-8 rounded-xl border border-gray-200 bg-white p-6">
-                  <h2 className="mb-4 text-xl font-bold text-[#5d6670]">Betalningsmetod</h2>
+                  <h2 className="mb-4 text-xl font-bold text-[#5d6670]">
+                    Betalningsmetod
+                  </h2>
 
                   <div className="grid gap-6 md:grid-cols-[1fr_320px]">
                     <div className="space-y-3">
@@ -756,7 +948,9 @@ export default function TripPage() {
                     </div>
 
                     <div className="rounded-xl bg-[#f7fdff] p-6 text-center">
-                      <div className="text-sm text-gray-600">Betalningsbelopp</div>
+                      <div className="text-sm text-gray-600">
+                        Betalningsbelopp
+                      </div>
                       <div className="mt-2 text-3xl font-bold text-[#00866f]">
                         {money(total)}
                       </div>
@@ -833,7 +1027,9 @@ function Stepper({ step }: { step: Step }) {
               >
                 {nr}
               </span>
-              <span className={active ? "font-bold text-[#5d6670]" : "text-gray-500"}>
+              <span
+                className={active ? "font-bold text-[#5d6670]" : "text-gray-500"}
+              >
                 {label}
               </span>
             </div>
@@ -900,13 +1096,19 @@ function TravelOverview({
 }) {
   return (
     <div className="mt-8">
-      <h2 className="mb-5 text-3xl font-bold text-[#5d6670]">Din resa - översikt</h2>
+      <h2 className="mb-5 text-3xl font-bold text-[#5d6670]">
+        Din resa - översikt
+      </h2>
 
       <div className="grid gap-8 md:grid-cols-3">
         <div>
           <h3 className="border-b pb-3 text-xl text-[#5d6670]">Resa</h3>
           {trip.image_url && (
-            <img src={trip.image_url} alt={trip.title} className="mt-4 h-44 w-full object-cover" />
+            <img
+              src={trip.image_url}
+              alt={trip.title}
+              className="mt-4 h-44 w-full object-cover"
+            />
           )}
           <div className="mt-4 font-bold">{trip.title}</div>
           <InfoLine label="Kategori" value={trip.category || "Resa"} />
@@ -919,11 +1121,32 @@ function TravelOverview({
         <div>
           <h3 className="border-b pb-3 text-xl text-[#5d6670]">Avgång</h3>
           <div className="mt-4">
-            <InfoLine label="Datum" value={departure ? fmtDate(departure.departure_date) : "Ej valt"} />
-            <InfoLine label="Avresa" value={departure ? fmtTime(departure.departure_time) : "Ej valt"} />
-            <InfoLine label="Retur" value={departure?.return_time ? fmtTime(departure.return_time) : "Ej angivet"} />
-            <InfoLine label="Från" value={departure?.departure_location || "Meddelas"} />
-            <InfoLine label="Till" value={departure?.destination_location || trip.destination || "Destination"} />
+            <InfoLine
+              label="Datum"
+              value={departure ? fmtDate(departure.departure_date) : "Ej valt"}
+            />
+            <InfoLine
+              label="Avresa"
+              value={departure ? fmtTime(departure.departure_time) : "Ej valt"}
+            />
+            <InfoLine
+              label="Retur"
+              value={
+                departure?.return_time ? fmtTime(departure.return_time) : "Ej angivet"
+              }
+            />
+            <InfoLine
+              label="Från"
+              value={departure?.departure_location || "Meddelas"}
+            />
+            <InfoLine
+              label="Till"
+              value={
+                departure?.destination_location ||
+                trip.destination ||
+                "Destination"
+              }
+            />
           </div>
         </div>
 
@@ -931,7 +1154,9 @@ function TravelOverview({
           <h3 className="border-b pb-3 text-xl text-[#5d6670]">Pris</h3>
           <div className="mt-4 flex justify-between">
             <span>Totalpris:</span>
-            <span className="text-3xl font-bold text-[#d83b4a]">{money(total)}</span>
+            <span className="text-3xl font-bold text-[#d83b4a]">
+              {money(total)}
+            </span>
           </div>
           <p className="mt-5 text-gray-600">
             Priset kan ändras fram tills att resan är bokad.
@@ -985,13 +1210,19 @@ function AddonCard({
     >
       <div
         className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border-4 text-3xl ${
-          active ? "border-[#00879a] text-[#00879a]" : "border-[#a7e8ef] text-[#a7e8ef]"
+          active
+            ? "border-[#00879a] text-[#00879a]"
+            : "border-[#a7e8ef] text-[#a7e8ef]"
         }`}
       >
         {icon}
       </div>
       <h3 className="text-xl font-bold">{title}</h3>
-      <p className={`mt-4 min-h-[90px] text-sm leading-6 ${active ? "text-gray-700" : "text-white/85"}`}>
+      <p
+        className={`mt-4 min-h-[90px] text-sm leading-6 ${
+          active ? "text-gray-700" : "text-white/85"
+        }`}
+      >
         {text}
       </p>
       <button
@@ -1002,8 +1233,8 @@ function AddonCard({
           active
             ? "bg-[#00866f] text-white"
             : disabled
-              ? "bg-gray-500 text-white/60"
-              : "bg-[#00866f] text-white"
+            ? "bg-gray-500 text-white/60"
+            : "bg-[#00866f] text-white"
         }`}
       >
         {buttonLabel}
@@ -1027,11 +1258,90 @@ function FormRow({
   );
 }
 
-function PaymentOption({ label, checked = false }: { label: string; checked?: boolean }) {
+function PaymentOption({
+  label,
+  checked = false,
+}: {
+  label: string;
+  checked?: boolean;
+}) {
   return (
     <label className="flex items-center gap-3 border-b py-3 text-sm">
       <input type="radio" name="payment" defaultChecked={checked} />
       {label}
     </label>
+  );
+}
+
+function InfoAccordion({
+  icon,
+  title,
+  text,
+}: {
+  icon: string;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="mt-8 rounded-[22px] border border-gray-200 bg-white p-7 shadow-[0_10px_30px_rgba(15,23,42,.06)]">
+      <div className="flex gap-5">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#e2f7f1] text-2xl">
+          {icon}
+        </div>
+
+        <div>
+          <h3 className="text-2xl font-black text-[#1f2937]">{title}</h3>
+          <div className="mt-3 whitespace-pre-line text-base leading-8 text-gray-600">
+            {text}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ImageGalleryModal({
+  title,
+  imageUrl,
+  onClose,
+}: {
+  title: string;
+  imageUrl?: string | null;
+  onClose: () => void;
+}) {
+  if (!imageUrl) return null;
+
+  return (
+    <div className="fixed inset-0 z-[99999] bg-[#111827]/90 p-6">
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute right-8 top-8 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white text-2xl font-black text-[#111827]"
+      >
+        ×
+      </button>
+
+      <div className="mx-auto flex h-full max-w-6xl flex-col justify-center">
+        <div className="overflow-hidden rounded-2xl bg-black shadow-2xl">
+          <img
+            src={imageUrl}
+            alt={title}
+            className="max-h-[72vh] w-full object-contain"
+          />
+        </div>
+
+        <div className="mt-5 grid grid-cols-5 gap-3">
+          {[1, 2, 3, 4, 5].map((item) => (
+            <button
+              key={item}
+              type="button"
+              className="h-24 overflow-hidden rounded-xl border-4 border-[#00a896] bg-white"
+            >
+              <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
