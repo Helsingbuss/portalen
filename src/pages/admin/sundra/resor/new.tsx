@@ -3,12 +3,20 @@ import { useRouter } from "next/router";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
 
+type GalleryImage = {
+  url: string;
+  alt?: string;
+};
+
 export default function NewSundraTripPage() {
   const router = useRouter();
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
+  const [galleryUploading, setGalleryUploading] = useState(false);
   const [error, setError] = useState("");
 
   const [form, setForm] = useState({
@@ -27,6 +35,7 @@ export default function NewSundraTripPage() {
     program: "",
 
     image_url: "",
+    gallery_images: [] as GalleryImage[],
 
     duration_days: 1,
     duration_nights: 0,
@@ -68,6 +77,34 @@ export default function NewSundraTripPage() {
     }));
   }
 
+  function makeSlug(value: string) {
+    return value
+      .toLowerCase()
+      .trim()
+      .replace(/[åä]/g, "a")
+      .replace(/[ö]/g, "o")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
+  async function uploadImage(file: File) {
+    const fd = new FormData();
+    fd.append("file", file);
+
+    const res = await fetch("/api/admin/sundra/upload-image", {
+      method: "POST",
+      body: fd,
+    });
+
+    const json = await res.json().catch(() => ({}));
+
+    if (!res.ok || !json?.url) {
+      throw new Error(json?.error || "Kunde inte ladda upp bilden.");
+    }
+
+    return json.url as string;
+  }
+
   async function handleImageSelect(file?: File | null) {
     if (!file) return;
 
@@ -75,21 +112,19 @@ export default function NewSundraTripPage() {
       setImageUploading(true);
       setError("");
 
-      const fd = new FormData();
-      fd.append("file", file);
+      const url = await uploadImage(file);
 
-      const res = await fetch("/api/admin/sundra/upload-image", {
-        method: "POST",
-        body: fd,
+      setForm((prev) => {
+        const exists = prev.gallery_images.some((img) => img.url === url);
+
+        return {
+          ...prev,
+          image_url: url,
+          gallery_images: exists
+            ? prev.gallery_images
+            : [{ url, alt: prev.title || "Resebild" }, ...prev.gallery_images],
+        };
       });
-
-      const json = await res.json().catch(() => ({}));
-
-      if (!res.ok || !json?.url) {
-        throw new Error(json?.error || "Kunde inte ladda upp bilden.");
-      }
-
-      update("image_url", json.url);
     } catch (e: any) {
       setError(e?.message || "Något gick fel vid bilduppladdning.");
     } finally {
@@ -97,17 +132,118 @@ export default function NewSundraTripPage() {
     }
   }
 
+  async function handleGallerySelect(files?: FileList | null) {
+    if (!files || files.length === 0) return;
+
+    try {
+      setGalleryUploading(true);
+      setError("");
+
+      const uploaded: GalleryImage[] = [];
+
+      for (const file of Array.from(files)) {
+        const url = await uploadImage(file);
+        uploaded.push({
+          url,
+          alt: form.title || "Resebild",
+        });
+      }
+
+      setForm((prev) => {
+        const currentUrls = new Set(prev.gallery_images.map((img) => img.url));
+
+        const nextImages = [
+          ...prev.gallery_images,
+          ...uploaded.filter((img) => !currentUrls.has(img.url)),
+        ];
+
+        return {
+          ...prev,
+          image_url: prev.image_url || uploaded[0]?.url || "",
+          gallery_images: nextImages,
+        };
+      });
+
+      if (galleryInputRef.current) {
+        galleryInputRef.current.value = "";
+      }
+    } catch (e: any) {
+      setError(e?.message || "Något gick fel vid uppladdning av bilder.");
+    } finally {
+      setGalleryUploading(false);
+    }
+  }
+
+  function addGalleryUrl() {
+    const url = prompt("Klistra in bild-URL:");
+    if (!url) return;
+
+    setForm((prev) => {
+      const cleanUrl = url.trim();
+
+      if (!cleanUrl) return prev;
+
+      const exists = prev.gallery_images.some((img) => img.url === cleanUrl);
+
+      return {
+        ...prev,
+        image_url: prev.image_url || cleanUrl,
+        gallery_images: exists
+          ? prev.gallery_images
+          : [...prev.gallery_images, { url: cleanUrl, alt: prev.title || "Resebild" }],
+      };
+    });
+  }
+
+  function removeGalleryImage(index: number) {
+    setForm((prev) => {
+      const removed = prev.gallery_images[index];
+      const next = prev.gallery_images.filter((_, i) => i !== index);
+
+      return {
+        ...prev,
+        gallery_images: next,
+        image_url:
+          prev.image_url === removed?.url
+            ? next[0]?.url || ""
+            : prev.image_url,
+      };
+    });
+  }
+
+  function setAsMainImage(url: string) {
+    update("image_url", url);
+  }
+
   async function save() {
     setSaving(true);
     setError("");
 
     try {
+      const payload = {
+        ...form,
+
+        // Sparas extra så designen kan använda flera bilder om API:t/mappar stödjer media.
+        media: {
+          galleryImages: form.gallery_images,
+          gallery_images: form.gallery_images,
+          images: form.gallery_images,
+          heroImage: form.image_url,
+          hero_image: form.image_url,
+        },
+
+        // Extra varianter för kompatibilitet.
+        images: form.gallery_images,
+        gallery: form.gallery_images,
+        image_gallery: form.gallery_images,
+      };
+
       const res = await fetch("/api/admin/sundra/trips", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json().catch(() => ({}));
@@ -168,7 +304,14 @@ export default function NewSundraTripPage() {
                   <Field label="Titel">
                     <input
                       value={form.title}
-                      onChange={(e) => update("title", e.target.value)}
+                      onChange={(e) => {
+                        const title = e.target.value;
+                        update("title", title);
+
+                        if (!form.slug) {
+                          update("slug", makeSlug(title));
+                        }
+                      }}
                       placeholder="Ex. Ullared Weekend"
                       className="w-full rounded-xl border px-3 py-2"
                     />
@@ -177,7 +320,7 @@ export default function NewSundraTripPage() {
                   <Field label="Slug">
                     <input
                       value={form.slug}
-                      onChange={(e) => update("slug", e.target.value)}
+                      onChange={(e) => update("slug", makeSlug(e.target.value))}
                       placeholder="ullared-weekend"
                       className="w-full rounded-xl border px-3 py-2"
                     />
@@ -280,7 +423,7 @@ export default function NewSundraTripPage() {
                 </div>
 
                 <div className="mt-4">
-                  <Field label="Resebild">
+                  <Field label="Bilder till resan">
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -289,16 +432,25 @@ export default function NewSundraTripPage() {
                       onChange={(e) => handleImageSelect(e.target.files?.[0])}
                     />
 
+                    <input
+                      ref={galleryInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => handleGallerySelect(e.target.files)}
+                    />
+
                     <div className="rounded-2xl border border-dashed border-[#cbd5e1] bg-[#f8fafc] p-4">
                       {form.image_url ? (
                         <img
                           src={form.image_url}
-                          alt="Vald resebild"
-                          className="mb-4 h-56 w-full rounded-xl object-cover"
+                          alt="Vald huvudbild"
+                          className="mb-4 h-64 w-full rounded-xl object-cover"
                         />
                       ) : (
-                        <div className="mb-4 flex h-56 items-center justify-center rounded-xl bg-white text-sm text-gray-500">
-                          Ingen bild vald ännu
+                        <div className="mb-4 flex h-64 items-center justify-center rounded-xl bg-white text-sm text-gray-500">
+                          Ingen huvudbild vald ännu
                         </div>
                       )}
 
@@ -309,22 +461,120 @@ export default function NewSundraTripPage() {
                           disabled={imageUploading}
                           className="rounded-xl bg-[#194C66] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                         >
-                          {imageUploading ? "Laddar upp..." : "Välj bild"}
+                          {imageUploading ? "Laddar upp..." : "Välj huvudbild"}
                         </button>
 
+                        <button
+                          type="button"
+                          onClick={() => galleryInputRef.current?.click()}
+                          disabled={galleryUploading}
+                          className="rounded-xl border bg-white px-4 py-2 text-sm font-medium text-[#194C66] hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          {galleryUploading
+                            ? "Laddar upp bilder..."
+                            : "+ Lägg till fler bilder"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={addGalleryUrl}
+                          className="rounded-xl border bg-white px-4 py-2 text-sm font-medium text-[#194C66] hover:bg-gray-50"
+                        >
+                          Lägg till bild-URL
+                        </button>
+                      </div>
+
+                      <div className="mt-4">
                         <input
                           value={form.image_url}
                           onChange={(e) => update("image_url", e.target.value)}
-                          placeholder="Eller klistra in bild-URL här"
-                          className="min-w-[260px] flex-1 rounded-xl border px-3 py-2 text-sm"
+                          placeholder="Huvudbild URL"
+                          className="w-full rounded-xl border px-3 py-2 text-sm"
                         />
                       </div>
 
+                      {form.gallery_images.length > 0 && (
+                        <div className="mt-5">
+                          <div className="mb-2 text-sm font-semibold text-[#194C66]">
+                            Bildgalleri ({form.gallery_images.length} bilder)
+                          </div>
+
+                          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            {form.gallery_images.map((img, index) => {
+                              const isMain = img.url === form.image_url;
+
+                              return (
+                                <div
+                                  key={`${img.url}-${index}`}
+                                  className={`overflow-hidden rounded-xl border bg-white ${
+                                    isMain
+                                      ? "border-[#194C66] ring-2 ring-[#194C66]/20"
+                                      : "border-gray-200"
+                                  }`}
+                                >
+                                  <img
+                                    src={img.url}
+                                    alt={img.alt || "Resebild"}
+                                    className="h-32 w-full object-cover"
+                                  />
+
+                                  <div className="space-y-2 p-3">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="text-xs font-semibold text-gray-600">
+                                        Bild {index + 1}
+                                      </span>
+
+                                      {isMain && (
+                                        <span className="rounded-full bg-[#e2f7f1] px-2 py-1 text-[10px] font-bold text-[#00866f]">
+                                          Huvudbild
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <input
+                                      value={img.alt || ""}
+                                      onChange={(e) => {
+                                        const next = [...form.gallery_images];
+                                        next[index] = {
+                                          ...next[index],
+                                          alt: e.target.value,
+                                        };
+                                        update("gallery_images", next);
+                                      }}
+                                      placeholder="Alt-text / beskrivning"
+                                      className="w-full rounded-lg border px-2 py-1 text-xs"
+                                    />
+
+                                    <div className="flex gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => setAsMainImage(img.url)}
+                                        className="flex-1 rounded-lg border bg-white px-2 py-1 text-xs font-semibold text-[#194C66] hover:bg-gray-50"
+                                      >
+                                        Sätt som huvudbild
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => removeGalleryImage(index)}
+                                        className="rounded-lg border border-red-200 bg-white px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50"
+                                      >
+                                        Ta bort
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
                       <p className="mt-3 text-xs leading-relaxed text-gray-500">
-                        Endast admin: Rekommenderad bildstorlek är{" "}
-                        <strong>1600 × 1000 px</strong> eller större. Använd
-                        gärna liggande bild i 16:10 eller 3:2-format. Bilden
-                        används på resekort, widget, priskalender och resesidan.
+                        Rekommenderad huvudbild är{" "}
+                        <strong>1600 × 1000 px</strong> eller större.
+                        Lägg gärna till 3–6 bilder så att resesidan kan visa
+                        stor bild, små bilder och bildgalleri.
                       </p>
                     </div>
                   </Field>
@@ -556,5 +806,3 @@ function Field({
     </label>
   );
 }
-
-

@@ -24,7 +24,6 @@ type SaveOptions = {
   origin?: "manual" | "autosave";
 };
 
-// --------- Flerdags-mall (itinerary) ----------
 type ItineraryDay = {
   title: string;
   description: string;
@@ -43,7 +42,6 @@ function getItinerary(draft: any): ItineraryDay[] {
   return it as ItineraryDay[];
 }
 
-// ✅ Program i korthet: PRIORITERA media först (samma som live)
 function getProgramSummary(d: any): string {
   const v =
     d?.media?.programSummary ??
@@ -51,11 +49,13 @@ function getProgramSummary(d: any): string {
     d?.programSummary ??
     d?.program_summary ??
     "";
+
   return typeof v === "string" ? v : "";
 }
 
 function setProgramSummaryOnDraft(d: any, value: string) {
   const media = d?.media && typeof d.media === "object" ? d.media : {};
+
   return {
     ...d,
     media: {
@@ -72,16 +72,19 @@ export function TripEditor({ trip, onSave }: Props) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // ✅ toast notice (ska INTE påverka layout)
   const [notice, setNotice] = useState<Notice>(null);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
-  const [savedSnapshot, setSavedSnapshot] = useState<string>(() => JSON.stringify(trip ?? {}));
+  const [savedSnapshot, setSavedSnapshot] = useState<string>(() =>
+    JSON.stringify(trip ?? {})
+  );
 
   const [autosaveEnabled, setAutosaveEnabled] = useState(true);
   const AUTOSAVE_DELAY_MS = 1500;
 
-  const [autosaveBlockedSignature, setAutosaveBlockedSignature] = useState<string | null>(null);
+  const [autosaveBlockedSignature, setAutosaveBlockedSignature] =
+    useState<string | null>(null);
+
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
@@ -121,7 +124,9 @@ export function TripEditor({ trip, onSave }: Props) {
       e.preventDefault();
       e.returnValue = "";
     }
+
     window.addEventListener("beforeunload", onBeforeUnload);
+
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [isDirty]);
 
@@ -132,14 +137,17 @@ export function TripEditor({ trip, onSave }: Props) {
 
   const lastSavedText = useMemo(() => {
     if (!lastSavedAt) return null;
+
     try {
-      return lastSavedAt.toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
+      return lastSavedAt.toLocaleTimeString("sv-SE", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     } catch {
       return null;
     }
   }, [lastSavedAt]);
 
-  // ✅ Om typ = MULTI och itinerary saknas => lägg in mall
   useEffect(() => {
     if ((draft as any)?.type !== "MULTI") return;
 
@@ -150,21 +158,24 @@ export function TripEditor({ trip, onSave }: Props) {
       ...d,
       itinerary: defaultMultiItinerary(),
     }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [(draft as any)?.type, (draft as any)?.id]);
 
-  async function save(patch?: Partial<TripRecord>, intent: SaveIntent = "save", opts?: SaveOptions) {
+  async function save(
+    patch?: Partial<TripRecord>,
+    intent: SaveIntent = "save",
+    opts?: SaveOptions
+  ) {
     setErr(null);
     const t = intentText(intent);
 
-    // ✅ Toast som overlay (ingen layoutshift)
     if (!opts?.silent) setNotice({ kind: "info", text: t.doing });
 
     try {
       setSaving(true);
 
-      // ✅ VIKTIGT: skapa INTE ny draft-objekt på autosave (det kan skapa "hoppskänsla")
-      const next = patch ? ({ ...(draft as any), ...(patch as any) } as TripRecord) : draft;
+      const next = patch
+        ? ({ ...(draft as any), ...(patch as any) } as TripRecord)
+        : draft;
 
       if (patch) setDraft(next);
 
@@ -200,7 +211,10 @@ export function TripEditor({ trip, onSave }: Props) {
     if (saving) return;
     if (!(draft as any)?.id) return;
 
-    if (autosaveBlockedSignature && autosaveBlockedSignature === draftSignature) return;
+    if (autosaveBlockedSignature && autosaveBlockedSignature === draftSignature) {
+      return;
+    }
+
     if (!String((draft as any).title ?? "").trim()) return;
 
     const timer = setTimeout(() => {
@@ -208,8 +222,14 @@ export function TripEditor({ trip, onSave }: Props) {
     }, AUTOSAVE_DELAY_MS);
 
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autosaveEnabled, isDirty, draftSignature, saving, autosaveBlockedSignature, (draft as any)?.id]);
+  }, [
+    autosaveEnabled,
+    isDirty,
+    draftSignature,
+    saving,
+    autosaveBlockedSignature,
+    (draft as any)?.id,
+  ]);
 
   async function deleteTrip() {
     const ok = window.confirm(`Ta bort denna resa?\n\nDetta går inte att ångra.`);
@@ -220,18 +240,27 @@ export function TripEditor({ trip, onSave }: Props) {
       setErr(null);
       setNotice({ kind: "info", text: "Tar bort…" });
 
-      let res = await fetch(`/api/trips/delete?id=${encodeURIComponent((draft as any).id)}`, {
-        method: "DELETE",
-      });
+      let res = await fetch(
+        `/api/trips/delete?id=${encodeURIComponent((draft as any).id)}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (res.status === 405) {
-        res = await fetch(`/api/trips/delete?id=${encodeURIComponent((draft as any).id)}`, {
-          method: "POST",
-        });
+        res = await fetch(
+          `/api/trips/delete?id=${encodeURIComponent((draft as any).id)}`,
+          {
+            method: "POST",
+          }
+        );
       }
 
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || data?.ok === false) throw new Error(data?.error ?? "Kunde inte ta bort resan.");
+
+      if (!res.ok || data?.ok === false) {
+        throw new Error(data?.error ?? "Kunde inte ta bort resan.");
+      }
 
       setNotice({ kind: "success", text: "Borttagen ✅" });
       router.push("/admin/sundra/resor");
@@ -244,13 +273,13 @@ export function TripEditor({ trip, onSave }: Props) {
     }
   }
 
-  // ---------- Helpers för itinerary ----------
   const itinerary = useMemo(() => getItinerary(draft as any), [draftSignature]);
 
   function addDay() {
     setDraft((d: any) => {
       const curr = getItinerary(d);
       const nextNr = curr.length + 1;
+
       return {
         ...d,
         itinerary: [...curr, { title: `Dag ${nextNr}`, description: "" }],
@@ -268,22 +297,29 @@ export function TripEditor({ trip, onSave }: Props) {
   function updateDay(idx: number, patch: Partial<ItineraryDay>) {
     setDraft((d: any) => {
       const curr = getItinerary(d);
-      const next = curr.map((day, i) => (i === idx ? { ...day, ...patch } : day));
+      const next = curr.map((day, i) =>
+        i === idx ? { ...day, ...patch } : day
+      );
+
       return { ...d, itinerary: next };
     });
   }
 
-  const programSummary = useMemo(() => getProgramSummary(draft as any), [draftSignature]);
+  const programSummary = useMemo(
+    () => getProgramSummary(draft as any),
+    [draftSignature]
+  );
 
   return (
     <div className="rounded-2xl border bg-white p-6 shadow-sm">
-      {/* ✅ Toast overlay (ingen layoutshift = inget hopp) */}
       {notice ? (
         <div
           className={[
             "fixed right-4 top-20 z-[9999] max-w-[360px] rounded-2xl border px-4 py-3 text-sm font-semibold shadow-lg",
             notice.kind === "info" ? "border-blue-200 bg-blue-50 text-blue-800" : "",
-            notice.kind === "success" ? "border-green-200 bg-green-50 text-green-800" : "",
+            notice.kind === "success"
+              ? "border-green-200 bg-green-50 text-green-800"
+              : "",
             notice.kind === "error" ? "border-red-200 bg-red-50 text-red-800" : "",
           ].join(" ")}
         >
@@ -306,7 +342,11 @@ export function TripEditor({ trip, onSave }: Props) {
           </Link>
 
           <button
-            onClick={() => save({ status: "published" } as any, "publish", { origin: "manual" })}
+            onClick={() =>
+              save({ status: "published" } as any, "publish", {
+                origin: "manual",
+              })
+            }
             disabled={saving}
             className="rounded-xl bg-[var(--hb-primary,#0B2A44)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
@@ -314,7 +354,11 @@ export function TripEditor({ trip, onSave }: Props) {
           </button>
 
           <button
-            onClick={() => save({ status: "archived" } as any, "archive", { origin: "manual" })}
+            onClick={() =>
+              save({ status: "archived" } as any, "archive", {
+                origin: "manual",
+              })
+            }
             disabled={saving}
             className="rounded-xl border bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 disabled:opacity-50"
           >
@@ -336,7 +380,8 @@ export function TripEditor({ trip, onSave }: Props) {
         <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
           {lastSavedText ? (
             <>
-              Senast sparad: <span className="font-semibold">{lastSavedText}</span>
+              Senast sparad:{" "}
+              <span className="font-semibold">{lastSavedText}</span>
             </>
           ) : (
             <span>—</span>
@@ -371,20 +416,31 @@ export function TripEditor({ trip, onSave }: Props) {
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <div>
-          <label className="block text-sm font-semibold text-gray-900">Titel</label>
+          <label className="block text-sm font-semibold text-gray-900">
+            Titel
+          </label>
           <input
             className="mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2"
             value={(draft as any).title ?? ""}
-            onChange={(e) => setDraft((d: any) => ({ ...d, title: e.target.value }))}
+            onChange={(e) =>
+              setDraft((d: any) => ({ ...d, title: e.target.value }))
+            }
           />
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-900">Typ</label>
+          <label className="block text-sm font-semibold text-gray-900">
+            Typ
+          </label>
           <select
             className="mt-2 w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none focus:ring-2"
             value={(draft as any).type}
-            onChange={(e) => setDraft((d: any) => ({ ...d, type: e.target.value as TripType }))}
+            onChange={(e) =>
+              setDraft((d: any) => ({
+                ...d,
+                type: e.target.value as TripType,
+              }))
+            }
           >
             <option value="DAY">Dagsresa</option>
             <option value="MULTI">Flerdagsresa</option>
@@ -393,11 +449,18 @@ export function TripEditor({ trip, onSave }: Props) {
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-900">Status</label>
+          <label className="block text-sm font-semibold text-gray-900">
+            Status
+          </label>
           <select
             className="mt-2 w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none focus:ring-2"
             value={(draft as any).status}
-            onChange={(e) => setDraft((d: any) => ({ ...d, status: e.target.value as TripStatus }))}
+            onChange={(e) =>
+              setDraft((d: any) => ({
+                ...d,
+                status: e.target.value as TripStatus,
+              }))
+            }
           >
             <option value="draft">Utkast</option>
             <option value="published">Publicerad</option>
@@ -406,46 +469,64 @@ export function TripEditor({ trip, onSave }: Props) {
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-900">Slug</label>
+          <label className="block text-sm font-semibold text-gray-900">
+            Slug
+          </label>
           <input
             className="mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2"
             value={(draft as any).slug ?? ""}
-            onChange={(e) => setDraft((d: any) => ({ ...d, slug: e.target.value }))}
+            onChange={(e) =>
+              setDraft((d: any) => ({ ...d, slug: e.target.value }))
+            }
           />
         </div>
 
         <div className="md:col-span-2">
-          <label className="block text-sm font-semibold text-gray-900">Meta-rad</label>
+          <label className="block text-sm font-semibold text-gray-900">
+            Meta-rad
+          </label>
           <input
             className="mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2"
             value={(draft as any).metaLine ?? (draft as any).meta_line ?? ""}
-            onChange={(e) => setDraft((d: any) => ({ ...d, metaLine: e.target.value }))}
+            onChange={(e) =>
+              setDraft((d: any) => ({ ...d, metaLine: e.target.value }))
+            }
             placeholder="T.ex. Flerdagsresa • Tyskland • Shopping"
           />
         </div>
 
         <div className="md:col-span-2">
-          <label className="block text-sm font-semibold text-gray-900">Intro</label>
+          <label className="block text-sm font-semibold text-gray-900">
+            Intro
+          </label>
           <textarea
             className="mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2"
             rows={3}
             value={(draft as any).intro ?? ""}
-            onChange={(e) => setDraft((d: any) => ({ ...d, intro: e.target.value }))}
+            onChange={(e) =>
+              setDraft((d: any) => ({ ...d, intro: e.target.value }))
+            }
           />
         </div>
 
         <div className="md:col-span-2">
-          <label className="block text-sm font-semibold text-gray-900">Beskrivning (Om resan)</label>
+          <label className="block text-sm font-semibold text-gray-900">
+            Beskrivning (Om resan)
+          </label>
           <textarea
             className="mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2"
             rows={6}
             value={(draft as any).description ?? ""}
-            onChange={(e) => setDraft((d: any) => ({ ...d, description: e.target.value }))}
+            onChange={(e) =>
+              setDraft((d: any) => ({ ...d, description: e.target.value }))
+            }
           />
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-900">Från-pris (SEK)</label>
+          <label className="block text-sm font-semibold text-gray-900">
+            Från-pris (SEK)
+          </label>
           <input
             className="mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2"
             type="number"
@@ -459,9 +540,10 @@ export function TripEditor({ trip, onSave }: Props) {
           />
         </div>
 
-        {/* ✅ KOMMA-TAGGAR kvar */}
         <div>
-          <label className="block text-sm font-semibold text-gray-900">Taggar (komma-separerat)</label>
+          <label className="block text-sm font-semibold text-gray-900">
+            Taggar (komma-separerat)
+          </label>
           <input
             className="mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2"
             value={((draft as any).tags ?? []).join(", ")}
@@ -479,21 +561,24 @@ export function TripEditor({ trip, onSave }: Props) {
         </div>
       </div>
 
-      {/* ✅ Media */}
       <TripMediaCard
         value={(draft as any).media ?? null}
         onChange={(next) => setDraft((d: any) => ({ ...d, media: next }))}
         bucket="trip-media"
       />
 
-      {/* ✅ Dagsprogram endast för flerdagsresor */}
+      <DepartureManager tripId={(draft as any).id} />
+
       {(draft as any).type === "MULTI" ? (
         <div className="mt-6 rounded-2xl border bg-white p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-sm font-semibold text-gray-900">Dagsprogram</div>
+              <div className="text-sm font-semibold text-gray-900">
+                Dagsprogram
+              </div>
               <div className="mt-1 text-sm text-gray-600">
-                Dagarna visas på resans sida under <span className="font-semibold">Program</span>.
+                Dagarna visas på resans sida under{" "}
+                <span className="font-semibold">Program</span>.
               </div>
             </div>
 
@@ -506,14 +591,14 @@ export function TripEditor({ trip, onSave }: Props) {
             </button>
           </div>
 
-          {/* ✅ layout: dagar vänster, Program i korthet höger */}
           <div className="mt-4 grid gap-4 md:grid-cols-[1fr_360px]">
-            {/* Vänster: dagarna */}
             <div className="space-y-4">
               {itinerary.map((day, idx) => (
                 <div key={idx} className="rounded-2xl border bg-gray-50 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="text-sm font-semibold text-gray-900">Dag {idx + 1}</div>
+                    <div className="text-sm font-semibold text-gray-900">
+                      Dag {idx + 1}
+                    </div>
 
                     <button
                       type="button"
@@ -525,7 +610,9 @@ export function TripEditor({ trip, onSave }: Props) {
                   </div>
 
                   <div className="mt-3">
-                    <label className="block text-sm font-semibold text-gray-900">Rubrik</label>
+                    <label className="block text-sm font-semibold text-gray-900">
+                      Rubrik
+                    </label>
                     <input
                       className="mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2"
                       value={day.title ?? `Dag ${idx + 1}`}
@@ -534,31 +621,40 @@ export function TripEditor({ trip, onSave }: Props) {
                   </div>
 
                   <div className="mt-4">
-                    <label className="block text-sm font-semibold text-gray-900">Dagsprogram (detaljer)</label>
+                    <label className="block text-sm font-semibold text-gray-900">
+                      Dagsprogram (detaljer)
+                    </label>
                     <textarea
                       className="mt-2 w-full rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2"
                       rows={6}
                       value={day.description ?? ""}
-                      onChange={(e) => updateDay(idx, { description: e.target.value })}
+                      onChange={(e) =>
+                        updateDay(idx, { description: e.target.value })
+                      }
                     />
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Höger: Program i korthet (EN ruta) */}
             <div className="rounded-2xl border bg-gray-50 p-4">
-              <div className="text-sm font-semibold text-gray-900">Program i korthet</div>
+              <div className="text-sm font-semibold text-gray-900">
+                Program i korthet
+              </div>
               <div className="mt-1 text-xs text-gray-600">
-                Visas på resans sida ovanför dagarna. (Sparas i{" "}
-                <span className="font-semibold">media.programSummary</span>)
+                Visas på resans sida ovanför dagarna. Sparas i{" "}
+                <span className="font-semibold">media.programSummary</span>.
               </div>
 
               <textarea
                 className="mt-3 w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none focus:ring-2"
                 rows={10}
                 value={programSummary}
-                onChange={(e) => setDraft((d: any) => setProgramSummaryOnDraft(d, e.target.value))}
+                onChange={(e) =>
+                  setDraft((d: any) =>
+                    setProgramSummaryOnDraft(d, e.target.value)
+                  )
+                }
                 placeholder="Skriv en kort sammanfattning av hela resans upplägg..."
               />
             </div>
@@ -577,5 +673,532 @@ export function TripEditor({ trip, onSave }: Props) {
         </button>
       </div>
     </div>
+  );
+}
+
+type DepartureRow = {
+  id?: string;
+  trip_id: string;
+  vehicle_id: string;
+  bus_map_id: string;
+  departure_date: string;
+  departure_time: string;
+  return_date: string;
+  return_time: string;
+  price: string;
+  capacity: string;
+  booked_count: string;
+  status: string;
+  last_booking_date: string;
+};
+
+type VehicleOption = {
+  id: string;
+  name: string;
+  registration_number?: string | null;
+  seats_count?: number | null;
+  bus_map_id?: string | null;
+};
+
+type BusMapOption = {
+  id: string;
+  name: string;
+  seats_count?: number | null;
+};
+
+function emptyDeparture(tripId: string): DepartureRow {
+  return {
+    trip_id: tripId,
+    vehicle_id: "",
+    bus_map_id: "",
+    departure_date: "",
+    departure_time: "",
+    return_date: "",
+    return_time: "",
+    price: "",
+    capacity: "",
+    booked_count: "0",
+    status: "open",
+    last_booking_date: "",
+  };
+}
+
+function DepartureManager({ tripId }: { tripId?: string }) {
+  const [departures, setDepartures] = useState<DepartureRow[]>([]);
+  const [newRows, setNewRows] = useState<DepartureRow[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
+  const [busMaps, setBusMaps] = useState<BusMapOption[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!tripId) return;
+
+    setNewRows([emptyDeparture(tripId)]);
+    loadDepartures();
+    loadVehicles();
+    loadBusMaps();
+  }, [tripId]);
+
+  async function loadDepartures() {
+    if (!tripId) return;
+
+    try {
+      setLoading(true);
+
+      const res = await fetch("/api/admin/sundra/departures");
+      const json = await res.json().catch(() => ({}));
+
+      const rows = Array.isArray(json?.departures) ? json.departures : [];
+
+      const filtered = rows
+        .filter((row: any) => row.trip_id === tripId)
+        .map((row: any) => ({
+          id: row.id,
+          trip_id: row.trip_id,
+          vehicle_id: row.vehicle_id || "",
+          bus_map_id: row.bus_map_id || "",
+          departure_date: row.departure_date || "",
+          departure_time: row.departure_time
+            ? String(row.departure_time).slice(0, 5)
+            : "",
+          return_date: row.return_date || "",
+          return_time: row.return_time
+            ? String(row.return_time).slice(0, 5)
+            : "",
+          price:
+            row.price === null || row.price === undefined ? "" : String(row.price),
+          capacity:
+            row.capacity === null || row.capacity === undefined
+              ? ""
+              : String(row.capacity),
+          booked_count:
+            row.booked_count === null || row.booked_count === undefined
+              ? "0"
+              : String(row.booked_count),
+          status: row.status || "open",
+          last_booking_date: row.last_booking_date || "",
+        }));
+
+      setDepartures(filtered);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadVehicles() {
+    const res = await fetch("/api/admin/sundra/vehicles");
+    const json = await res.json().catch(() => ({}));
+
+    if (res.ok && json?.ok) {
+      setVehicles(json.vehicles || []);
+    }
+  }
+
+  async function loadBusMaps() {
+    const res = await fetch("/api/admin/sundra/bus-maps");
+    const json = await res.json().catch(() => ({}));
+
+    if (res.ok && json?.ok) {
+      setBusMaps(json.bus_maps || []);
+    }
+  }
+
+  function applyAutoValues(row: DepartureRow, key: keyof DepartureRow, value: string) {
+    let next = { ...row, [key]: value };
+
+    if (key === "vehicle_id") {
+      const vehicle = vehicles.find((v) => v.id === value);
+
+      if (vehicle?.bus_map_id) {
+        next.bus_map_id = vehicle.bus_map_id;
+      }
+
+      if (vehicle?.seats_count) {
+        next.capacity = String(vehicle.seats_count);
+      }
+    }
+
+    if (key === "bus_map_id") {
+      const map = busMaps.find((m) => m.id === value);
+
+      if (map?.seats_count) {
+        next.capacity = String(map.seats_count);
+      }
+    }
+
+    return next;
+  }
+
+  function updateExisting(index: number, key: keyof DepartureRow, value: string) {
+    setDepartures((prev) =>
+      prev.map((row, i) =>
+        i === index ? applyAutoValues(row, key, value) : row
+      )
+    );
+  }
+
+  function updateNew(index: number, key: keyof DepartureRow, value: string) {
+    setNewRows((prev) =>
+      prev.map((row, i) =>
+        i === index ? applyAutoValues(row, key, value) : row
+      )
+    );
+  }
+
+  async function saveExisting(row: DepartureRow) {
+    if (!row.id) return;
+
+    setSaving(true);
+
+    try {
+      const res = await fetch(`/api/admin/sundra/departures/${row.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(row),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Kunde inte spara avgång.");
+      }
+
+      await loadDepartures();
+      alert("Avgång sparad ✅");
+    } catch (e: any) {
+      alert(e?.message || "Kunde inte spara avgång.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteDeparture(row: DepartureRow) {
+    if (!row.id) return;
+
+    const ok = confirm("Vill du ta bort detta datum/avgång?");
+    if (!ok) return;
+
+    setSaving(true);
+
+    try {
+      const res = await fetch(`/api/admin/sundra/departures/${row.id}`, {
+        method: "DELETE",
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Kunde inte ta bort avgång.");
+      }
+
+      await loadDepartures();
+    } catch (e: any) {
+      alert(e?.message || "Kunde inte ta bort avgång.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveNewRows() {
+    if (!tripId) return;
+
+    const rowsToSave = newRows.filter((row) => row.departure_date);
+
+    if (!rowsToSave.length) {
+      alert("Lägg in minst ett datum först.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      for (const row of rowsToSave) {
+        const res = await fetch("/api/admin/sundra/departures", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...row,
+            trip_id: tripId,
+          }),
+        });
+
+        const json = await res.json().catch(() => ({}));
+
+        if (!res.ok || !json?.ok) {
+          throw new Error(json?.error || "Kunde inte skapa avgång.");
+        }
+      }
+
+      setNewRows([emptyDeparture(tripId)]);
+      await loadDepartures();
+      alert("Datum/avgångar skapade ✅");
+    } catch (e: any) {
+      alert(e?.message || "Kunde inte skapa avgångar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!tripId) return null;
+
+  return (
+    <div className="mt-6 rounded-2xl border bg-white p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-gray-900">
+            Avgångar / datum
+          </div>
+          <div className="mt-1 text-sm text-gray-600">
+            Lägg in flera datum på samma resa. Varje datum kan ha eget pris,
+            tid, fordon, kapacitet och säteskarta.
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            setNewRows((prev) => [...prev, emptyDeparture(tripId)])
+          }
+          className="rounded-xl border bg-white px-4 py-2 text-sm font-semibold hover:bg-gray-50"
+        >
+          + Lägg till datum
+        </button>
+      </div>
+
+      <div className="mt-5 space-y-4">
+        {newRows.map((row, index) => (
+          <DepartureFormRow
+            key={`new-${index}`}
+            row={row}
+            vehicles={vehicles}
+            busMaps={busMaps}
+            onChange={(key, value) => updateNew(index, key, value)}
+            onRemove={() =>
+              setNewRows((prev) => prev.filter((_, i) => i !== index))
+            }
+            isNew
+          />
+        ))}
+
+        <button
+          type="button"
+          onClick={saveNewRows}
+          disabled={saving}
+          className="rounded-xl bg-[var(--hb-primary,#0B2A44)] px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {saving ? "Sparar datum..." : "Spara nya datum"}
+        </button>
+      </div>
+
+      <div className="mt-8 border-t pt-6">
+        <div className="mb-4 text-sm font-semibold text-gray-900">
+          Befintliga avgångar
+        </div>
+
+        {loading ? (
+          <div className="rounded-xl bg-gray-50 p-4 text-sm text-gray-500">
+            Laddar avgångar...
+          </div>
+        ) : departures.length === 0 ? (
+          <div className="rounded-xl bg-gray-50 p-4 text-sm text-gray-500">
+            Inga datum är skapade ännu.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {departures.map((row, index) => (
+              <DepartureFormRow
+                key={row.id}
+                row={row}
+                vehicles={vehicles}
+                busMaps={busMaps}
+                onChange={(key, value) => updateExisting(index, key, value)}
+                onSave={() => saveExisting(row)}
+                onRemove={() => deleteDeparture(row)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DepartureFormRow({
+  row,
+  vehicles,
+  busMaps,
+  onChange,
+  onSave,
+  onRemove,
+  isNew = false,
+}: {
+  row: DepartureRow;
+  vehicles: VehicleOption[];
+  busMaps: BusMapOption[];
+  onChange: (key: keyof DepartureRow, value: string) => void;
+  onSave?: () => void;
+  onRemove?: () => void;
+  isNew?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border bg-gray-50 p-4">
+      <div className="grid gap-4 md:grid-cols-4">
+        <FieldSmall label="Avgångsdatum">
+          <input
+            type="date"
+            value={row.departure_date}
+            onChange={(e) => onChange("departure_date", e.target.value)}
+            className="w-full rounded-xl border px-3 py-2 text-sm"
+          />
+        </FieldSmall>
+
+        <FieldSmall label="Avgångstid">
+          <input
+            type="time"
+            value={row.departure_time}
+            onChange={(e) => onChange("departure_time", e.target.value)}
+            className="w-full rounded-xl border px-3 py-2 text-sm"
+          />
+        </FieldSmall>
+
+        <FieldSmall label="Returdatum">
+          <input
+            type="date"
+            value={row.return_date}
+            onChange={(e) => onChange("return_date", e.target.value)}
+            className="w-full rounded-xl border px-3 py-2 text-sm"
+          />
+        </FieldSmall>
+
+        <FieldSmall label="Returtid">
+          <input
+            type="time"
+            value={row.return_time}
+            onChange={(e) => onChange("return_time", e.target.value)}
+            className="w-full rounded-xl border px-3 py-2 text-sm"
+          />
+        </FieldSmall>
+
+        <FieldSmall label="Pris">
+          <input
+            type="number"
+            value={row.price}
+            onChange={(e) => onChange("price", e.target.value)}
+            className="w-full rounded-xl border px-3 py-2 text-sm"
+          />
+        </FieldSmall>
+
+        <FieldSmall label="Kapacitet">
+          <input
+            type="number"
+            value={row.capacity}
+            onChange={(e) => onChange("capacity", e.target.value)}
+            className="w-full rounded-xl border px-3 py-2 text-sm"
+          />
+        </FieldSmall>
+
+        <FieldSmall label="Bokade">
+          <input
+            type="number"
+            value={row.booked_count}
+            onChange={(e) => onChange("booked_count", e.target.value)}
+            className="w-full rounded-xl border px-3 py-2 text-sm"
+          />
+        </FieldSmall>
+
+        <FieldSmall label="Sista bokningsdag">
+          <input
+            type="date"
+            value={row.last_booking_date}
+            onChange={(e) => onChange("last_booking_date", e.target.value)}
+            className="w-full rounded-xl border px-3 py-2 text-sm"
+          />
+        </FieldSmall>
+
+        <FieldSmall label="Fordon">
+          <select
+            value={row.vehicle_id}
+            onChange={(e) => onChange("vehicle_id", e.target.value)}
+            className="w-full rounded-xl border bg-white px-3 py-2 text-sm"
+          >
+            <option value="">Inget fordon</option>
+            {vehicles.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name}
+                {v.registration_number ? ` – ${v.registration_number}` : ""}
+                {v.seats_count ? ` – ${v.seats_count} platser` : ""}
+              </option>
+            ))}
+          </select>
+        </FieldSmall>
+
+        <FieldSmall label="Säteskarta">
+          <select
+            value={row.bus_map_id}
+            onChange={(e) => onChange("bus_map_id", e.target.value)}
+            className="w-full rounded-xl border bg-white px-3 py-2 text-sm"
+          >
+            <option value="">Ingen säteskarta</option>
+            {busMaps.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+                {m.seats_count ? ` – ${m.seats_count} platser` : ""}
+              </option>
+            ))}
+          </select>
+        </FieldSmall>
+
+        <FieldSmall label="Status">
+          <select
+            value={row.status}
+            onChange={(e) => onChange("status", e.target.value)}
+            className="w-full rounded-xl border bg-white px-3 py-2 text-sm"
+          >
+            <option value="open">Öppen</option>
+            <option value="closed">Stängd</option>
+            <option value="full">Fullbokad</option>
+            <option value="cancelled">Inställd</option>
+          </select>
+        </FieldSmall>
+      </div>
+
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
+        {!isNew && onSave && (
+          <button
+            type="button"
+            onClick={onSave}
+            className="rounded-xl bg-[var(--hb-primary,#0B2A44)] px-4 py-2 text-sm font-semibold text-white"
+          >
+            Spara ändring
+          </button>
+        )}
+
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="rounded-xl border bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+          >
+            Ta bort
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FieldSmall({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <div className="mb-1 text-xs font-semibold text-gray-700">{label}</div>
+      {children}
+    </label>
   );
 }
