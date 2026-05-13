@@ -41,12 +41,12 @@ type Trip = {
   departures: Departure[];
 };
 
+type Step = 1 | 2 | 3 | 4 | 5;
+
 function money(n?: number | null) {
-  return Number(n || 0).toLocaleString("sv-SE", {
-    style: "currency",
-    currency: "SEK",
+  return `${Number(n || 0).toLocaleString("sv-SE", {
     maximumFractionDigits: 0,
-  });
+  })}:-`;
 }
 
 function fmtDate(date?: string | null) {
@@ -60,12 +60,13 @@ function fmtDate(date?: string | null) {
 }
 
 function fmtShortDate(date?: string | null) {
-  if (!date) return { day: "–", month: "Datum" };
+  if (!date) return { day: "–", month: "Datum", weekday: "" };
 
   const d = new Date(`${date}T00:00:00`);
   return {
     day: new Intl.DateTimeFormat("sv-SE", { day: "numeric" }).format(d),
     month: new Intl.DateTimeFormat("sv-SE", { month: "short" }).format(d),
+    weekday: new Intl.DateTimeFormat("sv-SE", { weekday: "short" }).format(d),
   };
 }
 
@@ -74,10 +75,28 @@ function fmtTime(time?: string | null) {
   return String(time).slice(0, 5);
 }
 
+function monthTitle(date?: string | null) {
+  if (!date) return "Kalender";
+  return new Intl.DateTimeFormat("sv-SE", {
+    month: "long",
+    year: "numeric",
+  }).format(new Date(`${date}T00:00:00`));
+}
+
+function firstNameFromFullName(fullName: string) {
+  return fullName.trim().split(" ")[0] || "";
+}
+
+function lastNameFromFullName(fullName: string) {
+  const [, ...rest] = fullName.trim().split(" ");
+  return rest.join(" ");
+}
+
 export default function TripPage() {
   const router = useRouter();
   const { slug } = router.query;
 
+  const [step, setStep] = useState<Step>(1);
   const [trip, setTrip] = useState<Trip | null>(null);
   const [selectedDepartureId, setSelectedDepartureId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -85,9 +104,16 @@ export default function TripPage() {
   const [error, setError] = useState("");
 
   const [qty, setQty] = useState(1);
+  const [seatChoiceEnabled, setSeatChoiceEnabled] = useState(false);
+
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
+  const [customerZip, setCustomerZip] = useState("");
+  const [customerCity, setCustomerCity] = useState("");
+
+  const [passengerNames, setPassengerNames] = useState<string[]>([""]);
 
   const [seatLoading, setSeatLoading] = useState(false);
   const [seats, setSeats] = useState<SeatMapSeat[]>([]);
@@ -105,20 +131,53 @@ export default function TripPage() {
     );
   }, [trip]);
 
+  const calendarDays = useMemo(() => {
+    const base = selectedDeparture?.departure_date || sortedDepartures[0]?.departure_date;
+    if (!base) return [];
+
+    const baseDate = new Date(`${base}T00:00:00`);
+    const year = baseDate.getFullYear();
+    const month = baseDate.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const departuresByDay = new Map<number, Departure>();
+    sortedDepartures.forEach((dep) => {
+      if (!dep.departure_date) return;
+      const d = new Date(`${dep.departure_date}T00:00:00`);
+      if (d.getFullYear() === year && d.getMonth() === month) {
+        departuresByDay.set(d.getDate(), dep);
+      }
+    });
+
+    return Array.from({ length: daysInMonth }).map((_, i) => {
+      const day = i + 1;
+      return {
+        day,
+        departure: departuresByDay.get(day) || null,
+      };
+    });
+  }, [selectedDeparture?.departure_date, sortedDepartures]);
+
   useEffect(() => {
     if (!slug || typeof slug !== "string") return;
     loadTrip(slug);
   }, [slug]);
 
   useEffect(() => {
-    if (!selectedDeparture?.id || !selectedDeparture.has_seat_map) {
+    const names = Array.from({ length: qty }).map((_, index) => passengerNames[index] || "");
+    setPassengerNames(names);
+    setSelectedSeats((prev) => prev.slice(0, qty));
+  }, [qty]);
+
+  useEffect(() => {
+    if (!seatChoiceEnabled || !selectedDeparture?.id || !selectedDeparture.has_seat_map) {
       setSeats([]);
       setSelectedSeats([]);
       return;
     }
 
     loadSeats(selectedDeparture.id);
-  }, [selectedDeparture?.id]);
+  }, [seatChoiceEnabled, selectedDeparture?.id]);
 
   async function loadTrip(currentSlug: string) {
     try {
@@ -185,7 +244,33 @@ export default function TripPage() {
   function updateQty(value: number) {
     const next = Math.max(1, value || 1);
     setQty(next);
-    setSelectedSeats((prev) => prev.slice(0, next));
+  }
+
+  function nextStep() {
+    if (step === 1 && !selectedDeparture) {
+      alert("Välj ett datum först.");
+      return;
+    }
+
+    if (step === 3 && seatChoiceEnabled && selectedDeparture?.has_seat_map && selectedSeats.length > 0 && selectedSeats.length !== qty) {
+      alert(`Du har valt ${selectedSeats.length} säte(n), men antal resenärer är ${qty}.`);
+      return;
+    }
+
+    if (step === 4) {
+      if (!customerName || !customerEmail || !customerPhone) {
+        alert("Fyll i namn, e-post och telefon.");
+        return;
+      }
+    }
+
+    setStep((prev) => Math.min(5, prev + 1) as Step);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function previousStep() {
+    setStep((prev) => Math.max(1, prev - 1) as Step);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const selectedSeatObjects = seats.filter((seat) =>
@@ -210,32 +295,31 @@ export default function TripPage() {
 
       if (!customerName || !customerEmail || !customerPhone) {
         alert("Fyll i namn, e-post och telefon.");
+        setStep(4);
         return;
       }
 
       if (
+        seatChoiceEnabled &&
         seats.length > 0 &&
         selectedSeats.length > 0 &&
         selectedSeats.length !== qty
       ) {
-        alert(
-          `Du har valt ${selectedSeats.length} säte(n), men antal resenärer är ${qty}.`
-        );
+        alert(`Du har valt ${selectedSeats.length} säte(n), men antal resenärer är ${qty}.`);
+        setStep(3);
         return;
       }
 
       setBookingLoading(true);
 
-      const [firstName, ...lastParts] = customerName.trim().split(" ");
-      const lastName = lastParts.join(" ");
-
       const passengers = Array.from({ length: qty }).map((_, index) => {
+        const passengerName = passengerNames[index] || (index === 0 ? customerName : "");
         const seatNumber = selectedSeats[index] || null;
         const seat = seats.find((s) => s.seat_number === seatNumber);
 
         return {
-          first_name: index === 0 ? firstName : "",
-          last_name: index === 0 ? lastName : "",
+          first_name: firstNameFromFullName(passengerName),
+          last_name: lastNameFromFullName(passengerName),
           passenger_type: "adult",
           date_of_birth: "",
           special_requests: "",
@@ -255,7 +339,9 @@ export default function TripPage() {
           customer_name: customerName,
           customer_email: customerEmail,
           customer_phone: customerPhone,
-          customer_address: null,
+          customer_address: [customerAddress, customerZip, customerCity]
+            .filter(Boolean)
+            .join(", "),
           notes: selectedSeats.length
             ? `Valda säten: ${selectedSeats.join(", ")}`
             : null,
@@ -275,9 +361,7 @@ export default function TripPage() {
       const link = json.checkout_url || json.payment_url || json.redirect_url;
       if (!link) throw new Error("Ingen betalningslänk skapades.");
 
-      window.location.href = link.startsWith("http")
-        ? link
-        : `${API_BASE}${link}`;
+      window.location.href = link.startsWith("http") ? link : `${API_BASE}${link}`;
     } catch (e: any) {
       alert(e?.message || "Något gick fel vid bokning.");
     } finally {
@@ -286,395 +370,668 @@ export default function TripPage() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#f5f0e8] p-8 text-[#194C66]">
-        Laddar resa...
-      </div>
-    );
+    return <div className="min-h-screen bg-white p-8 text-[#006f7f]">Laddar resa...</div>;
   }
 
   if (error || !trip) {
     return (
-      <div className="min-h-screen bg-[#f5f0e8] p-8 text-red-700">
+      <div className="min-h-screen bg-white p-8 text-red-700">
         {error || "Resan hittades inte."}
       </div>
     );
   }
 
-  const nextDate = selectedDeparture || sortedDepartures[0];
-  const short = fmtShortDate(nextDate?.departure_date);
+  const firstDeparture = selectedDeparture || sortedDepartures[0];
+  const selectedShort = fmtShortDate(firstDeparture?.departure_date);
 
   return (
     <>
       <Head>
         <title>{trip.seo_title || trip.title}</title>
-        <meta
-          name="description"
-          content={trip.seo_description || trip.short_description || ""}
-        />
+        <meta name="description" content={trip.seo_description || trip.short_description || ""} />
       </Head>
 
-      <div className="min-h-screen bg-[#f5f0e8] text-[#0f172a]">
-        <section className="relative min-h-[620px] overflow-hidden bg-[#194C66]">
-          {trip.image_url && (
-            <img
-              src={trip.image_url}
-              alt={trip.title}
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          )}
+      <div className="min-h-screen bg-white text-[#111827]">
+        <main className="mx-auto max-w-[1180px] px-4 py-8">
+          <Stepper step={step} />
 
-          <div className="absolute inset-0 bg-gradient-to-r from-[#071923]/90 via-[#071923]/55 to-[#071923]/10" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#071923]/75 via-transparent to-transparent" />
+          {step === 1 && (
+            <section>
+              <h1 className="mb-4 text-3xl font-bold text-[#5d6670]">Välj resa</h1>
 
-          <div className="relative mx-auto flex min-h-[620px] max-w-7xl items-end px-5 pb-20 pt-32 md:px-8">
-            <div className="max-w-4xl text-white">
-              <div className="mb-5 inline-flex rounded-full bg-white px-5 py-2 text-sm font-extrabold text-[#A61E22] shadow">
-                {trip.campaign_label || trip.category || "Helsingbuss Resor"}
-              </div>
+              <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="grid gap-0 lg:grid-cols-[340px_1fr]">
+                  <div className="p-7">
+                    <div className="mb-3 inline-flex rounded-md border px-3 py-1 text-sm font-semibold text-[#007f91]">
+                      📍 {trip.destination || trip.country || "Destination"}
+                    </div>
 
-              <h1 className="text-5xl font-black leading-[0.98] tracking-[-0.05em] md:text-7xl">
-                {trip.title}
-              </h1>
+                    <h2 className="text-2xl font-bold text-[#111827]">{trip.title}</h2>
 
-              {trip.short_description && (
-                <p className="mt-6 max-w-3xl text-lg leading-8 text-white/90 md:text-xl">
-                  {trip.short_description}
-                </p>
-              )}
+                    <div className="mt-2 inline-flex rounded-md bg-[#2aa89a] px-4 py-2 text-sm font-bold text-white">
+                      {trip.category || "Helsingbuss Resor"}
+                    </div>
 
-              <div className="mt-8 flex flex-wrap gap-3">
-                <a
-                  href="#boka"
-                  className="rounded-full bg-[#007764] px-7 py-4 font-extrabold text-white shadow-lg shadow-[#007764]/25"
-                >
-                  Boka resa
-                </a>
+                    <p className="mt-5 leading-7 text-gray-700">
+                      {trip.short_description || "Följ med på en bekväm och trygg resa med Helsingbuss."}
+                    </p>
 
-                <a
-                  href="#datum"
-                  className="rounded-full bg-white/15 px-7 py-4 font-extrabold text-white backdrop-blur hover:bg-white/20"
-                >
-                  Se datum
-                </a>
-              </div>
-            </div>
-          </div>
-        </section>
+                    <button className="mt-4 font-bold text-[#00879a]">
+                      Läs mer om resan
+                    </button>
 
-        <section className="relative z-10 mx-auto -mt-14 grid max-w-7xl gap-4 px-5 md:grid-cols-4 md:px-8">
-          <InfoCard label="Destination" value={trip.destination || "Kommer snart"} />
-          <InfoCard label="Nästa datum" value={`${short.day} ${short.month}`} />
-          <InfoCard label="Pris från" value={money(nextDate?.price || trip.price_from)} />
-          <InfoCard label="Platser kvar" value={`${nextDate?.seats_left ?? "—"}`} />
-        </section>
+                    <div className="mt-5 rounded-2xl bg-[#ddf3ed] p-5">
+                      <div className="mb-3 text-lg font-bold text-[#5d6670]">Fakta</div>
+                      <FactRow label="Kategori" value={trip.category || "Resa"} />
+                      <FactRow label="Destination" value={trip.destination || "Ej angivet"} />
+                      <FactRow label="Land" value={trip.country || "Sverige"} />
+                      <FactRow label="Avgångar" value={`${sortedDepartures.length}`} />
+                      <FactRow label="Pris från" value={money(trip.price_from)} />
 
-        <main className="mx-auto grid max-w-7xl gap-8 px-5 py-10 md:px-8 lg:grid-cols-[1fr_430px]">
-          <div className="space-y-7">
-            <section className="rounded-[32px] bg-white p-7 shadow-[0_18px_45px_rgba(15,23,42,.08)] md:p-9">
-              <div className="mb-5 flex items-center gap-3">
-                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#eafaf7] text-xl">
-                  🚌
-                </span>
-                <h2 className="text-3xl font-black tracking-[-0.03em] text-[#194C66]">
-                  Om resan
-                </h2>
-              </div>
+                      <button className="mt-4 rounded-full bg-[#00866f] px-6 py-2 text-sm font-bold text-white">
+                        Mer fakta
+                      </button>
+                    </div>
+                  </div>
 
-              <div className="whitespace-pre-line text-base leading-8 text-gray-600">
-                {trip.description ||
-                  trip.short_description ||
-                  "Beskrivning kommer snart."}
-              </div>
-            </section>
+                  <div className="grid gap-2 p-6 lg:grid-cols-[1fr_220px]">
+                    <div className="min-h-[420px] overflow-hidden rounded-sm bg-gray-100">
+                      {trip.image_url ? (
+                        <img src={trip.image_url} alt={trip.title} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-gray-400">Bild saknas</div>
+                      )}
+                    </div>
 
-            <section
-              id="datum"
-              className="rounded-[32px] bg-white p-7 shadow-[0_18px_45px_rgba(15,23,42,.08)] md:p-9"
-            >
-              <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <h2 className="text-3xl font-black tracking-[-0.03em] text-[#194C66]">
-                    Välj datum
-                  </h2>
-                  <p className="mt-2 text-sm text-gray-500">
-                    Välj den avgång du vill boka. Priset och platserna
-                    uppdateras direkt.
-                  </p>
+                    <div className="hidden gap-2 lg:grid">
+                      <div className="overflow-hidden rounded-sm bg-gray-100">
+                        {trip.image_url && <img src={trip.image_url} alt="" className="h-full w-full object-cover" />}
+                      </div>
+                      <div className="relative overflow-hidden rounded-sm bg-gray-100">
+                        {trip.image_url && <img src={trip.image_url} alt="" className="h-full w-full object-cover" />}
+                        <div className="absolute bottom-3 right-3 rounded-full bg-[#006f7f] px-3 py-2 text-sm font-bold text-white">
+                          📷 fler
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="lg:col-span-2">
+                      <div className="mt-3 rounded-xl bg-white p-4 shadow-md lg:ml-auto lg:w-[360px]">
+                        <em className="text-sm text-gray-700">
+                          “{trip.campaign_text || "En välplanerad resa med trygg bokning och tydlig information."}”
+                        </em>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {sortedDepartures.length === 0 ? (
-                <p className="text-sm text-gray-500">
-                  Inga bokningsbara avgångar finns just nu.
-                </p>
-              ) : (
-                <div className="grid gap-4">
-                  {sortedDepartures.map((dep) => {
-                    const active = dep.id === selectedDepartureId;
-                    const d = fmtShortDate(dep.departure_date);
+              <NavigationButtons
+                step={step}
+                onPrevious={previousStep}
+                onNext={nextStep}
+                nextLabel="Nästa steg"
+              />
+            </section>
+          )}
+
+          {step === 2 && (
+            <section>
+              <h1 className="mb-2 text-3xl font-bold text-[#5d6670]">Priskalender</h1>
+
+              <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="mb-5 flex items-center justify-between text-[#00879a]">
+                  <span className="text-2xl">«</span>
+                  <h2 className="text-2xl font-semibold text-[#111827]">
+                    {monthTitle(firstDeparture?.departure_date)}
+                  </h2>
+                  <span className="text-2xl">»</span>
+                </div>
+
+                <div className="grid grid-cols-7 gap-3 text-center">
+                  {["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"].map((day) => (
+                    <div key={day} className="pb-2 text-lg font-semibold text-[#111827]">
+                      {day}
+                    </div>
+                  ))}
+
+                  {calendarDays.map(({ day, departure }) => {
+                    const active = departure?.id === selectedDepartureId;
+                    const available = Boolean(departure);
 
                     return (
                       <button
-                        key={dep.id}
-                        onClick={() => setSelectedDepartureId(dep.id)}
-                        className={`grid gap-4 rounded-[26px] border p-5 text-left transition md:grid-cols-[78px_1fr_auto] md:items-center ${
+                        key={day}
+                        type="button"
+                        disabled={!available}
+                        onClick={() => {
+                          if (!departure) return;
+                          setSelectedDepartureId(departure.id);
+                        }}
+                        className={`relative min-h-[116px] rounded-xl border p-3 text-center transition ${
                           active
-                            ? "border-[#007764] bg-[#eafaf7] shadow-[0_14px_35px_rgba(0,119,100,.12)]"
-                            : "border-gray-200 bg-white hover:border-[#007764] hover:shadow-[0_12px_30px_rgba(15,23,42,.08)]"
+                            ? "border-[#008aa0] bg-[#e4fbff] shadow"
+                            : available
+                              ? "border-gray-300 bg-white hover:border-[#008aa0]"
+                              : "border-gray-200 bg-gray-100 text-gray-400"
                         }`}
                       >
-                        <div
-                          className={`flex h-[70px] w-[70px] flex-col items-center justify-center rounded-2xl font-black ${
-                            active
-                              ? "bg-[#007764] text-white"
-                              : "bg-[#fce7e7] text-[#A61E22]"
-                          }`}
-                        >
-                          <span className="text-2xl leading-none">{d.day}</span>
-                          <span className="mt-1 text-xs uppercase">
-                            {d.month}
+                        {active && (
+                          <span className="absolute -right-1 -top-1 rounded bg-[#d83b4a] px-3 py-1 text-xs font-bold text-white">
+                            Vald
                           </span>
-                        </div>
+                        )}
 
-                        <div>
-                          <div className="text-lg font-black text-[#0f172a]">
-                            {fmtDate(dep.departure_date)}
-                          </div>
+                        <div className="text-xl">{day}</div>
 
-                          <div className="mt-1 text-sm text-gray-600">
-                            Avgång {fmtTime(dep.departure_time)}
-                            {dep.return_time
-                              ? ` · Retur ${fmtTime(dep.return_time)}`
-                              : ""}
-                          </div>
-
-                          <div className="mt-2 text-sm text-gray-500">
-                            {dep.departure_location || "Påstigning meddelas"} →{" "}
-                            {dep.destination_location ||
-                              trip.destination ||
-                              "Destination"}
-                          </div>
-                        </div>
-
-                        <div className="text-left md:text-right">
-                          <div className="text-2xl font-black text-[#194C66]">
-                            {money(dep.price || trip.price_from)}
-                          </div>
-                          <div className="mt-1 text-xs font-bold text-gray-500">
-                            {dep.seats_left ?? 0} platser kvar
-                          </div>
-                        </div>
+                        {available ? (
+                          <>
+                            <div className="mt-3 text-xs text-gray-500">fr.</div>
+                            <div className="text-lg font-semibold text-[#d83b4a]">
+                              {money(departure?.price || trip.price_from)}
+                            </div>
+                            <div className="mt-1 text-xs text-[#00879a]">
+                              {active ? "Vald ✓" : `${departure?.seats_left ?? 0} platser`}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="mt-8 text-xs">Ej tillgänglig</div>
+                        )}
                       </button>
                     );
                   })}
                 </div>
-              )}
-            </section>
+              </div>
 
-            {selectedDeparture?.has_seat_map && (
-              <section className="rounded-[32px] bg-white p-7 shadow-[0_18px_45px_rgba(15,23,42,.08)] md:p-9">
-                {seatLoading ? (
-                  <p className="text-sm text-gray-500">Laddar platskarta...</p>
-                ) : seats.length === 0 ? (
-                  <p className="text-sm text-gray-500">
-                    Platskarta saknas för denna avgång.
-                  </p>
-                ) : (
-                  <SeatMap
-                    seats={seats}
-                    selectedSeats={selectedSeats}
-                    maxSelectable={qty}
-                    showLegend
-                    showSummary={false}
-                    title="Välj plats"
-                    subtitle="Du kan välja plats eller låta oss placera dig automatiskt."
-                    onSeatClick={toggleSeat}
-                  />
-                )}
-              </section>
-            )}
+              <TravelOverview
+                trip={trip}
+                departure={selectedDeparture}
+                qty={qty}
+                total={total}
+              />
 
-            <section className="grid gap-4 md:grid-cols-3">
-              <MiniCard
-                icon="✓"
-                title="Trygg bokning"
-                text="Tydlig bekräftelse och säker betalning."
-              />
-              <MiniCard
-                icon="🚌"
-                title="Bekväm resa"
-                text="Planerad resa med fokus på trygghet."
-              />
-              <MiniCard
-                icon="📩"
-                title="Biljett digitalt"
-                text="Du får din bokning och information digitalt."
+              <NavigationButtons
+                step={step}
+                onPrevious={previousStep}
+                onNext={nextStep}
+                nextLabel="Nästa steg"
               />
             </section>
-          </div>
+          )}
 
-          <aside
-            id="boka"
-            className="h-fit rounded-[32px] bg-white p-7 shadow-[0_20px_55px_rgba(15,23,42,.12)] lg:sticky lg:top-8"
-          >
-            <div className="mb-5">
-              <div className="text-sm font-bold uppercase tracking-wide text-gray-500">
-                Boka resa
-              </div>
-              <h2 className="mt-1 text-3xl font-black tracking-[-0.04em] text-[#194C66]">
-                {money(total)}
-              </h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Totalt för {qty} resenär{qty > 1 ? "er" : ""}
-              </p>
-            </div>
+          {step === 3 && (
+            <section>
+              <h1 className="mb-4 text-3xl font-bold text-[#5d6670]">Tillval</h1>
 
-            <div className="rounded-3xl bg-[#f8fafc] p-5">
-              <div className="text-xs font-bold uppercase tracking-wide text-gray-500">
-                Valt datum
-              </div>
-              <div className="mt-1 font-black text-[#0f172a]">
-                {selectedDeparture
-                  ? fmtDate(selectedDeparture.departure_date)
-                  : "Välj datum"}
-              </div>
-
-              {selectedDeparture && (
-                <div className="mt-1 text-sm text-gray-500">
-                  Avgång {fmtTime(selectedDeparture.departure_time)}
-                </div>
-              )}
-            </div>
-
-            <div className="mt-5">
-              <label className="mb-2 block text-sm font-bold text-[#194C66]">
-                Antal resenärer
-              </label>
-
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => updateQty(qty - 1)}
-                  className="h-12 w-12 rounded-2xl border bg-white text-xl font-black"
-                >
-                  −
-                </button>
-
-                <input
-                  type="number"
-                  min={1}
-                  max={selectedDeparture?.seats_left || 99}
-                  value={qty}
-                  onChange={(e) => updateQty(Number(e.target.value))}
-                  className="h-12 min-w-0 flex-1 rounded-2xl border px-4 text-center font-black"
+              <div className="grid gap-5 md:grid-cols-3">
+                <AddonCard
+                  icon="+"
+                  title="Välj sittplats"
+                  text="Välj var i bussen du vill sitta. Platskartan visas när du aktiverar tillvalet."
+                  active={seatChoiceEnabled}
+                  buttonLabel={seatChoiceEnabled ? "Sätesval valt" : "Välj säte"}
+                  onClick={() => setSeatChoiceEnabled((prev) => !prev)}
                 />
 
-                <button
-                  type="button"
-                  onClick={() => updateQty(qty + 1)}
-                  className="h-12 w-12 rounded-2xl border bg-white text-xl font-black"
-                >
-                  +
-                </button>
-              </div>
-            </div>
+                <AddonCard
+                  icon="☕"
+                  title="Tilltugg ombord"
+                  text="Möjlighet att lägga till enklare tilltugg längre fram."
+                  buttonLabel="Kommer snart"
+                  disabled
+                />
 
-            {selectedSeats.length > 0 && (
-              <div className="mt-5 rounded-3xl border border-[#b7e7df] bg-[#eafaf7] p-4 text-sm text-[#006b5b]">
-                <div className="font-black">Valda säten</div>
-                <div className="mt-1">{selectedSeats.join(", ")}</div>
-              </div>
-            )}
-
-            <div className="mt-5 space-y-3">
-              <input
-                placeholder="Namn"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className="w-full rounded-2xl border px-4 py-3"
-              />
-
-              <input
-                placeholder="E-post"
-                value={customerEmail}
-                onChange={(e) => setCustomerEmail(e.target.value)}
-                className="w-full rounded-2xl border px-4 py-3"
-              />
-
-              <input
-                placeholder="Telefon"
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                className="w-full rounded-2xl border px-4 py-3"
-              />
-            </div>
-
-            <div className="mt-6 space-y-2 border-t pt-5">
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>Resa</span>
-                <span>{money(subtotal)}</span>
+                <AddonCard
+                  icon="🛡"
+                  title="Avbeställningsskydd"
+                  text="Tillval för tryggare bokning kan läggas till i nästa version."
+                  buttonLabel="Kommer snart"
+                  disabled
+                />
               </div>
 
-              {seatExtraTotal > 0 && (
-                <div className="flex justify-between text-sm text-[#194C66]">
-                  <span>Sätesval</span>
-                  <span>{money(seatExtraTotal)}</span>
+              {seatChoiceEnabled && (
+                <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                  <h2 className="text-2xl font-bold text-[#5d6670]">Välj plats i bussen</h2>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Du kan välja upp till {qty} plats(er). Om du inte väljer plats placerar vi dig automatiskt.
+                  </p>
+
+                  {!selectedDeparture?.has_seat_map ? (
+                    <p className="mt-5 rounded-lg bg-gray-100 p-4 text-gray-600">
+                      Det finns ingen platskarta kopplad till denna avgång ännu.
+                    </p>
+                  ) : seatLoading ? (
+                    <p className="mt-5 text-sm text-gray-500">Laddar platskarta...</p>
+                  ) : seats.length === 0 ? (
+                    <p className="mt-5 text-sm text-gray-500">Platskarta saknas för denna avgång.</p>
+                  ) : (
+                    <div className="mt-5">
+                      <SeatMap
+                        seats={seats}
+                        selectedSeats={selectedSeats}
+                        maxSelectable={qty}
+                        showLegend
+                        showSummary
+                        title="Platskarta"
+                        subtitle="Välj de säten du vill boka."
+                        onSeatClick={toggleSeat}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
-              <div className="flex justify-between text-xl font-black">
-                <span>Totalt</span>
-                <span>{money(total)}</span>
+              <TravelOverview
+                trip={trip}
+                departure={selectedDeparture}
+                qty={qty}
+                total={total}
+              />
+
+              <NavigationButtons
+                step={step}
+                onPrevious={previousStep}
+                onNext={nextStep}
+                nextLabel="Nästa steg"
+              />
+            </section>
+          )}
+
+          {step === 4 && (
+            <section>
+              <h1 className="mb-8 text-center text-3xl font-bold text-[#5d6670]">
+                Personuppgifter
+              </h1>
+
+              <TravelOverview
+                trip={trip}
+                departure={selectedDeparture}
+                qty={qty}
+                total={total}
+              />
+
+              <div className="mt-8 rounded-xl border border-gray-200 bg-[#f7f7f7] p-6">
+                <div className="mb-5 inline-flex rounded bg-[#5d6670] px-3 py-1 text-sm font-bold text-white">
+                  Personuppgifter
+                </div>
+
+                <div className="grid gap-5">
+                  <FormRow label="E-post *">
+                    <input value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} className="hb-input" />
+                  </FormRow>
+
+                  <FormRow label="Mobiltelefon *">
+                    <input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} className="hb-input" />
+                  </FormRow>
+
+                  <FormRow label="Namn *">
+                    <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="hb-input" />
+                  </FormRow>
+
+                  <FormRow label="Adress">
+                    <input value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} className="hb-input" />
+                  </FormRow>
+
+                  <FormRow label="Postnummer">
+                    <input value={customerZip} onChange={(e) => setCustomerZip(e.target.value)} className="hb-input" />
+                  </FormRow>
+
+                  <FormRow label="Stad">
+                    <input value={customerCity} onChange={(e) => setCustomerCity(e.target.value)} className="hb-input" />
+                  </FormRow>
+                </div>
               </div>
-            </div>
 
-            <button
-              onClick={createBooking}
-              disabled={bookingLoading || !selectedDeparture}
-              className="mt-6 w-full rounded-full bg-[#007764] px-5 py-4 text-base font-black text-white shadow-lg shadow-[#007764]/20 disabled:opacity-50"
-            >
-              {bookingLoading ? "Skapar bokning..." : "Fortsätt till betalning"}
-            </button>
+              <div className="mt-8 rounded-xl border border-gray-200 bg-[#f7f7f7] p-6">
+                <h2 className="mb-4 text-xl font-bold text-[#5d6670]">Resenärer</h2>
 
-            <div className="mt-5 rounded-3xl bg-[#eafaf7] p-4 text-sm font-bold leading-6 text-[#006b5b]">
-              Betalning sker tryggt via SumUp. Din bokning skapas först när
-              betalningen startas.
-            </div>
-          </aside>
+                <div className="space-y-4">
+                  {Array.from({ length: qty }).map((_, index) => (
+                    <div key={index} className="grid gap-3 rounded-lg bg-white p-4 md:grid-cols-[120px_1fr]">
+                      <div className="font-bold text-gray-700">Resenär {index + 1}</div>
+                      <input
+                        value={passengerNames[index] || ""}
+                        onChange={(e) => {
+                          const next = [...passengerNames];
+                          next[index] = e.target.value;
+                          setPassengerNames(next);
+                        }}
+                        placeholder="För- och efternamn"
+                        className="hb-input"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-8 rounded-xl border border-gray-200 bg-[#f7f7f7] p-6">
+                <h2 className="mb-3 text-lg font-bold text-[#5d6670]">Bekräftelse</h2>
+                <label className="flex gap-3 text-sm text-gray-700">
+                  <input type="checkbox" className="mt-1" />
+                  Jag bekräftar att uppgifterna stämmer och att jag vill fortsätta till betalning.
+                </label>
+              </div>
+
+              <NavigationButtons
+                step={step}
+                onPrevious={previousStep}
+                onNext={nextStep}
+                nextLabel="Nästa steg"
+              />
+            </section>
+          )}
+
+          {step === 5 && (
+            <section>
+              <div className="mx-auto max-w-[900px]">
+                <div className="mb-6 bg-gradient-to-r from-[#41a5ff] to-[#76c7ff] px-8 py-8 text-center text-white">
+                  <div className="text-lg">Bokningsöversikt</div>
+                  <div className="mt-2 text-2xl font-bold">{trip.title}</div>
+                </div>
+
+                <h1 className="mb-3 text-3xl font-bold text-[#111827]">
+                  Kontrollera och betala
+                </h1>
+
+                <p className="mb-6 text-gray-700">
+                  Kontrollera att uppgifterna stämmer. När du går vidare skapas bokningen och du skickas till säker betalning.
+                </p>
+
+                <TravelOverview
+                  trip={trip}
+                  departure={selectedDeparture}
+                  qty={qty}
+                  total={total}
+                  selectedSeats={selectedSeats}
+                />
+
+                <div className="mt-8 rounded-xl border border-gray-200 bg-white p-6">
+                  <h2 className="mb-4 text-xl font-bold text-[#5d6670]">Betalningsmetod</h2>
+
+                  <div className="grid gap-6 md:grid-cols-[1fr_320px]">
+                    <div className="space-y-3">
+                      <PaymentOption label="Kortbetalning" checked />
+                      <PaymentOption label="Swish / annan betalning via SumUp" />
+                    </div>
+
+                    <div className="rounded-xl bg-[#f7fdff] p-6 text-center">
+                      <div className="text-sm text-gray-600">Betalningsbelopp</div>
+                      <div className="mt-2 text-3xl font-bold text-[#00866f]">
+                        {money(total)}
+                      </div>
+
+                      <button
+                        onClick={createBooking}
+                        disabled={bookingLoading}
+                        className="mt-6 w-full rounded-full bg-[#00866f] px-6 py-3 font-bold text-white disabled:opacity-50"
+                      >
+                        {bookingLoading ? "Skapar bokning..." : "Betala"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <NavigationButtons
+                  step={step}
+                  onPrevious={previousStep}
+                  onNext={createBooking}
+                  nextLabel={bookingLoading ? "Skapar bokning..." : "Betala"}
+                  hideNext
+                />
+              </div>
+            </section>
+          )}
         </main>
+
+        <style jsx global>{`
+          .hb-input {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            background: white;
+            min-height: 42px;
+            border-radius: 4px;
+            padding: 8px 12px;
+            outline: none;
+          }
+
+          .hb-input:focus {
+            border-color: #00879a;
+            box-shadow: 0 0 0 3px rgba(0, 135, 154, 0.12);
+          }
+        `}</style>
       </div>
     </>
   );
 }
 
-function InfoCard({ label, value }: { label: string; value: string }) {
+function Stepper({ step }: { step: Step }) {
+  const steps = [
+    "Välj resa",
+    "Resealternativ",
+    "Tillval",
+    "Personuppgifter",
+    "Bekräftelse",
+  ];
+
   return (
-    <div className="rounded-[26px] bg-white p-5 shadow-[0_16px_40px_rgba(15,23,42,.12)]">
-      <div className="text-xs font-bold uppercase tracking-wide text-gray-500">
-        {label}
-      </div>
-      <div className="mt-2 text-xl font-black text-[#0f172a]">{value}</div>
+    <div className="mb-10 hidden items-center justify-center gap-2 md:flex">
+      {steps.map((label, index) => {
+        const nr = index + 1;
+        const active = step === nr;
+        const done = step > nr;
+
+        return (
+          <div key={label} className="flex items-center">
+            <div className="flex items-center gap-2">
+              <span
+                className={`flex h-5 w-5 items-center justify-center rounded-full border text-xs ${
+                  active || done
+                    ? "border-[#0094aa] bg-[#0094aa] text-white"
+                    : "border-gray-300 bg-white text-gray-500"
+                }`}
+              >
+                {nr}
+              </span>
+              <span className={active ? "font-bold text-[#5d6670]" : "text-gray-500"}>
+                {label}
+              </span>
+            </div>
+
+            {index < steps.length - 1 && (
+              <div className="mx-4 h-px w-36 bg-gray-300" />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function MiniCard({
+function NavigationButtons({
+  step,
+  onPrevious,
+  onNext,
+  nextLabel,
+  hideNext = false,
+}: {
+  step: Step;
+  onPrevious: () => void;
+  onNext: () => void;
+  nextLabel: string;
+  hideNext?: boolean;
+}) {
+  return (
+    <div className="mt-10 flex items-center justify-between">
+      <button
+        type="button"
+        onClick={onPrevious}
+        disabled={step === 1}
+        className="rounded-full bg-[#4f7180] px-10 py-4 font-bold text-white shadow disabled:opacity-0"
+      >
+        Föregående steg
+      </button>
+
+      {!hideNext && (
+        <button
+          type="button"
+          onClick={onNext}
+          className="rounded-full bg-[#00866f] px-12 py-4 font-bold text-white shadow"
+        >
+          {nextLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function TravelOverview({
+  trip,
+  departure,
+  qty,
+  total,
+  selectedSeats = [],
+}: {
+  trip: Trip;
+  departure: Departure | null;
+  qty: number;
+  total: number;
+  selectedSeats?: string[];
+}) {
+  return (
+    <div className="mt-8">
+      <h2 className="mb-5 text-3xl font-bold text-[#5d6670]">Din resa - översikt</h2>
+
+      <div className="grid gap-8 md:grid-cols-3">
+        <div>
+          <h3 className="border-b pb-3 text-xl text-[#5d6670]">Resa</h3>
+          {trip.image_url && (
+            <img src={trip.image_url} alt={trip.title} className="mt-4 h-44 w-full object-cover" />
+          )}
+          <div className="mt-4 font-bold">{trip.title}</div>
+          <InfoLine label="Kategori" value={trip.category || "Resa"} />
+          <InfoLine label="Resenärer" value={`${qty}`} />
+          {selectedSeats.length > 0 && (
+            <InfoLine label="Säten" value={selectedSeats.join(", ")} />
+          )}
+        </div>
+
+        <div>
+          <h3 className="border-b pb-3 text-xl text-[#5d6670]">Avgång</h3>
+          <div className="mt-4">
+            <InfoLine label="Datum" value={departure ? fmtDate(departure.departure_date) : "Ej valt"} />
+            <InfoLine label="Avresa" value={departure ? fmtTime(departure.departure_time) : "Ej valt"} />
+            <InfoLine label="Retur" value={departure?.return_time ? fmtTime(departure.return_time) : "Ej angivet"} />
+            <InfoLine label="Från" value={departure?.departure_location || "Meddelas"} />
+            <InfoLine label="Till" value={departure?.destination_location || trip.destination || "Destination"} />
+          </div>
+        </div>
+
+        <div>
+          <h3 className="border-b pb-3 text-xl text-[#5d6670]">Pris</h3>
+          <div className="mt-4 flex justify-between">
+            <span>Totalpris:</span>
+            <span className="text-3xl font-bold text-[#d83b4a]">{money(total)}</span>
+          </div>
+          <p className="mt-5 text-gray-600">
+            Priset kan ändras fram tills att resan är bokad.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FactRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[1fr_auto] gap-4 py-1 text-sm">
+      <span className="font-medium text-[#111827]">{label}</span>
+      <span>{value}</span>
+    </div>
+  );
+}
+
+function InfoLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[110px_1fr] gap-3 py-1">
+      <span className="font-bold">{label}:</span>
+      <span>{value}</span>
+    </div>
+  );
+}
+
+function AddonCard({
   icon,
   title,
   text,
+  buttonLabel,
+  active = false,
+  disabled = false,
+  onClick,
 }: {
   icon: string;
   title: string;
   text: string;
+  buttonLabel: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <div className="rounded-[28px] bg-white p-6 shadow-[0_14px_35px_rgba(15,23,42,.08)]">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eafaf7] text-xl">
+    <div
+      className={`rounded-xl p-7 text-center shadow ${
+        active ? "bg-[#e4fbff]" : "bg-[#4b4f52] text-white"
+      }`}
+    >
+      <div
+        className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border-4 text-3xl ${
+          active ? "border-[#00879a] text-[#00879a]" : "border-[#a7e8ef] text-[#a7e8ef]"
+        }`}
+      >
         {icon}
       </div>
-      <h3 className="text-lg font-black text-[#194C66]">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-gray-500">{text}</p>
+      <h3 className="text-xl font-bold">{title}</h3>
+      <p className={`mt-4 min-h-[90px] text-sm leading-6 ${active ? "text-gray-700" : "text-white/85"}`}>
+        {text}
+      </p>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onClick}
+        className={`mt-5 rounded-full px-6 py-2 text-sm font-bold ${
+          active
+            ? "bg-[#00866f] text-white"
+            : disabled
+              ? "bg-gray-500 text-white/60"
+              : "bg-[#00866f] text-white"
+        }`}
+      >
+        {buttonLabel}
+      </button>
     </div>
+  );
+}
+
+function FormRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="grid gap-3 md:grid-cols-[180px_1fr] md:items-center">
+      <label className="font-medium text-gray-700">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function PaymentOption({ label, checked = false }: { label: string; checked?: boolean }) {
+  return (
+    <label className="flex items-center gap-3 border-b py-3 text-sm">
+      <input type="radio" name="payment" defaultChecked={checked} />
+      {label}
+    </label>
   );
 }
