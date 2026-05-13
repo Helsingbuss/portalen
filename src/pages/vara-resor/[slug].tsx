@@ -3,6 +3,8 @@ import { useRouter } from "next/router";
 import Head from "next/head";
 import SeatMap, { SeatMapSeat } from "@/components/sundra/SeatMap";
 
+const API_BASE = "https://kund.helsingbuss.se";
+
 type Departure = {
   id: string;
   departure_date?: string | null;
@@ -123,7 +125,10 @@ export default function TripPage() {
       setLoading(true);
       setError("");
 
-      const res = await fetch(`/api/public/sundra/trips/${currentSlug}`);
+      const res = await fetch(
+        `${API_BASE}/api/public/sundra/trips/${encodeURIComponent(currentSlug)}`
+      );
+
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok || !json?.ok) {
@@ -148,7 +153,10 @@ export default function TripPage() {
       setSeats([]);
       setSelectedSeats([]);
 
-      const res = await fetch(`/api/public/sundra/departures/${departureId}/seats`);
+      const res = await fetch(
+        `${API_BASE}/api/public/sundra/departures/${departureId}/seats`
+      );
+
       const json = await res.json().catch(() => ({}));
 
       if (res.ok && json?.ok) {
@@ -205,8 +213,14 @@ export default function TripPage() {
         return;
       }
 
-      if (seats.length > 0 && selectedSeats.length > 0 && selectedSeats.length !== qty) {
-        alert(`Du har valt ${selectedSeats.length} säte(n), men antal resenärer är ${qty}.`);
+      if (
+        seats.length > 0 &&
+        selectedSeats.length > 0 &&
+        selectedSeats.length !== qty
+      ) {
+        alert(
+          `Du har valt ${selectedSeats.length} säte(n), men antal resenärer är ${qty}.`
+        );
         return;
       }
 
@@ -230,7 +244,7 @@ export default function TripPage() {
         };
       });
 
-      const res = await fetch("/api/public/sundra/bookings/create", {
+      const res = await fetch(`${API_BASE}/api/public/sundra/bookings/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -242,7 +256,9 @@ export default function TripPage() {
           customer_email: customerEmail,
           customer_phone: customerPhone,
           customer_address: null,
-          notes: selectedSeats.length ? `Valda säten: ${selectedSeats.join(", ")}` : null,
+          notes: selectedSeats.length
+            ? `Valda säten: ${selectedSeats.join(", ")}`
+            : null,
           subtotal,
           seat_extra_total: seatExtraTotal,
           total_amount: total,
@@ -261,7 +277,7 @@ export default function TripPage() {
 
       window.location.href = link.startsWith("http")
         ? link
-        : `${window.location.origin}${link}`;
+        : `${API_BASE}${link}`;
     } catch (e: any) {
       alert(e?.message || "Något gick fel vid bokning.");
     } finally {
@@ -366,7 +382,9 @@ export default function TripPage() {
               </div>
 
               <div className="whitespace-pre-line text-base leading-8 text-gray-600">
-                {trip.description || trip.short_description || "Beskrivning kommer snart."}
+                {trip.description ||
+                  trip.short_description ||
+                  "Beskrivning kommer snart."}
               </div>
             </section>
 
@@ -380,7 +398,8 @@ export default function TripPage() {
                     Välj datum
                   </h2>
                   <p className="mt-2 text-sm text-gray-500">
-                    Välj den avgång du vill boka. Priset och platserna uppdateras direkt.
+                    Välj den avgång du vill boka. Priset och platserna
+                    uppdateras direkt.
                   </p>
                 </div>
               </div>
@@ -413,7 +432,9 @@ export default function TripPage() {
                           }`}
                         >
                           <span className="text-2xl leading-none">{d.day}</span>
-                          <span className="mt-1 text-xs uppercase">{d.month}</span>
+                          <span className="mt-1 text-xs uppercase">
+                            {d.month}
+                          </span>
                         </div>
 
                         <div>
@@ -423,12 +444,16 @@ export default function TripPage() {
 
                           <div className="mt-1 text-sm text-gray-600">
                             Avgång {fmtTime(dep.departure_time)}
-                            {dep.return_time ? ` · Retur ${fmtTime(dep.return_time)}` : ""}
+                            {dep.return_time
+                              ? ` · Retur ${fmtTime(dep.return_time)}`
+                              : ""}
                           </div>
 
                           <div className="mt-2 text-sm text-gray-500">
                             {dep.departure_location || "Påstigning meddelas"} →{" "}
-                            {dep.destination_location || trip.destination || "Destination"}
+                            {dep.destination_location ||
+                              trip.destination ||
+                              "Destination"}
                           </div>
                         </div>
 
@@ -471,9 +496,21 @@ export default function TripPage() {
             )}
 
             <section className="grid gap-4 md:grid-cols-3">
-              <MiniCard icon="✓" title="Trygg bokning" text="Tydlig bekräftelse och säker betalning." />
-              <MiniCard icon="🚌" title="Bekväm resa" text="Planerad resa med fokus på trygghet." />
-              <MiniCard icon="📩" title="Biljett digitalt" text="Du får din bokning och information digitalt." />
+              <MiniCard
+                icon="✓"
+                title="Trygg bokning"
+                text="Tydlig bekräftelse och säker betalning."
+              />
+              <MiniCard
+                icon="🚌"
+                title="Bekväm resa"
+                text="Planerad resa med fokus på trygghet."
+              />
+              <MiniCard
+                icon="📩"
+                title="Biljett digitalt"
+                text="Du får din bokning och information digitalt."
+              />
             </section>
           </div>
 
@@ -498,7 +535,9 @@ export default function TripPage() {
                 Valt datum
               </div>
               <div className="mt-1 font-black text-[#0f172a]">
-                {selectedDeparture ? fmtDate(selectedDeparture.departure_date) : "Välj datum"}
+                {selectedDeparture
+                  ? fmtDate(selectedDeparture.departure_date)
+                  : "Välj datum"}
               </div>
 
               {selectedDeparture && (
@@ -599,7 +638,8 @@ export default function TripPage() {
             </button>
 
             <div className="mt-5 rounded-3xl bg-[#eafaf7] p-4 text-sm font-bold leading-6 text-[#006b5b]">
-              Betalning sker tryggt via SumUp. Din bokning skapas först när betalningen startas.
+              Betalning sker tryggt via SumUp. Din bokning skapas först när
+              betalningen startas.
             </div>
           </aside>
         </main>
