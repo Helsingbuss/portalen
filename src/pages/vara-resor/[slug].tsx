@@ -258,8 +258,11 @@ export default function TripPage() {
   }
 
   function updateQty(value: number) {
-    const next = Math.max(1, value || 1);
+    const maxSeats = Number(selectedDeparture?.seats_left || 99);
+    const next = Math.max(1, Math.min(maxSeats, value || 1));
+
     setQty(next);
+    setSelectedSeats((prev) => prev.slice(0, next));
   }
 
   function nextStep() {
@@ -691,6 +694,14 @@ export default function TripPage() {
                 </div>
               </div>
 
+              <QuantitySelector
+                qty={qty}
+                max={selectedDeparture?.seats_left || 99}
+                unitPrice={unitPrice}
+                total={subtotal}
+                onChange={updateQty}
+              />
+
               <TravelOverview
                 trip={trip}
                 departure={selectedDeparture}
@@ -798,6 +809,14 @@ export default function TripPage() {
               <h1 className="mb-8 text-center text-3xl font-bold text-[#5d6670]">
                 Personuppgifter
               </h1>
+
+              <QuantitySelector
+                qty={qty}
+                max={selectedDeparture?.seats_left || 99}
+                unitPrice={unitPrice}
+                total={subtotal}
+                onChange={updateQty}
+              />
 
               <TravelOverview
                 trip={trip}
@@ -1077,6 +1096,85 @@ function NavigationButtons({
           {nextLabel}
         </button>
       )}
+    </div>
+  );
+}
+
+function QuantitySelector({
+  qty,
+  max,
+  unitPrice,
+  total,
+  onChange,
+}: {
+  qty: number;
+  max: number;
+  unitPrice: number;
+  total: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="mt-8 rounded-xl border border-gray-200 bg-[#f7fdff] p-6">
+      <div className="flex flex-wrap items-center justify-between gap-5">
+        <div>
+          <h2 className="text-2xl font-bold text-[#5d6670]">
+            Antal resenärer
+          </h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Välj hur många biljetter som ska bokas. Max {max} platser kvar.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onChange(qty - 1)}
+            disabled={qty <= 1}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-[#4f7180] text-2xl font-bold text-white disabled:opacity-40"
+          >
+            −
+          </button>
+
+          <input
+            type="number"
+            min={1}
+            max={max}
+            value={qty}
+            onChange={(e) => onChange(Number(e.target.value))}
+            className="h-12 w-24 rounded-xl border text-center text-xl font-bold"
+          />
+
+          <button
+            type="button"
+            onClick={() => onChange(qty + 1)}
+            disabled={qty >= max}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-[#00866f] text-2xl font-bold text-white disabled:opacity-40"
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <div className="rounded-xl bg-white p-4">
+          <div className="text-xs text-gray-500">Pris per person</div>
+          <div className="mt-1 text-xl font-bold text-[#111827]">
+            {money(unitPrice)}
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-white p-4">
+          <div className="text-xs text-gray-500">Antal biljetter</div>
+          <div className="mt-1 text-xl font-bold text-[#111827]">{qty} st</div>
+        </div>
+
+        <div className="rounded-xl bg-white p-4">
+          <div className="text-xs text-gray-500">Summa resa</div>
+          <div className="mt-1 text-xl font-bold text-[#d83b4a]">
+            {money(total)}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
