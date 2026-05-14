@@ -13,19 +13,6 @@ function makeBookingNumber() {
   return `SU${year}${random}`;
 }
 
-function cleanPassenger(p: any) {
-  return {
-    first_name: p?.first_name || null,
-    last_name: p?.last_name || null,
-    passenger_type: p?.passenger_type || "adult",
-    date_of_birth: p?.date_of_birth || null,
-    special_requests: p?.special_requests || null,
-
-    seat_number: p?.seat_number || null,
-    seat_price: toNumber(p?.seat_price, 0),
-  };
-}
-
 function baseUrl() {
   const raw =
     process.env.NEXT_PUBLIC_BASE_URL ||
@@ -34,6 +21,39 @@ function baseUrl() {
     "http://localhost:3000";
 
   return raw.replace(/\/$/, "");
+}
+
+function cleanPassenger(p: any) {
+  return {
+    first_name: p?.first_name || null,
+    last_name: p?.last_name || null,
+    passenger_type: p?.passenger_type || "adult",
+    date_of_birth: p?.date_of_birth || null,
+    special_requests: p?.special_requests || null,
+    seat_number: p?.seat_number || null,
+    seat_price: toNumber(p?.seat_price, 0),
+  };
+}
+
+function buildPassengers(bodyPassengers: any[], passengersCount: number, customerName: string) {
+  return Array.from({ length: passengersCount }).map((_, index) => {
+    const existing = bodyPassengers[index] || {};
+    const fallbackName = index === 0 ? customerName : "";
+
+    if (existing.first_name || existing.last_name) {
+      return cleanPassenger(existing);
+    }
+
+    const parts = fallbackName.trim().split(" ").filter(Boolean);
+    const firstName = parts[0] || null;
+    const lastName = parts.slice(1).join(" ") || null;
+
+    return cleanPassenger({
+      ...existing,
+      first_name: firstName,
+      last_name: lastName,
+    });
+  });
 }
 
 async function createSumUpCheckout({
@@ -79,16 +99,13 @@ async function createSumUpCheckout({
 
   if (!response.ok) {
     console.error("SumUp checkout error:", json);
-    throw new Error(
-      json?.message || json?.error || "Kunde inte skapa SumUp-betalning."
-    );
+    throw new Error(json?.message || json?.error || "Kunde inte skapa SumUp-betalning.");
   }
 
   return {
     id: json.id,
     checkout_reference: json.checkout_reference,
-    checkout_url:
-      json.checkout_url || json.redirect_url || json.hosted_checkout_url || null,
+    checkout_url: json.checkout_url || json.redirect_url || json.hosted_checkout_url || null,
     raw: json,
     cancel_url: cancelUrl,
   };
@@ -101,9 +118,7 @@ async function validateSelectedSeats({
   departureId: string;
   passengers: any[];
 }) {
-  const selectedSeats = passengers
-    .map((p) => p?.seat_number)
-    .filter(Boolean);
+  const selectedSeats = passengers.map((p) => p?.seat_number).filter(Boolean);
 
   if (selectedSeats.length === 0) return;
 
@@ -133,10 +148,7 @@ async function validateSelectedSeats({
       ? p.sundra_bookings[0]
       : p.sundra_bookings;
 
-    return (
-      booking?.departure_id === departureId &&
-      booking?.status !== "cancelled"
-    );
+    return booking?.departure_id === departureId && booking?.status !== "cancelled";
   });
 
   if (occupied.length > 0) {
@@ -172,7 +184,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const passengersCount = Math.max(1, toNumber(body.passengers_count, 1));
-    const passengers = Array.isArray(body.passengers) ? body.passengers : [];
+    const bodyPassengers = Array.isArray(body.passengers) ? body.passengers : [];
+    const passengers = buildPassengers(bodyPassengers, passengersCount, body.customer_name);
 
     const { data: departure, error: depError } = await supabaseAdmin
       .from("sundra_departures")
@@ -236,34 +249,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       : departure.sundra_trips;
 
     const unitPrice = toNumber(departure.price, 0);
-
-    const subtotalFromBody = toNumber(body.subtotal, 0);
-    const calculatedSubtotal = unitPrice * passengersCount;
-    const subtotal = subtotalFromBody > 0 ? subtotalFromBody : calculatedSubtotal;
+    const subtotal = unitPrice * passengersCount;
 
     const optionsTotal = toNumber(body.options_total, 0);
     const roomTotal = toNumber(body.room_total, 0);
-    const seatExtraTotalFromBody = toNumber(body.seat_extra_total, 0);
 
-    const seatExtraTotalFromPassengers = passengers.reduce(
+    const seatExtraTotal = passengers.reduce(
       (sum: number, p: any) => sum + toNumber(p?.seat_price, 0),
       0
     );
 
-    const seatExtraTotal =
-      seatExtraTotalFromBody > 0
-        ? seatExtraTotalFromBody
-        : seatExtraTotalFromPassengers;
-
     const discountAmount = toNumber(body.discount_amount, 0);
-    const totalBeforeDiscount =
-      subtotal + optionsTotal + roomTotal + seatExtraTotal;
 
-    const totalAmountFromBody = toNumber(body.total_amount, 0);
-    const totalAmount =
-      totalAmountFromBody > 0
-        ? totalAmountFromBody
-        : Math.max(0, totalBeforeDiscount - discountAmount);
+    const totalAmount = Math.max(
+      0,
+      subtotal + optionsTotal + roomTotal + seatExtraTotal - discountAmount
+    );
 
     const currency = body.currency || trip?.currency || "SEK";
     const bookingNumber = makeBookingNumber();
@@ -309,18 +310,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (bookingError) throw bookingError;
 
-    if (passengers.length > 0) {
-      const passengerRows = passengers.map((p: any) => ({
-        booking_id: booking.id,
-        ...cleanPassenger(p),
-      }));
+    const passengerRows = passengers.map((p: any) => ({
+      booking_id: booking.id,
+      ...cleanPassenger(p),
+    }));
 
-      const { error: passengerError } = await supabaseAdmin
-        .from("sundra_booking_passengers")
-        .insert(passengerRows);
+    const { error: passengerError } = await supabaseAdmin
+      .from("sundra_booking_passengers")
+      .insert(passengerRows);
 
-      if (passengerError) throw passengerError;
-    }
+    if (passengerError) throw passengerError;
 
     const { error: depUpdateError } = await supabaseAdmin
       .from("sundra_departures")
