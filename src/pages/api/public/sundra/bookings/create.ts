@@ -321,17 +321,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (passengerError) throw passengerError;
 
-    const { error: depUpdateError } = await supabaseAdmin
-      .from("sundra_departures")
-      .update({
-        booked_count: Number(departure.booked_count || 0) + passengersCount,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", body.departure_id);
-
-    if (depUpdateError) throw depUpdateError;
-
-    const sumup = await createSumUpCheckout({
+      const sumup = await createSumUpCheckout({
       bookingId: booking.id,
       bookingNumber: booking.booking_number,
       amount: totalAmount,
