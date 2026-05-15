@@ -5,8 +5,30 @@ import SeatMap, { SeatMapSeat } from "@/components/sundra/SeatMap";
 
 const API_BASE = "https://kund.helsingbuss.se";
 
+type LineStop = {
+  id: string;
+  stop_name: string;
+  stop_city?: string | null;
+  departure_time?: string | null;
+  price?: number | null;
+  order_index?: number | null;
+  is_active?: boolean;
+};
+
+type DepartureLine = {
+  id: string;
+  name?: string | null;
+  code?: string | null;
+  color?: string | null;
+  start_city?: string | null;
+  end_city?: string | null;
+  stops?: LineStop[];
+};
+
 type Departure = {
   id: string;
+  line_id?: string | null;
+  line?: DepartureLine | null;
   departure_date?: string | null;
   departure_time?: string | null;
   return_date?: string | null;
@@ -14,6 +36,7 @@ type Departure = {
   departure_location?: string | null;
   destination_location?: string | null;
   price?: number | null;
+  base_price?: number | null;
   capacity?: number | null;
   booked_count?: number | null;
   seats_left?: number | null;
@@ -99,6 +122,7 @@ export default function TripPage() {
   const [step, setStep] = useState<Step>(1);
   const [trip, setTrip] = useState<Trip | null>(null);
   const [selectedDepartureId, setSelectedDepartureId] = useState("");
+  const [selectedLineStopId, setSelectedLineStopId] = useState("");
   const [loading, setLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [error, setError] = useState("");
@@ -126,6 +150,18 @@ export default function TripPage() {
   const selectedDeparture = useMemo(() => {
     return trip?.departures?.find((d) => d.id === selectedDepartureId) || null;
   }, [trip, selectedDepartureId]);
+
+  const selectedLineStops = useMemo(() => {
+    return selectedDeparture?.line?.stops || [];
+  }, [selectedDeparture]);
+
+  const selectedLineStop = useMemo(() => {
+    return (
+      selectedLineStops.find((stop) => stop.id === selectedLineStopId) ||
+      selectedLineStops[0] ||
+      null
+    );
+  }, [selectedLineStops, selectedLineStopId]);
 
   const sortedDepartures = useMemo(() => {
     return [...(trip?.departures || [])].sort((a, b) =>
@@ -182,6 +218,20 @@ export default function TripPage() {
   }, [qty]);
 
   useEffect(() => {
+    const firstStop = selectedDeparture?.line?.stops?.[0];
+
+    setSelectedLineStopId((current) => {
+      if (!firstStop) return "";
+
+      const exists = selectedDeparture?.line?.stops?.some(
+        (stop) => stop.id === current
+      );
+
+      return exists ? current : firstStop.id;
+    });
+  }, [selectedDeparture?.id]);
+
+  useEffect(() => {
     if (
       !seatChoiceEnabled ||
       !selectedDeparture?.id ||
@@ -214,6 +264,9 @@ export default function TripPage() {
 
       if (json.trip?.departures?.length) {
         setSelectedDepartureId(json.trip.departures[0].id);
+
+        const firstStop = json.trip.departures[0]?.line?.stops?.[0];
+        setSelectedLineStopId(firstStop?.id || "");
       }
     } catch (e: any) {
       setError(e?.message || "Något gick fel.");
@@ -271,6 +324,11 @@ export default function TripPage() {
       return;
     }
 
+    if (step === 2 && selectedLineStops.length > 0 && !selectedLineStop) {
+      alert("Välj påstigningshållplats först.");
+      return;
+    }
+
     if (
       step === 3 &&
       seatChoiceEnabled &&
@@ -309,7 +367,13 @@ export default function TripPage() {
     0
   );
 
-  const unitPrice = Number(selectedDeparture?.price || trip?.price_from || 0);
+  const unitPrice = Number(
+    selectedLineStop?.price ||
+      selectedDeparture?.price ||
+      selectedDeparture?.base_price ||
+      trip?.price_from ||
+      0
+  );
   const subtotal = unitPrice * qty;
   const total = subtotal + seatExtraTotal;
 
@@ -317,6 +381,12 @@ export default function TripPage() {
     try {
       if (!trip || !selectedDeparture) {
         alert("Välj ett datum först.");
+        return;
+      }
+
+      if (selectedLineStops.length > 0 && !selectedLineStop) {
+        alert("Välj påstigningshållplats först.");
+        setStep(2);
         return;
       }
 
@@ -365,6 +435,11 @@ export default function TripPage() {
         body: JSON.stringify({
           trip_id: trip.id,
           departure_id: selectedDeparture.id,
+          line_id: selectedDeparture.line_id || selectedDeparture.line?.id || null,
+          line_stop_id: selectedLineStop?.id || null,
+          pickup_stop_name: selectedLineStop?.stop_name || null,
+          pickup_stop_city: selectedLineStop?.stop_city || null,
+          pickup_time: selectedLineStop?.departure_time || null,
           passengers_count: qty,
           passengers,
           customer_name: customerName,
@@ -373,9 +448,21 @@ export default function TripPage() {
           customer_address: [customerAddress, customerZip, customerCity]
             .filter(Boolean)
             .join(", "),
-          notes: selectedSeats.length
-            ? `Valda säten: ${selectedSeats.join(", ")}`
-            : null,
+          notes:
+            [
+              selectedLineStop
+                ? `Påstigning: ${selectedLineStop.stop_name}${
+                    selectedLineStop.departure_time
+                      ? ` kl ${selectedLineStop.departure_time}`
+                      : ""
+                  }`
+                : "",
+              selectedSeats.length
+                ? `Valda säten: ${selectedSeats.join(", ")}`
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" | ") || null,
           subtotal,
           seat_extra_total: seatExtraTotal,
           total_amount: total,
@@ -694,6 +781,13 @@ export default function TripPage() {
                 </div>
               </div>
 
+              <StopSelector
+                stops={selectedLineStops}
+                selectedStopId={selectedLineStopId}
+                departure={selectedDeparture}
+                onChange={setSelectedLineStopId}
+              />
+
               <QuantitySelector
                 qty={qty}
                 max={selectedDeparture?.seats_left || 99}
@@ -705,6 +799,7 @@ export default function TripPage() {
               <TravelOverview
                 trip={trip}
                 departure={selectedDeparture}
+                selectedLineStop={selectedLineStop}
                 qty={qty}
                 total={total}
               />
@@ -791,6 +886,7 @@ export default function TripPage() {
               <TravelOverview
                 trip={trip}
                 departure={selectedDeparture}
+                selectedLineStop={selectedLineStop}
                 qty={qty}
                 total={total}
               />
@@ -821,6 +917,7 @@ export default function TripPage() {
               <TravelOverview
                 trip={trip}
                 departure={selectedDeparture}
+                selectedLineStop={selectedLineStop}
                 qty={qty}
                 total={total}
               />
@@ -950,6 +1047,7 @@ export default function TripPage() {
                 <TravelOverview
                   trip={trip}
                   departure={selectedDeparture}
+                  selectedLineStop={selectedLineStop}
                   qty={qty}
                   total={total}
                   selectedSeats={selectedSeats}
@@ -1100,6 +1198,97 @@ function NavigationButtons({
   );
 }
 
+function StopSelector({
+  stops,
+  selectedStopId,
+  departure,
+  onChange,
+}: {
+  stops: LineStop[];
+  selectedStopId: string;
+  departure: Departure | null;
+  onChange: (id: string) => void;
+}) {
+  if (!departure) return null;
+
+  if (!stops.length) {
+    return (
+      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-bold text-[#5d6670]">
+          Påstigning
+        </h2>
+        <p className="mt-2 text-sm text-gray-600">
+          Påstigning: {departure.departure_location || "Meddelas senare"}.
+          Pris baseras på avgångens grundpris.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="mb-4">
+        <h2 className="text-xl font-bold text-[#5d6670]">
+          Välj påstigningshållplats
+        </h2>
+        <p className="mt-1 text-sm text-gray-600">
+          Priset ändras automatiskt beroende på var kunden stiger på.
+        </p>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        {stops.map((stop) => {
+          const active = stop.id === selectedStopId;
+
+          return (
+            <button
+              key={stop.id}
+              type="button"
+              onClick={() => onChange(stop.id)}
+              className={`rounded-xl border p-4 text-left transition ${
+                active
+                  ? "border-[#00879a] bg-[#e4fbff] shadow"
+                  : "border-gray-200 bg-white hover:border-[#00879a]"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="font-bold text-[#111827]">
+                    {stop.stop_name}
+                  </div>
+
+                  {stop.stop_city && (
+                    <div className="mt-1 text-xs text-gray-500">
+                      {stop.stop_city}
+                    </div>
+                  )}
+
+                  <div className="mt-2 text-sm text-gray-600">
+                    Avgång {stop.departure_time || "Tid meddelas"}
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div className="text-xs text-gray-500">Pris</div>
+                  <div className="text-lg font-bold text-[#d83b4a]">
+                    {money(stop.price)}
+                  </div>
+                </div>
+              </div>
+
+              {active && (
+                <div className="mt-3 rounded-lg bg-[#00879a] px-3 py-2 text-xs font-bold text-white">
+                  Vald påstigning ✓
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function QuantitySelector({
   qty,
   max,
@@ -1182,12 +1371,14 @@ function QuantitySelector({
 function TravelOverview({
   trip,
   departure,
+  selectedLineStop,
   qty,
   total,
   selectedSeats = [],
 }: {
   trip: Trip;
   departure: Departure | null;
+  selectedLineStop?: LineStop | null;
   qty: number;
   total: number;
   selectedSeats?: string[];
@@ -1226,6 +1417,18 @@ function TravelOverview({
             <InfoLine
               label="Avresa"
               value={departure ? fmtTime(departure.departure_time) : "Ej valt"}
+            />
+            <InfoLine
+              label="Påstigning"
+              value={
+                selectedLineStop
+                  ? `${selectedLineStop.stop_name}${
+                      selectedLineStop.departure_time
+                        ? ` kl ${selectedLineStop.departure_time}`
+                        : ""
+                    }`
+                  : departure?.departure_location || "Ej valt"
+              }
             />
             <InfoLine
               label="Retur"
