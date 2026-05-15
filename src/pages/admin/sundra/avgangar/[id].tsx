@@ -9,6 +9,15 @@ type Trip = {
   destination?: string | null;
 };
 
+type Line = {
+  id: string;
+  name?: string | null;
+  code?: string | null;
+  color?: string | null;
+  status?: string | null;
+  trip_id?: string | null;
+};
+
 type BusMap = {
   id: string;
   name: string;
@@ -29,6 +38,8 @@ type Vehicle = {
 
 type DepartureForm = {
   trip_id: string;
+  line_id: string;
+
   vehicle_id: string;
   bus_map_id: string;
 
@@ -47,6 +58,8 @@ type DepartureForm = {
 
 const EMPTY_FORM: DepartureForm = {
   trip_id: "",
+  line_id: "",
+
   vehicle_id: "",
   bus_map_id: "",
 
@@ -128,6 +141,7 @@ export default function SundraDepartureDetailPage() {
   const { id } = router.query;
 
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [lines, setLines] = useState<Line[]>([]);
   const [busMaps, setBusMaps] = useState<BusMap[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
 
@@ -135,6 +149,7 @@ export default function SundraDepartureDetailPage() {
 
   const [loading, setLoading] = useState(true);
   const [loadingTrips, setLoadingTrips] = useState(true);
+  const [loadingLines, setLoadingLines] = useState(true);
   const [loadingBusMaps, setLoadingBusMaps] = useState(true);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -144,6 +159,7 @@ export default function SundraDepartureDetailPage() {
 
   useEffect(() => {
     loadTrips();
+    loadLines();
     loadBusMaps();
     loadVehicles();
   }, []);
@@ -166,6 +182,23 @@ export default function SundraDepartureDetailPage() {
       console.error(e);
     } finally {
       setLoadingTrips(false);
+    }
+  }
+
+  async function loadLines() {
+    try {
+      setLoadingLines(true);
+
+      const res = await fetch("/api/admin/sundra/lines");
+      const json = await res.json().catch(() => ({}));
+
+      if (res.ok && json?.ok) {
+        setLines(json.lines || []);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingLines(false);
     }
   }
 
@@ -227,6 +260,8 @@ export default function SundraDepartureDetailPage() {
 
       setForm({
         trip_id: departure.trip_id || "",
+        line_id: departure.line_id || "",
+
         vehicle_id: departure.vehicle_id || "",
         bus_map_id: departure.bus_map_id || "",
 
@@ -282,6 +317,7 @@ export default function SundraDepartureDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          line_id: form.line_id || null,
           vehicle_id: form.vehicle_id || null,
           bus_map_id: form.bus_map_id || null,
           price: Number(form.price || 0),
@@ -297,6 +333,7 @@ export default function SundraDepartureDetailPage() {
       }
 
       setSavedMessage("Sparat ✔");
+      await loadDeparture(id);
     } catch (e: any) {
       setError(e?.message || "Något gick fel.");
     } finally {
@@ -333,8 +370,19 @@ export default function SundraDepartureDetailPage() {
   }
 
   const selectedTrip = trips.find((trip) => trip.id === form.trip_id);
+  const selectedLine = lines.find((line) => line.id === form.line_id);
   const selectedVehicle = vehicles.find((v) => v.id === form.vehicle_id);
   const selectedBusMap = busMaps.find((map) => map.id === form.bus_map_id);
+
+  const filteredLines = useMemo(() => {
+    if (!form.trip_id) return lines;
+
+    const tripLines = lines.filter((line) => line.trip_id === form.trip_id);
+
+    if (tripLines.length > 0) return tripLines;
+
+    return lines;
+  }, [lines, form.trip_id]);
 
   const capacity = Number(form.capacity || 0);
   const booked = Number(form.booked_count || 0);
@@ -367,7 +415,7 @@ export default function SundraDepartureDetailPage() {
                 {loading ? "Laddar avgång..." : title}
               </h1>
               <p className="text-sm text-[#194C66]/60">
-                Hantera datum, kapacitet, pris, fordon, säteskarta och
+                Hantera datum, linje, kapacitet, pris, fordon, säteskarta och
                 bokningsstatus.
               </p>
             </div>
@@ -417,14 +465,17 @@ export default function SundraDepartureDetailPage() {
                       Avgångsinformation
                     </h2>
                     <p className="mt-1 text-sm text-gray-500">
-                      Redigera datum, tider, pris, fordon och bokningsläge.
+                      Redigera datum, tider, linje, pris, fordon och bokningsläge.
                     </p>
                   </div>
 
                   <Field label="Resa">
                     <select
                       value={form.trip_id}
-                      onChange={(e) => update("trip_id", e.target.value)}
+                      onChange={(e) => {
+                        update("trip_id", e.target.value);
+                        update("line_id", "");
+                      }}
                       disabled={loadingTrips}
                       className="w-full rounded-lg border px-3 py-2"
                     >
@@ -438,6 +489,30 @@ export default function SundraDepartureDetailPage() {
                         </option>
                       ))}
                     </select>
+                  </Field>
+
+                  <Field label="Linje">
+                    <select
+                      value={form.line_id}
+                      onChange={(e) => update("line_id", e.target.value)}
+                      disabled={loadingLines}
+                      className="w-full rounded-lg border px-3 py-2"
+                    >
+                      <option value="">
+                        {loadingLines ? "Laddar linjer..." : "Välj linje"}
+                      </option>
+
+                      {filteredLines.map((line) => (
+                        <option key={line.id} value={line.id}>
+                          {line.name}
+                          {line.code ? ` (${line.code})` : ""}
+                        </option>
+                      ))}
+                    </select>
+
+                    <p className="mt-2 text-xs text-[#194C66]/70">
+                      Koppla avgången till rätt linje för hållplatser och priser.
+                    </p>
                   </Field>
 
                   <Field label="Fordon">
@@ -563,7 +638,7 @@ export default function SundraDepartureDetailPage() {
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="Pris">
+                    <Field label="Grundpris">
                       <input
                         type="number"
                         value={form.price}
@@ -628,6 +703,16 @@ export default function SundraDepartureDetailPage() {
                       {selectedTrip?.title || "Resa saknas"}
                     </div>
 
+                    {selectedLine && (
+                      <div className="mt-3 rounded-lg bg-white p-3 text-sm">
+                        <div className="text-xs text-gray-500">Linje</div>
+                        <div className="mt-1 font-semibold text-[#194C66]">
+                          {selectedLine.name}
+                          {selectedLine.code ? ` (${selectedLine.code})` : ""}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="mt-3 text-sm text-gray-600">
                       {fmtDate(form.departure_date)} kl{" "}
                       {tidyTime(form.departure_time)}
@@ -639,7 +724,7 @@ export default function SundraDepartureDetailPage() {
                     </div>
 
                     <div className="mt-4 flex items-center justify-between">
-                      <span className="text-sm text-gray-500">Pris</span>
+                      <span className="text-sm text-gray-500">Grundpris</span>
                       <span className="font-semibold text-[#194C66]">
                         {money(form.price)}
                       </span>
@@ -693,6 +778,10 @@ export default function SundraDepartureDetailPage() {
                       value={form.last_booking_date || "—"}
                     />
                     <Summary label="Bokningsläge" value={bookingStatusText} />
+                    <Summary
+                      label="Linje"
+                      value={selectedLine?.name || "Ej kopplad"}
+                    />
                     <Summary
                       label="Sätesval"
                       value={form.bus_map_id ? "Aktivt" : "Ej aktivt"}
@@ -783,7 +872,7 @@ function Field({
   );
 }
 
-function Summary({ label, value }: { label: string; value: any }) {
+function Summary({ label, value }: { label: any; value: any }) {
   return (
     <div className="flex justify-between gap-4 border-b pb-2">
       <span className="text-gray-500">{label}</span>
