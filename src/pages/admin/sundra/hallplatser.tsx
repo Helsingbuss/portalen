@@ -1,3 +1,4 @@
+//src/pages/admin/sundra/hallplatser.tsx
 import { useEffect, useMemo, useState } from "react";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
