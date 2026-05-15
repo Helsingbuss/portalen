@@ -1,5 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  sendBookingAdminEmail,
+  sendBookingCustomerEmail,
+} from "@/lib/sumup";
 
 function toNumber(value: any, fallback = 0) {
   if (value === "" || value === null || value === undefined) return fallback;
@@ -15,10 +19,10 @@ function makeBookingNumber() {
 
 function baseUrl() {
   const raw =
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL ||
     process.env.CUSTOMER_BASE_URL ||
-    "http://localhost:3000";
+    process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    "https://kund.helsingbuss.se";
 
   return raw.replace(/\/$/, "");
 }
@@ -35,7 +39,11 @@ function cleanPassenger(p: any) {
   };
 }
 
-function buildPassengers(bodyPassengers: any[], passengersCount: number, customerName: string) {
+function buildPassengers(
+  bodyPassengers: any[],
+  passengersCount: number,
+  customerName: string
+) {
   return Array.from({ length: passengersCount }).map((_, index) => {
     const existing = bodyPassengers[index] || {};
     const fallbackName = index === 0 ? customerName : "";
@@ -69,8 +77,8 @@ async function createSumUpCheckout({
   currency: string;
   description: string;
 }) {
-  const apiKey = process.env.SUMUP_API_KEY;
-  const merchantCode = process.env.SUMUP_MERCHANT_CODE;
+  const apiKey = process.env.SUMUP_API_KEY?.trim();
+  const merchantCode = process.env.SUMUP_MERCHANT_CODE?.trim();
 
   if (!apiKey) throw new Error("SUMUP_API_KEY saknas i env.");
   if (!merchantCode) throw new Error("SUMUP_MERCHANT_CODE saknas i env.");
@@ -92,6 +100,9 @@ async function createSumUpCheckout({
       description,
       return_url: successUrl,
       redirect_url: successUrl,
+      hosted_checkout: {
+        enabled: true,
+      },
     }),
   });
 
@@ -99,13 +110,19 @@ async function createSumUpCheckout({
 
   if (!response.ok) {
     console.error("SumUp checkout error:", json);
-    throw new Error(json?.message || json?.error || "Kunde inte skapa SumUp-betalning.");
+    throw new Error(
+      json?.message || json?.error || "Kunde inte skapa SumUp-betalning."
+    );
   }
 
   return {
     id: json.id,
     checkout_reference: json.checkout_reference,
-    checkout_url: json.checkout_url || json.redirect_url || json.hosted_checkout_url || null,
+    checkout_url:
+      json.hosted_checkout_url ||
+      json.checkout_url ||
+      json.redirect_url ||
+      null,
     raw: json,
     cancel_url: cancelUrl,
   };
@@ -185,7 +202,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const passengersCount = Math.max(1, toNumber(body.passengers_count, 1));
     const bodyPassengers = Array.isArray(body.passengers) ? body.passengers : [];
-    const passengers = buildPassengers(bodyPassengers, passengersCount, body.customer_name);
+    const passengers = buildPassengers(
+      bodyPassengers,
+      passengersCount,
+      body.customer_name
+    );
 
     const { data: departure, error: depError } = await supabaseAdmin
       .from("sundra_departures")
@@ -321,7 +342,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (passengerError) throw passengerError;
 
-      const sumup = await createSumUpCheckout({
+    const sumup = await createSumUpCheckout({
       bookingId: booking.id,
       bookingNumber: booking.booking_number,
       amount: totalAmount,
@@ -336,6 +357,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         updated_at: new Date().toISOString(),
       })
       .eq("id", booking.id);
+
+    if (sumup.checkout_url) {
+      await sendBookingCustomerEmail({
+        bookingNumber: booking.booking_number,
+        customerName: body.customer_name,
+        customerEmail: body.customer_email,
+        tripTitle: trip?.title || "Sundra resa",
+        totalAmount,
+        paymentUrl: sumup.checkout_url,
+      });
+
+      await sendBookingAdminEmail({
+        bookingNumber: booking.booking_number,
+        customerName: body.customer_name,
+        customerEmail: body.customer_email,
+        customerPhone: body.customer_phone,
+        tripTitle: trip?.title || "Sundra resa",
+        passengersCount,
+        totalAmount,
+      });
+    }
 
     return res.status(201).json({
       ok: true,
