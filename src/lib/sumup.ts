@@ -33,7 +33,7 @@ export async function sendBookingCustomerEmail({
   await resend.emails.send({
     from: from!,
     to: customerEmail,
-    replyTo: process.env.EMAIL_REPLY_TO || undefined,
+    reply_to: process.env.EMAIL_REPLY_TO || undefined,
 
     subject: `Bokning mottagen - ${bookingNumber}`,
 
@@ -128,7 +128,7 @@ export async function sendBookingAdminEmail({
   await resend.emails.send({
     from: from!,
     to: adminEmail,
-    replyTo: process.env.EMAIL_REPLY_TO || undefined,
+    reply_to: process.env.EMAIL_REPLY_TO || undefined,
 
     subject: `Ny resebokning - ${bookingNumber}`,
 
