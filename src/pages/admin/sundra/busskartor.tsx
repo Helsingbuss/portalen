@@ -8,12 +8,9 @@ type Seat = {
   seat_number: string;
   row_number: number | null;
   seat_column: string | null;
-
   seat_type?: string | null;
   seat_label?: string | null;
-
   seat_price?: number | null;
-
   is_active?: boolean;
   is_selectable?: boolean;
   is_blocked?: boolean;
@@ -23,12 +20,9 @@ type BusMap = {
   id: string;
   name: string;
   bus_type?: string | null;
-
   seats_count?: number | null;
-
   description?: string | null;
   status?: string | null;
-
   sundra_bus_map_seats?: Seat[];
 };
 
@@ -36,12 +30,15 @@ export default function BusskartorPage() {
   const [maps, setMaps] = useState<BusMap[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingSeat, setSavingSeat] = useState(false);
-
   const [selectedMap, setSelectedMap] = useState<BusMap | null>(null);
 
   const [newName, setNewName] = useState("");
   const [rows, setRows] = useState(13);
   const [template, setTemplate] = useState("standard_52");
+
+  const [selectedSeatNumbers, setSelectedSeatNumbers] = useState<string[]>([]);
+  const [bulkPrice, setBulkPrice] = useState("0");
+  const [bulkBlocked, setBulkBlocked] = useState(false);
 
   async function loadMaps() {
     try {
@@ -55,7 +52,6 @@ export default function BusskartorPage() {
       }
 
       const loadedMaps = json.bus_maps || [];
-
       setMaps(loadedMaps);
 
       if (!selectedMap && loadedMaps.length) {
@@ -119,9 +115,9 @@ export default function BusskartorPage() {
       }
 
       setNewName("");
+      setSelectedSeatNumbers([]);
 
       await loadMaps();
-
       setSelectedMap(json.bus_map);
     } catch (e: any) {
       alert(e?.message || "Något gick fel");
@@ -147,27 +143,22 @@ export default function BusskartorPage() {
       }
 
       const updatedMaps = maps.filter((m) => m.id !== mapId);
-
       setMaps(updatedMaps);
 
       if (selectedMap?.id === mapId) {
         setSelectedMap(updatedMaps[0] || null);
+        setSelectedSeatNumbers([]);
       }
     } catch (e: any) {
       alert(e?.message || "Något gick fel vid borttagning.");
     }
   }
 
-  async function saveSeat(seat: Seat) {
+  async function saveSeats(updatedSeats: Seat[]) {
     if (!selectedMap) return;
 
     try {
       setSavingSeat(true);
-
-      const updatedSeats =
-        selectedMap.sundra_bus_map_seats?.map((s) =>
-          s.id === seat.id ? seat : s
-        ) || [];
 
       const res = await fetch(`/api/admin/sundra/bus-maps/${selectedMap.id}`, {
         method: "PUT",
@@ -183,7 +174,7 @@ export default function BusskartorPage() {
       const json = await res.json();
 
       if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Kunde inte spara stol.");
+        throw new Error(json?.error || "Kunde inte spara säten.");
       }
 
       setSelectedMap(json.bus_map);
@@ -198,33 +189,79 @@ export default function BusskartorPage() {
     }
   }
 
-  async function editSeat(seat: SeatMapSeat) {
+  function toggleSeat(seat: SeatMapSeat) {
+    setSelectedSeatNumbers((prev) => {
+      const exists = prev.includes(seat.seat_number);
+
+      if (exists) {
+        return prev.filter((s) => s !== seat.seat_number);
+      }
+
+      return [...prev, seat.seat_number];
+    });
+  }
+
+  function selectAllSeats() {
+    const all =
+      selectedMap?.sundra_bus_map_seats?.map((seat) => seat.seat_number) || [];
+
+    setSelectedSeatNumbers(all);
+  }
+
+  function clearSelectedSeats() {
+    setSelectedSeatNumbers([]);
+  }
+
+  async function applyBulkChanges() {
     if (!selectedMap) return;
 
-    const original = selectedMap.sundra_bus_map_seats?.find(
-      (s) => s.id === seat.id || s.seat_number === seat.seat_number
-    );
+    if (selectedSeatNumbers.length === 0) {
+      alert("Markera minst ett säte först.");
+      return;
+    }
 
-    if (!original) return;
+    const price = Number(bulkPrice || 0);
 
-    const price = prompt(
-      `Extra pris för ${original.seat_number} kr\n\nSkriv 0 om platsen ska vara utan extra kostnad.`,
-      String(original.seat_price || 0)
-    );
+    const updatedSeats =
+      selectedMap.sundra_bus_map_seats?.map((seat) => {
+        if (!selectedSeatNumbers.includes(seat.seat_number)) return seat;
 
-    if (price === null) return;
+        return {
+          ...seat,
+          seat_price: price,
+          is_blocked: bulkBlocked,
+          is_active: true,
+          is_selectable: !bulkBlocked,
+        };
+      }) || [];
 
-    const blocked = confirm(
-      `Vill du blockera ${original.seat_number}?\n\nOK = blockera platsen\nAvbryt = platsen är bokningsbar`
-    );
+    await saveSeats(updatedSeats);
+  }
 
-    await saveSeat({
-      ...original,
-      seat_price: Number(price || 0),
-      is_blocked: blocked,
-      is_active: true,
-      is_selectable: !blocked,
-    });
+  async function quickSetPrice(price: number) {
+    setBulkPrice(String(price));
+
+    if (!selectedMap) return;
+
+    if (selectedSeatNumbers.length === 0) {
+      alert("Markera säten först.");
+      return;
+    }
+
+    const updatedSeats =
+      selectedMap.sundra_bus_map_seats?.map((seat) => {
+        if (!selectedSeatNumbers.includes(seat.seat_number)) return seat;
+
+        return {
+          ...seat,
+          seat_price: price,
+          is_blocked: false,
+          is_active: true,
+          is_selectable: true,
+        };
+      }) || [];
+
+    await saveSeats(updatedSeats);
   }
 
   const seatMapSeats: SeatMapSeat[] = useMemo(() => {
@@ -234,12 +271,22 @@ export default function BusskartorPage() {
       row_number: seat.row_number,
       seat_column: seat.seat_column,
       seat_price: seat.seat_price || 0,
-      is_blocked: seat.is_blocked,
-      is_selectable: seat.is_selectable,
-      is_available: !seat.is_blocked && seat.is_active !== false,
-      status: seat.is_blocked ? "occupied" : "available",
+
+      // Viktigt i admin: alla säten ska gå att klicka/markera även om de är blockerade.
+      is_blocked: false,
+      is_selectable: true,
+      is_available: true,
+      status: "available",
     }));
   }, [selectedMap]);
+
+  const selectedSeatsInfo = useMemo(() => {
+    const seats = selectedMap?.sundra_bus_map_seats || [];
+
+    return seats.filter((seat) =>
+      selectedSeatNumbers.includes(seat.seat_number)
+    );
+  }, [selectedMap, selectedSeatNumbers]);
 
   return (
     <>
@@ -345,7 +392,10 @@ export default function BusskartorPage() {
                         }`}
                       >
                         <button
-                          onClick={() => setSelectedMap(map)}
+                          onClick={() => {
+                            setSelectedMap(map);
+                            setSelectedSeatNumbers([]);
+                          }}
                           className="w-full p-3 text-left"
                         >
                           <div className="font-semibold text-[#194C66]">
@@ -388,14 +438,18 @@ export default function BusskartorPage() {
                       </h2>
 
                       <p className="mt-1 text-sm text-gray-500">
-                        Klicka på en stol för att ändra extra pris eller
-                        blockera platsen.
+                        Klicka på flera säten för att markera dem. Ändra sedan
+                        pris/blockering på alla markerade samtidigt.
                       </p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-[#eef5f9] px-3 py-1 text-xs font-semibold text-[#194C66]">
                         {selectedMap.seats_count || 0} platser
+                      </span>
+
+                      <span className="rounded-full bg-[#eafaf7] px-3 py-1 text-xs font-semibold text-[#007764]">
+                        {selectedSeatNumbers.length} markerade
                       </span>
 
                       {savingSeat && (
@@ -406,14 +460,114 @@ export default function BusskartorPage() {
                     </div>
                   </div>
 
+                  <div className="mb-5 rounded-2xl border bg-[#f8fafc] p-4">
+                    <div className="flex flex-wrap items-end gap-3">
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-[#194C66]">
+                          Pris på markerade säten
+                        </label>
+                        <input
+                          type="number"
+                          value={bulkPrice}
+                          onChange={(e) => setBulkPrice(e.target.value)}
+                          className="w-36 rounded-xl border px-3 py-2 text-sm"
+                        />
+                      </div>
+
+                      <label className="flex items-center gap-2 rounded-xl border bg-white px-4 py-2 text-sm text-[#194C66]">
+                        <input
+                          type="checkbox"
+                          checked={bulkBlocked}
+                          onChange={(e) => setBulkBlocked(e.target.checked)}
+                        />
+                        Blockera markerade
+                      </label>
+
+                      <button
+                        onClick={applyBulkChanges}
+                        disabled={savingSeat || selectedSeatNumbers.length === 0}
+                        className="rounded-full bg-[#194C66] px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                      >
+                        Applicera på markerade
+                      </button>
+
+                      <button
+                        onClick={selectAllSeats}
+                        className="rounded-full border bg-white px-4 py-2 text-sm font-semibold text-[#194C66]"
+                      >
+                        Markera alla
+                      </button>
+
+                      <button
+                        onClick={clearSelectedSeats}
+                        className="rounded-full border bg-white px-4 py-2 text-sm font-semibold text-[#194C66]"
+                      >
+                        Rensa
+                      </button>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => quickSetPrice(0)}
+                        className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-[#194C66] shadow-sm"
+                      >
+                        Sätt 0 kr
+                      </button>
+
+                      <button
+                        onClick={() => quickSetPrice(49)}
+                        className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-[#194C66] shadow-sm"
+                      >
+                        Sätt 49 kr
+                      </button>
+
+                      <button
+                        onClick={() => quickSetPrice(79)}
+                        className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-[#194C66] shadow-sm"
+                      >
+                        Sätt 79 kr
+                      </button>
+
+                      <button
+                        onClick={() => quickSetPrice(99)}
+                        className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-[#194C66] shadow-sm"
+                      >
+                        Sätt 99 kr
+                      </button>
+
+                      <button
+                        onClick={() => quickSetPrice(149)}
+                        className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-[#194C66] shadow-sm"
+                      >
+                        Sätt 149 kr
+                      </button>
+                    </div>
+
+                    {selectedSeatNumbers.length > 0 && (
+                      <div className="mt-4 rounded-xl bg-white p-3 text-xs text-gray-600">
+                        <span className="font-semibold text-[#194C66]">
+                          Markerade:
+                        </span>{" "}
+                        {selectedSeatNumbers.join(", ")}
+                      </div>
+                    )}
+
+                    {selectedSeatsInfo.length > 0 && (
+                      <div className="mt-3 text-xs text-gray-500">
+                        Nuvarande extra pris på markerade säten visas i kartan.
+                      </div>
+                    )}
+                  </div>
+
                   <SeatMap
                     seats={seatMapSeats}
+                    selectedSeats={selectedSeatNumbers}
                     readonly={false}
                     showLegend
                     showSummary={false}
                     title="Platskarta"
-                    subtitle="A1 börjar längst fram i bussen."
-                    onSeatClick={editSeat}
+                    subtitle="A1 börjar längst fram i bussen. Klicka på säten för att markera flera."
+                    onSeatClick={toggleSeat}
                   />
                 </>
               )}
