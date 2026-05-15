@@ -41,11 +41,9 @@ type SeatPosition = {
 };
 
 const SEAT_POSITIONS: SeatPosition[] = [
-  // Övre vänster special
   { seatNumber: "D15", x: 34, y: 48 },
   { seatNumber: "D16", x: 34, y: 104 },
 
-  // Övre högra blocket
   { seatNumber: "D14", x: 128, y: 48 },
   { seatNumber: "D13", x: 188, y: 48 },
   { seatNumber: "D12", x: 248, y: 48 },
@@ -76,11 +74,9 @@ const SEAT_POSITIONS: SeatPosition[] = [
   { seatNumber: "C2", x: 848, y: 104 },
   { seatNumber: "C1", x: 908, y: 104 },
 
-  // Nedre vänster special
   { seatNumber: "D17", x: 34, y: 252 },
   { seatNumber: "D18", x: 34, y: 308 },
 
-  // Nedre vänstra blocket
   { seatNumber: "B12", x: 128, y: 252 },
   { seatNumber: "B11", x: 188, y: 252 },
   { seatNumber: "B10", x: 248, y: 252 },
@@ -95,7 +91,6 @@ const SEAT_POSITIONS: SeatPosition[] = [
   { seatNumber: "A8", x: 368, y: 308 },
   { seatNumber: "A7", x: 428, y: 308 },
 
-  // Nedre högra blocket
   { seatNumber: "B6", x: 638, y: 252 },
   { seatNumber: "B5", x: 698, y: 252 },
   { seatNumber: "B4", x: 758, y: 252 },
@@ -123,12 +118,21 @@ function money(value?: number | null) {
   });
 }
 
+function hasExtraPrice(seat: SeatMapSeat) {
+  return Number(seat.seat_price || 0) > 0;
+}
+
 function getStatus(seat: SeatMapSeat, selectedSeats: string[]): SeatStatus {
   if (selectedSeats.includes(seat.seat_number)) return "selected";
-  if (seat.status) return seat.status;
-  if (seat.is_blocked) return "blocked";
-  if (seat.is_occupied) return "occupied";
-  if (seat.is_available === false) return "occupied";
+
+  if (seat.status === "occupied") return "occupied";
+  if (seat.status === "blocked") return "blocked";
+
+  if (seat.is_blocked === true) return "blocked";
+  if (seat.is_occupied === true) return "occupied";
+
+  if (seat.is_available === false && !hasExtraPrice(seat)) return "occupied";
+
   return "available";
 }
 
@@ -188,7 +192,6 @@ export default function SeatMap({
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-2xl font-semibold text-[#0f172a]">{title}</h2>
-
           {subtitle && <p className="mt-1 text-sm text-gray-500">{subtitle}</p>}
         </div>
 
@@ -249,7 +252,6 @@ export default function SeatMap({
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="font-semibold text-[#0f172a]">Valda säten</div>
-
               <div className="mt-1 text-sm text-gray-500">
                 {selectedSeats.length === 0
                   ? "Inga säten valda"
@@ -259,9 +261,8 @@ export default function SeatMap({
 
             <div className="text-right">
               <div className="text-sm font-semibold text-[#0f172a]">
-                Totalpris
+                Tillval säten
               </div>
-
               <div className="mt-1 text-xl font-bold text-[#0f172a]">
                 {selectedTotal > 0 ? money(selectedTotal) : "0 kr"}
               </div>
@@ -274,6 +275,7 @@ export default function SeatMap({
         <strong>Information</strong>
         <p className="mt-1">
           Välj de säten du vill boka genom att klicka på dem i kartan ovan.
+          Säten med extra pris visas med gul markering.
         </p>
       </div>
     </div>
@@ -294,6 +296,7 @@ function SeatButton({
   y: number;
 }) {
   const status = getStatus(seat, selectedSeats);
+  const extraPrice = Number(seat.seat_price || 0);
 
   const isDisabled =
     status === "occupied" ||
@@ -305,6 +308,8 @@ function SeatButton({
       ? "border-[#007764] bg-[#007764] text-white shadow-md"
       : status === "occupied" || status === "blocked"
       ? "border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed"
+      : extraPrice > 0
+      ? "border-[#d79b00] bg-[#fff3c4] text-[#4a3510] hover:bg-[#ffe89b]"
       : "border-[#47b5a9] bg-[#dff7f3] text-[#0f172a] hover:bg-[#c9f0eb]";
 
   return (
@@ -326,7 +331,13 @@ function SeatButton({
       <span className="absolute left-[-6px] top-1/2 h-[25px] w-[7px] -translate-y-1/2 rounded-md border border-inherit bg-inherit" />
       <span className="absolute right-[-6px] top-1/2 h-[25px] w-[7px] -translate-y-1/2 rounded-md border border-inherit bg-inherit" />
 
-      {seat.seat_number}
+      <span>{seat.seat_number}</span>
+
+      {extraPrice > 0 && (
+        <span className="absolute -right-2 -top-2 rounded-full bg-[#d83b4a] px-1.5 py-0.5 text-[8px] font-black text-white">
+          +{extraPrice}
+        </span>
+      )}
     </button>
   );
 }
@@ -345,8 +356,13 @@ function Legend() {
       </div>
 
       <div className="flex items-center gap-2">
+        <span className="h-7 w-7 rounded-full border border-[#d79b00] bg-[#fff3c4]" />
+        Extra pris
+      </div>
+
+      <div className="flex items-center gap-2">
         <span className="h-7 w-7 rounded-full border border-gray-300 bg-gray-100" />
-        Upptaget
+        Upptaget/blockerat
       </div>
     </div>
   );
