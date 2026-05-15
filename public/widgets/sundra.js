@@ -432,23 +432,27 @@
       }
 
       @media (max-width:768px){
-        .hb-sundra-grid{
-          display:flex;
-          overflow-x:auto;
-          gap:16px;
-          padding:4px 18px 18px 4px;
-          scroll-snap-type:x mandatory;
-          -webkit-overflow-scrolling:touch;
+        .hb-sundra-widget{
+          width:100%!important;
+          max-width:100%!important;
+          overflow:visible!important;
         }
 
-        .hb-sundra-grid::-webkit-scrollbar{
-          display:none;
+        .hb-sundra-grid{
+          display:grid!important;
+          grid-template-columns:1fr!important;
+          gap:18px!important;
+          width:100%!important;
+          max-width:100%!important;
+          padding:0!important;
+          overflow:visible!important;
         }
 
         .hb-sundra-card{
-          min-width:84%;
-          max-width:84%;
-          scroll-snap-align:start;
+          width:100%!important;
+          min-width:0!important;
+          max-width:none!important;
+          scroll-snap-align:unset!important;
           border-radius:22px;
         }
 
