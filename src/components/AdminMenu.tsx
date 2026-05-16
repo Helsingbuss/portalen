@@ -178,25 +178,34 @@ export default function AdminMenu({ active }: Props) {
 
       {/* AVGÅNGAR */}
       <div className="text-[10px] text-gray-400 mt-2">Avgångar</div>
-      <Link href="#" className={subLink}>Alla avgångar</Link>
-      <Link href="#" className={subLink}>Skapa avgång</Link>
+      <Link href="/admin/shuttle/avgangar" className={subLink}>Alla avgångar</Link>
+      <Link href="/admin/shuttle/avgangar/new" className={subLink}>Skapa avgång</Link>
+       <Link href="/admin/shuttle/kapacitet" className={subLink}>Kapacitet / beläggning</Link>
+      <Link href="/admin/shuttle/scanner" className={subLink}>SCANNER</Link>
+      <Link href="/admin/shuttle/scanner/historik" className={subLink}>Scanhistorik</Link>
 
       {/* NÄT & HÅLLPLATSER */}
       <div className="text-[10px] text-gray-400 mt-2">Nät & hållplatser</div>
-      <Link href="#" className={subLink}>Tidtabeller</Link>
-      <Link href="#" className={subLink}>Linjer</Link>
-      <Link href="#" className={subLink}>Hållplatser</Link>
+      <Link href="/admin/shuttle/tidtabeller" className={subLink}>Tidtabeller</Link>
+      <Link href="/admin/shuttle/linjer" className={subLink}>Linjer</Link>
+      <Link href="/admin/shuttle/hallplatser" className={subLink}>Hållplatser</Link>
 
       {/* BILJETTER & KUNDER */}
       <div className="text-[10px] text-gray-400 mt-2">Biljetter & kunder</div>
-      <Link href="#" className={subLink}>Biljetter</Link>
-      <Link href="#" className={subLink}>Passagerare</Link>
-      <Link href="#" className={subLink}>Återbetalningar</Link>
-      <Link href="#" className={subLink}>Avbokningar</Link>
+      <Link href="/admin/shuttle/biljetter" className={subLink}>Biljetter</Link>
+      <Link href="/admin/shuttle/passagerare" className={subLink}>Passagerare</Link>
+      <Link href="/admin/shuttle/aterbetalningar" className={subLink}>Återbetalningar</Link>
+      <Link href="/admin/shuttle/avbokningar" className={subLink}>Avbokningar</Link>
+
+      {/* Fordon & platskartor */}
+      <div className="text-[10px] text-gray-400 mt-2">Fordon & platskartor</div>
+      <Link href="/admin/shuttle/platskartor" className={subLink}>Platskartor</Link>
+      <Link href="/admin/shuttle/fordon/new" className={subLink}>Lägg till fordon</Link>
+      <Link href="/admin/shuttle/fordon" className={subLink}>Fordonslista</Link>
 
       {/* KAMPANJER */}
       <div className="text-[10px] text-gray-400 mt-2">Kampanjer</div>
-      <Link href="#" className={subLink}>Kampanjer & rabatter</Link>
+      <Link href="/admin/shuttle/kampanjer" className={subLink}>Kampanjer & rabatter</Link>
 
     </div>
   )}
