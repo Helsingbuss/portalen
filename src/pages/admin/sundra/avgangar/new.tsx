@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
@@ -7,6 +7,17 @@ type Trip = {
   id: string;
   title?: string;
   destination?: string;
+};
+
+type Line = {
+  id: string;
+  name?: string | null;
+  code?: string | null;
+  color?: string | null;
+  status?: string | null;
+  trip_id?: string | null;
+  start_city?: string | null;
+  end_city?: string | null;
 };
 
 type BusMap = {
@@ -37,16 +48,20 @@ export default function NewDeparturePage() {
 
   const [saving, setSaving] = useState(false);
   const [loadingTrips, setLoadingTrips] = useState(true);
+  const [loadingLines, setLoadingLines] = useState(true);
   const [loadingBusMaps, setLoadingBusMaps] = useState(true);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [error, setError] = useState("");
 
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [lines, setLines] = useState<Line[]>([]);
   const [busMaps, setBusMaps] = useState<BusMap[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
 
   const [form, setForm] = useState({
     trip_id: "",
+    line_ids: [] as string[],
+
     vehicle_id: "",
     bus_map_id: "",
 
@@ -76,6 +91,19 @@ export default function NewDeparturePage() {
     }));
   }
 
+  function toggleLine(lineId: string) {
+    setForm((prev) => {
+      const exists = prev.line_ids.includes(lineId);
+
+      return {
+        ...prev,
+        line_ids: exists
+          ? prev.line_ids.filter((id) => id !== lineId)
+          : [...prev.line_ids, lineId],
+      };
+    });
+  }
+
   async function loadTrips() {
     try {
       setLoadingTrips(true);
@@ -95,6 +123,25 @@ export default function NewDeparturePage() {
     }
   }
 
+  async function loadLines() {
+    try {
+      setLoadingLines(true);
+
+      const res = await fetch("/api/admin/sundra/lines");
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Kunde inte hämta linjer.");
+      }
+
+      setLines(json.lines || []);
+    } catch (e: any) {
+      setError(e?.message || "Kunde inte hämta linjer.");
+    } finally {
+      setLoadingLines(false);
+    }
+  }
+
   async function loadBusMaps() {
     try {
       setLoadingBusMaps(true);
@@ -106,11 +153,11 @@ export default function NewDeparturePage() {
         throw new Error(json?.error || "Kunde inte hämta busskartor.");
       }
 
-      const activeMaps = (json.bus_maps || []).filter(
-        (map: BusMap) => map.status !== "inactive"
+      setBusMaps(
+        (json.bus_maps || []).filter(
+          (map: BusMap) => map.status !== "inactive"
+        )
       );
-
-      setBusMaps(activeMaps);
     } catch (e: any) {
       setError(e?.message || "Kunde inte hämta busskartor.");
     } finally {
@@ -129,11 +176,11 @@ export default function NewDeparturePage() {
         throw new Error(json?.error || "Kunde inte hämta fordon.");
       }
 
-      const activeVehicles = (json.vehicles || []).filter(
-        (vehicle: Vehicle) => vehicle.status !== "inactive"
+      setVehicles(
+        (json.vehicles || []).filter(
+          (vehicle: Vehicle) => vehicle.status !== "inactive"
+        )
       );
-
-      setVehicles(activeVehicles);
     } catch (e: any) {
       setError(e?.message || "Kunde inte hämta fordon.");
     } finally {
@@ -143,6 +190,7 @@ export default function NewDeparturePage() {
 
   useEffect(() => {
     loadTrips();
+    loadLines();
     loadBusMaps();
     loadVehicles();
   }, []);
@@ -167,6 +215,7 @@ export default function NewDeparturePage() {
         },
         body: JSON.stringify({
           ...form,
+          line_ids: form.line_ids || [],
           vehicle_id: form.vehicle_id || null,
           bus_map_id: form.bus_map_id || null,
           price: Number(form.price || 0),
@@ -194,6 +243,16 @@ export default function NewDeparturePage() {
 
   const selectedBusMap = busMaps.find((map) => map.id === form.bus_map_id);
 
+  const selectedLines = lines.filter((line) => form.line_ids.includes(line.id));
+
+  const filteredLines = useMemo(() => {
+    if (!form.trip_id) return lines;
+
+    const tripLines = lines.filter((line) => line.trip_id === form.trip_id);
+
+    return tripLines.length > 0 ? tripLines : lines;
+  }, [lines, form.trip_id]);
+
   return (
     <>
       <AdminMenu />
@@ -209,7 +268,7 @@ export default function NewDeparturePage() {
               </h1>
 
               <p className="mt-1 text-sm text-[#194C66]/70">
-                Skapa ny avgång för Sundra-resor.
+                Skapa ny avgång och koppla flera linjer till samma resa.
               </p>
             </div>
 
@@ -237,7 +296,10 @@ export default function NewDeparturePage() {
                 <Field label="Resa">
                   <select
                     value={form.trip_id}
-                    onChange={(e) => update("trip_id", e.target.value)}
+                    onChange={(e) => {
+                      update("trip_id", e.target.value);
+                      update("line_ids", []);
+                    }}
                     className="w-full rounded-xl border px-3 py-2"
                     disabled={loadingTrips}
                   >
@@ -260,106 +322,75 @@ export default function NewDeparturePage() {
                     onChange={(e) => update("status", e.target.value)}
                     className="w-full rounded-xl border px-3 py-2"
                   >
-                    <option value="open">Öppen</option>
-                    <option value="draft">Utkast</option>
+                    <option value="open">Öppen för bokning</option>
                     <option value="closed">Stängd</option>
+                    <option value="full">Fullbokad</option>
+                    <option value="cancelled">Inställd</option>
+                    <option value="draft">Utkast</option>
                   </select>
                 </Field>
 
-                <Field label="Fordon">
-                  <select
-                    value={form.vehicle_id}
-                    onChange={(e) => {
-                      const vehicleId = e.target.value;
-                      update("vehicle_id", vehicleId);
+                <div className="md:col-span-2">
+                  <Field label="Linjer">
+                    <div className="space-y-2 rounded-xl border bg-white p-3">
+                      {loadingLines ? (
+                        <div className="text-sm text-gray-500">
+                          Laddar linjer...
+                        </div>
+                      ) : filteredLines.length === 0 ? (
+                        <div className="text-sm text-gray-500">
+                          Inga linjer hittades.
+                        </div>
+                      ) : (
+                        filteredLines.map((line) => {
+                          const checked = form.line_ids.includes(line.id);
 
-                      const vehicle = vehicles.find((v) => v.id === vehicleId);
+                          return (
+                            <label
+                              key={line.id}
+                              className={`flex cursor-pointer items-center justify-between rounded-xl border px-3 py-3 transition ${
+                                checked
+                                  ? "border-[#194C66] bg-[#eef5f9]"
+                                  : "hover:bg-[#f8fafc]"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleLine(line.id)}
+                                  className="h-4 w-4"
+                                />
 
-                      if (vehicle?.bus_map_id) {
-                        update("bus_map_id", vehicle.bus_map_id);
-                      }
+                                <div>
+                                  <div className="font-medium text-[#0f172a]">
+                                    {line.name}
+                                  </div>
 
-                      if (vehicle?.seats_count) {
-                        update("capacity", String(vehicle.seats_count));
-                      }
-                    }}
-                    className="w-full rounded-xl border px-3 py-2"
-                    disabled={loadingVehicles}
-                  >
-                    <option value="">
-                      {loadingVehicles ? "Laddar fordon..." : "Inget fordon valt"}
-                    </option>
+                                  <div className="text-xs text-gray-500">
+                                    {line.start_city || "—"} →{" "}
+                                    {line.end_city || "—"}
+                                  </div>
+                                </div>
+                              </div>
 
-                    {vehicles.map((vehicle) => (
-                      <option key={vehicle.id} value={vehicle.id}>
-                        {vehicle.name}
-                        {vehicle.registration_number
-                          ? ` • ${vehicle.registration_number}`
-                          : ""}
-                        {vehicle.seats_count
-                          ? ` • ${vehicle.seats_count} platser`
-                          : ""}
-                      </option>
-                    ))}
-                  </select>
+                              {line.code && (
+                                <span className="rounded-full bg-[#f1f5f9] px-2 py-1 text-xs font-medium text-gray-600">
+                                  {line.code}
+                                </span>
+                              )}
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
 
-                  {selectedVehicle && (
                     <p className="mt-2 text-xs text-[#194C66]/70">
-                      Vald buss: {selectedVehicle.name}
-                      {selectedVehicle.registration_number
-                        ? ` · ${selectedVehicle.registration_number}`
-                        : ""}
+                      Du kan välja flera linjer, exempelvis Malmö, Blekinge och
+                      Helsingborg på samma avgång.
                     </p>
-                  )}
-                </Field>
-
-                <Field label="Busskarta / säteskarta">
-                  <select
-                    value={form.bus_map_id}
-                    onChange={(e) => {
-                      const busMapId = e.target.value;
-                      update("bus_map_id", busMapId);
-
-                      const map = busMaps.find((m) => m.id === busMapId);
-
-                      if (map?.seats_count) {
-                        update("capacity", String(map.seats_count));
-                      }
-                    }}
-                    className="w-full rounded-xl border px-3 py-2"
-                    disabled={loadingBusMaps}
-                  >
-                    <option value="">
-                      {loadingBusMaps
-                        ? "Laddar busskartor..."
-                        : "Ingen busskarta vald"}
-                    </option>
-
-                    {busMaps.map((map) => (
-                      <option key={map.id} value={map.id}>
-                        {map.name}
-                        {map.seats_count ? ` • ${map.seats_count} platser` : ""}
-                      </option>
-                    ))}
-                  </select>
-
-                  {selectedBusMap && (
-                    <p className="mt-2 text-xs text-[#194C66]/70">
-                      Vald karta: {selectedBusMap.name} ·{" "}
-                      {selectedBusMap.seats_count || 0} platser
-                    </p>
-                  )}
-                </Field>
-
-                <Field label="Kapacitet">
-                  <input
-                    type="number"
-                    value={form.capacity}
-                    onChange={(e) => update("capacity", e.target.value)}
-                    placeholder="50"
-                    className="w-full rounded-xl border px-3 py-2"
-                  />
-                </Field>
+                  </Field>
+                </div>
 
                 <Field label="Avgångsdatum">
                   <input
@@ -397,107 +428,190 @@ export default function NewDeparturePage() {
                   />
                 </Field>
 
-                <Field label="Pris">
+                <Field label="Fordon">
+                  <select
+                    value={form.vehicle_id}
+                    onChange={(e) => {
+                      const vehicleId = e.target.value;
+                      update("vehicle_id", vehicleId);
+
+                      const vehicle = vehicles.find((v) => v.id === vehicleId);
+
+                      if (vehicle?.bus_map_id) {
+                        update("bus_map_id", vehicle.bus_map_id);
+                      }
+
+                      if (vehicle?.seats_count) {
+                        update("capacity", String(vehicle.seats_count));
+                      }
+                    }}
+                    disabled={loadingVehicles}
+                    className="w-full rounded-xl border px-3 py-2"
+                  >
+                    <option value="">
+                      {loadingVehicles ? "Laddar fordon..." : "Inget fordon valt"}
+                    </option>
+
+                    {vehicles.map((vehicle) => (
+                      <option key={vehicle.id} value={vehicle.id}>
+                        {vehicle.name}
+                        {vehicle.registration_number
+                          ? ` • ${vehicle.registration_number}`
+                          : ""}
+                        {vehicle.seats_count
+                          ? ` • ${vehicle.seats_count} platser`
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Busskarta / säteskarta">
+                  <select
+                    value={form.bus_map_id}
+                    onChange={(e) => {
+                      const busMapId = e.target.value;
+                      update("bus_map_id", busMapId);
+
+                      const map = busMaps.find((m) => m.id === busMapId);
+
+                      if (map?.seats_count) {
+                        update("capacity", String(map.seats_count));
+                      }
+                    }}
+                    disabled={loadingBusMaps}
+                    className="w-full rounded-xl border px-3 py-2"
+                  >
+                    <option value="">
+                      {loadingBusMaps
+                        ? "Laddar busskartor..."
+                        : "Ingen busskarta vald"}
+                    </option>
+
+                    {busMaps.map((map) => (
+                      <option key={map.id} value={map.id}>
+                        {map.name}
+                        {map.seats_count ? ` • ${map.seats_count} platser` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Grundpris">
                   <input
                     type="number"
                     value={form.price}
                     onChange={(e) => update("price", e.target.value)}
-                    placeholder="699"
                     className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
 
-                <Field label="Bokningsstopp">
+                <Field label="Kapacitet">
                   <input
-                    type="datetime-local"
+                    type="number"
+                    value={form.capacity}
+                    onChange={(e) => update("capacity", e.target.value)}
+                    className="w-full rounded-xl border px-3 py-2"
+                  />
+                </Field>
+
+                <Field label="Sista bokningsdag">
+                  <input
+                    type="date"
                     value={form.booking_deadline}
                     onChange={(e) => update("booking_deadline", e.target.value)}
                     className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
 
-                <Field label="Påstigning">
+                <Field label="Från / samlingsplats">
                   <input
                     value={form.departure_location}
-                    onChange={(e) =>
-                      update("departure_location", e.target.value)
-                    }
-                    placeholder="Malmö C"
+                    onChange={(e) => update("departure_location", e.target.value)}
+                    placeholder="Ex. Helsingborg C"
                     className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
 
-                <Field label="Destination">
+                <Field label="Destination / slutplats">
                   <input
                     value={form.destination_location}
                     onChange={(e) =>
                       update("destination_location", e.target.value)
                     }
-                    placeholder="Ullared"
+                    placeholder="Ex. Gekås Ullared"
                     className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
-              </div>
 
-              <div className="mt-4">
-                <Field label="Intern notering">
-                  <textarea
-                    rows={5}
-                    value={form.notes}
-                    onChange={(e) => update("notes", e.target.value)}
-                    placeholder="Intern info till personal/chaufför..."
-                    className="w-full rounded-xl border px-3 py-2"
-                  />
-                </Field>
+                <div className="md:col-span-2">
+                  <Field label="Anteckningar">
+                    <textarea
+                      rows={4}
+                      value={form.notes}
+                      onChange={(e) => update("notes", e.target.value)}
+                      className="w-full rounded-xl border px-3 py-2"
+                    />
+                  </Field>
+                </div>
               </div>
             </section>
 
-            <aside className="space-y-6">
-              <section className="rounded-3xl bg-white p-6 shadow">
-                <h2 className="text-lg font-semibold text-[#194C66]">
-                  Publicering
-                </h2>
+            <aside className="h-fit rounded-3xl bg-white p-6 shadow">
+              <h2 className="text-lg font-semibold text-[#194C66]">
+                Sammanfattning
+              </h2>
 
-                <div className="mt-4 rounded-2xl bg-[#f8fafc] p-4 text-sm text-gray-600">
-                  Avgången blir direkt bokningsbar om status är satt till:
-                  <strong className="ml-1 text-[#194C66]">Öppen</strong>
+              <div className="mt-5 space-y-4 text-sm">
+                <Summary label="Valda linjer" value={`${selectedLines.length}`} />
+
+                <div className="rounded-xl bg-[#f8fafc] p-3">
+                  {selectedLines.length === 0 ? (
+                    <div className="text-gray-500">Inga linjer valda</div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {selectedLines.map((line) => (
+                        <span
+                          key={line.id}
+                          className="rounded-full bg-[#eef5f9] px-3 py-1 text-xs font-semibold text-[#194C66]"
+                        >
+                          {line.name}
+                          {line.code ? ` (${line.code})` : ""}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                <button
-                  onClick={save}
-                  disabled={saving}
-                  className="mt-6 w-full rounded-2xl bg-[#194C66] px-4 py-3 font-semibold text-white hover:bg-[#16384d] disabled:opacity-50"
-                >
-                  {saving ? "Sparar..." : "Skapa avgång"}
-                </button>
-              </section>
+                <Summary
+                  label="Fordon"
+                  value={selectedVehicle?.name || "Inget valt"}
+                />
 
-              <section className="rounded-3xl bg-white p-6 shadow">
-                <h2 className="text-lg font-semibold text-[#194C66]">
-                  Fordon & sätesval
-                </h2>
+                <Summary
+                  label="Busskarta"
+                  value={selectedBusMap?.name || "Ingen vald"}
+                />
 
-                <div className="mt-4 rounded-2xl bg-[#f8fafc] p-4 text-sm text-gray-600">
-                  Välj fordon om avgången ska kopplas till en specifik buss.
-                  Fordonets platskarta används sedan för kundens sätesval.
-                </div>
-              </section>
+                <Summary label="Kapacitet" value={form.capacity || "0"} />
 
-              <section className="rounded-3xl bg-white p-6 shadow">
-                <h2 className="text-lg font-semibold text-[#194C66]">
-                  Tips
-                </h2>
+                <Summary
+                  label="Avgång"
+                  value={
+                    form.departure_date
+                      ? `${form.departure_date} ${form.departure_time || ""}`
+                      : "Ej valt"
+                  }
+                />
+              </div>
 
-                <ul className="mt-4 space-y-3 text-sm text-gray-600">
-                  <li>• Kapacitet används för live beläggning.</li>
-                  <li>
-                    • Väljer du fordon sätts platskarta och kapacitet automatiskt.
-                  </li>
-                  <li>
-                    • Avgången syns direkt på resesidan när den är öppen.
-                  </li>
-                </ul>
-              </section>
+              <button
+                onClick={save}
+                disabled={saving || !form.trip_id || !form.departure_date}
+                className="mt-6 w-full rounded-xl bg-[#194C66] px-4 py-3 font-semibold text-white hover:bg-[#16384d] disabled:opacity-50"
+              >
+                {saving ? "Sparar..." : "Skapa avgång"}
+              </button>
             </aside>
           </div>
         </main>
@@ -518,5 +632,14 @@ function Field({
       <div className="mb-1 text-sm font-medium text-[#194C66]">{label}</div>
       {children}
     </label>
+  );
+}
+
+function Summary({ label, value }: { label: string; value: any }) {
+  return (
+    <div className="flex justify-between gap-4 border-b pb-2">
+      <span className="text-gray-500">{label}</span>
+      <span className="text-right font-medium text-[#0f172a]">{value}</span>
+    </div>
   );
 }
