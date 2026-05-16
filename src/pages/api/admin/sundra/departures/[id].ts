@@ -6,6 +6,42 @@ const supabase: any =
   (admin as any).supabase ||
   (admin as any).default;
 
+function normalizeLineIds(body: any): string[] {
+  const raw = body.line_ids || body.lines || body.line_id || [];
+
+  if (Array.isArray(raw)) {
+    return raw.filter(Boolean).map(String);
+  }
+
+  if (typeof raw === "string" && raw.trim()) {
+    return [raw.trim()];
+  }
+
+  return [];
+}
+
+async function replaceDepartureLines(departureId: string, lineIds: string[]) {
+  const { error: deleteError } = await supabase
+    .from("sundra_departure_lines")
+    .delete()
+    .eq("departure_id", departureId);
+
+  if (deleteError) throw deleteError;
+
+  if (!lineIds.length) return;
+
+  const rows = lineIds.map((lineId) => ({
+    departure_id: departureId,
+    line_id: lineId,
+  }));
+
+  const { error: insertError } = await supabase
+    .from("sundra_departure_lines")
+    .insert(rows);
+
+  if (insertError) throw insertError;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -31,11 +67,18 @@ export default async function handler(
             destination,
             image_url
           ),
-          sundra_lines (
+          sundra_departure_lines (
             id,
-            name,
-            code,
-            color
+            line_id,
+            sundra_lines (
+              id,
+              name,
+              code,
+              color,
+              start_city,
+              end_city,
+              status
+            )
           ),
           sundra_bus_maps (
             id,
@@ -85,9 +128,13 @@ export default async function handler(
         }
       }
 
+      const lineIds = normalizeLineIds(body);
+
       const updateData = {
         trip_id: body.trip_id || null,
-        line_id: body.line_id || null,
+
+        // Bakåtkompatibel kolumn om den finns i sundra_departures.
+        line_id: lineIds[0] || body.line_id || null,
 
         vehicle_id: body.vehicle_id || null,
         bus_map_id: busMapId,
@@ -131,11 +178,18 @@ export default async function handler(
             destination,
             image_url
           ),
-          sundra_lines (
+          sundra_departure_lines (
             id,
-            name,
-            code,
-            color
+            line_id,
+            sundra_lines (
+              id,
+              name,
+              code,
+              color,
+              start_city,
+              end_city,
+              status
+            )
           ),
           sundra_bus_maps (
             id,
@@ -160,6 +214,8 @@ export default async function handler(
         .single();
 
       if (error) throw error;
+
+      await replaceDepartureLines(id, lineIds);
 
       return res.status(200).json({
         ok: true,

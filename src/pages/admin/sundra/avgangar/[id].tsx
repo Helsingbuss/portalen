@@ -16,6 +16,8 @@ type Line = {
   color?: string | null;
   status?: string | null;
   trip_id?: string | null;
+  start_city?: string | null;
+  end_city?: string | null;
 };
 
 type BusMap = {
@@ -38,7 +40,7 @@ type Vehicle = {
 
 type DepartureForm = {
   trip_id: string;
-  line_id: string;
+  line_ids: string[];
 
   vehicle_id: string;
   bus_map_id: string;
@@ -58,7 +60,7 @@ type DepartureForm = {
 
 const EMPTY_FORM: DepartureForm = {
   trip_id: "",
-  line_id: "",
+  line_ids: [],
 
   vehicle_id: "",
   bus_map_id: "",
@@ -173,10 +175,8 @@ export default function SundraDepartureDetailPage() {
   async function loadTrips() {
     try {
       setLoadingTrips(true);
-
       const res = await fetch("/api/admin/sundra/trips");
       const json = await res.json().catch(() => ({}));
-
       setTrips(Array.isArray(json?.trips) ? json.trips : []);
     } catch (e) {
       console.error(e);
@@ -188,7 +188,6 @@ export default function SundraDepartureDetailPage() {
   async function loadLines() {
     try {
       setLoadingLines(true);
-
       const res = await fetch("/api/admin/sundra/lines");
       const json = await res.json().catch(() => ({}));
 
@@ -205,16 +204,13 @@ export default function SundraDepartureDetailPage() {
   async function loadBusMaps() {
     try {
       setLoadingBusMaps(true);
-
       const res = await fetch("/api/admin/sundra/bus-maps");
       const json = await res.json().catch(() => ({}));
 
       if (res.ok && json?.ok) {
-        const activeMaps = (json.bus_maps || []).filter(
-          (map: BusMap) => map.status !== "inactive"
+        setBusMaps(
+          (json.bus_maps || []).filter((map: BusMap) => map.status !== "inactive")
         );
-
-        setBusMaps(activeMaps);
       }
     } catch (e) {
       console.error(e);
@@ -226,16 +222,15 @@ export default function SundraDepartureDetailPage() {
   async function loadVehicles() {
     try {
       setLoadingVehicles(true);
-
       const res = await fetch("/api/admin/sundra/vehicles");
       const json = await res.json().catch(() => ({}));
 
       if (res.ok && json?.ok) {
-        const activeVehicles = (json.vehicles || []).filter(
-          (vehicle: Vehicle) => vehicle.status !== "inactive"
+        setVehicles(
+          (json.vehicles || []).filter(
+            (vehicle: Vehicle) => vehicle.status !== "inactive"
+          )
         );
-
-        setVehicles(activeVehicles);
       }
     } catch (e) {
       console.error(e);
@@ -258,9 +253,13 @@ export default function SundraDepartureDetailPage() {
 
       const departure = json.departure;
 
+      const lineIds =
+        departure.sundra_departure_lines?.map((x: any) => x.line_id).filter(Boolean) ||
+        (departure.line_id ? [departure.line_id] : []);
+
       setForm({
         trip_id: departure.trip_id || "",
-        line_id: departure.line_id || "",
+        line_ids: lineIds,
 
         vehicle_id: departure.vehicle_id || "",
         bus_map_id: departure.bus_map_id || "",
@@ -304,6 +303,21 @@ export default function SundraDepartureDetailPage() {
     setSavedMessage("");
   }
 
+  function toggleLine(lineId: string) {
+    setForm((prev) => {
+      const exists = prev.line_ids.includes(lineId);
+
+      return {
+        ...prev,
+        line_ids: exists
+          ? prev.line_ids.filter((currentId) => currentId !== lineId)
+          : [...prev.line_ids, lineId],
+      };
+    });
+
+    setSavedMessage("");
+  }
+
   async function save() {
     if (!id || typeof id !== "string") return;
 
@@ -317,7 +331,7 @@ export default function SundraDepartureDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
-          line_id: form.line_id || null,
+          line_ids: form.line_ids || [],
           vehicle_id: form.vehicle_id || null,
           bus_map_id: form.bus_map_id || null,
           price: Number(form.price || 0),
@@ -370,18 +384,16 @@ export default function SundraDepartureDetailPage() {
   }
 
   const selectedTrip = trips.find((trip) => trip.id === form.trip_id);
-  const selectedLine = lines.find((line) => line.id === form.line_id);
   const selectedVehicle = vehicles.find((v) => v.id === form.vehicle_id);
   const selectedBusMap = busMaps.find((map) => map.id === form.bus_map_id);
+
+  const selectedLines = lines.filter((line) => form.line_ids.includes(line.id));
 
   const filteredLines = useMemo(() => {
     if (!form.trip_id) return lines;
 
     const tripLines = lines.filter((line) => line.trip_id === form.trip_id);
-
-    if (tripLines.length > 0) return tripLines;
-
-    return lines;
+    return tripLines.length > 0 ? tripLines : lines;
   }, [lines, form.trip_id]);
 
   const capacity = Number(form.capacity || 0);
@@ -415,8 +427,8 @@ export default function SundraDepartureDetailPage() {
                 {loading ? "Laddar avgång..." : title}
               </h1>
               <p className="text-sm text-[#194C66]/60">
-                Hantera datum, linje, kapacitet, pris, fordon, säteskarta och
-                bokningsstatus.
+                Hantera datum, flera linjer, kapacitet, pris, fordon,
+                säteskarta och bokningsstatus.
               </p>
             </div>
 
@@ -465,7 +477,7 @@ export default function SundraDepartureDetailPage() {
                       Avgångsinformation
                     </h2>
                     <p className="mt-1 text-sm text-gray-500">
-                      Redigera datum, tider, linje, pris, fordon och bokningsläge.
+                      Välj en eller flera linjer som ska ingå i samma avgång.
                     </p>
                   </div>
 
@@ -474,7 +486,7 @@ export default function SundraDepartureDetailPage() {
                       value={form.trip_id}
                       onChange={(e) => {
                         update("trip_id", e.target.value);
-                        update("line_id", "");
+                        update("line_ids", []);
                       }}
                       disabled={loadingTrips}
                       className="w-full rounded-lg border px-3 py-2"
@@ -491,27 +503,63 @@ export default function SundraDepartureDetailPage() {
                     </select>
                   </Field>
 
-                  <Field label="Linje">
-                    <select
-                      value={form.line_id}
-                      onChange={(e) => update("line_id", e.target.value)}
-                      disabled={loadingLines}
-                      className="w-full rounded-lg border px-3 py-2"
-                    >
-                      <option value="">
-                        {loadingLines ? "Laddar linjer..." : "Välj linje"}
-                      </option>
+                  <Field label="Linjer">
+                    <div className="space-y-2 rounded-xl border bg-white p-3">
+                      {loadingLines ? (
+                        <div className="text-sm text-gray-500">
+                          Laddar linjer...
+                        </div>
+                      ) : filteredLines.length === 0 ? (
+                        <div className="text-sm text-gray-500">
+                          Inga linjer hittades.
+                        </div>
+                      ) : (
+                        filteredLines.map((line) => {
+                          const checked = form.line_ids.includes(line.id);
 
-                      {filteredLines.map((line) => (
-                        <option key={line.id} value={line.id}>
-                          {line.name}
-                          {line.code ? ` (${line.code})` : ""}
-                        </option>
-                      ))}
-                    </select>
+                          return (
+                            <label
+                              key={line.id}
+                              className={`flex cursor-pointer items-center justify-between rounded-xl border px-3 py-3 transition ${
+                                checked
+                                  ? "border-[#194C66] bg-[#eef5f9]"
+                                  : "hover:bg-[#f8fafc]"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleLine(line.id)}
+                                  className="h-4 w-4"
+                                />
+
+                                <div>
+                                  <div className="font-medium text-[#0f172a]">
+                                    {line.name}
+                                  </div>
+
+                                  <div className="text-xs text-gray-500">
+                                    {line.start_city || "—"} →{" "}
+                                    {line.end_city || "—"}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {line.code && (
+                                <span className="rounded-full bg-[#f1f5f9] px-2 py-1 text-xs font-medium text-gray-600">
+                                  {line.code}
+                                </span>
+                              )}
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
 
                     <p className="mt-2 text-xs text-[#194C66]/70">
-                      Koppla avgången till rätt linje för hållplatser och priser.
+                      Du kan välja flera linjer, exempelvis Malmö, Blekinge och
+                      Helsingborg på samma avgång.
                     </p>
                   </Field>
 
@@ -703,15 +751,24 @@ export default function SundraDepartureDetailPage() {
                       {selectedTrip?.title || "Resa saknas"}
                     </div>
 
-                    {selectedLine && (
-                      <div className="mt-3 rounded-lg bg-white p-3 text-sm">
-                        <div className="text-xs text-gray-500">Linje</div>
-                        <div className="mt-1 font-semibold text-[#194C66]">
-                          {selectedLine.name}
-                          {selectedLine.code ? ` (${selectedLine.code})` : ""}
-                        </div>
+                    <div className="mt-3 rounded-lg bg-white p-3 text-sm">
+                      <div className="text-xs text-gray-500">Valda linjer</div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {selectedLines.length === 0 ? (
+                          <span className="text-gray-500">Inga linjer valda</span>
+                        ) : (
+                          selectedLines.map((line) => (
+                            <span
+                              key={line.id}
+                              className="rounded-full bg-[#eef5f9] px-3 py-1 text-xs font-semibold text-[#194C66]"
+                            >
+                              {line.name}
+                              {line.code ? ` (${line.code})` : ""}
+                            </span>
+                          ))
+                        )}
                       </div>
-                    )}
+                    </div>
 
                     <div className="mt-3 text-sm text-gray-600">
                       {fmtDate(form.departure_date)} kl{" "}
@@ -778,10 +835,7 @@ export default function SundraDepartureDetailPage() {
                       value={form.last_booking_date || "—"}
                     />
                     <Summary label="Bokningsläge" value={bookingStatusText} />
-                    <Summary
-                      label="Linje"
-                      value={selectedLine?.name || "Ej kopplad"}
-                    />
+                    <Summary label="Antal linjer" value={`${selectedLines.length}`} />
                     <Summary
                       label="Sätesval"
                       value={form.bus_map_id ? "Aktivt" : "Ej aktivt"}
