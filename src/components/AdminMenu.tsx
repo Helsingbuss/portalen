@@ -173,8 +173,8 @@ export default function AdminMenu({ active }: Props) {
 
       {/* RUTTER */}
       <div className="text-[10px] text-gray-400 mt-1">Rutter</div>
-      <Link href="#" className={subLink}>Skapa rutt</Link>
-      <Link href="#" className={subLink}>Ruttlista</Link>
+      <Link href="/admin/shuttle/rutter/new" className={subLink}>Skapa rutt</Link>
+      <Link href="/admin/shuttle/rutter" className={subLink}>Ruttlista</Link>
 
       {/* AVGÅNGAR */}
       <div className="text-[10px] text-gray-400 mt-2">Avgångar</div>
