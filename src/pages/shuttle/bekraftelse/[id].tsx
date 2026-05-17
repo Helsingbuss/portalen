@@ -1,5 +1,6 @@
 import { GetServerSideProps } from "next";
 import Link from "next/link";
+import QRCode from "react-qr-code";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 type Props = {
@@ -117,14 +118,20 @@ export default function ShuttleConfirmationPage({
               <Row label="Datum" value={departure?.departure_date || "—"} />
               <Row label="Tid" value={time(departure?.departure_time)} />
               <Row label="Från" value={booking.pickup_stop_name || "—"} />
-              <Row label="Till" value={booking.dropoff_stop_name || route?.name || "—"} />
+              <Row
+                label="Till"
+                value={booking.dropoff_stop_name || route?.name || "—"}
+              />
             </InfoCard>
 
             <InfoCard title="Kund">
               <Row label="Namn" value={booking.customer_name} />
               <Row label="E-post" value={booking.customer_email || "—"} />
               <Row label="Telefon" value={booking.customer_phone || "—"} />
-              <Row label="Antal" value={`${booking.passengers_count || 1} personer`} />
+              <Row
+                label="Antal"
+                value={`${booking.passengers_count || 1} personer`}
+              />
               <Row label="Biljettyp" value={booking.ticket_type || "—"} />
             </InfoCard>
 
@@ -138,8 +145,24 @@ export default function ShuttleConfirmationPage({
             <InfoCard title="Biljett">
               <Row label="Biljettnummer" value={ticket?.ticket_number || "—"} />
               <Row label="Biljettstatus" value={ticket?.ticket_status || "—"} />
-              <Row label="Check-in" value={ticket?.checked_in ? "Incheckad" : "Ej incheckad"} />
-              <Row label="QR" value={ticket?.qr_code || "Skapas efter betalning"} />
+              <Row
+                label="Check-in"
+                value={ticket?.checked_in ? "Incheckad" : "Ej incheckad"}
+              />
+
+              <div className="mt-5 flex flex-col items-center rounded-2xl bg-white p-5">
+                {ticket?.qr_code ? (
+                  <>
+                    <QRCode value={ticket.qr_code} size={180} />
+
+                    <p className="mt-4 break-all text-center text-xs text-gray-500">
+                      {ticket.qr_code}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500">QR-kod saknas</p>
+                )}
+              </div>
             </InfoCard>
           </div>
 
