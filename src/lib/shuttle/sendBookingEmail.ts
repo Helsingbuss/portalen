@@ -200,7 +200,7 @@ export async function sendShuttleBookingEmail(
   await resend.emails.send({
     from,
     to: customerEmail,
-    replyTo,
+    reply_to: replyTo,
     subject: `Bokningsbekräftelse ${booking.booking_number}`,
     html,
   });
@@ -208,7 +208,7 @@ export async function sendShuttleBookingEmail(
   await resend.emails.send({
     from,
     to: adminEmail,
-    replyTo,
+    reply_to: replyTo,
     subject: `Ny Airport Shuttle-bokning ${booking.booking_number}`,
     html: `
       <div style="font-family:Arial,sans-serif;">
