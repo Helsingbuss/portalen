@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { sendShuttleBookingEmail } from "@/lib/shuttle/sendBookingEmail";
 
 export const config = {
   api: {
@@ -26,9 +27,7 @@ async function getCheckout(checkoutId: string) {
   const json = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new Error(
-      json?.message || "Kunde inte hämta SumUp checkout."
-    );
+    throw new Error(json?.message || "Kunde inte hämta SumUp checkout.");
   }
 
   return json;
@@ -64,7 +63,6 @@ async function handleSundraBooking(checkoutReference: string, checkout: any) {
     .maybeSingle();
 
   if (bookingError) throw bookingError;
-
   if (!booking) return null;
 
   const status = String(checkout?.status || "").toLowerCase();
@@ -104,16 +102,12 @@ async function handleSundraBooking(checkoutReference: string, checkout: any) {
   await supabaseAdmin
     .from("sundra_departures")
     .update({
-      booked_count:
-        currentBooked + Number(booking.passengers_count || 0),
-
+      booked_count: currentBooked + Number(booking.passengers_count || 0),
       updated_at: new Date().toISOString(),
     })
     .eq("id", booking.departure_id);
 
-  console.log(
-    `Sundra booking ${booking.booking_number} markerad som betald.`
-  );
+  console.log(`Sundra booking ${booking.booking_number} markerad som betald.`);
 
   return {
     ok: true,
@@ -130,7 +124,6 @@ async function handleShuttleBooking(checkoutReference: string, checkout: any) {
     .maybeSingle();
 
   if (bookingError) throw bookingError;
-
   if (!booking) return null;
 
   const status = String(checkout?.status || "").toLowerCase();
@@ -230,9 +223,13 @@ async function handleShuttleBooking(checkoutReference: string, checkout: any) {
     }
   }
 
-  console.log(
-    `Shuttle booking ${booking.booking_number} markerad som betald.`
-  );
+  try {
+    await sendShuttleBookingEmail(booking.id);
+  } catch (mailError) {
+    console.error("Shuttle mail error:", mailError);
+  }
+
+  console.log(`Shuttle booking ${booking.booking_number} markerad som betald.`);
 
   return {
     ok: true,
