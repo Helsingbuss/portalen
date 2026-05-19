@@ -24,13 +24,14 @@ async function acceptWithFallback(offerId: string) {
       .update({
         status,
         accepted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .eq("id", offerId);
 
     if (!error) return status;
 
-    // om annat fel än constraint → kasta direkt
-    if (!/status|check/i.test(error.message || "")) {
+    // om annat fel än constraint/kolumn/status → kasta direkt
+    if (!/status|check|column|accepted_at|updated_at/i.test(error.message || "")) {
       throw new Error(error.message);
     }
   }
@@ -44,23 +45,46 @@ export default async function handler(
 ) {
   // ✅ Tillåt GET + POST
   if (req.method !== "POST" && req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({
+      ok: false,
+      error: "Method not allowed",
+    });
   }
 
   try {
-    // 🔑 Hämta ID korrekt beroende på metod
-    const idOrNumber =
-      req.method === "POST"
-        ? req.body?.id
-        : req.query?.id;
+    // 🔑 Hämta ID korrekt från:
+    // 1. body.id vid POST
+    // 2. route-param /api/offers/[id]/accept
+    // 3. query ?id=
+    const routeId =
+      typeof req.query.id === "string"
+        ? req.query.id
+        : Array.isArray(req.query.id)
+          ? req.query.id[0]
+          : "";
+
+    const bodyId =
+      req.method === "POST" && req.body?.id
+        ? String(req.body.id)
+        : "";
+
+    const queryId =
+      typeof req.query.offer_id === "string"
+        ? req.query.offer_id
+        : "";
+
+    const idOrNumber = String(bodyId || routeId || queryId || "").trim();
 
     const customerEmail =
-      req.method === "POST"
-        ? req.body?.customerEmail
+      req.method === "POST" && req.body?.customerEmail
+        ? String(req.body.customerEmail)
         : undefined;
 
     if (!idOrNumber) {
-      return res.status(400).json({ error: "Missing id" });
+      return res.status(400).json({
+        ok: false,
+        error: "Missing id",
+      });
     }
 
     // 🔍 Hämta offert
@@ -72,17 +96,24 @@ export default async function handler(
 
     if (error) {
       console.error("Fetch error:", error);
-      return res.status(500).json({ error: error.message });
+
+      return res.status(500).json({
+        ok: false,
+        error: error.message,
+      });
     }
 
     if (!offer) {
-      return res.status(404).json({ error: "Offer not found" });
+      return res.status(404).json({
+        ok: false,
+        error: "Offer not found",
+      });
     }
 
     // ✅ Uppdatera status
     const finalStatus = await acceptWithFallback(String(offer.id));
 
-    // 📧 Mail (valfri men bra)
+    // 📧 Mail
     const to =
       customerEmail ||
       offer.contact_email ||
@@ -111,23 +142,26 @@ export default async function handler(
       }
     }
 
-    // ✅ 👉 VIKTIGT: redirect för kund (GET)
+    // ✅ Redirect för kund när någon öppnar accept-länken direkt
     if (req.method === "GET") {
       return res.redirect(
         302,
-        `/offert/${offer.offer_number}?accepted=1`
+        `/offert/${offer.offer_number || offer.id}?accepted=1`
       );
     }
 
-    // ✅ API-svar för system (POST)
+    // ✅ API-svar för frontend/system
     return res.status(200).json({
       ok: true,
       status: finalStatus,
+      offer_id: offer.id,
+      offer_number: offer.offer_number,
     });
-
   } catch (e: any) {
     console.error("Accept error:", e);
+
     return res.status(500).json({
+      ok: false,
       error: e?.message || "Server error",
     });
   }
