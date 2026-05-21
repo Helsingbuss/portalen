@@ -7,6 +7,11 @@ const API_BASE = "https://kund.helsingbuss.se";
 
 type LineStop = {
   id: string;
+
+  line_id?: string | null;
+  line_name?: string | null;
+  line_code?: string | null;
+
   stop_name: string;
   stop_city?: string | null;
   departure_time?: string | null;
@@ -487,7 +492,11 @@ const calendarDays = useMemo(() => {
         body: JSON.stringify({
           trip_id: trip.id,
           departure_id: selectedDeparture.id,
-          line_id: selectedDeparture.line_id || selectedDeparture.line?.id || null,
+          line_id:
+            selectedLineStop?.line_id ||
+            selectedDeparture.line_id ||
+            selectedDeparture.line?.id ||
+            null,
           line_stop_id: selectedLineStop?.id || null,
           pickup_stop_name: selectedLineStop?.stop_name || null,
           pickup_stop_city: selectedLineStop?.stop_city || null,
