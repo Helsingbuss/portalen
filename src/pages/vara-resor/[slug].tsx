@@ -34,6 +34,7 @@ type Departure = {
   id: string;
   line_id?: string | null;
   line?: DepartureLine | null;
+  lines?: DepartureLine[] | null;
   departure_date?: string | null;
   departure_time?: string | null;
   return_date?: string | null;
@@ -158,7 +159,21 @@ export default function TripPage() {
   }, [trip, selectedDepartureId]);
 
   const selectedLineStops = useMemo(() => {
-    return selectedDeparture?.line?.stops || [];
+    const allStops =
+      selectedDeparture?.lines?.flatMap((line) => line.stops || []) ||
+      selectedDeparture?.line?.stops ||
+      [];
+
+    const uniqueStops = new Map<string, LineStop>();
+
+    allStops.forEach((stop) => {
+      const key = `${stop.line_id || ""}-${stop.id}`;
+      uniqueStops.set(key, stop);
+    });
+
+    return Array.from(uniqueStops.values()).sort(
+      (a, b) => Number(a.order_index || 0) - Number(b.order_index || 0)
+    );
   }, [selectedDeparture]);
 
   const selectedLineStop = useMemo(() => {
