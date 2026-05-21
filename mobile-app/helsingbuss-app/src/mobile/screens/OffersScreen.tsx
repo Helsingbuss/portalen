@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ScrollView, Text, View, StyleSheet, ActivityIndicator } from "react-native";
 import type { OfferRow } from "../types/dashboard";
 import { fetchAllOffers } from "../api/dashboard";
@@ -20,7 +20,7 @@ export default function OffersScreen() {
       setLoading(true);
       setErr(null);
       try {
-        const list = await fetchAllOffers(ac.signal);
+        const list = await fetchAllOffers();
         setRows(list);
       } catch (e: any) {
         setErr(e?.message ?? "Network error");

@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { router } from "expo-router";
 import { useAuthStore } from "../../src/mobile/store/auth";

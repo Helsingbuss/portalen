@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ScrollView, Text, View, Pressable } from "react-native";
 import { fetchOverview, type OverviewDTO } from "@/mobile/api/dashboard";
 

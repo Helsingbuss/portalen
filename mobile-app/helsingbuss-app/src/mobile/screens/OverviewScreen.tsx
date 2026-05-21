@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ScrollView, View, Text, Pressable, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -31,7 +31,7 @@ export default function OverviewScreen() {
     try {
       setErr(null);
       setLoading(true);
-      const dto = await fetchOverview(year);
+      const dto = await fetchOverview();
       setData(dto);
     } catch (e: any) {
       setErr(e?.message ?? "Något gick fel");

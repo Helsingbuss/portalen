@@ -1,6 +1,13 @@
 export type Theme = {
-  bg: string; header: string; tabBg: string; tabBorder: string;
-  text: string; muted: string; card: string; cardBorder: string; accent: string;
+  bg: string;
+  header: string;
+  tabBg: string;
+  tabBorder: string;
+  text: string;
+  muted: string;
+  card: string;
+  cardBorder: string;
+  accent: string;
 };
 
 export const DarkTheme: Theme = {
@@ -15,15 +22,14 @@ export const DarkTheme: Theme = {
   accent: "#1A545F",
 };
 
-# LJUS – samma “glass”/soft som din bild
 export const LightTheme: Theme = {
-  bg: "#EEF1F6",
-  header: "#2A3348",
-  tabBg: "rgba(255,255,255,0.72)",
-  tabBorder: "rgba(0,0,0,0.10)",
-  text: "#0E1522",
-  muted: "rgba(14,21,34,0.55)",
-  card: "rgba(255,255,255,0.68)",
-  cardBorder: "rgba(255,255,255,0.55)",
-  accent: "#3B6FD6",
+  bg: "#F4F7FA",
+  header: "#FFFFFF",
+  tabBg: "#FFFFFF",
+  tabBorder: "rgba(15,23,34,0.08)",
+  text: "#0F1722",
+  muted: "rgba(15,23,34,0.65)",
+  card: "rgba(255,255,255,0.75)",
+  cardBorder: "rgba(15,23,34,0.08)",
+  accent: "#1A545F",
 };

@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import type { DashboardSummary } from "@/mobile/types/dashboard";
 import { Card } from "@/mobile/components/ui/Card";

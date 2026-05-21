@@ -1,40 +1,56 @@
 import { create } from "zustand";
 
-export type AuthUser = {
-  id: string;
-  name?: string | null;
-  role?: string | null;
+type AuthUser = {
+  email: string;
+  name?: string;
+  role?: string;
 };
 
-type AuthState = {
+export type AuthState = {
   isLoggedIn: boolean;
+  email: string | null;
   user: AuthUser | null;
-  token?: string | null;
-
-  login: () => void;
+  login: (email?: string, password?: string) => Promise<void>;
+  loginDemo: () => Promise<void>;
   logout: () => void;
-  setToken: (t: string | null) => void;
 };
 
 export const useAuthStore = create<AuthState>((set) => ({
-  isLoggedIn: true,
-  user: { id: "demo", name: "Andreas", role: "admin" },
-  token: null,
+  isLoggedIn: false,
+  email: null,
+  user: null,
 
-  setToken: (t) => set({ token: t }),
-
-  login: () =>
+  login: async (email = "demo@helsingbuss.se", _password = "") => {
     set({
       isLoggedIn: true,
-      user: { id: "demo", name: "Andreas", role: "admin" },
-    }),
+      email,
+      user: {
+        email,
+        name: "Helsingbuss Admin",
+        role: "admin",
+      },
+    });
+  },
 
-  logout: () =>
+  loginDemo: async () => {
+    set({
+      isLoggedIn: true,
+      email: "demo@helsingbuss.se",
+      user: {
+        email: "demo@helsingbuss.se",
+        name: "Helsingbuss Demo",
+        role: "admin",
+      },
+    });
+  },
+
+  logout: () => {
     set({
       isLoggedIn: false,
+      email: null,
       user: null,
-      token: null,
-    }),
+    });
+  },
 }));
 
 export default useAuthStore;

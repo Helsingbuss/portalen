@@ -1,6 +1,7 @@
-import { useThemeStore } from "../store/theme";
-import { DarkTheme, LightTheme } from "./colors";
-export function useTheme() {
-  const mode = useThemeStore((s) => s.mode);
-  return mode === "light" ? LightTheme : DarkTheme;
+import { DarkTheme, LightTheme, Theme } from "./colors";
+
+export function useTheme(): Theme {
+  return DarkTheme;
 }
+
+export { DarkTheme, LightTheme };

@@ -1,18 +1,25 @@
-﻿const BASE =
-  process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
-  "http://localhost:3000";
+export async function apiGet<T = any>(url: string): Promise<T> {
+  const res = await fetch(url);
 
-export async function apiGet<T>(path: string): Promise<T> {
-  const url = `${BASE}${path.startsWith("/") ? path : `/${path}`}`;
+  if (!res.ok) {
+    throw new Error(`API GET failed: ${res.status}`);
+  }
 
+  return res.json();
+}
+
+export async function apiPost<T = any>(url: string, body?: any): Promise<T> {
   const res = await fetch(url, {
-    method: "GET",
-    headers: { Accept: "application/json" },
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: body ? JSON.stringify(body) : undefined,
   });
 
   if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(`API ${res.status}: ${txt || "Request failed"}`);
+    throw new Error(`API POST failed: ${res.status}`);
   }
+
   return res.json();
 }

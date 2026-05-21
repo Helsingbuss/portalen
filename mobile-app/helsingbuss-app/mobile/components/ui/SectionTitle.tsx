@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Text, StyleSheet, View } from "react-native";
 
 export function SectionTitle({ title, right }: { title: string; right?: React.ReactNode }) {

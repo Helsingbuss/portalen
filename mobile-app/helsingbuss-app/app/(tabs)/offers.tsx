@@ -1,2 +1,2 @@
-﻿import OffersScreen from "../../src/mobile/screens/OffersScreen";
+import OffersScreen from "../../src/mobile/screens/OffersScreen";
 export default OffersScreen;

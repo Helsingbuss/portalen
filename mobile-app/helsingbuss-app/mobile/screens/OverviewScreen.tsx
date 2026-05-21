@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useAuthStore } from "@/mobile/store/auth";
 import { fetchOverview } from "@/mobile/api/offers";
@@ -87,7 +87,7 @@ export default function OverviewScreen() {
               incoming.map((o) => (
                 <Pressable
                   key={o.id}
-                  onPress={() => router.push(`/offer/${o.id}`)}
+                  onPress={() => router.push(`/offer/${o.id}` as any)}
                   style={styles.offerRow}
                 >
                   <View style={{ flex: 1 }}>

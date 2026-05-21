@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { fetchOffers } from "@/mobile/api/offers";
 import type { Offer } from "@/mobile/types/offers";
@@ -47,7 +47,7 @@ export default function OffersScreen() {
           {!loading && offers.length === 0 ? <Text style={styles.dim}>Inga offerter.</Text> : null}
 
           {offers.map((o) => (
-            <OfferListItem key={o.id} offer={o} onPress={() => router.push(`/offer/${o.id}`)} />
+            <OfferListItem key={o.id} offer={o} onPress={() => router.push(`/offer/${o.id}` as any)} />
           ))}
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
