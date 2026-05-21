@@ -22,18 +22,14 @@ function sortStops(stops: any[] = []) {
     .sort((a, b) => Number(a.order_index || 0) - Number(b.order_index || 0))
     .map((stop) => ({
       id: stop.id,
-
       line_id: stop.line_id || null,
       line_name: stop.line_name || null,
       line_code: stop.line_code || null,
-
       stop_name: stop.stop_name,
       stop_city: stop.stop_city,
-
       departure_time: stop.departure_time
         ? String(stop.departure_time).slice(0, 5)
         : null,
-
       price: Number(stop.price || 0),
       order_index: Number(stop.order_index || 0),
       is_active: stop.is_active !== false,
@@ -79,6 +75,31 @@ export default async function handler(
           booked_count,
           status,
           bus_map_id,
+
+          sundra_departure_lines (
+            id,
+            line_id,
+            sundra_lines (
+              id,
+              name,
+              code,
+              color,
+              start_city,
+              end_city,
+              status,
+              sundra_line_stops (
+                id,
+                line_id,
+                stop_name,
+                stop_city,
+                departure_time,
+                price,
+                order_index,
+                is_active
+              )
+            )
+          ),
+
           sundra_lines (
             id,
             name,
@@ -114,10 +135,28 @@ export default async function handler(
     const departures = sortDepartures(trip.sundra_departures || [])
       .filter((d: any) => d.status === "open")
       .map((d: any) => {
-        const lines = Array.isArray(d.sundra_lines)
-          ? d.sundra_lines
-          : d.sundra_lines
-            ? [d.sundra_lines]
+        const departureLines = Array.isArray(d.sundra_departure_lines)
+          ? d.sundra_departure_lines
+          : [];
+
+        const linkedLines = departureLines
+          .map((dl: any) => {
+            const line = Array.isArray(dl.sundra_lines)
+              ? dl.sundra_lines[0]
+              : dl.sundra_lines;
+
+            return line || null;
+          })
+          .filter(Boolean);
+
+        const fallbackLine = Array.isArray(d.sundra_lines)
+          ? d.sundra_lines[0]
+          : d.sundra_lines;
+
+        const lines = linkedLines.length > 0
+          ? linkedLines
+          : fallbackLine
+            ? [fallbackLine]
             : [];
 
         const allStops = lines.flatMap((line: any) => {
@@ -142,7 +181,6 @@ export default async function handler(
 
         return {
           id: d.id,
-
           line_id: lines[0]?.id || d.line_id || null,
 
           departure_date: d.departure_date,
