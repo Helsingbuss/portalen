@@ -787,6 +787,61 @@ const calendarDays = useMemo(() => {
   </button>
 </div>
 
+              <div className="grid grid-cols-7 gap-3">
+                {calendarDays.map((item) => {
+                  const dep = item.departure;
+                  const selected = dep?.id === selectedDeparture?.id;
+
+                  return (
+                    <button
+                      key={item.day}
+                      type="button"
+                      onClick={() => {
+                        if (!dep) return;
+
+                        setSelectedDepartureId(dep.id);
+                      }}
+                      disabled={!dep}
+                      className={`min-h-[120px] rounded-2xl border p-4 text-left transition ${
+                        selected
+                          ? "border-[#00879a] bg-[#00879a] text-white shadow-lg"
+                          : dep
+                            ? "border-gray-200 bg-white hover:border-[#00879a] hover:shadow"
+                            : "border-gray-100 bg-gray-50 text-gray-300"
+                      }`}
+                    >
+                      <div className="text-sm font-bold">
+                        {item.day}
+                      </div>
+
+                      {dep ? (
+                        <>
+                          <div className="mt-3 text-xs opacity-80">
+                            {fmtTime(dep.departure_time)}
+                          </div>
+
+                          <div className="mt-2 text-lg font-black">
+                            {money(
+                              dep.price ||
+                              dep.base_price ||
+                              trip?.price_from
+                            )}
+                          </div>
+
+                          <div className="mt-2 text-xs">
+                            {dep.seats_left || 0} platser kvar
+                          </div>
+                        </>
+                      ) : (
+                        <div className="mt-6 text-xs">
+                          Inga avgångar
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
               <StopSelector
                 stops={selectedLineStops}
                 selectedStopId={selectedLineStopId}
