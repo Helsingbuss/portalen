@@ -35,6 +35,7 @@ type Departure = {
   line_id?: string | null;
   line?: DepartureLine | null;
   lines?: DepartureLine[] | null;
+  lines?: DepartureLine[] | null;
   departure_date?: string | null;
   departure_time?: string | null;
   return_date?: string | null;
@@ -290,12 +291,12 @@ const calendarDays = useMemo(() => {
   }, [qty]);
 
   useEffect(() => {
-    const firstStop = selectedDeparture?.line?.stops?.[0];
+    const firstStop = selectedLineStops[0];
 
     setSelectedLineStopId((current) => {
       if (!firstStop) return "";
 
-      const exists = selectedDeparture?.line?.stops?.some(
+      const exists = selectedLineStops.some(
         (stop) => stop.id === current
       );
 
