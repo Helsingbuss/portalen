@@ -35,7 +35,6 @@ type Departure = {
   line_id?: string | null;
   line?: DepartureLine | null;
   lines?: DepartureLine[] | null;
-  lines?: DepartureLine[] | null;
   departure_date?: string | null;
   departure_time?: string | null;
   return_date?: string | null;
