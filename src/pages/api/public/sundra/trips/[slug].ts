@@ -22,11 +22,18 @@ function sortStops(stops: any[] = []) {
     .sort((a, b) => Number(a.order_index || 0) - Number(b.order_index || 0))
     .map((stop) => ({
       id: stop.id,
+
+      line_id: stop.line_id || null,
+      line_name: stop.line_name || null,
+      line_code: stop.line_code || null,
+
       stop_name: stop.stop_name,
       stop_city: stop.stop_city,
+
       departure_time: stop.departure_time
         ? String(stop.departure_time).slice(0, 5)
         : null,
+
       price: Number(stop.price || 0),
       order_index: Number(stop.order_index || 0),
       is_active: stop.is_active !== false,
@@ -107,11 +114,24 @@ export default async function handler(
     const departures = sortDepartures(trip.sundra_departures || [])
       .filter((d: any) => d.status === "open")
       .map((d: any) => {
-        const line = Array.isArray(d.sundra_lines)
-          ? d.sundra_lines[0]
-          : d.sundra_lines;
+        const lines = Array.isArray(d.sundra_lines)
+          ? d.sundra_lines
+          : d.sundra_lines
+            ? [d.sundra_lines]
+            : [];
 
-        const stops = sortStops(line?.sundra_line_stops || []);
+        const allStops = lines.flatMap((line: any) => {
+          const lineStops = line?.sundra_line_stops || [];
+
+          return lineStops.map((stop: any) => ({
+            ...stop,
+            line_id: line.id,
+            line_name: line.name,
+            line_code: line.code,
+          }));
+        });
+
+        const stops = sortStops(allStops);
 
         const cheapestStopPrice =
           stops.length > 0
@@ -122,7 +142,8 @@ export default async function handler(
 
         return {
           id: d.id,
-          line_id: d.line_id,
+
+          line_id: lines[0]?.id || d.line_id || null,
 
           departure_date: d.departure_date,
           departure_time: d.departure_time,
@@ -142,17 +163,36 @@ export default async function handler(
           bus_map_id: d.bus_map_id,
           has_seat_map: Boolean(d.bus_map_id),
 
-          line: line
-            ? {
-                id: line.id,
-                name: line.name,
-                code: line.code,
-                color: line.color,
-                start_city: line.start_city,
-                end_city: line.end_city,
-                stops,
-              }
-            : null,
+          lines: lines.map((line: any) => ({
+            id: line.id,
+            name: line.name,
+            code: line.code,
+            color: line.color,
+            start_city: line.start_city,
+            end_city: line.end_city,
+            status: line.status,
+            stops: sortStops(
+              (line.sundra_line_stops || []).map((stop: any) => ({
+                ...stop,
+                line_id: line.id,
+                line_name: line.name,
+                line_code: line.code,
+              }))
+            ),
+          })),
+
+          line:
+            lines.length > 0
+              ? {
+                  id: lines[0].id,
+                  name: lines.map((line: any) => line.name).join(" / "),
+                  code: lines.map((line: any) => line.code).join(" / "),
+                  color: lines[0].color,
+                  start_city: lines[0].start_city,
+                  end_city: lines[0].end_city,
+                  stops,
+                }
+              : null,
         };
       });
 
