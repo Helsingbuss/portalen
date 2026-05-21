@@ -122,6 +122,7 @@ export default function TripPage() {
   const [step, setStep] = useState<Step>(1);
   const [trip, setTrip] = useState<Trip | null>(null);
   const [selectedDepartureId, setSelectedDepartureId] = useState("");
+  const [calendarMonth, setCalendarMonth] = useState<Date | null>(null);
   const [selectedLineStopId, setSelectedLineStopId] = useState("");
   const [loading, setLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState(false);
@@ -171,15 +172,19 @@ export default function TripPage() {
     );
   }, [trip]);
 
-  const calendarDays = useMemo(() => {
+const calendarDays = useMemo(() => {
     const base =
-      selectedDeparture?.departure_date || sortedDepartures[0]?.departure_date;
+      calendarMonth ||
+      (selectedDeparture?.departure_date
+        ? new Date(`${selectedDeparture.departure_date}T00:00:00`)
+        : sortedDepartures[0]?.departure_date
+          ? new Date(`${sortedDepartures[0].departure_date}T00:00:00`)
+          : null);
 
     if (!base) return [];
 
-    const baseDate = new Date(`${base}T00:00:00`);
-    const year = baseDate.getFullYear();
-    const month = baseDate.getMonth();
+    const year = base.getFullYear();
+    const month = base.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
     const departuresByDay = new Map<number, Departure>();
@@ -196,12 +201,59 @@ export default function TripPage() {
 
     return Array.from({ length: daysInMonth }).map((_, i) => {
       const day = i + 1;
+
       return {
         day,
         departure: departuresByDay.get(day) || null,
       };
     });
-  }, [selectedDeparture?.departure_date, sortedDepartures]);
+  }, [
+    calendarMonth,
+    selectedDeparture?.departure_date,
+    sortedDepartures,
+  ]);
+
+  useEffect(() => {
+    const firstDate =
+      selectedDeparture?.departure_date ||
+      sortedDepartures[0]?.departure_date;
+
+    if (!calendarMonth && firstDate) {
+      const d = new Date(`${firstDate}T00:00:00`);
+
+      setCalendarMonth(
+        new Date(d.getFullYear(), d.getMonth(), 1)
+      );
+    }
+  }, [
+    calendarMonth,
+    selectedDeparture?.departure_date,
+    sortedDepartures,
+  ]);
+
+  function previousCalendarMonth() {
+    setCalendarMonth((prev) => {
+      const base = prev || new Date();
+
+      return new Date(
+        base.getFullYear(),
+        base.getMonth() - 1,
+        1
+      );
+    });
+  }
+
+  function nextCalendarMonth() {
+    setCalendarMonth((prev) => {
+      const base = prev || new Date();
+
+      return new Date(
+        base.getFullYear(),
+        base.getMonth() + 1,
+        1
+      );
+    });
+  }
 
   useEffect(() => {
     if (!slug || typeof slug !== "string") return;
@@ -710,76 +762,30 @@ export default function TripPage() {
                 Priskalender
               </h1>
 
-              <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-                <div className="mb-5 flex items-center justify-between text-[#00879a]">
-                  <span className="text-2xl">«</span>
-                  <h2 className="text-2xl font-semibold text-[#111827]">
-                    {monthTitle(firstDeparture?.departure_date)}
-                  </h2>
-                  <span className="text-2xl">»</span>
-                </div>
+             <div className="mb-5 flex items-center justify-between text-[#00879a]">
+  <button
+    type="button"
+    onClick={previousCalendarMonth}
+    className="rounded-full border border-[#00879a]/20 bg-white px-4 py-2 text-2xl font-bold hover:bg-[#e4fbff]"
+  >
+    «
+  </button>
 
-                <div className="grid grid-cols-7 gap-3 text-center">
-                  {["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"].map(
-                    (day) => (
-                      <div
-                        key={day}
-                        className="pb-2 text-lg font-semibold text-[#111827]"
-                      >
-                        {day}
-                      </div>
-                    )
-                  )}
+  <h2 className="text-2xl font-semibold capitalize text-[#111827]">
+    {new Intl.DateTimeFormat("sv-SE", {
+      month: "long",
+      year: "numeric",
+    }).format(calendarMonth || new Date())}
+  </h2>
 
-                  {calendarDays.map(({ day, departure }) => {
-                    const active = departure?.id === selectedDepartureId;
-                    const available = Boolean(departure);
-
-                    return (
-                      <button
-                        key={day}
-                        type="button"
-                        disabled={!available}
-                        onClick={() => {
-                          if (!departure) return;
-                          setSelectedDepartureId(departure.id);
-                        }}
-                        className={`relative min-h-[116px] rounded-xl border p-3 text-center transition ${
-                          active
-                            ? "border-[#008aa0] bg-[#e4fbff] shadow"
-                            : available
-                            ? "border-gray-300 bg-white hover:border-[#008aa0]"
-                            : "border-gray-200 bg-gray-100 text-gray-400"
-                        }`}
-                      >
-                        {active && (
-                          <span className="absolute -right-1 -top-1 rounded bg-[#d83b4a] px-3 py-1 text-xs font-bold text-white">
-                            Vald
-                          </span>
-                        )}
-
-                        <div className="text-xl">{day}</div>
-
-                        {available ? (
-                          <>
-                            <div className="mt-3 text-xs text-gray-500">fr.</div>
-                            <div className="text-lg font-semibold text-[#d83b4a]">
-                              {money(departure?.price || trip.price_from)}
-                            </div>
-                            <div className="mt-1 text-xs text-[#00879a]">
-                              {active
-                                ? "Vald ✓"
-                                : `${departure?.seats_left ?? 0} platser`}
-                            </div>
-                          </>
-                        ) : (
-                          <div className="mt-8 text-xs">Ej tillgänglig</div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+  <button
+    type="button"
+    onClick={nextCalendarMonth}
+    className="rounded-full border border-[#00879a]/20 bg-white px-4 py-2 text-2xl font-bold hover:bg-[#e4fbff]"
+  >
+    »
+  </button>
+</div>
 
               <StopSelector
                 stops={selectedLineStops}
