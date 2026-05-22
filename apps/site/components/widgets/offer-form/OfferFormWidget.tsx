@@ -27,7 +27,7 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
   const [success, setSuccess] = useState<{ offerNo: string } | null>(null);
 
   const stepLabel = useMemo(() => {
-    return step === 1 ? "1. Resa" : step === 2 ? "2. Kontaktuppgifter & Önskemål" : "Klart";
+    return step === 1 ? "1. Resa" : step === 2 ? "2. Kontaktuppgifter & �nskem�l" : "Klart";
   }, [step]);
 
   function setField<K extends keyof OfferFormState>(key: K, value: OfferFormState[K]) {
@@ -120,8 +120,8 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
 
       const data = (await res.json()) as OfferSubmitResponse;
       if (!data.ok) {
-        trackOfferFormEvent({ type: "submit_error", message: data.message, code: data.code });
-        setErrors({ submit: data.message || "Något gick fel. Försök igen." });
+        trackOfferFormEvent({ type: "submit_error", message: (data as any).message, code: (data as any).code });
+        setErrors({ submit: (data as any).message || "N�got gick fel. F�rs�k igen." });
         return;
       }
 
@@ -130,13 +130,13 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
       setStep(3);
     } catch (e: any) {
       trackOfferFormEvent({ type: "submit_error", message: "Network/Unhandled", code: "NETWORK" });
-      setErrors({ submit: "Något gick fel vid skickning. Kontrollera anslutning och försök igen." });
+      setErrors({ submit: "N�got gick fel vid skickning. Kontrollera anslutning och f�rs�k igen." });
     } finally {
       setSubmitting(false);
     }
   }
 
-  // när tur/retur slås på: default = “vänd rutt” = ja
+  // n�r tur/retur sl�s p�: default = �v�nd rutt� = ja
   function onTripTypeChange(v: TripType) {
     setState((s) => ({
       ...s,
@@ -156,11 +156,11 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
                 <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <h3 className={styles.successTitle}>Tack! Din offertförfrågan är skickad</h3>
+            <h3 className={styles.successTitle}>Tack! Din offertf�rfr�gan �r skickad</h3>
             <p className={styles.successText}>
-              Ditt offertnummer är: <span className={styles.offerNo}>{success.offerNo}</span>
+              Ditt offertnummer �r: <span className={styles.offerNo}>{success.offerNo}</span>
             </p>
-            <p className={styles.successText}>Du får ett prisförslag inom 24 timmar (vardagar 09–18).</p>
+            <p className={styles.successText}>Du f�r ett prisf�rslag inom 24 timmar (vardagar 09�18).</p>
             <button className={styles.btn} onClick={() => (window.location.href = "/")}>
               Till startsidan
             </button>
@@ -183,7 +183,7 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
         </div>
 
         <div className={styles.body}>
-          {/* Bild som bakgrundskänsla: sate_bus.jpg (public) */}
+          {/* Bild som bakgrundsk�nsla: sate_bus.jpg (public) */}
           <div style={{ display: "none" }}>
             <Image src="/sate_bus.jpg" alt="" width={10} height={10} />
           </div>
@@ -194,7 +194,7 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
                 <div className={styles.field}>
                   <div className={styles.labelRow}>
                     <span className={styles.label}>Avresa</span>
-                    <Info text="Skriv adress, ort eller plats. Ex: Hyllie station, Malmö" />
+                    <Info text="Skriv adress, ort eller plats. Ex: Hyllie station, Malm�" />
                     <span className={styles.optional}>(obligatorisk)</span>
                   </div>
                   <input
@@ -210,7 +210,7 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
                 <div className={styles.field}>
                   <div className={styles.labelRow}>
                     <span className={styles.label}>Destination</span>
-                    <Info text="Skriv adress, ort eller plats. Ex: Liseberg, Göteborg" />
+                    <Info text="Skriv adress, ort eller plats. Ex: Liseberg, G�teborg" />
                     <span className={styles.optional}>(obligatorisk)</span>
                   </div>
                   <input
@@ -255,7 +255,7 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
 
                 <div className={styles.field}>
                   <div className={styles.labelRow}>
-                    <span className={styles.label}>Antal resenärer</span>
+                    <span className={styles.label}>Antal resen�rer</span>
                     <span className={styles.optional}>(obligatorisk)</span>
                   </div>
                   <input
@@ -307,14 +307,14 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
                     checked={state.useBusOnSite}
                     onChange={(e) => setField("useBusOnSite", e.target.checked)}
                   />
-                  <span className={styles.label} style={{ fontSize: 12 }}>Använda bussen på plats?</span>
+                  <span className={styles.label} style={{ fontSize: 12 }}>Anv�nda bussen p� plats?</span>
                 </label>
               </div>
 
               {state.tripType === "roundtrip" && (
                 <div style={{ marginTop: 10 }}>
                   <div className={styles.inlineNote} style={{ marginBottom: 8 }}>
-                    Tur & retur: vill kunden <b>vända på rutten</b> (retur = destination → avresa)?
+                    Tur & retur: vill kunden <b>v�nda p� rutten</b> (retur = destination ? avresa)?
                   </div>
 
                   <div className={styles.radioGroup}>
@@ -324,7 +324,7 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
                       role="button"
                       tabIndex={0}
                     >
-                      Ja, vänd rutten
+                      Ja, v�nd rutten
                     </div>
                     <div
                       className={styles.radioBtn}
@@ -340,7 +340,7 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
                     <div className={styles.grid2} style={{ marginTop: 10 }}>
                       <div className={styles.field}>
                         <div className={styles.labelRow}>
-                          <span className={styles.label}>Retur – Avresa</span>
+                          <span className={styles.label}>Retur � Avresa</span>
                           <span className={styles.optional}>(obligatorisk)</span>
                         </div>
                         <input
@@ -354,7 +354,7 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
 
                       <div className={styles.field}>
                         <div className={styles.labelRow}>
-                          <span className={styles.label}>Retur – Destination</span>
+                          <span className={styles.label}>Retur � Destination</span>
                           <span className={styles.optional}>(obligatorisk)</span>
                         </div>
                         <input
@@ -375,12 +375,12 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
               <div className={styles.actions}>
                 <div />
                 <button className={styles.btn} onClick={nextStep}>
-                  Fortsätt
+                  Forts�tt
                 </button>
               </div>
 
               <div className={styles.footerNote}>
-                Genom att skicka offertförfrågan godkänner du våra resevillkor och integritetspolicy.
+                Genom att skicka offertf�rfr�gan godk�nner du v�ra resevillkor och integritetspolicy.
               </div>
             </>
           )}
@@ -395,8 +395,8 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
               <div className={styles.radioGroup} style={{ marginBottom: 12 }}>
                 {[
                   ["privat","Privatperson"],
-                  ["foretag","Företag"],
-                  ["forening","Förening"],
+                  ["foretag","F�retag"],
+                  ["forening","F�rening"],
                 ].map(([v, label]) => (
                   <div
                     key={v}
@@ -414,7 +414,7 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
                 <div className={styles.grid2} style={{ marginBottom: 12 }}>
                   <div className={styles.field}>
                     <div className={styles.labelRow}>
-                      <span className={styles.label}>{state.customerType === "foretag" ? "Företagsnamn" : "Föreningsnamn"}</span>
+                      <span className={styles.label}>{state.customerType === "foretag" ? "F�retagsnamn" : "F�reningsnamn"}</span>
                       <span className={styles.optional}>(obligatorisk)</span>
                     </div>
                     <input className={styles.input} value={state.orgName} onChange={(e) => setField("orgName", e.target.value)} placeholder="Namn" />
@@ -438,7 +438,7 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
                     <span className={styles.label}>Namn</span>
                     <span className={styles.optional}>(obligatorisk)</span>
                   </div>
-                  <input className={styles.input} value={state.name} onChange={(e) => setField("name", e.target.value)} placeholder="Fullständiga namn" />
+                  <input className={styles.input} value={state.name} onChange={(e) => setField("name", e.target.value)} placeholder="Fullst�ndiga namn" />
                   {errors.name && <div className={styles.err}>{errors.name}</div>}
                 </div>
 
@@ -465,20 +465,20 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
                 <div className={styles.field}>
                   <div className={styles.labelRow}>
                     <span className={styles.label}>Kontaktperson ombord</span>
-                    <Info text="Om annan person än bokaren ska vara kontakt ombord – skriv namn & telefon." />
+                    <Info text="Om annan person �n bokaren ska vara kontakt ombord � skriv namn & telefon." />
                     <span className={styles.optional}>(valfritt)</span>
                   </div>
-                  <input className={styles.input} value={state.onboardContact} onChange={(e) => setField("onboardContact", e.target.value)} placeholder="Fullständiga namn, telefon" />
+                  <input className={styles.input} value={state.onboardContact} onChange={(e) => setField("onboardContact", e.target.value)} placeholder="Fullst�ndiga namn, telefon" />
                 </div>
               </div>
 
               <div className={styles.field} style={{ marginTop: 12 }}>
                 <div className={styles.labelRow}>
-                  <span className={styles.label}>Resans upplägg</span>
-                  <Info text="Beskriv resan: tider, stopp, väntetid, ev. retur, bokad aktivitet, etc." />
+                  <span className={styles.label}>Resans uppl�gg</span>
+                  <Info text="Beskriv resan: tider, stopp, v�ntetid, ev. retur, bokad aktivitet, etc." />
                   <span className={styles.optional}>(valfritt)</span>
                 </div>
-                <textarea className={styles.textarea} value={state.resPlan} onChange={(e) => setField("resPlan", e.target.value)} placeholder="Ex: Avresa 08:00, väntetid 6h, retur 18:30..." />
+                <textarea className={styles.textarea} value={state.resPlan} onChange={(e) => setField("resPlan", e.target.value)} placeholder="Ex: Avresa 08:00, v�ntetid 6h, retur 18:30..." />
               </div>
 
               <div className={styles.labelRow} style={{ marginTop: 14 }}>
@@ -490,27 +490,27 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
                 <label className={styles.toggleRow}><input type="checkbox" checked={state.facilities.wc} onChange={(e) => setFacility("wc", e.target.checked)} /> <span>WC</span></label>
                 <label className={styles.toggleRow}><input type="checkbox" checked={state.facilities.eluttag_usb} onChange={(e) => setFacility("eluttag_usb", e.target.checked)} /> <span>Eluttag/USB</span></label>
                 <label className={styles.toggleRow}><input type="checkbox" checked={state.facilities.film_presentation} onChange={(e) => setFacility("film_presentation", e.target.checked)} /> <span>Film/Presentation</span></label>
-                <label className={styles.toggleRow}><input type="checkbox" checked={state.facilities.tillganglighet} onChange={(e) => setFacility("tillganglighet", e.target.checked)} /> <span>Tillgänglighet</span></label>
+                <label className={styles.toggleRow}><input type="checkbox" checked={state.facilities.tillganglighet} onChange={(e) => setFacility("tillganglighet", e.target.checked)} /> <span>Tillg�nglighet</span></label>
                 <label className={styles.toggleRow}><input type="checkbox" checked={state.facilities.bagage_extra} onChange={(e) => setFacility("bagage_extra", e.target.checked)} /> <span>Bagageutrymme extra</span></label>
               </div>
 
               <div className={styles.field} style={{ marginTop: 10 }}>
                 <div className={styles.labelRow}>
-                  <span className={styles.label}>Tillgänglighet / särskilda behov</span>
+                  <span className={styles.label}>Tillg�nglighet / s�rskilda behov</span>
                   <span className={styles.optional}>(valfritt)</span>
                 </div>
                 <input
                   className={styles.input}
                   value={state.accessibilityNotes}
                   onChange={(e) => setField("accessibilityNotes", e.target.value)}
-                  placeholder="Berätta om rullstol, allergi, extra tid vid påstigning..."
+                  placeholder="Ber�tta om rullstol, allergi, extra tid vid p�stigning..."
                 />
               </div>
 
               <div className={styles.grid2} style={{ marginTop: 12 }}>
                 <div className={styles.field}>
                   <div className={styles.labelRow}>
-                    <span className={styles.label}>Var fick du höra om oss?</span>
+                    <span className={styles.label}>Var fick du h�ra om oss?</span>
                     <span className={styles.optional}>(valfritt)</span>
                   </div>
                   <select
@@ -518,7 +518,7 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
                     value={state.heardFrom}
                     onChange={(e) => setField("heardFrom", e.target.value as HeardFrom)}
                   >
-                    <option value="">Välj ett alternativ</option>
+                    <option value="">V�lj ett alternativ</option>
                     <option value="google">Google</option>
                     <option value="facebook">Facebook</option>
                     <option value="instagram">Instagram</option>
@@ -532,7 +532,7 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
                 <div className={styles.field} style={{ alignContent: "end" }}>
                   <label className={styles.toggleRow}>
                     <input type="checkbox" checked={state.newsletter} onChange={(e) => setField("newsletter", e.target.checked)} />
-                    <span>Jag vill gärna få nyhetsbrev med resor & erbjudanden</span>
+                    <span>Jag vill g�rna f� nyhetsbrev med resor & erbjudanden</span>
                   </label>
                 </div>
               </div>
@@ -544,12 +544,12 @@ export default function OfferFormWidget({ initial }: OfferFormWidgetProps) {
                   Tillbaka
                 </button>
                 <button className={styles.btn} onClick={submit} disabled={submitting}>
-                  {submitting ? "Skickar..." : "Skicka förfrågan"}
+                  {submitting ? "Skickar..." : "Skicka f�rfr�gan"}
                 </button>
               </div>
 
               <div className={styles.footerNote}>
-                Genom att skicka offertförfrågan godkänner du våra resevillkor och integritetspolicy.
+                Genom att skicka offertf�rfr�gan godk�nner du v�ra resevillkor och integritetspolicy.
               </div>
             </>
           )}
