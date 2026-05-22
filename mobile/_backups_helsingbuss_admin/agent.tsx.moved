@@ -1,0 +1,44 @@
+﻿import React from "react";
+import { View, Text, StyleSheet, Pressable } from "react-native";
+import { router } from "expo-router";
+import { supabase } from "../lib/supabase";
+
+const colors = {
+  primary: "#003C3A",
+  background: "#F6F4EF",
+  card: "#FFFFFF",
+  text: "#102322",
+  textMuted: "#6B7674",
+  white: "#FFFFFF",
+};
+
+export default function AgentScreen() {
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.replace("/");
+  }
+
+  return (
+    <View style={styles.screen}>
+      <View style={styles.card}>
+        <Text style={styles.title}>Bokningsagent</Text>
+        <Text style={styles.text}>
+          Du är inloggad som bokningsagent. Här bygger vi senare bokningar, offerter och kundflöden.
+        </Text>
+
+        <Pressable style={styles.button} onPress={handleLogout}>
+          <Text style={styles.buttonText}>Logga ut</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background, padding: 22, justifyContent: "center" },
+  card: { backgroundColor: colors.card, borderRadius: 28, padding: 24 },
+  title: { color: colors.text, fontSize: 28, fontWeight: "900" },
+  text: { color: colors.textMuted, fontSize: 15, lineHeight: 22, marginTop: 10, marginBottom: 22 },
+  button: { backgroundColor: colors.primary, borderRadius: 17, paddingVertical: 16, alignItems: "center" },
+  buttonText: { color: colors.white, fontSize: 16, fontWeight: "900" },
+});

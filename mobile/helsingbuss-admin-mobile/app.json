@@ -1,0 +1,81 @@
+{
+  "expo": {
+    "name": "Helsingbuss Admin",
+    "slug": "helsingbuss-admin-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/notifications/notification-icon_farg.png",
+    "scheme": "helsingbussadminmobile",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "icon": "./src/assets/notifications/notification-icon_farg.png",
+      "bundleIdentifier": "se.helsingbuss.admin"
+    },
+    "android": {
+      "package": "se.helsingbuss.admin",
+      "adaptiveIcon": {
+        "backgroundColor": "#003C3A",
+        "foregroundImage": "./src/assets/notifications/notification-icon_farg.png"
+      },
+      "notification": {
+        "icon": "./src/assets/notifications/notification-icon_vit.png",
+        "color": "#003C3A"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./src/assets/notifications/notification-icon_farg.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#003C3A",
+          "image": "./src/assets/logo/logo_helsingbuss_vit.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "android": {
+            "backgroundColor": "#003C3A",
+            "image": "./src/assets/logo/logo_helsingbuss_vit.png",
+            "imageWidth": 220
+          },
+          "ios": {
+            "backgroundColor": "#003C3A",
+            "image": "./src/assets/logo/logo_helsingbuss_vit.png",
+            "imageWidth": 220
+          }
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      "expo-sqlite",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./src/assets/notifications/notification-icon_vit.png",
+          "color": "#003C3A"
+        }
+      ],
+      "expo-mail-composer"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "notification": {
+      "icon": "./src/assets/notifications/notification-icon_vit.png",
+      "color": "#003C3A"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4a4c0908-2fea-4fce-b397-39e27f3a5b8a"
+      }
+    },
+    "owner": "helsingbuss"
+  }
+}

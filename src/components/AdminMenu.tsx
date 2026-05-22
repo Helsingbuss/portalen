@@ -233,13 +233,13 @@ export default function AdminMenu({ active }: Props) {
       </Link>
 
       {/* AVTAL */}
-      <Link href="#" className={subLink}>Avtal & kundpriser</Link>
+      <Link href="/admin/crm/avtal" className={subLink}>Avtal & kundpriser</Link>
 
       {/* KONTAKTER */}
-      <Link href="#" className={subLink}>Kontakter & noteringar</Link>
+      <Link href="/admin/crm/kontakter" className={subLink}>Kontakter & noteringar</Link>
 
       {/* KOMMUNIKATION */}
-      <Link href="#" className={subLink}>Kommunikation (Mail/SMS-logg)</Link>
+      <Link href="/admin/crm/kommunikation" className={subLink}>Kommunikation (Mail/SMS-logg)</Link>
 
     </div>
   )}

@@ -39,3 +39,15 @@ pnpm-debug.log*
 patch-upcoming.js
 apps/site/scripts/patch_*.js
 
+
+apps/hbshuttle/node_modules/
+
+node_modules/
+
+**/node_modules/
+
+node_modules/
+
+**/node_modules/
+
+apps/hbshuttle/node_modules/
