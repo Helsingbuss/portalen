@@ -82,6 +82,7 @@ export default function AgentLayout() {
             <Tabs.Screen name="agent-rules-accept" options={{ href: null }} />
             <Tabs.Screen name="documents-help" options={{ href: null }} />
             <Tabs.Screen name="help-document" options={{ href: null }} />
+            <Tabs.Screen name="notifications" options={{ href: null }} />
       <Tabs.Screen name="index" options={{ href: null }} />
       <Tabs.Screen name="new-offer" options={{ href: null }} />
       <Tabs.Screen name="send-offer" options={{ href: null }} />
