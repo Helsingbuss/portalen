@@ -169,10 +169,29 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const notes =
       pick(rawBody, "notes", "noteringar", "message", "meddelande") || null;
 
+    const normalizeDedupe = (v: any) =>
+      String(v || "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ");
+
+    const dedupeKey = [
+      customerEmail || "",
+      customerPhone || "",
+      fromPlace || "",
+      toPlace || "",
+      departureDate || "",
+      departureTime || "",
+      passengers || "",
+    ]
+      .map(normalizeDedupe)
+      .join("|");
+
     const offerNumber = await getNextOfferNumber();
 
     const insertPayload: any = {
       offer_number: offerNumber,
+      dedupe_key: dedupeKey,
 
       // kund
       contact_person: contactPerson,
@@ -266,6 +285,26 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       .single();
 
     if (error) {
+      if (
+        error.code === "23505" ||
+        String(error.message || "").toLowerCase().includes("duplicate")
+      ) {
+        const { data: existingOffer } = await supabaseAdmin
+          .from("offers")
+          .select("id, offer_number")
+          .eq("dedupe_key", dedupeKey)
+          .maybeSingle();
+
+        if (existingOffer?.id) {
+          return res.status(200).json({
+            ok: true,
+            id: String(existingOffer.id),
+            offerNumber: existingOffer.offer_number,
+            duplicate: true,
+          });
+        }
+      }
+
       console.error("/api/offert/create insert error:", error);
       return res.status(500).json({
         error: "Kunde inte skapa offert i databasen.",
