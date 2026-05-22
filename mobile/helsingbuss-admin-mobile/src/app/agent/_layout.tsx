@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Tabs } from "expo-router";
 import {
   FileText,

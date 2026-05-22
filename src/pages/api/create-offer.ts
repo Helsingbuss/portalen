@@ -1,6 +1,12 @@
+import type { NextApiRequest, NextApiResponse } from "next";
 
-
-
-// src/pages/api/create-offer.ts
-export { default } from "./offert/create";
-
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  return res.status(200).json({
+    ok: true,
+    message: "API route placeholder active",
+    method: req.method,
+  });
+}
