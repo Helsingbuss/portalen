@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -7,9 +7,11 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { router } from "expo-router";
 import {
   BookOpenCheck,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   FileText,
   Search,
@@ -21,6 +23,8 @@ import { HELP_CATEGORIES, type HelpCategory } from "../../data/helpDocuments";
 export default function DocumentsHelpScreen({ mode }: { mode: "admin" | "agent" }) {
   const [query, setQuery] = useState("");
   const [openCategoryId, setOpenCategoryId] = useState<string | null>("agent-customer");
+
+  const detailPath = mode === "agent" ? "/agent/help-document" : "/admin/help-document";
 
   const filteredCategories = useMemo(() => {
     const search = query.trim().toLowerCase();
@@ -53,6 +57,13 @@ export default function DocumentsHelpScreen({ mode }: { mode: "admin" | "agent" 
     setOpenCategoryId((current) => (current === category.id ? null : category.id));
   }
 
+  function openDocument(id: string) {
+    router.push({
+      pathname: detailPath,
+      params: { id },
+    } as any);
+  }
+
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -81,7 +92,7 @@ export default function DocumentsHelpScreen({ mode }: { mode: "admin" | "agent" 
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Intern handbok</Text>
           <Text style={styles.infoText}>
-            Materialet ska vara tydligt, tryggt och lätt att följa. Det ska hjälpa nya och befintliga användare att arbeta korrekt i appen.
+            Tryck på ett dokument för att läsa hela rutinen, kontrollpunkter och stödtext.
           </Text>
         </View>
 
@@ -110,14 +121,22 @@ export default function DocumentsHelpScreen({ mode }: { mode: "admin" | "agent" 
               {isOpen ? (
                 <View style={styles.documentList}>
                   {category.documents.map((document) => (
-                    <View key={document.id} style={styles.documentCard}>
-                      <View style={styles.priorityPill}>
-                        <Text style={styles.priorityText}>{document.priority}</Text>
+                    <Pressable
+                      key={document.id}
+                      style={styles.documentCard}
+                      onPress={() => openDocument(document.id)}
+                    >
+                      <View style={styles.documentTop}>
+                        <View style={styles.priorityPill}>
+                          <Text style={styles.priorityText}>{document.priority}</Text>
+                        </View>
+
+                        <ChevronRight size={20} color={colors.primary} strokeWidth={2.5} />
                       </View>
 
                       <Text style={styles.documentTitle}>{document.title}</Text>
                       <Text style={styles.documentText}>{document.text}</Text>
-                    </View>
+                    </Pressable>
                   ))}
                 </View>
               ) : null}
@@ -239,6 +258,11 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: 13,
     marginTop: 9,
+  },
+  documentTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   priorityPill: {
     alignSelf: "flex-start",
