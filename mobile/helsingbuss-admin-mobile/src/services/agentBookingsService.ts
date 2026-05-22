@@ -1,4 +1,4 @@
-﻿import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
 
 export type AgentBookingType = "sundra" | "shuttle";
 
@@ -96,4 +96,34 @@ export function getPaymentStatusLabel(status: string) {
   if (value === "cancelled" || value === "canceled") return "Avbruten";
 
   return status || "Väntar";
+}
+
+export async function saveAgentBookingPaymentInfo(input: {
+  type: AgentBookingType;
+  id: string;
+  paymentUrl: string;
+  paymentReference?: string;
+  paymentStatus?: string;
+  paymentProvider?: string;
+}) {
+  const { data, error } = await supabase.rpc("update_agent_booking_payment_info", {
+    p_booking_type: input.type,
+    p_booking_id: input.id,
+    p_payload: {
+      paymentUrl: input.paymentUrl,
+      paymentReference: input.paymentReference || "",
+      paymentStatus: input.paymentStatus || "pending",
+      paymentProvider: input.paymentProvider || "sumup",
+    },
+  });
+
+  if (error) throw new Error(error.message);
+
+  const raw = typeof data === "string" ? JSON.parse(data) : data;
+
+  if (!raw?.ok) {
+    throw new Error(raw?.error || "Kunde inte spara betalningsinformation.");
+  }
+
+  return raw;
 }

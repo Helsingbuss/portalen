@@ -14,19 +14,23 @@ import {
   ArrowLeft,
   CalendarDays,
   CreditCard,
+  Link as LinkIcon,
   Mail,
   MapPin,
   Phone,
+  RefreshCw,
   Ticket,
   UserRound,
   UsersRound,
 } from "lucide-react-native";
 
 import { colors } from "../../theme/colors";
+import { createAndSendPaymentLink } from "../../services/storeService";
 import {
   formatAgentBookingMoney,
   getAgentBookingDetail,
   getPaymentStatusLabel,
+  saveAgentBookingPaymentInfo,
   type AgentBookingDetail,
   type AgentBookingType,
 } from "../../services/agentBookingsService";
@@ -36,6 +40,7 @@ export default function AgentBookingDetailScreen() {
 
   const [booking, setBooking] = useState<AgentBookingDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
 
   const bookingId = String(params.id || "");
   const bookingType = String(params.type || "sundra") as AgentBookingType;
@@ -65,17 +70,113 @@ export default function AgentBookingDetailScreen() {
     const url = String(booking?.payment_url || "");
 
     if (!url) {
-      Alert.alert("Ingen betalningslänk", "Det finns ingen betalningslänk kopplad till bokningen ännu.");
+      Alert.alert("Ingen betalningslänk", "Skapa en betalningslänk först.");
       return;
     }
 
     Linking.openURL(url);
   }
 
+  async function createPaymentLink() {
+    if (!booking) return;
+
+    const totalPrice = Number(booking.total_price || 0);
+
+    if (totalPrice <= 0) {
+      Alert.alert("Saknar belopp", "Bokningen saknar totalpris.");
+      return;
+    }
+
+    try {
+      setIsCreatingPayment(true);
+
+      const title =
+        bookingType === "sundra"
+          ? `Sundra resa - ${booking.title || "Bokning"}`
+          : "Airport Shuttle - Bokning";
+
+      const customerName = String(booking.customer_name || "Kund");
+      const customerEmail = String(booking.customer_email || "");
+      const customerPhone = String(booking.customer_phone || "");
+
+      const paymentMessage =
+        `Hej ${customerName}! Här kommer din betalningslänk.\n\n` +
+        `Bokning: ${title}\n` +
+        `Datum: ${booking.travel_date || "-"}\n` +
+        `Belopp: ${formatAgentBookingMoney(totalPrice)}`;
+
+      const paymentResult: any = await createAndSendPaymentLink({
+        title,
+        productTitle: title,
+        customerName,
+        customerEmail,
+        customerPhone,
+        amount: totalPrice,
+        totalAmount: totalPrice,
+        currency: "SEK",
+        message: paymentMessage,
+        sendEmail: Boolean(customerEmail),
+        sendSms: Boolean(customerPhone),
+        sourceType: bookingType === "sundra" ? "agent_sundra_booking" : "agent_shuttle_booking",
+        sourceId: bookingId,
+        businessUnit: bookingType === "sundra" ? "sundra" : "airport_shuttle",
+      } as any);
+
+      const paymentUrl =
+        paymentResult?.paymentUrl ||
+        paymentResult?.url ||
+        paymentResult?.checkoutUrl ||
+        paymentResult?.checkout_url ||
+        "";
+
+      const paymentReference =
+        paymentResult?.paymentId ||
+        paymentResult?.checkoutId ||
+        paymentResult?.checkout_id ||
+        paymentResult?.id ||
+        "";
+
+      if (!paymentUrl) {
+        Alert.alert(
+          "Länk skapades inte",
+          "Bokningen finns kvar, men betalningslänken kunde inte läsas från svaret."
+        );
+        return;
+      }
+
+      await saveAgentBookingPaymentInfo({
+        type: bookingType,
+        id: bookingId,
+        paymentUrl,
+        paymentReference: String(paymentReference || ""),
+        paymentStatus: "pending",
+        paymentProvider: "sumup",
+      });
+
+      await loadBooking();
+
+      Alert.alert("Betalningslänk skapad", "Länken är sparad på bokningen.", [
+        {
+          text: "Öppna länk",
+          onPress: () => Linking.openURL(paymentUrl),
+        },
+        {
+          text: "Stäng",
+          style: "cancel",
+        },
+      ]);
+    } catch (error: any) {
+      Alert.alert("Kunde inte skapa betalningslänk", error?.message || "Försök igen.");
+    } finally {
+      setIsCreatingPayment(false);
+    }
+  }
+
   const title = String(booking?.title || (bookingType === "sundra" ? "Sundra resa" : "Airport Shuttle"));
   const customerName = String(booking?.customer_name || "");
   const paymentStatus = String(booking?.payment_status || "pending");
   const totalPrice = Number(booking?.total_price || 0);
+  const hasPaymentUrl = Boolean(booking?.payment_url);
 
   return (
     <View style={styles.screen}>
@@ -111,13 +212,25 @@ export default function AgentBookingDetailScreen() {
 
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Resa</Text>
-              <InfoRow icon="calendar" label="Datum" value={`${booking.travel_date || "-"}${booking.travel_time ? " · " + booking.travel_time : ""}`} />
+              <InfoRow
+                icon="calendar"
+                label="Datum"
+                value={`${booking.travel_date || "-"}${booking.travel_time ? " · " + booking.travel_time : ""}`}
+              />
 
               {bookingType === "sundra" ? (
                 <>
                   <InfoRow icon="map" label="Upphämtning" value={String(booking.pickup_place || booking.departure_place || "-")} />
                   <InfoRow icon="users" label="Resenärer" value={String(booking.passengers || 0)} />
-                  <InfoRow icon="ticket" label="Platser" value={Array.isArray(booking.seat_numbers) && booking.seat_numbers.length > 0 ? booking.seat_numbers.join(", ") : "Inget platsval"} />
+                  <InfoRow
+                    icon="ticket"
+                    label="Platser"
+                    value={
+                      Array.isArray(booking.seat_numbers) && booking.seat_numbers.length > 0
+                        ? booking.seat_numbers.join(", ")
+                        : "Inget platsval"
+                    }
+                  />
                 </>
               ) : (
                 <>
@@ -131,6 +244,7 @@ export default function AgentBookingDetailScreen() {
 
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Betalning</Text>
+
               <View style={styles.paymentBox}>
                 <View>
                   <Text style={styles.paymentLabel}>Status</Text>
@@ -147,9 +261,29 @@ export default function AgentBookingDetailScreen() {
                 </>
               ) : null}
 
-              <Pressable style={styles.primaryButton} onPress={openPayment}>
-                <CreditCard size={20} color={colors.white} />
-                <Text style={styles.primaryButtonText}>Öppna betalningslänk</Text>
+              {hasPaymentUrl ? (
+                <Pressable style={styles.primaryButton} onPress={openPayment}>
+                  <LinkIcon size={20} color={colors.white} />
+                  <Text style={styles.primaryButtonText}>Öppna betalningslänk</Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  style={[styles.primaryButton, isCreatingPayment && styles.disabled]}
+                  onPress={createPaymentLink}
+                  disabled={isCreatingPayment}
+                >
+                  {isCreatingPayment ? (
+                    <ActivityIndicator color={colors.white} />
+                  ) : (
+                    <CreditCard size={20} color={colors.white} />
+                  )}
+                  <Text style={styles.primaryButtonText}>Skapa betalningslänk</Text>
+                </Pressable>
+              )}
+
+              <Pressable style={styles.secondaryButton} onPress={loadBooking}>
+                <RefreshCw size={18} color={colors.primary} />
+                <Text style={styles.secondaryButtonText}>Uppdatera status</Text>
               </Pressable>
             </View>
           </>
@@ -280,4 +414,15 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   primaryButtonText: { color: colors.white, fontSize: 14, fontWeight: "900", marginLeft: 8 },
+  secondaryButton: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: 18,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    marginTop: 10,
+  },
+  secondaryButtonText: { color: colors.primary, fontSize: 13, fontWeight: "900", marginLeft: 7 },
+  disabled: { opacity: 0.65 },
 });
