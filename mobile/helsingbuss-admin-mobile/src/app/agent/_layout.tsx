@@ -89,6 +89,8 @@ export default function AgentLayout() {
       <Tabs.Screen name="booking-detail" options={{ href: null }} />
       <Tabs.Screen name="offer-detail" options={{ href: null }} />
       <Tabs.Screen name="offer-map" options={{ href: null }} />
+          <Tabs.Screen name="profile" options={{ href: null }} />
+          <Tabs.Screen name="agent-rules" options={{ href: null }} />
     </Tabs>
   );
 }

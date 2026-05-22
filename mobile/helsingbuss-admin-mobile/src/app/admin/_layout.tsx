@@ -137,6 +137,7 @@ export default function AdminTabsLayout() {
           <Tabs.Screen name="document-form" options={{ href: null }} />
           <Tabs.Screen name="document-reminders" options={{ href: null }} />
           <Tabs.Screen name="offers" options={{ href: null }} />
+          <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
 }

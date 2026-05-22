@@ -5,8 +5,9 @@ import {
   StyleSheet,
   Text,
   View,
-} from "react-native";
-import { router } from "expo-router";
+  } from "react-native";
+import { router,
+  router } from "expo-router";
 import {
   BellRing,
   BriefcaseBusiness,
@@ -19,7 +20,8 @@ import {
   Route,
   Store,
   UsersRound,
-  LogOut
+  LogOut,
+  UserRound,
 } from "lucide-react-native";
 
 import { colors } from "../../theme/colors";
@@ -177,6 +179,41 @@ export default function MoreScreen() {
           <View style={styles.cardTextBox}>
             <Text style={styles.logoutTitle}>Logga ut</Text>
             <Text style={styles.logoutText}>Avsluta sessionen och gå tillbaka till inloggning.</Text>
+          </View>
+        </Pressable>
+      
+        {/* AUTO-LINK: Min profil */}
+        <Pressable
+          style={{
+            backgroundColor: "#FFFFFF",
+            borderRadius: 22,
+            borderWidth: 1,
+            borderColor: "#E2E8E5",
+            padding: 16,
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12
+          }}
+          onPress={() => router.push("/admin/profile" as any)}
+        >
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 17,
+              backgroundColor: "#E6F2EF",
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: 12
+            }}
+          >
+            <UserRound size={22} color="#003C3A" strokeWidth={2.5} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: "#102321", fontSize: 16, fontWeight: "900" }}>Min profil</Text>
+            <Text style={{ color: "#6B7A78", fontSize: 12, fontWeight: "700", marginTop: 3 }}>
+              Kontaktuppgifter, roll och konto
+            </Text>
           </View>
         </Pressable>
       </ScrollView>

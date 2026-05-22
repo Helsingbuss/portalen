@@ -5,8 +5,9 @@ import {
   StyleSheet,
   Text,
   View,
-} from "react-native";
-import { router } from "expo-router";
+  } from "react-native";
+import { router,
+  router } from "expo-router";
 import {
   BellRing,
   CalendarDays,
@@ -92,6 +93,76 @@ export default function AgentMoreScreen() {
             <Text style={styles.logoutTitle}>Logga ut</Text>
             <Text style={styles.logoutText}>
               Avsluta agentkontot och gå tillbaka till inloggningen.
+            </Text>
+          </View>
+        </Pressable>
+      
+        {/* AUTO-LINK: Min profil */}
+        <Pressable
+          style={{
+            backgroundColor: "#FFFFFF",
+            borderRadius: 22,
+            borderWidth: 1,
+            borderColor: "#E2E8E5",
+            padding: 16,
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12
+          }}
+          onPress={() => router.push("/agent/profile" as any)}
+        >
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 17,
+              backgroundColor: "#E6F2EF",
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: 12
+            }}
+          >
+            <UserRound size={22} color="#003C3A" strokeWidth={2.5} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: "#102321", fontSize: 16, fontWeight: "900" }}>Min profil</Text>
+            <Text style={{ color: "#6B7A78", fontSize: 12, fontWeight: "700", marginTop: 3 }}>
+              Kontaktuppgifter, roll och konto
+            </Text>
+          </View>
+        </Pressable>
+      
+        {/* AUTO-LINK: Agentregler */}
+        <Pressable
+          style={{
+            backgroundColor: "#FFFFFF",
+            borderRadius: 22,
+            borderWidth: 1,
+            borderColor: "#E2E8E5",
+            padding: 16,
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12
+          }}
+          onPress={() => router.push("/agent/agent-rules" as any)}
+        >
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 17,
+              backgroundColor: "#E6F2EF",
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: 12
+            }}
+          >
+            <ShieldCheck size={22} color="#003C3A" strokeWidth={2.5} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: "#102321", fontSize: 16, fontWeight: "900" }}>Agentregler</Text>
+            <Text style={{ color: "#6B7A78", fontSize: 12, fontWeight: "700", marginTop: 3 }}>
+              Regler för offerter, betalning och kundkontakt
             </Text>
           </View>
         </Pressable>
