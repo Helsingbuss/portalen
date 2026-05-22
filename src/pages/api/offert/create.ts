@@ -1,4 +1,4 @@
-// src/pages/api/offert/create.ts
+﻿// src/pages/api/offert/create.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { withCors } from "@/lib/cors";
@@ -205,6 +205,59 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       passengers,
       notes,
     };
+
+    // Skydd mot dubbletter:
+    // Om samma kund/rutt/datum/tid skickas flera gånger inom kort tid
+    // returnerar vi befintlig offert istället för att skapa en ny.
+    const duplicateSince = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+
+    let duplicateQuery = supabaseAdmin
+      .from("offers")
+      .select("id, offer_number, departure_place, destination, departure_date, departure_time, passengers, created_at")
+      .gte("created_at", duplicateSince)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (customerEmail) {
+      duplicateQuery = duplicateQuery.eq("customer_email", customerEmail);
+    }
+
+    if (customerPhone) {
+      duplicateQuery = duplicateQuery.eq("customer_phone", customerPhone);
+    }
+
+    if (fromPlace) {
+      duplicateQuery = duplicateQuery.eq("departure_place", fromPlace);
+    }
+
+    if (toPlace) {
+      duplicateQuery = duplicateQuery.eq("destination", toPlace);
+    }
+
+    if (departureDate) {
+      duplicateQuery = duplicateQuery.eq("departure_date", departureDate);
+    }
+
+    if (departureTime) {
+      duplicateQuery = duplicateQuery.eq("departure_time", departureTime);
+    }
+
+    const { data: duplicateOffer, error: duplicateError } =
+      await duplicateQuery.maybeSingle();
+
+    if (!duplicateError && duplicateOffer?.id) {
+      console.warn("[offert/create] Dubblett stoppad. Returnerar befintlig offert.", {
+        id: duplicateOffer.id,
+        offer_number: duplicateOffer.offer_number,
+      });
+
+      return res.status(200).json({
+        ok: true,
+        id: String(duplicateOffer.id),
+        offerNumber: duplicateOffer.offer_number,
+        duplicate: true,
+      });
+    }
 
     const { data, error } = await supabaseAdmin
       .from("offers")
