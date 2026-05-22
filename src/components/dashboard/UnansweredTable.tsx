@@ -1,4 +1,4 @@
-// src/components/dashboard/UnansweredTable.tsx
+﻿// src/components/dashboard/UnansweredTable.tsx
 import React, { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/router";
 
@@ -71,15 +71,23 @@ export default function UnansweredTable({
 
   // bara de som inte är besvarade/godkända
   const filtered = useMemo(
-  () =>
-    (rows || []).filter((r) => {
-      const s = (r.status ?? "").toLowerCase();
+    () =>
+      (rows || []).filter((r) => {
+        const s = (r.status ?? "").toString().trim().toLowerCase();
 
-      // ✅ VISA ENDAST INKOMNA
-      return s === "inkommen";
-    }),
-  [rows]
-);
+        // Visa inkommande/obesvarade offerter även om status saknas eller har annat ny-värde
+        return (
+          !s ||
+          s === "inkommen" ||
+          s === "ny" ||
+          s === "new" ||
+          s === "pending" ||
+          s === "unanswered" ||
+          s === "obesvarad"
+        );
+      }),
+    [rows]
+  );
 
   const total = filtered.length;
 
