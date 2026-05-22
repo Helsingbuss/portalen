@@ -1,154 +1,81 @@
-import { supabase } from "../lib/supabase";
+﻿import { supabase } from "../lib/supabase";
 
-export type AgentBookingItem = {
+export type AgentBookingType = "sundra" | "shuttle";
+
+export type AgentBookingListItem = {
   id: string;
-  reference: string;
+  type: AgentBookingType;
+  title: string;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
-  departure: string;
-  destination: string;
-  departureDate: string;
-  departureTime: string;
-  status: string;
+  travelDate: string;
+  travelTime: string;
+  pickupPlace: string;
+  routeText: string;
   passengers: number;
-  amount: number;
-  raw: any;
+  seatNumbers: string[];
+  totalPrice: number;
+  paymentStatus: string;
+  paymentUrl: string;
+  status: string;
+  createdAt: string;
 };
 
-export type AgentBookingsOverview = {
-  summary: {
-    total: number;
-    upcoming: number;
-    confirmed: number;
-    completed: number;
-    cancelled: number;
-  };
-  bookings: AgentBookingItem[];
-};
+export type AgentBookingDetail = Record<string, any>;
 
-const fallback: AgentBookingsOverview = {
-  summary: {
-    total: 0,
-    upcoming: 0,
-    confirmed: 0,
-    completed: 0,
-    cancelled: 0,
-  },
-  bookings: [],
-};
-
-function pick(row: any, keys: string[]) {
-  for (const key of keys) {
-    const value = row?.[key];
-
-    if (value !== undefined && value !== null && String(value).trim() !== "") {
-      return value;
-    }
-  }
-
-  return "";
-}
-
-function getAmount(row: any) {
-  return Number(
-    pick(row, [
-      "total_price",
-      "price_amount",
-      "totalPrice",
-      "amount",
-      "price",
-      "final_price",
-      "total",
-    ]) || 0
-  );
-}
-
-export async function getAgentBookingsOverview(): Promise<AgentBookingsOverview> {
+export async function getAgentBookingsOverview(): Promise<AgentBookingListItem[]> {
   const { data, error } = await supabase.rpc("get_agent_bookings_overview");
 
-  if (error) {
-    console.log("get_agent_bookings_overview error:", error.message);
-    return fallback;
-  }
+  if (error) throw new Error(error.message);
 
   const raw = typeof data === "string" ? JSON.parse(data) : data;
 
-  return {
-    summary: {
-      total: Number(raw?.summary?.total || 0),
-      upcoming: Number(raw?.summary?.upcoming || 0),
-      confirmed: Number(raw?.summary?.confirmed || 0),
-      completed: Number(raw?.summary?.completed || 0),
-      cancelled: Number(raw?.summary?.cancelled || 0),
-    },
-    bookings: Array.isArray(raw?.bookings)
-      ? raw.bookings.map((row: any) => ({
-          id: String(pick(row, ["id", "uuid", "booking_id"]) || ""),
-          reference: String(
-            pick(row, [
-              "booking_number",
-              "bookingNumber",
-              "reference",
-              "id",
-            ]) || ""
-          ),
-          customerName: String(
-            pick(row, [
-              "customer_name",
-              "customerName",
-              "Namn_efternamn",
-              "contact_person",
-              "foretag_forening",
-            ]) || ""
-          ),
-          customerEmail: String(
-            pick(row, ["customer_email", "customerEmail", "email"]) || ""
-          ),
-          customerPhone: String(
-            pick(row, ["customer_phone", "customerPhone", "phone"]) || ""
-          ),
-          departure: String(
-            pick(row, [
-              "departure_place",
-              "departure",
-              "departure_city",
-              "from",
-              "pickup_place",
-            ]) || ""
-          ),
-          destination: String(
-            pick(row, [
-              "destination",
-              "destination_city",
-              "final_destination",
-              "to",
-              "dropoff_place",
-            ]) || ""
-          ),
-          departureDate: String(
-            pick(row, [
-              "departure_date",
-              "travel_date",
-              "date",
-              "created_at",
-              "added_at",
-            ]) || ""
-          ),
-          departureTime: String(
-            pick(row, [
-              "departure_time",
-              "time",
-              "pickup_time",
-            ]) || ""
-          ),
-          status: String(pick(row, ["status"]) || "bokad"),
-          passengers: Number(pick(row, ["passengers", "pax", "antal_resenarer"]) || 0),
-          amount: getAmount(row),
-          raw: row,
-        }))
-      : [],
-  };
+  if (!raw?.ok) {
+    throw new Error(raw?.error || "Kunde inte hämta bokningar.");
+  }
+
+  return Array.isArray(raw.bookings)
+    ? raw.bookings.map((row: any) => ({
+        id: String(row.id || ""),
+        type: String(row.type || "sundra") as AgentBookingType,
+        title: String(row.title || ""),
+        customerName: String(row.customerName || ""),
+        customerEmail: String(row.customerEmail || ""),
+        customerPhone: String(row.customerPhone || ""),
+        travelDate: String(row.travelDate || ""),
+        travelTime: String(row.travelTime || ""),
+        pickupPlace: String(row.pickupPlace || ""),
+        routeText: String(row.routeText || ""),
+        passengers: Number(row.passengers || 0),
+        seatNumbers: Array.isArray(row.seatNumbers) ? row.seatNumbers.map(String) : [],
+        totalPrice: Number(row.totalPrice || 0),
+        paymentStatus: String(row.paymentStatus || "pending"),
+        paymentUrl: String(row.paymentUrl || ""),
+        status: String(row.status || ""),
+        createdAt: String(row.createdAt || ""),
+      }))
+    : [];
+}
+
+export async function getAgentBookingDetail(input: {
+  type: AgentBookingType;
+  id: string;
+}): Promise<AgentBookingDetail> {
+  const { data, error } = await supabase.rpc("get_agent_booking_detail", {
+    p_booking_type: input.type,
+    p_booking_id: input.id,
+  });
+
+  if (error) throw new Error(error.message);
+
+  const raw = typeof data === "string" ? JSON.parse(data) : data;
+
+  if (!raw?.ok) {
+    throw new Error(raw?.error || "Kunde inte hämta bokningen.");
+  }
+
+  return raw.booking || {};
 }
 
 export function formatAgentBookingMoney(value: number) {
@@ -159,26 +86,14 @@ export function formatAgentBookingMoney(value: number) {
   }).format(Number(value || 0));
 }
 
-export function formatAgentBookingDate(value?: string) {
-  if (!value) return "";
+export function getPaymentStatusLabel(status: string) {
+  const value = String(status || "").toLowerCase();
 
-  const parsed = new Date(value);
+  if (value === "paid" || value === "betald") return "Betald";
+  if (value === "pending" || value === "created") return "Väntar på betalning";
+  if (value === "failed") return "Misslyckad";
+  if (value === "refunded") return "Återbetald";
+  if (value === "cancelled" || value === "canceled") return "Avbruten";
 
-  if (Number.isNaN(parsed.getTime())) return value;
-
-  return new Intl.DateTimeFormat("sv-SE", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(parsed);
-}
-
-export function getAgentBookingStatusLabel(status: string) {
-  const clean = String(status || "").toLowerCase();
-
-  if (["bekräftad", "bekraftad", "confirmed", "bokad", "booked", "active"].includes(clean)) return "Bekräftad";
-  if (["slutförd", "slutford", "completed", "done", "finished"].includes(clean)) return "Slutförd";
-  if (["avbokad", "cancelled", "canceled", "avbruten"].includes(clean)) return "Avbokad";
-
-  return status || "Bokad";
+  return status || "Väntar";
 }

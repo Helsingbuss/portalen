@@ -1,54 +1,49 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, } from "react-native";
+﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { router } from "expo-router";
 import {
-  ArrowLeft,
-  Bus,
   CalendarDays,
-  CheckCircle2,
-  Clock3,
-  FileText,
-  Route,
+  CreditCard,
+  Plane,
+  RefreshCw,
+  ShoppingBag,
   UsersRound,
-  XCircle,
 } from "lucide-react-native";
 
 import { colors } from "../../theme/colors";
 import {
-  formatAgentBookingDate,
   formatAgentBookingMoney,
-  getAgentBookingStatusLabel,
   getAgentBookingsOverview,
-  type AgentBookingItem,
-  type AgentBookingsOverview,
+  getPaymentStatusLabel,
+  type AgentBookingListItem,
 } from "../../services/agentBookingsService";
 
-type FilterKey = "upcoming" | "confirmed" | "completed" | "cancelled" | "all";
-
-const emptyData: AgentBookingsOverview = {
-  summary: {
-    total: 0,
-    upcoming: 0,
-    confirmed: 0,
-    completed: 0,
-    cancelled: 0,
-  },
-  bookings: [],
-};
+type FilterKey = "all" | "sundra" | "shuttle" | "unpaid" | "paid";
 
 export default function AgentBookingsScreen() {
-  const [data, setData] = useState<AgentBookingsOverview>(emptyData);
-  const [filter, setFilter] = useState<FilterKey>("upcoming");
+  const [bookings, setBookings] = useState<AgentBookingListItem[]>([]);
+  const [filter, setFilter] = useState<FilterKey>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const loadData = useCallback(async (refreshing = false) => {
+  const loadBookings = useCallback(async (refreshing = false) => {
     try {
       if (refreshing) setIsRefreshing(true);
       else setIsLoading(true);
 
       const result = await getAgentBookingsOverview();
-      setData(result);
+      setBookings(result);
+    } catch (error: any) {
+      Alert.alert("Kunde inte hämta bokningar", error?.message || "Försök igen.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -56,17 +51,35 @@ export default function AgentBookingsScreen() {
   }, []);
 
   useEffect(() => {
-    loadData(false);
-  }, [loadData]);
+    loadBookings(false);
+  }, [loadBookings]);
 
-  const rows = useMemo(() => {
-    if (filter === "upcoming") return data.bookings.filter((item) => isUpcoming(item.departureDate));
-    if (filter === "confirmed") return data.bookings.filter((item) => isConfirmed(item.status));
-    if (filter === "completed") return data.bookings.filter((item) => isCompleted(item.status));
-    if (filter === "cancelled") return data.bookings.filter((item) => isCancelled(item.status));
+  const filteredBookings = useMemo(() => {
+    return bookings.filter((booking) => {
+      const status = booking.paymentStatus.toLowerCase();
 
-    return data.bookings;
-  }, [data.bookings, filter]);
+      if (filter === "sundra") return booking.type === "sundra";
+      if (filter === "shuttle") return booking.type === "shuttle";
+      if (filter === "paid") return status === "paid" || status === "betald";
+      if (filter === "unpaid") return status !== "paid" && status !== "betald";
+
+      return true;
+    });
+  }, [bookings, filter]);
+
+  const stats = useMemo(() => {
+    const paid = bookings.filter((item) => {
+      const status = item.paymentStatus.toLowerCase();
+      return status === "paid" || status === "betald";
+    }).length;
+
+    return {
+      total: bookings.length,
+      unpaid: bookings.length - paid,
+      paid,
+      value: bookings.reduce((sum, item) => sum + item.totalPrice, 0),
+    };
+  }, [bookings]);
 
   return (
     <View style={styles.screen}>
@@ -76,369 +89,240 @@ export default function AgentBookingsScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
-            onRefresh={() => loadData(true)}
+            onRefresh={() => loadBookings(true)}
             tintColor={colors.primary}
           />
         }
       >
-        <View style={styles.header}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={22} color={colors.text} strokeWidth={2.5} />
-          </Pressable>
-
-          <View style={styles.headerText}>
-            <Text style={styles.title}>Bokningar</Text>
-            <Text style={styles.subtitle}>Alla bokningar för agentöversikten</Text>
-          </View>
-        </View>
-
         <View style={styles.heroCard}>
           <CalendarDays size={38} color={colors.goldSoft} strokeWidth={2.4} />
-          <Text style={styles.heroKicker}>AGENT BOKNINGAR</Text>
-          <Text style={styles.heroTitle}>Se bokningar och kommande resor.</Text>
+          <Text style={styles.heroKicker}>AGENTAPPEN</Text>
+          <Text style={styles.heroTitle}>Mina bokningar</Text>
           <Text style={styles.heroText}>
-            Här ser agenten bokningar från systemet och kan följa kommande, bekräftade och avbokade resor.
+            Följ upp Sundra-bokningar, flygbussbiljetter, betalningsstatus och kunduppgifter.
           </Text>
         </View>
 
+        <View style={styles.statsGrid}>
+          <StatCard title="Totalt" value={String(stats.total)} />
+          <StatCard title="Obetalda" value={String(stats.unpaid)} />
+          <StatCard title="Värde" value={formatAgentBookingMoney(stats.value)} />
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+          <FilterButton title="Alla" active={filter === "all"} onPress={() => setFilter("all")} />
+          <FilterButton title="Sundra" active={filter === "sundra"} onPress={() => setFilter("sundra")} />
+          <FilterButton title="Flygbuss" active={filter === "shuttle"} onPress={() => setFilter("shuttle")} />
+          <FilterButton title="Obetalda" active={filter === "unpaid"} onPress={() => setFilter("unpaid")} />
+          <FilterButton title="Betalda" active={filter === "paid"} onPress={() => setFilter("paid")} />
+        </ScrollView>
+
         {isLoading ? (
-          <View style={styles.loadingBox}>
+          <View style={styles.loadingCard}>
             <ActivityIndicator color={colors.primary} />
             <Text style={styles.loadingText}>Hämtar bokningar...</Text>
           </View>
         ) : null}
 
-        <View style={styles.grid}>
-          <MetricCard
-            title="Kommande"
-            value={String(data.summary.upcoming)}
-            icon={<Clock3 size={22} color={colors.primary} />}
-          />
+        {!isLoading && filteredBookings.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <RefreshCw size={30} color={colors.primary} />
+            <Text style={styles.emptyTitle}>Inga bokningar hittades</Text>
+            <Text style={styles.emptyText}>
+              När agenten skapar Sundra- eller flygbussbokningar visas de här.
+            </Text>
+          </View>
+        ) : null}
 
-          <MetricCard
-            title="Bekräftade"
-            value={String(data.summary.confirmed)}
-            icon={<CheckCircle2 size={22} color={colors.primary} />}
-          />
+        {filteredBookings.map((booking) => (
+          <Pressable
+            key={`${booking.type}-${booking.id}`}
+            style={styles.bookingCard}
+            onPress={() =>
+              router.push({
+                pathname: "/agent/booking-detail",
+                params: {
+                  id: booking.id,
+                  type: booking.type,
+                },
+              } as any)
+            }
+          >
+            <View style={styles.bookingTop}>
+              <View style={styles.bookingIcon}>
+                {booking.type === "sundra" ? (
+                  <ShoppingBag size={22} color={colors.primary} />
+                ) : (
+                  <Plane size={22} color={colors.primary} />
+                )}
+              </View>
 
-          <MetricCard
-            title="Avbokade"
-            value={String(data.summary.cancelled)}
-            icon={<XCircle size={22} color={colors.primary} />}
-          />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.bookingTitle}>{booking.title}</Text>
+                <Text style={styles.bookingText}>{booking.customerName || "Kund saknas"}</Text>
+              </View>
 
-          <MetricCard
-            title="Totalt"
-            value={String(data.summary.total)}
-            icon={<FileText size={22} color={colors.primary} />}
-          />
-        </View>
+              <View style={styles.statusPill}>
+                <Text style={styles.statusText}>{getPaymentStatusLabel(booking.paymentStatus)}</Text>
+              </View>
+            </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsScroll}>
-          <FilterButton label="Kommande" active={filter === "upcoming"} onPress={() => setFilter("upcoming")} />
-          <FilterButton label="Bekräftade" active={filter === "confirmed"} onPress={() => setFilter("confirmed")} />
-          <FilterButton label="Slutförda" active={filter === "completed"} onPress={() => setFilter("completed")} />
-          <FilterButton label="Avbokade" active={filter === "cancelled"} onPress={() => setFilter("cancelled")} />
-          <FilterButton label="Alla" active={filter === "all"} onPress={() => setFilter("all")} />
-        </ScrollView>
-
-        <Text style={styles.sectionTitle}>{getSectionTitle(filter)} ({rows.length})</Text>
-
-        <View style={styles.list}>
-          {rows.length === 0 ? (
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyTitle}>Inga bokningar hittades</Text>
-              <Text style={styles.emptyText}>
-                Välj filtret Alla om du vill se allt som finns i systemet.
+            <View style={styles.metaRow}>
+              <CalendarDays size={16} color={colors.textMuted} />
+              <Text style={styles.metaText}>
+                {booking.travelDate || "Datum saknas"}
+                {booking.travelTime ? ` · ${booking.travelTime}` : ""}
               </Text>
             </View>
-          ) : (
-            rows.map((booking) => (
-              <BookingCard key={booking.id || booking.reference} booking={booking} />
-            ))
-          )}
-        </View>
+
+            <View style={styles.metaRow}>
+              <UsersRound size={16} color={colors.textMuted} />
+              <Text style={styles.metaText}>
+                {booking.passengers} resenär(er)
+                {booking.pickupPlace ? ` · ${booking.pickupPlace}` : ""}
+              </Text>
+            </View>
+
+            <View style={styles.footerRow}>
+              <Text style={styles.routeText}>{booking.routeText}</Text>
+              <Text style={styles.priceText}>{formatAgentBookingMoney(booking.totalPrice)}</Text>
+            </View>
+          </Pressable>
+        ))}
       </ScrollView>
     </View>
   );
 }
 
-function normalizeStatus(status?: string) {
-  return String(status || "").toLowerCase().trim();
-}
-
-function isConfirmed(status?: string) {
-  return ["bekräftad", "bekraftad", "confirmed", "bokad", "booked", "active"].includes(normalizeStatus(status));
-}
-
-function isCompleted(status?: string) {
-  return ["slutförd", "slutford", "completed", "done", "finished"].includes(normalizeStatus(status));
-}
-
-function isCancelled(status?: string) {
-  return ["avbokad", "cancelled", "canceled", "avbruten"].includes(normalizeStatus(status));
-}
-
-function isUpcoming(date?: string) {
-  if (!date) return false;
-
-  const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return false;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  return parsed.getTime() >= today.getTime();
-}
-
-function getSectionTitle(filter: FilterKey) {
-  if (filter === "upcoming") return "Kommande bokningar";
-  if (filter === "confirmed") return "Bekräftade bokningar";
-  if (filter === "completed") return "Slutförda bokningar";
-  if (filter === "cancelled") return "Avbokade bokningar";
-  return "Alla bokningar";
-}
-
-function MetricCard({
-  title,
-  value,
-  icon,
-}: {
-  title: string;
-  value: string;
-  icon: React.ReactNode;
-}) {
+function StatCard({ title, value }: { title: string; value: string }) {
   return (
-    <View style={styles.metricCard}>
-      <View style={styles.metricIcon}>{icon}</View>
-      <Text style={styles.metricValue}>{value}</Text>
-      <Text style={styles.metricTitle}>{title}</Text>
+    <View style={styles.statCard}>
+      <CreditCard size={18} color={colors.primary} />
+      <Text style={styles.statTitle}>{title}</Text>
+      <Text style={styles.statValue}>{value}</Text>
     </View>
   );
 }
 
 function FilterButton({
-  label,
+  title,
   active,
   onPress,
 }: {
-  label: string;
+  title: string;
   active: boolean;
   onPress: () => void;
 }) {
   return (
-    <Pressable style={[styles.tab, active && styles.tabActive]} onPress={onPress}>
-      <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function BookingCard({ booking }: { booking: AgentBookingItem }) {
-  const cancelled = isCancelled(booking.status);
-
-  return (
-    <Pressable
-      style={[styles.bookingCard, cancelled && styles.bookingCardCancelled]}
-      onPress={() =>
-        router.push({
-          pathname: "/agent/booking-detail",
-          params: { id: booking.id },
-        } as any)
-      }
-    >
-      <View style={styles.bookingIcon}>
-        {cancelled ? (
-          <XCircle size={22} color="#B42318" strokeWidth={2.4} />
-        ) : (
-          <Bus size={22} color={colors.primary} strokeWidth={2.4} />
-        )}
-      </View>
-
-      <View style={styles.bookingContent}>
-        <View style={styles.bookingTop}>
-          <View style={styles.bookingTitleBox}>
-            <Text style={styles.bookingTitle}>{booking.reference || "Bokning"}</Text>
-            <Text style={styles.bookingCustomer}>
-              {booking.customerName || booking.customerEmail || booking.customerPhone || "Kund saknas"}
-            </Text>
-          </View>
-
-          {booking.amount > 0 ? (
-            <Text style={styles.bookingAmount}>{formatAgentBookingMoney(booking.amount)}</Text>
-          ) : null}
-        </View>
-
-        <View style={styles.routeRow}>
-          <Route size={15} color={colors.textMuted} strokeWidth={2.4} />
-          <Text style={styles.routeText}>
-            {booking.departure || "Start saknas"} → {booking.destination || "Destination saknas"}
-          </Text>
-        </View>
-
-        <View style={styles.metaRow}>
-          <View style={styles.pill}>
-            <Text style={styles.pillText}>{getAgentBookingStatusLabel(booking.status)}</Text>
-          </View>
-
-          {booking.departureDate ? (
-            <View style={styles.datePill}>
-              <CalendarDays size={13} color={colors.primary} strokeWidth={2.4} />
-              <Text style={styles.dateText}>
-                {formatAgentBookingDate(booking.departureDate)}
-                {booking.departureTime ? ` ${booking.departureTime}` : ""}
-              </Text>
-            </View>
-          ) : null}
-
-          {booking.passengers > 0 ? (
-            <View style={styles.datePill}>
-              <UsersRound size={13} color={colors.primary} strokeWidth={2.4} />
-              <Text style={styles.dateText}>{booking.passengers} resenärer</Text>
-            </View>
-          ) : null}
-        </View>
-
-        <Text style={styles.openHint}>Nästa steg: öppna bokning och se körning/livekarta</Text>
-      </View>
+    <Pressable style={[styles.filterButton, active && styles.filterButtonActive]} onPress={onPress}>
+      <Text style={[styles.filterText, active && styles.filterTextActive]}>{title}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { paddingTop: 58, paddingHorizontal: 16, paddingBottom: 110 },
-
-  header: { flexDirection: "row", alignItems: "center", marginBottom: 18 },
-  backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 11,
-  },
-  headerText: { flex: 1 },
-  title: { color: colors.text, fontSize: 25, fontWeight: "900" },
-  subtitle: { color: colors.textMuted, fontSize: 12, fontWeight: "800", marginTop: 2 },
+  content: { paddingTop: 58, paddingHorizontal: 16, paddingBottom: 120 },
 
   heroCard: {
     backgroundColor: colors.primary,
-    borderRadius: 26,
+    borderRadius: 28,
     padding: 20,
     marginBottom: 14,
   },
   heroKicker: { color: colors.goldSoft, fontSize: 11, fontWeight: "900", marginTop: 12, marginBottom: 5 },
-  heroTitle: { color: colors.white, fontSize: 24, lineHeight: 30, fontWeight: "900" },
+  heroTitle: { color: colors.white, fontSize: 27, fontWeight: "900" },
   heroText: { color: "#DDEBE8", fontSize: 13, lineHeight: 19, fontWeight: "700", marginTop: 7 },
 
-  loadingBox: {
+  statsGrid: { flexDirection: "row", gap: 10, marginBottom: 14 },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 12,
+  },
+  statTitle: { color: colors.textMuted, fontSize: 11, fontWeight: "900", marginTop: 7 },
+  statValue: { color: colors.text, fontSize: 15, fontWeight: "900", marginTop: 2 },
+
+  filterScroll: { marginBottom: 14 },
+  filterButton: {
+    backgroundColor: colors.card,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    marginRight: 8,
+  },
+  filterButtonActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  filterText: { color: colors.textMuted, fontSize: 12, fontWeight: "900" },
+  filterTextActive: { color: colors.white },
+
+  loadingCard: {
     backgroundColor: colors.card,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 14,
-    marginBottom: 12,
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 12,
   },
   loadingText: { color: colors.textMuted, fontSize: 13, fontWeight: "800", marginLeft: 10 },
 
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
-  metricCard: {
-    width: "48.5%",
+  emptyCard: {
     backgroundColor: colors.card,
-    borderRadius: 20,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 14,
-  },
-  metricIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
-    backgroundColor: colors.primarySoft,
+    padding: 18,
     alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 9,
   },
-  metricValue: { color: colors.text, fontSize: 20, fontWeight: "900" },
-  metricTitle: { color: colors.text, fontSize: 12, fontWeight: "900", marginTop: 3 },
+  emptyTitle: { color: colors.text, fontSize: 16, fontWeight: "900", marginTop: 10 },
+  emptyText: { color: colors.textMuted, fontSize: 12, lineHeight: 18, fontWeight: "700", marginTop: 4, textAlign: "center" },
 
-  tabsScroll: { gap: 8, paddingBottom: 14 },
-  tab: {
-    height: 38,
-    paddingHorizontal: 13,
-    borderRadius: 999,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  tabText: { color: colors.textMuted, fontSize: 11, fontWeight: "900" },
-  tabTextActive: { color: colors.white },
-
-  sectionTitle: { color: colors.text, fontSize: 17, fontWeight: "900", marginBottom: 10 },
-  list: { gap: 10 },
-
-  emptyBox: {
+  bookingCard: {
     backgroundColor: colors.card,
     borderRadius: 22,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 18,
-  },
-  emptyTitle: { color: colors.text, fontSize: 15, fontWeight: "900" },
-  emptyText: { color: colors.textMuted, fontSize: 12, fontWeight: "700", lineHeight: 18, marginTop: 5 },
-
-  bookingCard: {
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
     padding: 14,
-    flexDirection: "row",
+    marginBottom: 12,
   },
-  bookingCardCancelled: { borderColor: "#F3C2C2" },
+  bookingTop: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   bookingIcon: {
-    width: 44,
-    height: 44,
+    width: 46,
+    height: 46,
     borderRadius: 16,
     backgroundColor: colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginRight: 11,
   },
-  bookingContent: { flex: 1 },
-  bookingTop: { flexDirection: "row", alignItems: "flex-start" },
-  bookingTitleBox: { flex: 1 },
   bookingTitle: { color: colors.text, fontSize: 15, fontWeight: "900" },
-  bookingCustomer: { color: colors.textMuted, fontSize: 11.5, fontWeight: "800", marginTop: 2 },
-  bookingAmount: { color: colors.primary, fontSize: 13, fontWeight: "900", marginLeft: 8 },
+  bookingText: { color: colors.textMuted, fontSize: 12, fontWeight: "700", marginTop: 3 },
 
-  routeRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
-  routeText: { color: colors.textMuted, fontSize: 11.5, fontWeight: "700", marginLeft: 6, flex: 1 },
-
-  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 9 },
-  pill: {
+  statusPill: {
     backgroundColor: colors.primarySoft,
     borderRadius: 999,
-    paddingHorizontal: 8,
+    paddingHorizontal: 9,
     paddingVertical: 5,
   },
-  pillText: { color: colors.primary, fontSize: 10.5, fontWeight: "900" },
-  datePill: {
-    backgroundColor: colors.cardSoft,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+  statusText: { color: colors.primary, fontSize: 10.5, fontWeight: "900" },
+
+  metaRow: { flexDirection: "row", alignItems: "center", marginTop: 6 },
+  metaText: { color: colors.textMuted, fontSize: 12, fontWeight: "700", marginLeft: 7 },
+
+  footerRow: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginTop: 12,
+    paddingTop: 12,
     flexDirection: "row",
     alignItems: "center",
   },
-  dateText: { color: colors.textMuted, fontSize: 10.5, fontWeight: "800", marginLeft: 4 },
-  openHint: { color: colors.textMuted, fontSize: 10.5, fontWeight: "700", marginTop: 8 },
+  routeText: { flex: 1, color: colors.text, fontSize: 12, fontWeight: "800" },
+  priceText: { color: colors.primary, fontSize: 14, fontWeight: "900" },
 });
