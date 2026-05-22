@@ -31,7 +31,7 @@ export default function NotificationsScreen() {
     const permissions = await Notifications.getPermissionsAsync();
 
     if (permissions.granted) {
-      setPermissionStatus("TillÃ¥tet");
+      setPermissionStatus("Tillåtet");
       return true;
     }
 
@@ -55,18 +55,18 @@ export default function NotificationsScreen() {
       const result = await Notifications.requestPermissionsAsync();
 
       if (result.granted) {
-        setPermissionStatus("TillÃ¥tet");
+        setPermissionStatus("Tillåtet");
 
         Alert.alert(
-          "Notiser Ã¤r aktiverade",
-          "Nu kan appen visa notiser pÃ¥ telefonen."
+          "Notiser är aktiverade",
+          "Nu kan appen visa notiser på telefonen."
         );
       } else {
         setPermissionStatus("Nekat");
 
         Alert.alert(
-          "Notiser Ã¤r inte aktiverade",
-          "Du behÃ¶ver tillÃ¥ta notiser i telefonens instÃ¤llningar fÃ¶r att de ska fungera."
+          "Notiser är inte aktiverade",
+          "Du behöver tillåta notiser i telefonens inställningar för att de ska fungera."
         );
       }
     } catch (error: any) {
@@ -84,8 +84,8 @@ export default function NotificationsScreen() {
 
       if (!hasPermission) {
         Alert.alert(
-          "Notiser Ã¤r inte aktiverade",
-          "Tryck fÃ¶rst pÃ¥ Aktivera notiser."
+          "Notiser är inte aktiverade",
+          "Tryck först på Aktivera notiser."
         );
         return;
       }
@@ -101,16 +101,16 @@ export default function NotificationsScreen() {
 
       Alert.alert(
         "Testnotis skickad",
-        "Om du inte ser den direkt, lÃ¥s skÃ¤rmen eller dra ner notiscenter."
+        "Om du inte ser den direkt, lås skärmen eller dra ner notiscenter."
       );
     } catch (error: any) {
-      Alert.alert("Kunde inte skicka testnotis", error?.message || "FÃ¶rsÃ¶k igen.");
+      Alert.alert("Kunde inte skicka testnotis", error?.message || "Försök igen.");
     } finally {
       setIsLoading(false);
     }
   }
 
-  const isAllowed = permissionStatus === "TillÃ¥tet";
+  const isAllowed = permissionStatus === "Tillåtet";
 
   return (
     <View style={styles.screen}>
@@ -137,7 +137,7 @@ export default function NotificationsScreen() {
           <Text style={styles.heroKicker}>NOTISER</Text>
           <Text style={styles.heroTitle}>Testa att mobilen kan visa notiser.</Text>
           <Text style={styles.heroText}>
-            BÃ¶rja med att aktivera notiser. Tryck sedan pÃ¥ testknappen fÃ¶r att skicka en lokal testnotis direkt.
+            Börja med att aktivera notiser. Tryck sedan på testknappen för att skicka en lokal testnotis direkt.
           </Text>
         </View>
 
@@ -191,7 +191,7 @@ export default function NotificationsScreen() {
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Om notisen inte syns</Text>
           <Text style={styles.infoText}>
-            Kontrollera att notiser Ã¤r tillÃ¥tna i telefonens instÃ¤llningar. PÃ¥ vissa telefoner syns notisen tydligare om appen ligger i bakgrunden eller om skÃ¤rmen Ã¤r lÃ¥st.
+            Kontrollera att notiser är tillåtna i telefonens inställningar. På vissa telefoner syns notisen tydligare om appen ligger i bakgrunden eller om skärmen är låst.
           </Text>
         </View>
       </ScrollView>

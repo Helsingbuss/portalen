@@ -27,7 +27,7 @@ export default function AgentMoreScreen() {
           <Text style={styles.heroKicker}>AGENT</Text>
           <Text style={styles.heroTitle}>Mer</Text>
           <Text style={styles.heroText}>
-            InstÃƒ¤llningar, hjÃƒ¤lp, regler och utloggning fÃƒ¶r bokningsagenter.
+            Inställningar, hjälp, regler och utloggning för bokningsagenter.
           </Text>
         </View>
 
@@ -44,20 +44,20 @@ export default function AgentMoreScreen() {
           
           <MenuCard
             title="Bokningar"
-            text="Se och fÃƒ¶lj upp bokningar"
+            text="Se och följ upp bokningar"
             icon={<CalendarDays size={22} color={colors.primary} strokeWidth={2.5} />}
             onPress={() => router.push("/agent/bookings" as any)}
           />
           <MenuCard
             title="Agentregler"
-            text="Vad agenten fÃƒ¥r sÃƒ¤lja, boka och hantera"
+            text="Vad agenten får sälja, boka och hantera"
             icon={<ShieldCheck size={22} color={colors.primary} strokeWidth={2.5} />}
             onPress={() => router.push("/agent/agent-rules" as any)}
           />
 
           <MenuCard
-            title="Dokument & hjÃƒ¤lp"
-            text="Manualer, interna instruktioner och stÃƒ¶d"
+            title="Dokument & hjälp"
+            text="Manualer, interna instruktioner och stöd"
             icon={<FileText size={22} color={colors.primary} strokeWidth={2.5} />}
             onPress={() => router.push("/agent/documents-help" as any)}
           />
@@ -85,7 +85,7 @@ export default function AgentMoreScreen() {
           <View style={styles.logoutTextBox}>
             <Text style={styles.logoutTitle}>Logga ut</Text>
             <Text style={styles.logoutText}>
-              Avsluta agentkontot och gÃƒ¥ tillbaka till inloggningen.
+              Avsluta agentkontot och gå tillbaka till inloggningen.
             </Text>
           </View>
         </Pressable>
