@@ -29,11 +29,11 @@ type MenuItem = {
 
 const sections: { title: string; items: MenuItem[] }[] = [
   {
-    title: "Ã–versikt",
+    title: "Översikt",
     items: [
       {
         title: "Dashboard",
-        text: "Ã–versikt och nyckeltal",
+        text: "Översikt och nyckeltal",
         href: "/admin/dashboard",
         icon: LayoutDashboard,
       },
@@ -50,25 +50,32 @@ const sections: { title: string; items: MenuItem[] }[] = [
     items: [
       {
         title: "Offerter",
-        text: "Inkommande, aktiva och godkÃ¤nda",
+        text: "Inkommande, aktiva och godkända",
         href: "/admin/offers",
         icon: BriefcaseBusiness,
       },
       {
         title: "Fordon & Personal",
-        text: "Fordon, chauffÃ¶rer och fordonsdokument",
+        text: "Fordon, chaufförer och fordonsdokument",
         href: "/admin/fleet",
         icon: Bus,
       },
       {
         title: "Dokument",
-        text: "Avtal, tillstÃ¥nd och interna underlag",
+        text: "Avtal, tillstånd och interna underlag",
         href: "/admin/documents",
         icon: FileText,
       },
+
       {
-        title: "OperatÃ¶rer & partners",
-        text: "Samarbetspartners och leverantÃ¶rer",
+        title: "Dokument & hjälp",
+        text: "Manualer, guider, mallar och stödmaterial",
+        href: "/admin/documents-help",
+        icon: FileText,
+      },
+      {
+        title: "Operatörer & partners",
+        text: "Samarbetspartners och leverantörer",
         href: "/admin/partners",
         icon: Handshake,
       },
@@ -85,7 +92,7 @@ const sections: { title: string; items: MenuItem[] }[] = [
       },
       {
         title: "Kassa",
-        text: "BetalningslÃ¤nkar och fÃ¶rsÃ¤ljning",
+        text: "Betalningslänkar och försäljning",
         href: "/admin/store",
         icon: Store,
       },
@@ -131,7 +138,7 @@ export default function MoreScreen() {
           <Text style={styles.heroKicker}>MER</Text>
           <Text style={styles.heroTitle}>Admin & drift</Text>
           <Text style={styles.heroText}>
-            HÃ¤r hittar du fler delar av Helsingbuss adminapp.
+            Här hittar du fler delar av Helsingbuss adminapp.
           </Text>
         </View>
 
@@ -171,7 +178,7 @@ export default function MoreScreen() {
 
           <View style={styles.cardTextBox}>
             <Text style={styles.logoutTitle}>Logga ut</Text>
-            <Text style={styles.logoutText}>Avsluta sessionen och gÃ¥ tillbaka till inloggning.</Text>
+            <Text style={styles.logoutText}>Avsluta sessionen och gå tillbaka till inloggning.</Text>
           </View>
         </Pressable>
       </ScrollView>

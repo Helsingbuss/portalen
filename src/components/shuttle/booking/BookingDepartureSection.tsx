@@ -1,5 +1,7 @@
 "use client";
 
+import React from "react";
+
 export default function BookingDepartureSection() {
   return (
     <section className="rounded-3xl bg-white p-6 shadow">
