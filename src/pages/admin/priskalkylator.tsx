@@ -1,4 +1,4 @@
-// src/pages/admin/priskalkylator.tsx
+﻿// src/pages/admin/priskalkylator.tsx
 import { useEffect, useMemo, useState } from "react";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
@@ -85,7 +85,7 @@ export default function PrisKalkylatorPage() {
         const json: PricesApiResponse = await res.json();
         if (!res.ok || !json.ok) {
           throw new Error(
-            !json.ok ? json.error : `Kunde inte läsa prislistor (status ${res.status})`
+            !json.ok ? ((json as any).error || "API-fel") : `Kunde inte läsa prislistor (status ${res.status})`
           );
         }
         if (!cancelled) setPrices(json.prices);

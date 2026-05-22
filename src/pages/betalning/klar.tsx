@@ -1,4 +1,4 @@
-export default function PaymentSuccessPage() {
+ï»¿export default function PaymentSuccessPage() {
   return (
     <main
       style={{
@@ -21,28 +21,16 @@ export default function PaymentSuccessPage() {
           boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
         }}
       >
-        <div style={{ fontSize: 64 }}>?</div>
+        <div style={{ fontSize: 64 }}>OK</div>
 
-        <h1
-          style={{
-            marginTop: 20,
-            fontSize: 32,
-            color: "#1d2937",
-          }}
-        >
-          Betalningen lyckades!
+        <h1 style={{ marginTop: 20, fontSize: 32, color: "#1d2937" }}>
+          Betalningen lyckades
         </h1>
 
-        <p
-          style={{
-            marginTop: 15,
-            color: "#4b5563",
-            lineHeight: 1.7,
-          }}
-        >
-          Tack för din bokning hos Helsingbuss.
+        <p style={{ marginTop: 15, color: "#4b5563", lineHeight: 1.7 }}>
+          Tack for din bokning hos Helsingbuss.
           <br />
-          Din betalning har registrerats och en bekräftelse skickas till din e-post.
+          Din betalning har registrerats och en bekraftelse skickas till din e-post.
         </p>
 
         <a

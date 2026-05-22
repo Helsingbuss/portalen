@@ -30,7 +30,7 @@ export default function InvestorKpiRow() {
           throw new Error(`HTTP ${res.status}`);
         }
         if (!json.ok) {
-          throw new Error(json.error || "API-fel");
+          throw new Error(("error" in json ? json.error : null) || "API-fel");
         }
 
         if (alive) {

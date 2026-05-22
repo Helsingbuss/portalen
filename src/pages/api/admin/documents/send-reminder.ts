@@ -198,7 +198,11 @@ export default async function handler(
       });
     }
 
-    await adminClient.rpc("refresh_app_documents_expired_status").catch(() => null);
+    try {
+      await adminClient.rpc("refresh_app_documents_expired_status");
+    } catch {
+      // Ignorera om RPC saknas eller misslyckas
+    }
 
     const { data: document, error: documentError } = await adminClient
       .from("app_documents")

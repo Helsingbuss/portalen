@@ -1,4 +1,4 @@
-export default function PaymentCancelledPage() {
+ï»¿export default function PaymentCancelledPage() {
   return (
     <main
       style={{
@@ -21,28 +21,16 @@ export default function PaymentCancelledPage() {
           boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
         }}
       >
-        <div style={{ fontSize: 64 }}>??</div>
+        <div style={{ fontSize: 64 }}>!</div>
 
-        <h1
-          style={{
-            marginTop: 20,
-            fontSize: 32,
-            color: "#1d2937",
-          }}
-        >
-          Betalningen avbröts
+        <h1 style={{ marginTop: 20, fontSize: 32, color: "#1d2937" }}>
+          Betalningen avbrÃ¶ts
         </h1>
 
-        <p
-          style={{
-            marginTop: 15,
-            color: "#4b5563",
-            lineHeight: 1.7,
-          }}
-        >
-          Ingen betalning genomfördes.
+        <p style={{ marginTop: 15, color: "#4b5563", lineHeight: 1.7 }}>
+          Ingen betalning genomfÃ¶rdes.
           <br />
-          Du kan alltid gå tillbaka och försöka igen.
+          Du kan alltid gÃ¥ tillbaka och fÃ¶rsÃ¶ka igen.
         </p>
 
         <a

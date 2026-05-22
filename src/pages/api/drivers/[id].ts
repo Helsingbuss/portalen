@@ -1,18 +1,12 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+﻿import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const id = typeof req.query.id === "string" ? req.query.id : "";
 
     if (!id) {
-      return res.status(400).json({
-        ok: false,
-        error: "ID saknas.",
-      });
+      return res.status(400).json({ ok: false, error: "ID saknas." });
     }
 
     if (req.method === "GET") {
@@ -24,10 +18,7 @@ export default async function handler(
 
       if (error) throw error;
 
-      return res.status(200).json({
-        ok: true,
-        driver: data || null,
-      });
+      return res.status(200).json({ ok: true, driver: data || null });
     }
 
     if (req.method === "PATCH" || req.method === "PUT") {
@@ -45,10 +36,7 @@ export default async function handler(
 
       if (error) throw error;
 
-      return res.status(200).json({
-        ok: true,
-        driver: data || null,
-      });
+      return res.status(200).json({ ok: true, driver: data || null });
     }
 
     if (req.method === "DELETE") {
@@ -59,21 +47,15 @@ export default async function handler(
 
       if (error) throw error;
 
-      return res.status(200).json({
-        ok: true,
-      });
+      return res.status(200).json({ ok: true });
     }
 
-    return res.status(405).json({
-      ok: false,
-      error: "Method not allowed",
-    });
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
   } catch (e: any) {
     console.error("/api/drivers/[id] error:", e);
-
     return res.status(500).json({
       ok: false,
-      error: e?.message || "Kunde inte hantera chauff�r.",
+      error: e?.message || "Kunde inte hantera chaufför.",
     });
   }
 }

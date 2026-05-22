@@ -21,7 +21,16 @@
                             "paths":  {
                                           "@/*":  [
                                                       "src/*"
-                                                  ]
+                                                  ],
+                                          "react-native":  [
+                                                               "src/stubs/react-native.ts"
+                                                           ],
+                                          "expo-router":  [
+                                                              "src/stubs/expo-router.ts"
+                                                          ],
+                                          "expo-constants":  [
+                                                                 "src/stubs/expo-constants.ts"
+                                                             ]
                                       },
                             "plugins":  [
                                             {
