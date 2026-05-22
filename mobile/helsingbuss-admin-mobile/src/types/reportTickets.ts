@@ -1,4 +1,4 @@
-﻿export type ReportTicketItem = {
+export type ReportTicketItem = {
   id: string;
   reference: string;
   title: string;

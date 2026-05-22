@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Pressable, View, Text, StyleSheet } from "react-native";
 import { Bus, CalendarDays, FileText, MessageSquare } from "lucide-react-native";
 import { colors } from "../../theme/colors";

@@ -1,4 +1,4 @@
-﻿import React, { useEffect } from "react";
+import React, { useEffect } from "react";
 import { Tabs, router } from "expo-router";
 import { Bell, CalendarDays, Home, Menu, Route } from "lucide-react-native";
 import * as Notifications from "expo-notifications";

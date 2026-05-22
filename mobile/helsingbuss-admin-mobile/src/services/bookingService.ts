@@ -1,4 +1,4 @@
-﻿import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
 import type { AdminBookingFeedItem, BookingFilterKey } from "../types/bookings";
 
 function toNumber(value: unknown): number {

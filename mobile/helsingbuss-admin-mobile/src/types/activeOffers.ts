@@ -1,4 +1,4 @@
-﻿export type ActiveOfferItem = {
+export type ActiveOfferItem = {
   id: string;
   reference: string;
   customerName?: string;

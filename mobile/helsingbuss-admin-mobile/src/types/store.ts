@@ -1,4 +1,4 @@
-﻿export type StoreProductType =
+export type StoreProductType =
   | "shuttle_ticket"
   | "trip_ticket"
   | "booking"

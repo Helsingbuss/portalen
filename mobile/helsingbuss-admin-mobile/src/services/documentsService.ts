@@ -1,4 +1,4 @@
-﻿import { Linking } from "react-native";
+import { Linking } from "react-native";
 import type { DocumentPickerAsset } from "expo-document-picker";
 
 import { supabase } from "../lib/supabase";

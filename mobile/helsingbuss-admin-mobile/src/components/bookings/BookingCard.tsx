@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CalendarDays, ChevronRight, FileText, TicketCheck, Bus } from "lucide-react-native";
 import { router } from "expo-router";

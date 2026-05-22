@@ -1,4 +1,4 @@
-﻿export type WeekBookingItem = {
+export type WeekBookingItem = {
   day: string;
   date?: string;
   count: number;

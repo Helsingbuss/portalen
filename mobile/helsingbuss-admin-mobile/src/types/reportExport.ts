@@ -1,4 +1,4 @@
-﻿export type ReportExportRow = {
+export type ReportExportRow = {
   id: string;
   source: "store" | "booking" | "offer" | string;
   sourceLabel: string;

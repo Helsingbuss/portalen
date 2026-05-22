@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { CircleCheck, Clock3, FileText, TicketCheck } from "lucide-react-native";
 import { colors } from "../../theme/colors";

@@ -1,1 +1,1 @@
-﻿export { default } from "./active-offers";
+export { default } from "./active-offers";

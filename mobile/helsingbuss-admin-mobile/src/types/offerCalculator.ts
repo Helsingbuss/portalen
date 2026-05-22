@@ -1,4 +1,4 @@
-﻿export type OfferCalculatorOffer = {
+export type OfferCalculatorOffer = {
   id: string;
   reference: string;
   customerName?: string;

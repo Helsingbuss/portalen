@@ -1,4 +1,4 @@
-﻿export type PartnerType =
+export type PartnerType =
   | "operator"
   | "hotel"
   | "supplier"

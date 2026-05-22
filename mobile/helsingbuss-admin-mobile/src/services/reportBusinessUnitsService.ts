@@ -1,4 +1,4 @@
-﻿import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
 import type { BusinessUnitsReport } from "../types/reportBusinessUnits";
 
 const emptyBusinessUnits: BusinessUnitsReport = {

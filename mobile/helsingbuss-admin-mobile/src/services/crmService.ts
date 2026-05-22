@@ -1,4 +1,4 @@
-﻿import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
 import type { CrmOverview } from "../types/crm";
 
 const emptyCrm: CrmOverview = {

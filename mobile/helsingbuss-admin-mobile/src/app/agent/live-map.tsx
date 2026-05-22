@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Bus, Map } from "lucide-react-native";
 import { colors } from "../../theme/colors";

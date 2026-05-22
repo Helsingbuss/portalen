@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Bell, Menu } from "lucide-react-native";
 import { colors } from "../../theme/colors";

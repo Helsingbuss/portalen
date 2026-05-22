@@ -1,15 +1,6 @@
-﻿import React, { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-} from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View, Pressable, } from "react-native";
 import { router } from "expo-router";
-
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
 import StatCards from "../../components/dashboard/StatCards";
 import TrafficStatusCard from "../../components/dashboard/TrafficStatusCard";

@@ -1,13 +1,5 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import MapView, { Marker } from "react-native-maps";
 import { ArrowLeft, Bus, MapPin } from "lucide-react-native";

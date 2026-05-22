@@ -1,13 +1,5 @@
-﻿import React, { useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import React, { useRef, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View, } from "react-native";
 import type { LocationSubscription } from "expo-location";
 import { router } from "expo-router";
 import {

@@ -1,13 +1,5 @@
-﻿import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View, } from "react-native";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import {

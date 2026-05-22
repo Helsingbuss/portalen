@@ -1,4 +1,4 @@
-﻿import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
 import type { AdminTrafficOverview } from "../types/traffic";
 
 function toNumber(value: unknown): number {

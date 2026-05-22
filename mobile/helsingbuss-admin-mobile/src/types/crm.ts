@@ -1,4 +1,4 @@
-﻿export type CustomerType = "private" | "company" | "association" | string;
+export type CustomerType = "private" | "company" | "association" | string;
 
 export type CrmCustomer = {
   id: string;

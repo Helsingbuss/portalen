@@ -1,4 +1,4 @@
-﻿import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
 import type { StoreOverview, StorePaymentItem } from "../types/store";
 
 const fallbackOverview: StoreOverview = {

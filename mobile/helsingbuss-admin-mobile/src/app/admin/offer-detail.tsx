@@ -1,1 +1,1 @@
-﻿export { default } from "./offer-calculator";
+export { default } from "./offer-calculator";

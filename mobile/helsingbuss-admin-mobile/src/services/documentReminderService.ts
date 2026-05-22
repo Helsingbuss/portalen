@@ -1,4 +1,4 @@
-﻿import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
 
 function getApiBaseUrl() {
   const value = process.env.EXPO_PUBLIC_API_BASE_URL;

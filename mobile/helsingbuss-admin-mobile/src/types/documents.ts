@@ -1,4 +1,4 @@
-﻿export type AppDocumentItem = {
+export type AppDocumentItem = {
   id: string;
   title: string;
   documentType: string;

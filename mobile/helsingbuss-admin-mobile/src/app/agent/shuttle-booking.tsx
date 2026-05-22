@@ -1,14 +1,5 @@
-﻿import React, { useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import React, { useMemo, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, } from "react-native";
 import { router } from "expo-router";
 import { ArrowLeft, Plane, Save } from "lucide-react-native";
 

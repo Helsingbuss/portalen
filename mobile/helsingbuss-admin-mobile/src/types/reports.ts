@@ -1,4 +1,4 @@
-﻿export type ReportsOverview = {
+export type ReportsOverview = {
   offers: {
     total: number;
     incoming: number;

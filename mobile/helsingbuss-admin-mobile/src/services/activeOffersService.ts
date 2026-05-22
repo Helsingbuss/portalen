@@ -1,4 +1,4 @@
-﻿import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
 import type { ActiveOffersOverview } from "../types/activeOffers";
 
 const emptyActiveOffers: ActiveOffersOverview = {

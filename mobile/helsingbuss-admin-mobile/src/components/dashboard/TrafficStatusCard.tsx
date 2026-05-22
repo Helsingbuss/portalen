@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { CheckCircle2, TriangleAlert } from "lucide-react-native";
 import { colors } from "../../theme/colors";

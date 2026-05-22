@@ -1,14 +1,5 @@
-﻿import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View, } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import {
   ArrowLeft,

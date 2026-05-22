@@ -1,4 +1,4 @@
-﻿export type NotificationTemplateKey =
+export type NotificationTemplateKey =
   | "new_offer"
   | "offer_price_sent"
   | "offer_accepted"

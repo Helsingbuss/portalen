@@ -1,6 +1,6 @@
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View, } from "react-native";
-import { router } from "expo-router";
+import { router, router } from "expo-router";
 import {
   BellRing,
   BriefcaseBusiness,
@@ -29,11 +29,11 @@ type MenuItem = {
 
 const sections: { title: string; items: MenuItem[] }[] = [
   {
-    title: "Ã–versikt",
+    title: "Översikt",
     items: [
       {
         title: "Dashboard",
-        text: "Ã–versikt och nyckeltal",
+        text: "Översikt och nyckeltal",
         href: "/admin/dashboard",
         icon: LayoutDashboard,
       },
@@ -50,25 +50,25 @@ const sections: { title: string; items: MenuItem[] }[] = [
     items: [
       {
         title: "Offerter",
-        text: "Inkommande, aktiva och godkÃ¤nda",
+        text: "Inkommande, aktiva och godkända",
         href: "/admin/offers",
         icon: BriefcaseBusiness,
       },
       {
         title: "Fordon & Personal",
-        text: "Fordon, chauffÃ¶rer och fordonsdokument",
+        text: "Fordon, chaufförer och fordonsdokument",
         href: "/admin/fleet",
         icon: Bus,
       },
       {
         title: "Dokument",
-        text: "Avtal, tillstÃ¥nd och interna underlag",
+        text: "Avtal, tillstånd och interna underlag",
         href: "/admin/documents",
         icon: FileText,
       },
       {
-        title: "OperatÃ¶rer & partners",
-        text: "Samarbetspartners och leverantÃ¶rer",
+        title: "Operatörer & partners",
+        text: "Samarbetspartners och leverantörer",
         href: "/admin/partners",
         icon: Handshake,
       },
@@ -85,7 +85,7 @@ const sections: { title: string; items: MenuItem[] }[] = [
       },
       {
         title: "Kassa",
-        text: "BetalningslÃ¤nkar och fÃ¶rsÃ¤ljning",
+        text: "Betalningslänkar och försäljning",
         href: "/admin/store",
         icon: Store,
       },
@@ -127,11 +127,11 @@ export default function MoreScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.heroCard}>
+<View style={styles.heroCard}>
           <Text style={styles.heroKicker}>MER</Text>
           <Text style={styles.heroTitle}>Admin & drift</Text>
           <Text style={styles.heroText}>
-            HÃ¤r hittar du fler delar av Helsingbuss adminapp.
+            Här hittar du fler delar av Helsingbuss adminapp.
           </Text>
         </View>
 
@@ -171,42 +171,7 @@ export default function MoreScreen() {
 
           <View style={styles.cardTextBox}>
             <Text style={styles.logoutTitle}>Logga ut</Text>
-            <Text style={styles.logoutText}>Avsluta sessionen och gÃ¥ tillbaka till inloggning.</Text>
-          </View>
-        </Pressable>
-      
-        {/* AUTO-LINK: Min profil */}
-        <Pressable
-          style={{
-            backgroundColor: "#FFFFFF",
-            borderRadius: 22,
-            borderWidth: 1,
-            borderColor: "#E2E8E5",
-            padding: 16,
-            flexDirection: "row",
-            alignItems: "center",
-            marginBottom: 12
-          }}
-          onPress={() => router.push("/admin/profile" as any)}
-        >
-          <View
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 17,
-              backgroundColor: "#E6F2EF",
-              alignItems: "center",
-              justifyContent: "center",
-              marginRight: 12
-            }}
-          >
-            <UserRound size={22} color="#003C3A" strokeWidth={2.5} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: "#102321", fontSize: 16, fontWeight: "900" }}>Min profil</Text>
-            <Text style={{ color: "#6B7A78", fontSize: 12, fontWeight: "700", marginTop: 3 }}>
-              Kontaktuppgifter, roll och konto
-            </Text>
+            <Text style={styles.logoutText}>Avsluta sessionen och gå tillbaka till inloggning.</Text>
           </View>
         </Pressable>
       </ScrollView>

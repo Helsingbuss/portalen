@@ -1,15 +1,6 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, View, } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-
 import BookingsHeader from "../../components/bookings/BookingsHeader";
 import BookingSearchFilters from "../../components/bookings/BookingSearchFilters";
 import BookingDaySection from "../../components/bookings/BookingDaySection";

@@ -1,4 +1,4 @@
-﻿export type ExpenseItem = {
+export type ExpenseItem = {
   businessUnit?: string;
   id: string;
   title: string;

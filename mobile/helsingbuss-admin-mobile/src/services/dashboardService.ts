@@ -1,4 +1,4 @@
-﻿import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
 import type { AdminDashboardSummary } from "../types/dashboard";
 
 const fallbackDashboard: AdminDashboardSummary = {

@@ -1,4 +1,4 @@
-﻿export type BusinessUnitReportItem = {
+export type BusinessUnitReportItem = {
   key: string;
   label: string;
   totalPayments: number;

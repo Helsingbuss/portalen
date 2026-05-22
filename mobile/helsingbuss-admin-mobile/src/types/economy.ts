@@ -1,4 +1,4 @@
-﻿export type EconomyPaymentItem = {
+export type EconomyPaymentItem = {
   id: string;
   reference: string;
   title: string;

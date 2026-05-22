@@ -1,4 +1,4 @@
-﻿import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
 import type { FleetOverview } from "../types/fleet";
 
 const emptyFleet: FleetOverview = {

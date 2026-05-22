@@ -1,14 +1,5 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Linking,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import {

@@ -1,4 +1,4 @@
-﻿export type BookingFilterKey =
+export type BookingFilterKey =
   | "all"
   | "bookings"
   | "offers"

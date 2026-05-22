@@ -1,4 +1,4 @@
-﻿export type InvoiceItem = {
+export type InvoiceItem = {
   businessUnit?: string;
   id: string;
   source: "invoice" | "booking_candidate" | string;

@@ -1,4 +1,4 @@
-﻿export type FleetVehicle = {
+export type FleetVehicle = {
   id: string;
   name: string;
   model: string;

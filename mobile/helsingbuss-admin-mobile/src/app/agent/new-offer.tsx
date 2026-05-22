@@ -1,14 +1,5 @@
-﻿import React, { useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import React, { useState } from "react";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, } from "react-native";
 import { router } from "expo-router";
 import { ArrowLeft, FileText, Save } from "lucide-react-native";
 

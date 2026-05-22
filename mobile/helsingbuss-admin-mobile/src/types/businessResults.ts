@@ -1,4 +1,4 @@
-﻿export type BusinessUnitResultItem = {
+export type BusinessUnitResultItem = {
   unit: "bestallning" | "shuttle" | "sundra" | "other" | string;
   revenue: number;
   expectedValue: number;

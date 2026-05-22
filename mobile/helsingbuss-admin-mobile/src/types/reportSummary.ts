@@ -1,4 +1,4 @@
-﻿export type ReportSummaryPoint = {
+export type ReportSummaryPoint = {
   label: string;
   from?: string;
   sales: number;

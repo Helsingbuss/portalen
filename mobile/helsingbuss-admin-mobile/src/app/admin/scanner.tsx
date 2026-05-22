@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { ArrowLeft, ScanQrCode } from "lucide-react-native";

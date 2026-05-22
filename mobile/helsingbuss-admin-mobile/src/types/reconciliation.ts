@@ -1,4 +1,4 @@
-﻿export type ReconciliationRow = {
+export type ReconciliationRow = {
   id: string;
   type: "store" | "invoice" | "expense" | string;
   label: string;

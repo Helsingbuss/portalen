@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Plane, ShoppingBag, Ticket } from "lucide-react-native";

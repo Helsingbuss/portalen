@@ -1,4 +1,4 @@
-﻿import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
 import type { OfferCalculatorOffer, OfferCalculatorResult } from "../types/offerCalculator";
 
 export async function getOfferCalculator(offerId: string): Promise<OfferCalculatorOffer> {

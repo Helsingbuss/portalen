@@ -1,4 +1,4 @@
-﻿export type TrafficDeparture = {
+export type TrafficDeparture = {
   id: string;
   kind: string;
   sourceLabel: string;

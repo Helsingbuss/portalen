@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Alert, Pressable, Text, View, StyleSheet } from "react-native";
 import { Bus, FileText, MapPin, Store } from "lucide-react-native";
 import { router } from "expo-router";
