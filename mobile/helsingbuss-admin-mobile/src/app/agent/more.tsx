@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View, } from "react-native";
-import { router, router } from "expo-router";
-﻿import React from "react";
+import { router } from "expo-router";
+import React from "react";
 import {
   BellRing,
   CalendarDays,
@@ -27,7 +27,7 @@ export default function AgentMoreScreen() {
           <Text style={styles.heroKicker}>AGENT</Text>
           <Text style={styles.heroTitle}>Mer</Text>
           <Text style={styles.heroText}>
-            Inställningar, hjälp, regler och utloggning för bokningsagenter.
+            InstÃ¤llningar, hjÃ¤lp, regler och utloggning fÃ¶r bokningsagenter.
           </Text>
         </View>
 
@@ -44,20 +44,20 @@ export default function AgentMoreScreen() {
           
           <MenuCard
             title="Bokningar"
-            text="Se och följ upp bokningar"
+            text="Se och fÃ¶lj upp bokningar"
             icon={<CalendarDays size={22} color={colors.primary} strokeWidth={2.5} />}
             onPress={() => router.push("/agent/bookings" as any)}
           />
           <MenuCard
             title="Agentregler"
-            text="Vad agenten får sälja, boka och hantera"
+            text="Vad agenten fÃ¥r sÃ¤lja, boka och hantera"
             icon={<ShieldCheck size={22} color={colors.primary} strokeWidth={2.5} />}
             onPress={() => {}}
           />
 
           <MenuCard
-            title="Dokument & hjälp"
-            text="Manualer, interna instruktioner och stöd"
+            title="Dokument & hjÃ¤lp"
+            text="Manualer, interna instruktioner och stÃ¶d"
             icon={<FileText size={22} color={colors.primary} strokeWidth={2.5} />}
             onPress={() => {}}
           />
@@ -85,7 +85,7 @@ export default function AgentMoreScreen() {
           <View style={styles.logoutTextBox}>
             <Text style={styles.logoutTitle}>Logga ut</Text>
             <Text style={styles.logoutText}>
-              Avsluta agentkontot och gå tillbaka till inloggningen.
+              Avsluta agentkontot och gÃ¥ tillbaka till inloggningen.
             </Text>
           </View>
         </Pressable>
@@ -155,7 +155,7 @@ export default function AgentMoreScreen() {
           <View style={{ flex: 1 }}>
             <Text style={{ color: "#102321", fontSize: 16, fontWeight: "900" }}>Agentregler</Text>
             <Text style={{ color: "#6B7A78", fontSize: 12, fontWeight: "700", marginTop: 3 }}>
-              Regler för offerter, betalning och kundkontakt
+              Regler fÃ¶r offerter, betalning och kundkontakt
             </Text>
           </View>
         </Pressable>
@@ -290,5 +290,6 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 });
+
 
 
