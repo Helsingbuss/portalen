@@ -560,9 +560,9 @@ const calendarDays = useMemo(() => {
         ? link
         : `${API_BASE}${link}`;
 
-      try {
-        window.top?.location.assign(paymentLink);
-      } catch {
+      if (window.top && window.top !== window.self) {
+        window.open(paymentLink, "_blank", "noopener,noreferrer");
+      } else {
         window.location.assign(paymentLink);
       }
     } catch (e: any) {
