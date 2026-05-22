@@ -1,6 +1,6 @@
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View, } from "react-native";
-import { router, router } from "expo-router";
+import { router } from "expo-router";
 import {
   BellRing,
   BriefcaseBusiness,
@@ -29,11 +29,11 @@ type MenuItem = {
 
 const sections: { title: string; items: MenuItem[] }[] = [
   {
-    title: "Översikt",
+    title: "Ã–versikt",
     items: [
       {
         title: "Dashboard",
-        text: "Översikt och nyckeltal",
+        text: "Ã–versikt och nyckeltal",
         href: "/admin/dashboard",
         icon: LayoutDashboard,
       },
@@ -50,25 +50,25 @@ const sections: { title: string; items: MenuItem[] }[] = [
     items: [
       {
         title: "Offerter",
-        text: "Inkommande, aktiva och godkända",
+        text: "Inkommande, aktiva och godkÃ¤nda",
         href: "/admin/offers",
         icon: BriefcaseBusiness,
       },
       {
         title: "Fordon & Personal",
-        text: "Fordon, chaufförer och fordonsdokument",
+        text: "Fordon, chauffÃ¶rer och fordonsdokument",
         href: "/admin/fleet",
         icon: Bus,
       },
       {
         title: "Dokument",
-        text: "Avtal, tillstånd och interna underlag",
+        text: "Avtal, tillstÃ¥nd och interna underlag",
         href: "/admin/documents",
         icon: FileText,
       },
       {
-        title: "Operatörer & partners",
-        text: "Samarbetspartners och leverantörer",
+        title: "OperatÃ¶rer & partners",
+        text: "Samarbetspartners och leverantÃ¶rer",
         href: "/admin/partners",
         icon: Handshake,
       },
@@ -85,7 +85,7 @@ const sections: { title: string; items: MenuItem[] }[] = [
       },
       {
         title: "Kassa",
-        text: "Betalningslänkar och försäljning",
+        text: "BetalningslÃ¤nkar och fÃ¶rsÃ¤ljning",
         href: "/admin/store",
         icon: Store,
       },
@@ -131,7 +131,7 @@ export default function MoreScreen() {
           <Text style={styles.heroKicker}>MER</Text>
           <Text style={styles.heroTitle}>Admin & drift</Text>
           <Text style={styles.heroText}>
-            Här hittar du fler delar av Helsingbuss adminapp.
+            HÃ¤r hittar du fler delar av Helsingbuss adminapp.
           </Text>
         </View>
 
@@ -171,7 +171,7 @@ export default function MoreScreen() {
 
           <View style={styles.cardTextBox}>
             <Text style={styles.logoutTitle}>Logga ut</Text>
-            <Text style={styles.logoutText}>Avsluta sessionen och gå tillbaka till inloggning.</Text>
+            <Text style={styles.logoutText}>Avsluta sessionen och gÃ¥ tillbaka till inloggning.</Text>
           </View>
         </Pressable>
       </ScrollView>
