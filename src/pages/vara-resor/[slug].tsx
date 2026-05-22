@@ -556,9 +556,15 @@ const calendarDays = useMemo(() => {
 
       if (!link) throw new Error("Ingen betalningslänk skapades.");
 
-      window.location.href = link.startsWith("http")
+      const paymentLink = link.startsWith("http")
         ? link
         : `${API_BASE}${link}`;
+
+      try {
+        window.top?.location.assign(paymentLink);
+      } catch {
+        window.location.assign(paymentLink);
+      }
     } catch (e: any) {
       alert(e?.message || "Något gick fel vid bokning.");
     } finally {
