@@ -1,4 +1,4 @@
-// public/widgets/sundra.js
+﻿// public/widgets/sundra.js
 
 (async function () {
   const API_BASE = "https://kund.helsingbuss.se";
