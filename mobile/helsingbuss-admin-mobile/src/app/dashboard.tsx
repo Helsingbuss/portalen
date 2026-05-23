@@ -1,4 +1,5 @@
-import { Redirect } from "expo-router";
+﻿import { Redirect } from "expo-router";
+
 export default function DashboardRedirect() {
-  return <Redirect href="/admin/dashboard" />;
+  return <Redirect href={"/role-select" as any} />;
 }

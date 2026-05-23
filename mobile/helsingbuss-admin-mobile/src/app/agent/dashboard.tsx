@@ -14,6 +14,7 @@ import {
 } from "lucide-react-native";
 
 import { colors } from "../../theme/colors";
+import AgentNotificationAutoPoll from "../../components/notifications/AgentNotificationAutoPoll";
 import {
   formatAgentDate,
   formatAgentMoney,
@@ -51,6 +52,7 @@ export default function AgentDashboardScreen() {
 
   return (
     <View style={styles.screen}>
+      <AgentNotificationAutoPoll />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}

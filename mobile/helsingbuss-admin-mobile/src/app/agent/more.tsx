@@ -62,7 +62,15 @@ export default function AgentMoreScreen() {
             onPress={() => router.push("/agent/documents-help" as any)}
           />
 
+          
           <MenuCard
+            title="Byt roll"
+            text="Växla mellan admin, bokningsagent och förare"
+            icon={<ShieldCheck size={22} color={colors.primary} strokeWidth={2.5} />}
+            onPress={() => router.push("/role-select" as any)}
+          />
+
+<MenuCard
             title="Notiser"
             text="Agentnotiser och meddelanden"
             icon={<BellRing size={22} color={colors.primary} strokeWidth={2.5} />}

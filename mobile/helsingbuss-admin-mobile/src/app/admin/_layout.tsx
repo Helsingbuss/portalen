@@ -139,7 +139,8 @@ export default function AdminTabsLayout() {
           <Tabs.Screen name="offers" options={{ href: null }} />
           <Tabs.Screen name="profile" options={{ href: null }} />
           <Tabs.Screen name="documents-help" options={{ href: null }} />
-    </Tabs>
+          <Tabs.Screen name="help-document" options={{ href: null }} />
+          <Tabs.Screen name="users" options={{ href: null }} />`r`n          <Tabs.Screen name="user-form" options={{ href: null }} />`r`n          <Tabs.Screen name="user-detail" options={{ href: null }} />`r`n          <Tabs.Screen name="driver-orders" options={{ href: null }} />`r`n          <Tabs.Screen name="driver-order-form" options={{ href: null }} />`r`n    </Tabs>
   );
 }
 

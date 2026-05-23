@@ -1,4 +1,4 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+﻿import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 function seatsLeft(departure: any) {

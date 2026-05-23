@@ -1,73 +1,80 @@
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View, } from "react-native";
-import * as Notifications from "expo-notifications";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { router } from "expo-router";
+import * as Notifications from "expo-notifications";
 import {
   ArrowLeft,
   BellRing,
   CheckCircle2,
+  RefreshCw,
   Send,
-  ShieldAlert,
+  Trash2,
 } from "lucide-react-native";
 
 import { colors } from "../../theme/colors";
+import {
+  getMyAdminNotifications,
+  markAdminNotificationRead,
+  sendUnpushedAdminNotifications,
+  type AdminNotificationItem,
+} from "../../services/adminNotificationsService";
 
 Notifications.setNotificationHandler({
-  handleNotification: async () =>
-    ({
-      shouldShowAlert: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    } as any),
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
 });
 
-export default function NotificationsScreen() {
-  const [permissionStatus, setPermissionStatus] = useState("Kontrollerar...");
+export default function AgentNotificationsScreen() {
+  const [items, setItems] = useState<AdminNotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [statusText, setStatusText] = useState("Inte testat ännu");
 
-  async function checkPermission() {
-    const permissions = await Notifications.getPermissionsAsync();
+  const loadNotifications = useCallback(async (refreshing = false) => {
+    try {
+      if (refreshing) setIsRefreshing(true);
+      else setIsLoading(true);
 
-    if (permissions.granted) {
-      setPermissionStatus("Tillåtet");
-      return true;
+      const result = await getMyAdminNotifications();
+      setItems(result);
+    } catch (error: any) {
+      Alert.alert("Kunde inte hämta notiser", error?.message || "Försök igen.");
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
     }
-
-    if (permissions.status === "denied") {
-      setPermissionStatus("Nekat");
-      return false;
-    }
-
-    setPermissionStatus("Inte aktiverat");
-    return false;
-  }
+  }, []);
 
   useEffect(() => {
-    checkPermission();
-  }, []);
+    loadNotifications(false);
+  }, [loadNotifications]);
 
   async function requestPermission() {
     try {
       setIsLoading(true);
 
-      const result = await Notifications.requestPermissionsAsync();
+      const permission = await Notifications.requestPermissionsAsync();
 
-      if (result.granted) {
-        setPermissionStatus("Tillåtet");
-
-        Alert.alert(
-          "Notiser är aktiverade",
-          "Nu kan appen visa notiser på telefonen."
-        );
+      if (permission.status === "granted") {
+        setStatusText("Notiser är aktiverade");
+        Alert.alert("Notiser aktiverade", "Adminappen kan nu visa notiser.");
       } else {
-        setPermissionStatus("Nekat");
-
-        Alert.alert(
-          "Notiser är inte aktiverade",
-          "Du behöver tillåta notiser i telefonens inställningar för att de ska fungera."
-        );
+        setStatusText("Notiser är inte aktiverade");
+        Alert.alert("Notiser ej aktiverade", "Du behöver tillåta notiser i mobilen.");
       }
     } catch (error: any) {
       Alert.alert("Fel", error?.message || "Kunde inte aktivera notiser.");
@@ -76,124 +83,165 @@ export default function NotificationsScreen() {
     }
   }
 
-  async function sendLocalTestNotification() {
+  async function sendTestNotification() {
     try {
       setIsLoading(true);
 
-      const hasPermission = await checkPermission();
-
-      if (!hasPermission) {
-        Alert.alert(
-          "Notiser är inte aktiverade",
-          "Tryck först på Aktivera notiser."
-        );
-        return;
-      }
-
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: "Helsingbuss",
-          body: "Testnotis fungerar ✅",
+          title: "Ny adminnotis",
+          body: "Detta är en testnotis från Helsingbuss Adminapp.",
+          data: { type: "agent_test" },
           sound: true,
         },
         trigger: null,
       });
 
-      Alert.alert(
-        "Testnotis skickad",
-        "Om du inte ser den direkt, lås skärmen eller dra ner notiscenter."
-      );
+      setStatusText("Testnotis skickad");
     } catch (error: any) {
-      Alert.alert("Kunde inte skicka testnotis", error?.message || "Försök igen.");
+      Alert.alert("Fel", error?.message || "Kunde inte skicka testnotis.");
     } finally {
       setIsLoading(false);
     }
   }
 
-  const isAllowed = permissionStatus === "Tillåtet";
+  async function sendRealUnreadNotifications() {
+    try {
+      setIsLoading(true);
+
+      const count = await sendUnpushedAdminNotifications();
+      await loadNotifications(true);
+
+      setStatusText(count > 0 ? `${count} riktiga notiser skickades` : "Inga nya notiser att skicka");
+    } catch (error: any) {
+      Alert.alert("Fel", error?.message || "Kunde inte skicka riktiga notiser.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function clearOldNotifications() {
+    try {
+      setIsLoading(true);
+
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      await Notifications.dismissAllNotificationsAsync();
+
+      setStatusText("Gamla notiser rensade");
+      Alert.alert("Rensat", "Gamla schemalagda notiser är borttagna.");
+    } catch (error: any) {
+      Alert.alert("Fel", error?.message || "Kunde inte rensa notiser.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function markRead(item: AdminNotificationItem) {
+    try {
+      await markAdminNotificationRead(item.id);
+      await loadNotifications(true);
+    } catch (error: any) {
+      Alert.alert("Kunde inte markera som läst", error?.message || "Försök igen.");
+    }
+  }
+
+  const unreadCount = items.filter((item) => !item.isRead).length;
 
   return (
     <View style={styles.screen}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => loadNotifications(true)}
+            tintColor={colors.primary}
+          />
+        }
       >
-        <View style={styles.header}>
-          <Pressable style={styles.iconButton} onPress={() => router.back()}>
-            <ArrowLeft size={22} color={colors.text} strokeWidth={2.4} />
-          </Pressable>
-
-          <View style={styles.headerText}>
-            <Text style={styles.title}>Notiser</Text>
-            <Text style={styles.subtitle}>Aktivera och testa pushnotiser</Text>
-          </View>
-        </View>
+        <Pressable style={styles.backButton} onPress={() => router.back()}>
+          <ArrowLeft size={22} color={colors.text} strokeWidth={2.5} />
+        </Pressable>
 
         <View style={styles.heroCard}>
-          <View style={styles.heroIcon}>
-            <BellRing size={38} color={colors.goldSoft} strokeWidth={2.4} />
-          </View>
-
-          <Text style={styles.heroKicker}>NOTISER</Text>
-          <Text style={styles.heroTitle}>Testa att mobilen kan visa notiser.</Text>
+          <BellRing size={38} color={colors.goldSoft} strokeWidth={2.4} />
+          <Text style={styles.heroKicker}>ADMINAPPEN</Text>
+          <Text style={styles.heroTitle}>Notiser</Text>
           <Text style={styles.heroText}>
-            Börja med att aktivera notiser. Tryck sedan på testknappen för att skicka en lokal testnotis direkt.
+            Se riktiga adminnotiser för offerter, bokningar och betalningar.
           </Text>
         </View>
 
         <View style={styles.statusCard}>
-          <View style={[styles.statusIcon, isAllowed ? styles.statusIconOk : styles.statusIconWarning]}>
-            {isAllowed ? (
-              <CheckCircle2 size={25} color={colors.primary} strokeWidth={2.5} />
-            ) : (
-              <ShieldAlert size={25} color={colors.danger} strokeWidth={2.5} />
-            )}
-          </View>
-
-          <View style={styles.statusTextBox}>
+          <CheckCircle2 size={24} color={colors.primary} strokeWidth={2.5} />
+          <View style={{ flex: 1, marginLeft: 10 }}>
             <Text style={styles.statusTitle}>Status</Text>
-            <Text style={[styles.statusValue, !isAllowed && styles.statusValueWarning]}>
-              {permissionStatus}
+            <Text style={styles.statusText}>
+              {statusText} · {unreadCount} olästa notiser
             </Text>
           </View>
         </View>
 
-        <Pressable
-          style={[styles.primaryButton, isLoading && styles.disabled]}
-          onPress={requestPermission}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={colors.white} />
-          ) : (
-            <>
-              <BellRing size={20} color={colors.white} strokeWidth={2.5} />
-              <Text style={styles.primaryButtonText}>Aktivera notiser</Text>
-            </>
-          )}
+        <Pressable style={styles.primaryButton} onPress={requestPermission} disabled={isLoading}>
+          {isLoading ? <ActivityIndicator color={colors.white} /> : <BellRing size={20} color={colors.white} />}
+          <Text style={styles.primaryButtonText}>Aktivera notiser</Text>
         </Pressable>
 
-        <Pressable
-          style={[styles.testButton, isLoading && styles.disabled]}
-          onPress={sendLocalTestNotification}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={colors.primary} />
-          ) : (
-            <>
-              <Send size={20} color={colors.primary} strokeWidth={2.5} />
-              <Text style={styles.testButtonText}>Testa lokal notis</Text>
-            </>
-          )}
+        <Pressable style={styles.primaryButton} onPress={sendRealUnreadNotifications} disabled={isLoading}>
+          {isLoading ? <ActivityIndicator color={colors.white} /> : <Send size={20} color={colors.white} />}
+          <Text style={styles.primaryButtonText}>Skicka nya riktiga notiser</Text>
         </Pressable>
 
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>Om notisen inte syns</Text>
-          <Text style={styles.infoText}>
-            Kontrollera att notiser är tillåtna i telefonens inställningar. På vissa telefoner syns notisen tydligare om appen ligger i bakgrunden eller om skärmen är låst.
-          </Text>
+        <Pressable style={styles.secondaryButton} onPress={sendTestNotification} disabled={isLoading}>
+          <Send size={20} color={colors.primary} />
+          <Text style={styles.secondaryButtonText}>Skicka testnotis</Text>
+        </Pressable>
+
+        <Pressable style={styles.secondaryButton} onPress={clearOldNotifications} disabled={isLoading}>
+          <Trash2 size={20} color={colors.primary} strokeWidth={2.5} />
+          <Text style={styles.secondaryButtonText}>Rensa gamla notiser</Text>
+        </Pressable>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Senaste notiser</Text>
+          <Pressable style={styles.refreshButton} onPress={() => loadNotifications(true)}>
+            <RefreshCw size={17} color={colors.primary} />
+            <Text style={styles.refreshText}>Uppdatera</Text>
+          </Pressable>
         </View>
+
+        {items.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <BellRing size={30} color={colors.primary} />
+            <Text style={styles.emptyTitle}>Inga notiser ännu</Text>
+            <Text style={styles.emptyText}>
+              Nya offerter, bokningar och betalningshändelser visas här.
+            </Text>
+          </View>
+        ) : (
+          items.map((item) => (
+            <Pressable
+              key={item.id}
+              style={[styles.notificationCard, !item.isRead && styles.notificationCardUnread]}
+              onPress={() => markRead(item)}
+            >
+              <View style={styles.notificationTop}>
+                <Text style={styles.notificationTitle}>{item.title}</Text>
+                {!item.isRead ? <View style={styles.unreadDot} /> : null}
+              </View>
+
+              <Text style={styles.notificationBody}>{item.body}</Text>
+
+              <View style={styles.notificationFooter}>
+                <Text style={styles.notificationMeta}>{item.type}</Text>
+                <Text style={styles.notificationMeta}>
+                  {item.isRead ? "Läst" : "Tryck för att markera som läst"}
+                </Text>
+              </View>
+            </Pressable>
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -201,10 +249,9 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { paddingTop: 58, paddingHorizontal: 16, paddingBottom: 110 },
+  content: { paddingTop: 58, paddingHorizontal: 16, paddingBottom: 120 },
 
-  header: { flexDirection: "row", alignItems: "center", marginBottom: 18 },
-  iconButton: {
+  backButton: {
     width: 42,
     height: 42,
     borderRadius: 14,
@@ -213,24 +260,17 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 11,
+    marginBottom: 14,
   },
-  headerText: { flex: 1 },
-  title: { color: colors.text, fontSize: 25, fontWeight: "900", letterSpacing: -0.4 },
-  subtitle: { color: colors.textMuted, fontSize: 12, fontWeight: "800", marginTop: 2 },
 
-  heroCard: { backgroundColor: colors.primary, borderRadius: 26, padding: 20, marginBottom: 16 },
-  heroIcon: {
-    width: 68,
-    height: 68,
-    borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.12)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 15,
+  heroCard: {
+    backgroundColor: colors.primary,
+    borderRadius: 28,
+    padding: 20,
+    marginBottom: 14,
   },
-  heroKicker: { color: colors.goldSoft, fontSize: 11, fontWeight: "900", marginBottom: 5 },
-  heroTitle: { color: colors.white, fontSize: 24, lineHeight: 30, fontWeight: "900" },
+  heroKicker: { color: colors.goldSoft, fontSize: 11, fontWeight: "900", marginTop: 12, marginBottom: 5 },
+  heroTitle: { color: colors.white, fontSize: 27, fontWeight: "900" },
   heroText: { color: "#DDEBE8", fontSize: 13, lineHeight: 19, fontWeight: "700", marginTop: 7 },
 
   statusCard: {
@@ -238,75 +278,102 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 15,
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 14,
   },
-  statusIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  statusIconOk: { backgroundColor: colors.primarySoft },
-  statusIconWarning: { backgroundColor: colors.dangerSoft },
-  statusTextBox: { flex: 1 },
-  statusTitle: { color: colors.textMuted, fontSize: 12, fontWeight: "900" },
-  statusValue: { color: colors.primary, fontSize: 18, fontWeight: "900", marginTop: 2 },
-  statusValueWarning: { color: colors.danger },
+  statusTitle: { color: colors.text, fontSize: 15, fontWeight: "900" },
+  statusText: { color: colors.textMuted, fontSize: 12.5, fontWeight: "700", marginTop: 3 },
 
   primaryButton: {
     backgroundColor: colors.primary,
     borderRadius: 18,
-    minHeight: 52,
+    minHeight: 54,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     marginBottom: 10,
   },
-  primaryButtonText: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: "900",
-    marginLeft: 8,
-  },
+  primaryButtonText: { color: colors.white, fontSize: 14, fontWeight: "900", marginLeft: 8 },
 
-  testButton: {
+  secondaryButton: {
     backgroundColor: colors.primarySoft,
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    minHeight: 52,
+    minHeight: 54,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    marginBottom: 16,
+    marginBottom: 10,
   },
-  testButtonText: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: "900",
-    marginLeft: 8,
-  },
+  secondaryButtonText: { color: colors.primary, fontSize: 14, fontWeight: "900", marginLeft: 8 },
 
-  infoCard: {
+  sectionHeader: {
+    marginTop: 8,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sectionTitle: { color: colors.text, fontSize: 18, fontWeight: "900" },
+  refreshButton: { flexDirection: "row", alignItems: "center" },
+  refreshText: { color: colors.primary, fontSize: 12, fontWeight: "900", marginLeft: 5 },
+
+  emptyCard: {
+    backgroundColor: colors.card,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 18,
+    alignItems: "center",
+  },
+  emptyTitle: { color: colors.text, fontSize: 16, fontWeight: "900", marginTop: 10 },
+  emptyText: { color: colors.textMuted, fontSize: 12.5, lineHeight: 18, fontWeight: "700", marginTop: 4, textAlign: "center" },
+
+  notificationCard: {
     backgroundColor: colors.card,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 15,
+    padding: 14,
+    marginBottom: 10,
   },
-  infoTitle: { color: colors.text, fontSize: 14, fontWeight: "900" },
-  infoText: {
+  notificationCardUnread: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+  },
+  notificationTop: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  notificationTitle: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  unreadDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 99,
+    backgroundColor: colors.primary,
+    marginLeft: 8,
+  },
+  notificationBody: {
     color: colors.textMuted,
-    fontSize: 12,
+    fontSize: 12.5,
     lineHeight: 18,
     fontWeight: "700",
-    marginTop: 5,
+    marginTop: 6,
   },
-
-  disabled: { opacity: 0.65 },
+  notificationFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
+  notificationMeta: {
+    color: colors.primary,
+    fontSize: 10.5,
+    fontWeight: "900",
+  },
 });

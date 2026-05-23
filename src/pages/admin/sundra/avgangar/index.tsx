@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
@@ -7,6 +7,7 @@ type Departure = {
   id: string;
   trip_id?: string | null;
   line_id?: string | null;
+  line_ids?: string[];
 
   departure_date?: string | null;
   departure_time?: string | null;

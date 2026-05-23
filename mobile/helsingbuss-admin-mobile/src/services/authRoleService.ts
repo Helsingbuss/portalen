@@ -34,7 +34,7 @@ export async function getCurrentAppRole(): Promise<AppRoleResult> {
     console.log("getCurrentAppRole exception:", error?.message || error);
   }
 
-  // Tillfällig säker fallback för testanvändaren
+  // TillfÃ¤llig sÃ¤ker fallback fÃ¶r testanvÃ¤ndaren
   if (email === "agent@helsingbuss.se") {
     return {
       role: "agent",
@@ -57,12 +57,12 @@ export async function redirectUserByRole() {
   console.log("REDIRECT ROLE:", role, "EMAIL:", result.email);
 
   if (role === "agent") {
-    router.replace("/agent/dashboard" as any);
+    router.replace("/role-select" as any);
     return "agent";
   }
 
   if (role === "admin" || role === "owner" || role === "super_admin") {
-    router.replace("/admin/dashboard" as any);
+    router.replace("/role-select" as any);
     return role;
   }
 
