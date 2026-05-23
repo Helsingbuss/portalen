@@ -79,12 +79,34 @@
     return json.trips || [];
   }
 
+  function formatTripDates(trip) {
+    const dates = Array.from(
+      new Set(
+        (trip.departures || [])
+          .map((d) => d && d.departure_date)
+          .filter(Boolean)
+      )
+    );
+
+    if (dates.length === 0) {
+      return trip.next_departure?.departure_date
+        ? formatDate(trip.next_departure.departure_date)
+        : "Fler datum";
+    }
+
+    const formatted = dates.slice(0, 3).map((date) => formatDate(date));
+
+    if (dates.length > 3) {
+      return `${formatted.join(" · ")} + ${dates.length - 3} datum`;
+    }
+
+    return formatted.join(" · ");
+  }
+
   function createCard(trip) {
     const theme = cardTheme(trip.card_theme);
 
-    const departureDate = trip.next_departure?.departure_date
-      ? formatDate(trip.next_departure.departure_date)
-      : "Fler datum";
+    const departureDate = formatTripDates(trip);
 
     const price = trip.next_departure?.price || trip.price_from || null;
 
