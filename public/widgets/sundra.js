@@ -83,7 +83,7 @@
     const theme = cardTheme(trip.card_theme);
 
     const departureDate = trip.next_departure?.departure_date
-      ? formatTripDates(trip)
+      ? formatDate(trip.next_departure.departure_date)
       : "Fler datum";
 
     const price = trip.next_departure?.price || trip.price_from || null;
