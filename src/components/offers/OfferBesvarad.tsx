@@ -26,7 +26,7 @@ type Breakdown = {
 };
 
 function money(n?: number | null) {
-  if (n == null) return "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â";
+  if (n == null) return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
   const rounded = Math.round(Number(n));
   return new Intl.NumberFormat("sv-SE", {
     style: "currency",
@@ -35,7 +35,7 @@ function money(n?: number | null) {
   }).format(rounded);
 }
 
-function v(x: any, fallback = "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â") {
+function v(x: any, fallback = "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â") {
   if (x === null || x === undefined || x === "") return fallback;
   return String(x);
 }
@@ -67,7 +67,7 @@ export default function OfferBesvarad({ offer }: any) {
     ...(roundTrip
       ? [
           {
-            title: "ÃƒÆ’Ã¢â‚¬Â¦terresa",
+            title: "ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦terresa",
             date: offer?.return_date,
             time: offer?.return_time,
             from: offer?.destination,
@@ -103,17 +103,17 @@ export default function OfferBesvarad({ offer }: any) {
       Number(breakdown?.fees?.boatFeeTotal || 0) > 0
     ) {
       const qty = breakdown?.fees?.boatFeeQty;
-      parts.push(qty ? `bÃƒÆ’Ã‚Â¥tavgift (${qty} st, momsfri)` : "bÃƒÆ’Ã‚Â¥tavgift");
+      parts.push(qty ? `bÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥tavgift (${qty} st, momsfri)` : "bÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥tavgift");
     }
 
     if (parts.length > 0) {
-      return `Priset ÃƒÆ’Ã‚Â¤r inklusive ${parts.join(" och ")}.`;
+      return `Priset ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤r inklusive ${parts.join(" och ")}.`;
     }
 
     const priceNote = String(offer?.price_note || "");
     if (
       priceNote.toLowerCase().includes("broavgift") ||
-      priceNote.toLowerCase().includes("bÃƒÆ’Ã‚Â¥tavgift")
+      priceNote.toLowerCase().includes("bÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥tavgift")
     ) {
       return priceNote;
     }
@@ -256,7 +256,7 @@ export default function OfferBesvarad({ offer }: any) {
       const auth = getAuthQueryFromUrl();
       window.location.href = `/offert/${offer.offer_number}${qBase}${auth}`;
     } catch (e: any) {
-      alert(e?.message || "Tekniskt fel vid godkÃƒÆ’Ã‚Â¤nnande.");
+      alert(e?.message || "Tekniskt fel vid godkÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nnande.");
     } finally {
       setBusy(null);
     }
@@ -284,13 +284,13 @@ export default function OfferBesvarad({ offer }: any) {
 
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error || `Kunde inte avbÃƒÆ’Ã‚Â¶ja (HTTP ${res.status})`);
+        throw new Error(j?.error || `Kunde inte avbÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ja (HTTP ${res.status})`);
       }
 
       const auth = getAuthQueryFromUrl();
       window.location.href = `/offert/${offer.offer_number}?view=avbojd${auth}`;
     } catch (e: any) {
-      alert(e?.message || "Tekniskt fel vid avbÃƒÆ’Ã‚Â¶j.");
+      alert(e?.message || "Tekniskt fel vid avbÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶j.");
     } finally {
       setBusy(null);
     }
@@ -312,7 +312,7 @@ export default function OfferBesvarad({ offer }: any) {
           customerEmail: email,
           offerNumber: offer.offer_number,
           message:
-            "Kunden ÃƒÆ’Ã‚Â¶nskar ÃƒÆ’Ã‚Â¤ndringar i offerten. Kontakta kunden fÃƒÆ’Ã‚Â¶r detaljer.",
+            "Kunden ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶nskar ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndringar i offerten. Kontakta kunden fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶r detaljer.",
         }
       );
 
@@ -320,13 +320,13 @@ export default function OfferBesvarad({ offer }: any) {
         const j = await res.json().catch(() => ({}));
         throw new Error(
           j?.error ||
-            `Kunde inte skicka ÃƒÆ’Ã‚Â¤ndringsfÃƒÆ’Ã‚Â¶rfrÃƒÆ’Ã‚Â¥gan (HTTP ${res.status})`
+            `Kunde inte skicka ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndringsfÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶rfrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥gan (HTTP ${res.status})`
         );
       }
 
-      alert("Tack! Vi ÃƒÆ’Ã‚Â¥terkommer med uppdaterad offert.");
+      alert("Tack! Vi ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥terkommer med uppdaterad offert.");
     } catch (e: any) {
-      alert(e?.message || "Tekniskt fel vid ÃƒÆ’Ã‚Â¤ndringsfÃƒÆ’Ã‚Â¶rfrÃƒÆ’Ã‚Â¥gan.");
+      alert(e?.message || "Tekniskt fel vid ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndringsfÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶rfrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥gan.");
     } finally {
       setBusy(null);
     }
@@ -365,15 +365,15 @@ export default function OfferBesvarad({ offer }: any) {
                       </div>
 
                       <h1 className="mt-4 text-3xl lg:text-[34px] leading-tight font-semibold tracking-tight text-[#0f172a]">
-                        Er offert ÃƒÆ’Ã‚Â¤r klar
+                        Er offert ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤r klar
                       </h1>
 
                       <p className="mt-2 text-sm text-slate-600">
                         Offert{" "}
                         <span className="font-semibold text-[#194C66]">
-                          {offer?.offer_number || "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}
+                          {offer?.offer_number || "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
                         </span>{" "}
-                        ÃƒÆ’Ã‚Â¤r besvarad och redo att godkÃƒÆ’Ã‚Â¤nnas.
+                        ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤r besvarad och redo att godkÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nnas.
                       </p>
                     </div>
 
@@ -395,15 +395,15 @@ export default function OfferBesvarad({ offer }: any) {
                     <p>
                       Hej!
                       <br />
-                      Er offert ÃƒÆ’Ã‚Â¤r nu klar och sammanstÃƒÆ’Ã‚Â¤ller en tydlig plan fÃƒÆ’Ã‚Â¶r
+                      Er offert ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤r nu klar och sammanstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ller en tydlig plan fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶r
                       resan. Nedan ser ni rutt, tider, pris och villkor.
-                      Kontrollera uppgifterna innan ni godkÃƒÆ’Ã‚Â¤nner.
+                      Kontrollera uppgifterna innan ni godkÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nner.
                     </p>
 
                     <p className="mt-3">
-                      ÃƒÆ’Ã¢â‚¬â€œnskar ni justera antal resenÃƒÆ’Ã‚Â¤rer, hÃƒÆ’Ã‚Â¥llplatser, bagage,
-                      barnstol/tillgÃƒÆ’Ã‚Â¤nglighet eller service ombord? Klicka pÃƒÆ’Ã‚Â¥{" "}
-                      <strong>ÃƒÆ’Ã¢â‚¬Å¾ndra din offert</strong> sÃƒÆ’Ã‚Â¥ ÃƒÆ’Ã‚Â¥terkommer vi med en
+                      ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“nskar ni justera antal resenÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤rer, hÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥llplatser, bagage,
+                      barnstol/tillgÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nglighet eller service ombord? Klicka pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥{" "}
+                      <strong>ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ndra din offert</strong> sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥ ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥terkommer vi med en
                       uppdaterad offert.
                     </p>
                   </div>
@@ -417,7 +417,7 @@ export default function OfferBesvarad({ offer }: any) {
                       Resedetaljer
                     </h2>
                     <p className="text-sm text-slate-500">
-                      Kontrollera datum, tider, platser och antal resenÃƒÆ’Ã‚Â¤rer.
+                      Kontrollera datum, tider, platser och antal resenÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤rer.
                     </p>
                   </div>
 
@@ -432,10 +432,10 @@ export default function OfferBesvarad({ offer }: any) {
                       key={idx}
                       title={
                         withinSweden
-                          ? `Bussresa inom Sverige ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${trip.title}`
-                          : `Bussresa utomlands ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${trip.title}`
+                          ? `Bussresa inom Sverige ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ ${trip.title}`
+                          : `Bussresa utomlands ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ ${trip.title}`
                       }
-                      subtitle="AvstÃƒÆ’Ã‚Â¥nd och tider baseras preliminÃƒÆ’Ã‚Â¤rt"
+                      subtitle="AvstÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥nd och tider baseras preliminÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤rt"
                       date={trip.date}
                       time={trip.time}
                       from={trip.from}
@@ -453,11 +453,11 @@ export default function OfferBesvarad({ offer }: any) {
                 >
                   <div className="rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-5 text-[#0f172a]/80">
                     <div className="mb-2 text-sm font-semibold text-[#0f172a]">
-                      NÃƒÆ’Ã‚Â¤sta steg
+                      NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤sta steg
                     </div>
                     <p>
-                      GodkÃƒÆ’Ã‚Â¤nn offerten digitalt fÃƒÆ’Ã‚Â¶r att vi ska kunna gÃƒÆ’Ã‚Â¥ vidare
-                      med bokningen och sÃƒÆ’Ã‚Â¤kra kapacitet fÃƒÆ’Ã‚Â¶r resan.
+                      GodkÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nn offerten digitalt fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶r att vi ska kunna gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥ vidare
+                      med bokningen och sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤kra kapacitet fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶r resan.
                     </p>
                   </div>
 
@@ -466,8 +466,8 @@ export default function OfferBesvarad({ offer }: any) {
                       Viktig information
                     </div>
                     <p>
-                      Slutlig kapacitet bekrÃƒÆ’Ã‚Â¤ftas fÃƒÆ’Ã‚Â¶rst genom en skriftlig
-                      bokningsbekrÃƒÆ’Ã‚Â¤ftelse frÃƒÆ’Ã‚Â¥n Helsingbuss.
+                      Slutlig kapacitet bekrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ftas fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶rst genom en skriftlig
+                      bokningsbekrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ftelse frÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥n Helsingbuss.
                     </p>
                   </div>
                 </div>
@@ -477,21 +477,21 @@ export default function OfferBesvarad({ offer }: any) {
                   style={{ lineHeight: LINE_HEIGHT }}
                 >
                   <p>
-                    Genom att godkÃƒÆ’Ã‚Â¤nna offerten bekrÃƒÆ’Ã‚Â¤ftar ni att ni har tagit
-                    del av vÃƒÆ’Ã‚Â¥ra resevillkor. Datum och tider ÃƒÆ’Ã‚Â¤r i mÃƒÆ’Ã‚Â¥n av
-                    tillgÃƒÆ’Ã‚Â¤nglighet tills bokningen ÃƒÆ’Ã‚Â¤r skriftligt bekrÃƒÆ’Ã‚Â¤ftad.
+                    Genom att godkÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nna offerten bekrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ftar ni att ni har tagit
+                    del av vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥ra resevillkor. Datum och tider ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤r i mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥n av
+                    tillgÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nglighet tills bokningen ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤r skriftligt bekrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ftad.
                   </p>
 
                   <p className="mt-3">
-                    Vill ni boka eller har frÃƒÆ’Ã‚Â¥gor/ÃƒÆ’Ã‚Â¤ndringar? Kontakta oss sÃƒÆ’Ã‚Â¥
-                    hjÃƒÆ’Ã‚Â¤lper vi gÃƒÆ’Ã‚Â¤rna. VÃƒÆ’Ã‚Â¥ra ÃƒÆ’Ã‚Â¶ppettider ÃƒÆ’Ã‚Â¤r vardagar kl.
-                    08:00ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“17:00. FÃƒÆ’Ã‚Â¶r akuta ÃƒÆ’Ã‚Â¤renden eller bokningar med kortare
-                    varsel ÃƒÆ’Ã‚Â¤n tvÃƒÆ’Ã‚Â¥ arbetsdagar, ring vÃƒÆ’Ã‚Â¥rt journummer:{" "}
-                    <strong>010ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“777 21 58</strong>.
+                    Vill ni boka eller har frÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥gor/ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndringar? Kontakta oss sÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥
+                    hjÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤lper vi gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤rna. VÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥ra ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ppettider ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤r vardagar kl.
+                    08:00ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ17:00. FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶r akuta ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤renden eller bokningar med kortare
+                    varsel ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤n tvÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥ arbetsdagar, ring vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥rt journummer:{" "}
+                    <strong>010ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ777 21 58</strong>.
                   </p>
 
                   <p className="mt-4 rounded-xl bg-[#194C66] px-4 py-3 text-[12px] uppercase tracking-wide font-semibold text-white">
-                    Kontrollera uppgifterna och godkÃƒÆ’Ã‚Â¤nn offerten fÃƒÆ’Ã‚Â¶r att gÃƒÆ’Ã‚Â¥
+                    Kontrollera uppgifterna och godkÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nn offerten fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶r att gÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥
                     vidare.
                   </p>
                 </div>
@@ -524,13 +524,13 @@ export default function OfferBesvarad({ offer }: any) {
             <div className="h-full rounded-3xl bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)] border border-white/70 flex flex-col overflow-hidden">
               <div className="bg-gradient-to-br from-[#194C66] to-[#0f3347] px-6 py-6 text-white">
                 <div className="text-xs uppercase tracking-[0.18em] text-white/60">
-                  OffertÃƒÆ’Ã‚Â¶versikt
+                  OffertÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶versikt
                 </div>
                 <h2 className="mt-2 text-2xl font-semibold">
                   {offer?.contact_person ?? "Kund"}
                 </h2>
                 <p className="mt-1 text-sm text-white/70">
-                  HÃƒÆ’Ã‚Â¤r ser ni pris, betalningsvillkor och kan svara pÃƒÆ’Ã‚Â¥ offerten.
+                  HÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤r ser ni pris, betalningsvillkor och kan svara pÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥ offerten.
                 </p>
               </div>
 
@@ -541,19 +541,19 @@ export default function OfferBesvarad({ offer }: any) {
 
                 <dl className="mt-4 grid grid-cols-[auto,1fr] gap-x-6 gap-y-1 text-[14px] text-[#0f172a] leading-tight">
                   <DT>Offertdatum:</DT>
-                  <DD>{v(offer?.offer_date, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
+                  <DD>{v(offer?.offer_date, "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â")}</DD>
                   <DT>Er referens:</DT>
-                  <DD>{v(offer?.customer_reference, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
-                  <DT>VÃƒÆ’Ã‚Â¥r referens:</DT>
-                  <DD>{v(offer?.internal_reference, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
+                  <DD>{v(offer?.customer_reference, "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â")}</DD>
+                  <DT>VÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥r referens:</DT>
+                  <DD>{v(offer?.internal_reference, "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â")}</DD>
                   <DT>Namn:</DT>
-                  <DD>{v(offer?.contact_person, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
+                  <DD>{v(offer?.contact_person, "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â")}</DD>
                   <DT>Adress:</DT>
-                  <DD>{v(offer?.customer_address, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
+                  <DD>{v(offer?.customer_address, "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â")}</DD>
                   <DT>Telefon:</DT>
-                  <DD>{v(offer?.contact_phone, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
+                  <DD>{v(offer?.contact_phone, "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â")}</DD>
                   <DT>E-post:</DT>
-                  <DD>{v(email, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
+                  <DD>{v(email, "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â")}</DD>
                 </dl>
 
                 <div className="mt-6 rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-4">
@@ -565,7 +565,7 @@ export default function OfferBesvarad({ offer }: any) {
                   </div>
 
                   <div className="mt-3 text-sm text-[#0f172a]/70">
-                    Totala kostnaden fÃƒÆ’Ã‚Â¶r denna offert ÃƒÆ’Ã‚Â¤r:
+                    Totala kostnaden för denna offert är:
                   </div>
 
                   <div className="mt-1 text-3xl font-semibold text-[#0f172a]">
@@ -574,7 +574,7 @@ export default function OfferBesvarad({ offer }: any) {
 
                   {includedFeesText && (
                     <div className="mt-3 rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2 text-[13px] text-emerald-700">
-                      ÃƒÂ¢Ã…â€œÃ¢â‚¬Â {includedFeesText}
+                      ✓ {includedFeesText}
                     </div>
                   )}
                 </div>
@@ -584,8 +584,8 @@ export default function OfferBesvarad({ offer }: any) {
                     Betalningsvillkor
                   </div>
                   <p className="text-[13px] text-[#0f172a]/80 leading-relaxed">
-                    10 dagar netto om det ÃƒÆ’Ã‚Â¤r fÃƒÆ’Ã‚Â¶retag/fÃƒÆ’Ã‚Â¶rening, faktura kommer
-                    efter uppdrag. FÃƒÆ’Ã‚Â¶r privatperson ska fakturan vara betald
+                    10 dagar netto om det ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤r fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶retag/fÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶rening, faktura kommer
+                    efter uppdrag. FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶r privatperson ska fakturan vara betald
                     minst 3 dagar innan uppdraget.
                   </p>
                 </div>
@@ -598,7 +598,7 @@ export default function OfferBesvarad({ offer }: any) {
                     disabled={busy !== null}
                     className="w-full px-5 py-3 rounded-xl bg-[#194C66] text-white font-semibold hover:bg-[#163b4d] disabled:opacity-60"
                   >
-                    {busy === "accept" ? "AccepterarÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "Acceptera offert"}
+                    {busy === "accept" ? "AccepterarÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" : "Acceptera offert"}
                   </button>
 
                   <button
@@ -606,7 +606,7 @@ export default function OfferBesvarad({ offer }: any) {
                     disabled={busy !== null}
                     className="w-full px-5 py-3 rounded-xl border border-[#e2e8f0] text-[#0f172a] bg-white hover:bg-[#f8fafc] disabled:opacity-60"
                   >
-                    {busy === "change" ? "SkickarÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "ÃƒÆ’Ã¢â‚¬Å¾ndra din offert"}
+                    {busy === "change" ? "SkickarÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" : "ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ndra din offert"}
                   </button>
 
                   <button
@@ -614,7 +614,7 @@ export default function OfferBesvarad({ offer }: any) {
                     disabled={busy !== null}
                     className="w-full px-5 py-3 rounded-xl border border-red-100 text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-60"
                   >
-                    {busy === "decline" ? "AvbÃƒÆ’Ã‚Â¶jerÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "AvbÃƒÆ’Ã‚Â¶j offert"}
+                    {busy === "decline" ? "AvbÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶jerÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" : "AvbÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶j offert"}
                   </button>
                 </div>
               </div>
@@ -628,17 +628,17 @@ export default function OfferBesvarad({ offer }: any) {
 
 function AnsweredLeftPanel() {
   const steps = [
-    "FÃƒÆ’Ã‚Â¶rfrÃƒÆ’Ã‚Â¥gan mottagen",
+    "FÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶rfrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥gan mottagen",
     "Offert framtagen",
-    "Ni vÃƒÆ’Ã‚Â¤ljer svar",
-    "Bokning bekrÃƒÆ’Ã‚Â¤ftas",
+    "Ni vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ljer svar",
+    "Bokning bekrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ftas",
   ];
 
   const benefits = [
     "Tydlig offert med totalpris",
-    "Digitalt godkÃƒÆ’Ã‚Â¤nnande",
-    "Personlig hjÃƒÆ’Ã‚Â¤lp vid ÃƒÆ’Ã‚Â¤ndringar",
-    "Trygg planering hela vÃƒÆ’Ã‚Â¤gen",
+    "Digitalt godkÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nnande",
+    "Personlig hjÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤lp vid ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndringar",
+    "Trygg planering hela vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤gen",
   ];
 
   return (
@@ -647,10 +647,10 @@ function AnsweredLeftPanel() {
         <div className="text-xs uppercase tracking-[0.18em] text-white/60">
           Helsingbuss
         </div>
-        <h2 className="mt-2 text-xl font-semibold">Offerten ÃƒÆ’Ã‚Â¤r klar</h2>
+        <h2 className="mt-2 text-xl font-semibold">Offerten ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤r klar</h2>
         <p className="mt-2 text-sm leading-relaxed text-white/75">
-          Kontrollera uppgifterna och vÃƒÆ’Ã‚Â¤lj om ni vill godkÃƒÆ’Ã‚Â¤nna, ÃƒÆ’Ã‚Â¤ndra eller
-          avbÃƒÆ’Ã‚Â¶ja offerten.
+          Kontrollera uppgifterna och vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤lj om ni vill godkÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nna, ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ndra eller
+          avbÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ja offerten.
         </p>
       </div>
 
@@ -689,13 +689,13 @@ function AnsweredLeftPanel() {
 
         <div className="mt-6 rounded-2xl bg-[#f8fafc] border border-[#e2e8f0] p-4">
           <div className="text-sm font-semibold text-[#0f172a]">
-            DÃƒÆ’Ã‚Â¤rfÃƒÆ’Ã‚Â¶r vÃƒÆ’Ã‚Â¤ljer kunder oss
+            DÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤rfÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶r vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤ljer kunder oss
           </div>
 
           <div className="mt-3 space-y-2">
             {benefits.map((item) => (
               <div key={item} className="flex gap-2 text-sm text-slate-600">
-                <span className="text-[#194C66]">ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“</span>
+                <span className="text-[#194C66]">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ</span>
                 <span>{item}</span>
               </div>
             ))}
@@ -705,10 +705,10 @@ function AnsweredLeftPanel() {
 
       <div className="mt-auto p-5">
         <div className="rounded-2xl bg-[#eef5f9] px-4 py-4 text-sm text-[#194C66]">
-          <div className="font-semibold">BehÃƒÆ’Ã‚Â¶ver ni hjÃƒÆ’Ã‚Â¤lp?</div>
+          <div className="font-semibold">BehÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ver ni hjÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤lp?</div>
           <p className="mt-1 leading-relaxed">
-            VÃƒÆ’Ã‚Â¤lj ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¾ndra din offertÃƒÂ¢Ã¢â€šÂ¬Ã‚Â om nÃƒÆ’Ã‚Â¥got behÃƒÆ’Ã‚Â¶ver justeras innan ni
-            godkÃƒÆ’Ã‚Â¤nner.
+            VÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤lj ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾ndra din offertÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â om nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¥got behÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¶ver justeras innan ni
+            godkÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¤nner.
           </p>
         </div>
       </div>
