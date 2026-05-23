@@ -1,5 +1,7 @@
 ﻿import type { NextApiRequest, NextApiResponse } from "next";
 import { createClient } from "@supabase/supabase-js";
+import { sendOfferMail } from "@/lib/sendMail";
+import { signOfferToken } from "@/lib/offerToken";
 
 type ApiResponse =
   | {
@@ -15,6 +17,9 @@ type ApiResponse =
       details?: any;
     };
 
+const U = <T extends string | number | null | undefined>(v: T) =>
+  v == null || v === "" ? undefined : (v as Exclude<T, null>);
+
 function safeText(value: any) {
   return String(value || "").trim();
 }
@@ -29,22 +34,27 @@ function getRequiredEnv(name: string, fallback?: string) {
   return value;
 }
 
-function money(value: number) {
-  return new Intl.NumberFormat("sv-SE", {
-    style: "currency",
-    currency: "SEK",
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0));
+function customerBaseUrl() {
+  const base =
+    process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL ||
+    process.env.CUSTOMER_BASE_URL ||
+    "https://kund.helsingbuss.se";
+
+  return base.replace(/\/+$/, "");
 }
 
 function getOfferReference(offer: any) {
-  return safeText(offer.offer_number) || safeText(offer.synergybus_id) || safeText(offer.id);
+  return (
+    safeText(offer.offer_number) ||
+    safeText(offer.synergybus_id) ||
+    safeText(offer.id)
+  );
 }
 
 function getCustomerName(offer: any) {
   return (
-    safeText(offer.customer_name) ||
     safeText(offer.contact_person) ||
+    safeText(offer.customer_name) ||
     safeText(offer.Namn_efternamn) ||
     safeText(offer.foretag_forening) ||
     "kund"
@@ -52,7 +62,11 @@ function getCustomerName(offer: any) {
 }
 
 function getCustomerEmail(offer: any) {
-  return safeText(offer.customer_email) || safeText(offer.email);
+  return (
+    safeText(offer.contact_email) ||
+    safeText(offer.customer_email) ||
+    safeText(offer.email)
+  );
 }
 
 function getCustomerPhone(offer: any) {
@@ -76,7 +90,20 @@ function getDestination(offer: any) {
 }
 
 function getTravelDate(offer: any) {
-  return safeText(offer.departure_date) || safeText(offer.travel_date) || safeText(offer.offer_date);
+  return (
+    safeText(offer.departure_date) ||
+    safeText(offer.travel_date) ||
+    safeText(offer.offer_date)
+  );
+}
+
+function getTravelTime(offer: any) {
+  return safeText(offer.departure_time) || safeText(offer.travel_time);
+}
+
+function getPassengers(offer: any) {
+  const value = Number(offer.passengers || offer.passenger_count || 0);
+  return Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
 function getProposalStatusAfterSend(offer: any) {
@@ -86,7 +113,7 @@ function getProposalStatusAfterSend(offer: any) {
     return "besvarad";
   }
 
-  return safeText(offer.status);
+  return safeText(offer.status) || "besvarad";
 }
 
 async function verifyUser(req: NextApiRequest) {
@@ -97,7 +124,8 @@ async function verifyUser(req: NextApiRequest) {
 
   const anonKey = getRequiredEnv(
     "SUPABASE_ANON_KEY",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_KEY
   );
 
   const authHeader = req.headers.authorization || "";
@@ -150,7 +178,7 @@ async function optionalAdminRoleCheck(adminClient: any, userId: string) {
     .in("role_key", ["admin", "owner", "super_admin"]);
 
   if (error) {
-    console.log("Offer proposal role check skipped:", error.message);
+    console.log("[admin/offers/send-proposal] Role check skipped:", error.message);
     return;
   }
 
@@ -159,105 +187,17 @@ async function optionalAdminRoleCheck(adminClient: any, userId: string) {
   }
 }
 
-function buildProposalHtml(offer: any) {
-  const reference = getOfferReference(offer);
-  const customerName = getCustomerName(offer);
-  const departure = getDeparture(offer);
-  const destination = getDestination(offer);
-  const travelDate = getTravelDate(offer);
+function buildCustomerOfferLink(offer: any, reference: string) {
+  const token = signOfferToken({
+    offerId: String(offer.id),
+    offerNumber: reference,
+  });
 
-  const priceExVat = Number(offer.price_ex_vat || 0);
-  const vatAmount = Number(offer.price_vat_amount || 0);
-  const priceTotal = Number(offer.price_total || 0);
-  const vatRate = Number(offer.price_vat_rate || 6);
-  const priceNote = safeText(offer.price_note);
+  const base = customerBaseUrl();
 
-  return `
-    <div style="font-family: Arial, sans-serif; color: #1D2937; line-height: 1.55;">
-      <div style="background:#003C3A;color:#ffffff;border-radius:18px;padding:22px;margin-bottom:22px;">
-        <h1 style="margin:0;font-size:24px;">Prisförslag från Helsingbuss</h1>
-        <p style="margin:8px 0 0;color:#DDEBE8;">Offert ${reference}</p>
-      </div>
-
-      <p>Hej ${customerName}!</p>
-
-      <p>
-        Tack för din förfrågan. Här kommer vårt prisförslag från Helsingbuss.
-      </p>
-
-      <div style="background:#F6F8F7;border:1px solid #E2E8E6;border-radius:16px;padding:16px;margin:18px 0;">
-        <p style="margin:0 0 8px;"><strong>Resa:</strong> ${departure || "Start ej angiven"} → ${destination || "Destination ej angiven"}</p>
-        ${travelDate ? `<p style="margin:0 0 8px;"><strong>Datum:</strong> ${travelDate}</p>` : ""}
-        <p style="margin:0;"><strong>Referens:</strong> ${reference}</p>
-      </div>
-
-      <div style="background:#ffffff;border:1px solid #E2E8E6;border-radius:16px;padding:16px;margin:18px 0;">
-        <h2 style="color:#003C3A;font-size:18px;margin:0 0 12px;">Pris</h2>
-
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="padding:8px 0;color:#52616D;">Pris exkl. moms</td>
-            <td style="padding:8px 0;text-align:right;font-weight:700;">${money(priceExVat)}</td>
-          </tr>
-          <tr>
-            <td style="padding:8px 0;color:#52616D;">Moms ${vatRate}%</td>
-            <td style="padding:8px 0;text-align:right;font-weight:700;">${money(vatAmount)}</td>
-          </tr>
-          <tr>
-            <td style="padding:12px 0;border-top:2px solid #003C3A;font-weight:800;color:#003C3A;">Totalt inkl. moms</td>
-            <td style="padding:12px 0;border-top:2px solid #003C3A;text-align:right;font-size:20px;font-weight:900;color:#003C3A;">${money(priceTotal)}</td>
-          </tr>
-        </table>
-      </div>
-
-      ${
-        priceNote
-          ? `<div style="background:#F9F5E8;border:1px solid #EFE4BE;border-radius:16px;padding:16px;margin:18px 0;">
-              <strong>Kommentar:</strong><br />
-              ${priceNote.replace(/\n/g, "<br />")}
-            </div>`
-          : ""
-      }
-
-      <p>
-        Återkom gärna om ni vill gå vidare, justera något i upplägget eller har frågor kring resan.
-      </p>
-
-      <p>
-        Vänliga hälsningar,<br />
-        Helsingbuss
-      </p>
-    </div>
-  `;
-}
-
-function buildProposalText(offer: any) {
-  const reference = getOfferReference(offer);
-  const customerName = getCustomerName(offer);
-  const departure = getDeparture(offer);
-  const destination = getDestination(offer);
-  const travelDate = getTravelDate(offer);
-
-  return [
-    `Hej ${customerName}!`,
-    "",
-    "Tack för din förfrågan. Här kommer vårt prisförslag från Helsingbuss.",
-    "",
-    `Offert: ${reference}`,
-    `Resa: ${departure || "Start ej angiven"} → ${destination || "Destination ej angiven"}`,
-    travelDate ? `Datum: ${travelDate}` : "",
-    "",
-    `Pris exkl. moms: ${money(Number(offer.price_ex_vat || 0))}`,
-    `Moms ${Number(offer.price_vat_rate || 6)}%: ${money(Number(offer.price_vat_amount || 0))}`,
-    `Totalt inkl. moms: ${money(Number(offer.price_total || 0))}`,
-    "",
-    safeText(offer.price_note) ? `Kommentar: ${safeText(offer.price_note)}` : "",
-    "",
-    "Vänliga hälsningar,",
-    "Helsingbuss",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  return `${base}/offert/${encodeURIComponent(reference)}?token=${encodeURIComponent(
+    token
+  )}&t=${encodeURIComponent(token)}`;
 }
 
 export default async function handler(
@@ -277,7 +217,7 @@ export default async function handler(
 
     await optionalAdminRoleCheck(adminClient, user.id);
 
-    const offerId = safeText(req.body?.offerId);
+    const offerId = safeText(req.body?.offerId || req.body?.offer_id);
 
     if (!offerId) {
       return res.status(400).json({
@@ -309,7 +249,7 @@ export default async function handler(
       });
     }
 
-    const priceTotal = Number(offer.price_total || 0);
+    const priceTotal = Number(offer.price_total || offer.total_amount || offer.total_price || 0);
 
     if (!Number.isFinite(priceTotal) || priceTotal <= 0) {
       return res.status(400).json({
@@ -318,60 +258,41 @@ export default async function handler(
       });
     }
 
-    const resendKey = getRequiredEnv("RESEND_API_KEY");
-
-    const from =
-      process.env.OFFER_MAIL_FROM ||
-      process.env.MAIL_FROM ||
-      process.env.EMAIL_FROM ||
-      "Helsingbuss <info@helsingbuss.se>";
-
-    const replyTo =
-      process.env.OFFER_REPLY_TO ||
-      process.env.EMAIL_REPLY_TO ||
-      process.env.MAIL_REPLY_TO ||
-      "info@helsingbuss.se";
-
-    const forceTo = safeText(process.env.MAIL_FORCE_TO);
-    const sentTo = forceTo || customerEmail;
     const reference = getOfferReference(offer);
+    const customerOfferLink = buildCustomerOfferLink(offer, reference);
 
-    const resendResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${resendKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: [sentTo],
-        reply_to: replyTo,
-        subject: `Prisförslag från Helsingbuss ${reference}`,
-        html: buildProposalHtml(offer),
-        text: buildProposalText(offer),
-      }),
+    const notesParts = [
+      safeText(offer.price_note),
+      safeText(offer.notes),
+      getCustomerPhone(offer) ? `Telefon: ${getCustomerPhone(offer)}` : "",
+    ].filter(Boolean);
+
+    await sendOfferMail({
+      offerId: String(offer.id),
+      offerNumber: reference,
+
+      customerEmail,
+      customerName: U(getCustomerName(offer)),
+
+      from: U(getDeparture(offer)),
+      to: U(getDestination(offer)),
+      date: U(getTravelDate(offer)),
+      time: U(getTravelTime(offer)),
+      via: U(offer.via),
+      stop: U(offer.stop),
+      passengers: getPassengers(offer),
+
+      return_from: U(offer.return_departure),
+      return_to: U(offer.return_destination),
+      return_date: U(offer.return_date),
+      return_time: U(offer.return_time),
+
+      notes: notesParts.length ? notesParts.join("\n") : undefined,
+
+      subject: `Offert ${reference} – prisförslag från Helsingbuss`,
+      link: customerOfferLink,
     });
 
-    const resendJson = await resendResponse.json();
-
-    if (!resendResponse.ok) {
-      await adminClient
-        .from("offers")
-        .update({
-          proposal_send_error: JSON.stringify(resendJson),
-          proposal_status: "send_error",
-          proposal_updated_at: new Date().toISOString(),
-        })
-        .eq("id", offerId);
-
-      return res.status(500).json({
-        ok: false,
-        error: "Resend kunde inte skicka prisförslaget.",
-        details: resendJson,
-      });
-    }
-
-    const emailId = String(resendJson?.id || "");
     const nextStatus = getProposalStatusAfterSend(offer);
 
     await adminClient
@@ -381,8 +302,7 @@ export default async function handler(
         proposal_status: "sent",
         proposal_sent_at: new Date().toISOString(),
         proposal_sent_by: user.id,
-        proposal_sent_to: sentTo,
-        proposal_email_id: emailId,
+        proposal_sent_to: customerEmail,
         proposal_send_error: null,
         proposal_updated_at: new Date().toISOString(),
       })
@@ -390,13 +310,13 @@ export default async function handler(
 
     return res.status(200).json({
       ok: true,
-      emailId,
+      emailId: "",
       offerId,
-      sentTo,
+      sentTo: customerEmail,
       reference,
     });
   } catch (error: any) {
-    console.error("Send offer proposal error:", error);
+    console.error("[admin/offers/send-proposal] error:", error);
 
     return res.status(500).json({
       ok: false,
