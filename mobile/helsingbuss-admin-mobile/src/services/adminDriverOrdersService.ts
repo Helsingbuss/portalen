@@ -226,3 +226,20 @@ export function getAdminDriverOrderStatusLabel(status: string) {
 
   return "Okänd";
 }
+
+
+export async function deleteAdminDriverOrder(orderId: string) {
+  const { data, error } = await supabase.rpc("admin_delete_driver_order", {
+    p_order_id: orderId,
+  });
+
+  if (error) throw new Error(error.message);
+
+  const raw = typeof data === "string" ? JSON.parse(data) : data;
+
+  if (!raw?.ok) {
+    throw new Error(raw?.error || "Kunde inte ta bort körordern.");
+  }
+
+  return raw;
+}

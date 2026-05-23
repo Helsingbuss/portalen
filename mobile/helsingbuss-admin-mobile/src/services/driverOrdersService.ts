@@ -122,3 +122,20 @@ export function isTodayDriverOrder(value: string) {
     today.getDate() === date.getDate()
   );
 }
+
+
+export async function hideMyDriverOrder(orderId: string) {
+  const { data, error } = await supabase.rpc("hide_my_driver_order", {
+    p_order_id: orderId,
+  });
+
+  if (error) throw new Error(error.message);
+
+  const raw = typeof data === "string" ? JSON.parse(data) : data;
+
+  if (!raw?.ok) {
+    throw new Error(raw?.error || "Kunde inte dölja körordern.");
+  }
+
+  return raw;
+}

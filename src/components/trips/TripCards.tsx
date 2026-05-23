@@ -1,4 +1,4 @@
-// src/components/trips/TripCard.tsx
+﻿// src/components/trips/TripCard.tsx
 import Image from "next/image";
 import Link from "next/link";
 import clsx from "clsx";
@@ -15,6 +15,9 @@ export type TripCardProps = {
   country?: string | null;
   year?: number | null; // för pillen "2025"
   price_from?: number | null;
+  departures?: {
+    departure_date?: string | null;
+  }[];
   next_date?: string | null; // valfritt, visas ej om du inte skickar
   href?: string; // länk (extern/slug från admin)
   departures_coming_soon?: boolean | null; // visar text istället för datum
@@ -30,6 +33,38 @@ function money(n?: number | null) {
 }
 
 /** Ett kort i samma stil som admin-preview */
+
+function formatTripDates(
+  departures?: {
+    departure_date?: string | null;
+  }[]
+) {
+  const dates = Array.from(
+    new Set(
+      (departures || [])
+        .map((d) => d?.departure_date)
+        .filter(Boolean)
+    )
+  );
+
+  if (dates.length === 0) {
+    return "Datum kommer";
+  }
+
+  const formatted = dates.slice(0, 3).map((date) =>
+    new Date(String(date)).toLocaleDateString("sv-SE", {
+      day: "numeric",
+      month: "short",
+    })
+  );
+
+  if (dates.length > 3) {
+    return `${formatted.join(" · ")} + ${dates.length - 3} datum`;
+  }
+
+  return formatted.join(" · ");
+}
+
 function TripCard({
   id,
   title,

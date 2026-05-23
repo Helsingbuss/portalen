@@ -37,6 +37,7 @@ import {
   getDriverStatusLabel,
   getMyDriverOrders,
   updateMyDriverOrderStatus,
+  hideMyDriverOrder,
   type DriverOrder,
   type DriverOrderStatus,
 } from "../../services/driverOrdersService";
@@ -145,6 +146,43 @@ export default function DriverOrderDetailScreen() {
         onPress: () => changeStatus("completed"),
       },
     ]);
+  }
+
+  function confirmHideOrder() {
+    if (!order) return;
+
+    Alert.alert(
+      "Dölj körorder",
+      "Vill du dölja denna körorder från dina körningar? Admin kan fortfarande se historiken.",
+      [
+        { text: "Avbryt", style: "cancel" },
+        {
+          text: "Dölj",
+          style: "destructive",
+          onPress: hideOrder,
+        },
+      ]
+    );
+  }
+
+  async function hideOrder() {
+    if (!order) return;
+
+    try {
+      setIsUpdating(true);
+      await hideMyDriverOrder(order.id);
+
+      Alert.alert("Körorder dold", "Körordern har tagits bort från din lista.", [
+        {
+          text: "OK",
+          onPress: () => router.replace("/driver/trips" as any),
+        },
+      ]);
+    } catch (error: any) {
+      Alert.alert("Kunde inte dölja körorder", error?.message || "Försök igen.");
+    } finally {
+      setIsUpdating(false);
+    }
   }
 
   function callContact() {
@@ -331,6 +369,14 @@ export default function DriverOrderDetailScreen() {
             </Pressable>
           )}
         </View>
+
+        <Pressable
+          style={[styles.hideOrderButton, isUpdating && styles.disabled]}
+          onPress={confirmHideOrder}
+          disabled={isUpdating}
+        >
+          <Text style={styles.hideOrderButtonText}>Dölj från mina körningar</Text>
+        </Pressable>
       </ScrollView>
     </View>
   );
@@ -694,6 +740,22 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   primaryButtonText: { color: colors.white, fontSize: 14, fontWeight: "900" },
+
+  hideOrderButton: {
+    backgroundColor: "#FFF1F0",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#FFDAD6",
+    minHeight: 52,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 14,
+  },
+  hideOrderButtonText: {
+    color: "#B42318",
+    fontSize: 14,
+    fontWeight: "900",
+  },
 
   disabled: { opacity: 0.65 },
 

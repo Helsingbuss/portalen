@@ -1,4 +1,4 @@
-// src/components/trips/TripsList.tsx
+﻿// src/components/trips/TripsList.tsx
 import { useEffect, useState } from "react";
 import { TripGrid, TripCardProps } from "./TripGrid";
 
@@ -53,6 +53,7 @@ export default function TripsList({ limit = 24 }: TripsListProps) {
             country: t.country || null,
             year: t.year ?? null,
             price_from: t.price_from ?? null,
+            departures: t.departures ?? [],
             next_date: nextDateText,
             href: t.external_url || (t.slug ? `/resor/${t.slug}` : undefined),
 

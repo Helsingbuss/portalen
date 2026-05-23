@@ -18,11 +18,12 @@ import {
   ClipboardList,
   Plus,
   RefreshCw,
-  UsersRound,
+  Trash2,
 } from "lucide-react-native";
 
 import { colors } from "../../theme/colors";
 import {
+  deleteAdminDriverOrder,
   getAdminDriverOrderStatusLabel,
   getAdminDriverOrders,
   type AdminDriverOrder,
@@ -32,6 +33,7 @@ export default function AdminDriverOrdersScreen() {
   const [orders, setOrders] = useState<AdminDriverOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadOrders = useCallback(async (refreshing = false) => {
     try {
@@ -59,6 +61,33 @@ export default function AdminDriverOrdersScreen() {
       confirmed: orders.filter((item) => item.status === "confirmed").length,
     };
   }, [orders]);
+
+  function confirmDelete(order: AdminDriverOrder) {
+    Alert.alert(
+      "Ta bort körorder",
+      "Vill du ta bort/arkivera denna körorder? Den försvinner då från både admin och föraren.",
+      [
+        { text: "Avbryt", style: "cancel" },
+        {
+          text: "Ta bort",
+          style: "destructive",
+          onPress: () => deleteOrder(order.id),
+        },
+      ]
+    );
+  }
+
+  async function deleteOrder(orderId: string) {
+    try {
+      setDeletingId(orderId);
+      await deleteAdminDriverOrder(orderId);
+      await loadOrders(true);
+    } catch (error: any) {
+      Alert.alert("Kunde inte ta bort körorder", error?.message || "Försök igen.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <View style={styles.screen}>
@@ -90,7 +119,7 @@ export default function AdminDriverOrdersScreen() {
           <Text style={styles.heroKicker}>ADMIN</Text>
           <Text style={styles.heroTitle}>Körorder till förare</Text>
           <Text style={styles.heroText}>
-            Skapa och följ upp vanliga körorder inom beställningstrafik.
+            Skapa, följ upp och ta bort körorder som inte längre ska synas.
           </Text>
         </View>
 
@@ -118,9 +147,9 @@ export default function AdminDriverOrdersScreen() {
         {!isLoading && orders.length === 0 ? (
           <View style={styles.emptyCard}>
             <BusFront size={30} color={colors.primary} />
-            <Text style={styles.emptyTitle}>Inga körorder ännu</Text>
+            <Text style={styles.emptyTitle}>Inga körorder</Text>
             <Text style={styles.emptyText}>
-              Skapa en körorder så skickas den till vald förare som förfrågan.
+              När du skapar körorder till förare visas de här.
             </Text>
           </View>
         ) : null}
@@ -133,7 +162,7 @@ export default function AdminDriverOrdersScreen() {
               </View>
 
               <View style={{ flex: 1 }}>
-                <Text style={styles.orderTitle}>{order.title}</Text>
+                <Text style={styles.orderTitle}>{order.title || "Körorder"}</Text>
                 <Text style={styles.orderText}>Förare: {order.driverEmail || "-"}</Text>
               </View>
 
@@ -144,6 +173,19 @@ export default function AdminDriverOrdersScreen() {
             <InfoRow label="Kund" value={order.customerName || "-"} />
             <InfoRow label="Rutt" value={`${order.pickupPlace || "-"} → ${order.destination || "-"}`} />
             <InfoRow label="Status" value={getAdminDriverOrderStatusLabel(order.status)} />
+
+            <Pressable
+              style={[styles.deleteButton, deletingId === order.id && styles.disabled]}
+              onPress={() => confirmDelete(order)}
+              disabled={deletingId === order.id}
+            >
+              {deletingId === order.id ? (
+                <ActivityIndicator color="#B42318" />
+              ) : (
+                <Trash2 size={18} color="#B42318" strokeWidth={2.5} />
+              )}
+              <Text style={styles.deleteButtonText}>Ta bort / arkivera</Text>
+            </Pressable>
           </View>
         ))}
       </ScrollView>
@@ -266,4 +308,18 @@ const styles = StyleSheet.create({
   },
   infoLabel: { color: colors.textMuted, fontSize: 11, fontWeight: "900" },
   infoValue: { color: colors.text, fontSize: 12.5, fontWeight: "800", marginTop: 2 },
+
+  deleteButton: {
+    backgroundColor: "#FFF1F0",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FFDAD6",
+    minHeight: 46,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    marginTop: 12,
+  },
+  deleteButtonText: { color: "#B42318", fontSize: 13, fontWeight: "900", marginLeft: 7 },
+  disabled: { opacity: 0.65 },
 });
