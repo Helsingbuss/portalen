@@ -26,7 +26,7 @@ type Breakdown = {
 };
 
 function money(n?: number | null) {
-  if (n == null) return "Ã¢â‚¬â€";
+  if (n == null) return "—";
   const rounded = Math.round(Number(n));
   return new Intl.NumberFormat("sv-SE", {
     style: "currency",
@@ -35,7 +35,7 @@ function money(n?: number | null) {
   }).format(rounded);
 }
 
-function v(x: any, fallback = "Ã¢â‚¬â€") {
+function v(x: any, fallback = "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â") {
   if (x === null || x === undefined || x === "") return fallback;
   return String(x);
 }
@@ -67,7 +67,7 @@ export default function OfferBesvarad({ offer }: any) {
     ...(roundTrip
       ? [
           {
-            title: "Ã…terresa",
+            title: "Ãƒâ€¦terresa",
             date: offer?.return_date,
             time: offer?.return_time,
             from: offer?.destination,
@@ -107,7 +107,7 @@ export default function OfferBesvarad({ offer }: any) {
     }
 
     if (parts.length > 0) {
-      return `Priset är inklusive ${parts.join(" och ")}.`;
+      return `Priset Ã¤r inklusive ${parts.join(" och ")}.`;
     }
 
     const priceNote = String(offer?.price_note || "");
@@ -379,15 +379,15 @@ export default function OfferBesvarad({ offer }: any) {
                       </div>
 
                       <h1 className="mt-4 text-3xl lg:text-[34px] leading-tight font-semibold tracking-tight text-[#0f172a]">
-                        Er offert är klar
+                        Er offert Ã¤r klar
                       </h1>
 
                       <p className="mt-2 text-sm text-slate-600">
                         Offert{" "}
                         <span className="font-semibold text-[#194C66]">
-                          {offer?.offer_number || "Ã¢â‚¬â€"}
+                          {offer?.offer_number || "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}
                         </span>{" "}
-                        är besvarad och redo att godkÃ¤nnas.
+                        Ã¤r besvarad och redo att godkÃ¤nnas.
                       </p>
                     </div>
 
@@ -409,15 +409,15 @@ export default function OfferBesvarad({ offer }: any) {
                     <p>
                       Hej!
                       <br />
-                      Er offert är nu klar och sammanstÃ¤ller en tydlig plan fÃ¶r
+                      Er offert Ã¤r nu klar och sammanstÃ¤ller en tydlig plan fÃ¶r
                       resan. Nedan ser ni rutt, tider, pris och villkor.
                       Kontrollera uppgifterna innan ni godkÃ¤nner.
                     </p>
 
                     <p className="mt-3">
-                      Ã–nskar ni justera antal resenärer, hÃ¥llplatser, bagage,
+                      Ãƒâ€“nskar ni justera antal resenÃ¤rer, hÃ¥llplatser, bagage,
                       barnstol/tillgÃ¤nglighet eller service ombord? Klicka pÃ¥{" "}
-                      <strong>Ändra din offert</strong> sÃ¥ Ã¥terkommer vi med en
+                      <strong>Ã„ndra din offert</strong> sÃ¥ Ã¥terkommer vi med en
                       uppdaterad offert.
                     </p>
                   </div>
@@ -431,7 +431,7 @@ export default function OfferBesvarad({ offer }: any) {
                       Resedetaljer
                     </h2>
                     <p className="text-sm text-slate-500">
-                      Kontrollera datum, tider, platser och antal resenärer.
+                      Kontrollera datum, tider, platser och antal resenÃ¤rer.
                     </p>
                   </div>
 
@@ -446,10 +446,10 @@ export default function OfferBesvarad({ offer }: any) {
                       key={idx}
                       title={
                         withinSweden
-                          ? `Bussresa inom Sverige Ã¢â‚¬Â¢ ${trip.title}`
-                          : `Bussresa utomlands Ã¢â‚¬Â¢ ${trip.title}`
+                          ? `Bussresa inom Sverige ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${trip.title}`
+                          : `Bussresa utomlands ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${trip.title}`
                       }
-                      subtitle="AvstÃ¥nd och tider baseras preliminärt"
+                      subtitle="AvstÃ¥nd och tider baseras preliminÃ¤rt"
                       date={trip.date}
                       time={trip.time}
                       from={trip.from}
@@ -492,14 +492,14 @@ export default function OfferBesvarad({ offer }: any) {
                 >
                   <p>
                     Genom att godkÃ¤nna offerten bekrÃ¤ftar ni att ni har tagit
-                    del av vÃ¥ra resevillkor. Datum och tider är i mÃ¥n av
-                    tillgÃ¤nglighet tills bokningen är skriftligt bekrÃ¤ftad.
+                    del av vÃ¥ra resevillkor. Datum och tider Ã¤r i mÃ¥n av
+                    tillgÃ¤nglighet tills bokningen Ã¤r skriftligt bekrÃ¤ftad.
                   </p>
 
                   <p className="mt-3">
                     Vill ni boka eller har frÃ¥gor/Ã¤ndringar? Kontakta oss sÃ¥
-                    hjÃ¤lper vi gärna. VÃ¥ra Ã¶ppettider är vardagar kl.
-                    08:00â€“17:00. För akuta ärenden eller bokningar med kortare
+                    hjÃ¤lper vi gÃ¤rna. VÃ¥ra Ã¶ppettider Ã¤r vardagar kl.
+                    08:00â€“17:00. FÃ¶r akuta Ã¤renden eller bokningar med kortare
                     varsel Ã¤n tvÃ¥ arbetsdagar, ring vÃ¥rt journummer:{" "}
                     <strong>010â€“777 21 58</strong>.
                   </p>
@@ -544,7 +544,7 @@ export default function OfferBesvarad({ offer }: any) {
                   {offer?.contact_person ?? "Kund"}
                 </h2>
                 <p className="mt-1 text-sm text-white/70">
-                  Här ser ni pris, betalningsvillkor och kan svara pÃ¥ offerten.
+                  HÃ¤r ser ni pris, betalningsvillkor och kan svara pÃ¥ offerten.
                 </p>
               </div>
 
@@ -555,19 +555,19 @@ export default function OfferBesvarad({ offer }: any) {
 
                 <dl className="mt-4 grid grid-cols-[auto,1fr] gap-x-6 gap-y-1 text-[14px] text-[#0f172a] leading-tight">
                   <DT>Offertdatum:</DT>
-                  <DD>{v(offer?.offer_date, "Ã¢â‚¬â€")}</DD>
+                  <DD>{v(offer?.offer_date, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
                   <DT>Er referens:</DT>
-                  <DD>{v(offer?.customer_reference, "Ã¢â‚¬â€")}</DD>
+                  <DD>{v(offer?.customer_reference, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
                   <DT>VÃ¥r referens:</DT>
-                  <DD>{v(offer?.internal_reference, "Ã¢â‚¬â€")}</DD>
+                  <DD>{v(offer?.internal_reference, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
                   <DT>Namn:</DT>
-                  <DD>{v(offer?.contact_person, "Ã¢â‚¬â€")}</DD>
+                  <DD>{v(offer?.contact_person, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
                   <DT>Adress:</DT>
-                  <DD>{v(offer?.customer_address, "Ã¢â‚¬â€")}</DD>
+                  <DD>{v(offer?.customer_address, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
                   <DT>Telefon:</DT>
-                  <DD>{v(offer?.contact_phone, "Ã¢â‚¬â€")}</DD>
+                  <DD>{v(offer?.contact_phone, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
                   <DT>E-post:</DT>
-                  <DD>{v(email, "Ã¢â‚¬â€")}</DD>
+                  <DD>{v(email, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
                 </dl>
 
                 <div className="mt-6 rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-4">
@@ -579,7 +579,7 @@ export default function OfferBesvarad({ offer }: any) {
                   </div>
 
                   <div className="mt-3 text-sm text-[#0f172a]/70">
-                    Totala kostnaden fÃ¶r denna offert är:
+                    Totala kostnaden fÃ¶r denna offert Ã¤r:
                   </div>
 
                   <div className="mt-1 text-3xl font-semibold text-[#0f172a]">
@@ -588,7 +588,7 @@ export default function OfferBesvarad({ offer }: any) {
 
                   {includedFeesText && (
                     <div className="mt-3 rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2 text-[13px] text-emerald-700">
-                      Ã¢Å“â€ {includedFeesText}
+                      ÃƒÂ¢Ã…â€œÃ¢â‚¬Â {includedFeesText}
                     </div>
                   )}
                 </div>
@@ -598,8 +598,8 @@ export default function OfferBesvarad({ offer }: any) {
                     Betalningsvillkor
                   </div>
                   <p className="text-[13px] text-[#0f172a]/80 leading-relaxed">
-                    10 dagar netto om det är företag/förening, faktura kommer
-                    efter uppdrag. För privatperson ska fakturan vara betald
+                    10 dagar netto om det Ã¤r fÃ¶retag/fÃ¶rening, faktura kommer
+                    efter uppdrag. FÃ¶r privatperson ska fakturan vara betald
                     minst 3 dagar innan uppdraget.
                   </p>
                 </div>
@@ -612,7 +612,7 @@ export default function OfferBesvarad({ offer }: any) {
                     disabled={busy !== null}
                     className="w-full px-5 py-3 rounded-xl bg-[#194C66] text-white font-semibold hover:bg-[#163b4d] disabled:opacity-60"
                   >
-                    {busy === "accept" ? "Accepterar…" : "Acceptera offert"}
+                    {busy === "accept" ? "Accepterarâ€¦" : "Acceptera offert"}
                   </button>
 
                   <button
@@ -620,7 +620,7 @@ export default function OfferBesvarad({ offer }: any) {
                     disabled={busy !== null}
                     className="w-full px-5 py-3 rounded-xl border border-[#e2e8f0] text-[#0f172a] bg-white hover:bg-[#f8fafc] disabled:opacity-60"
                   >
-                    {busy === "change" ? "Skickar…" : "Ändra din offert"}
+                    {busy === "change" ? "Skickarâ€¦" : "Ã„ndra din offert"}
                   </button>
 
                   <button
@@ -628,7 +628,7 @@ export default function OfferBesvarad({ offer }: any) {
                     disabled={busy !== null}
                     className="w-full px-5 py-3 rounded-xl border border-red-100 text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-60"
                   >
-                    {busy === "decline" ? "Avböjer…" : "Avböj offert"}
+                    {busy === "decline" ? "AvbÃ¶jerâ€¦" : "AvbÃ¶j offert"}
                   </button>
                 </div>
               </div>
@@ -642,7 +642,7 @@ export default function OfferBesvarad({ offer }: any) {
 
 function AnsweredLeftPanel() {
   const steps = [
-    "FörfrÃ¥gan mottagen",
+    "FÃ¶rfrÃ¥gan mottagen",
     "Offert framtagen",
     "Ni vÃ¤ljer svar",
     "Bokning bekrÃ¤ftas",
@@ -661,7 +661,7 @@ function AnsweredLeftPanel() {
         <div className="text-xs uppercase tracking-[0.18em] text-white/60">
           Helsingbuss
         </div>
-        <h2 className="mt-2 text-xl font-semibold">Offerten är klar</h2>
+        <h2 className="mt-2 text-xl font-semibold">Offerten Ã¤r klar</h2>
         <p className="mt-2 text-sm leading-relaxed text-white/75">
           Kontrollera uppgifterna och vÃ¤lj om ni vill godkÃ¤nna, Ã¤ndra eller
           avbÃ¶ja offerten.
@@ -703,13 +703,13 @@ function AnsweredLeftPanel() {
 
         <div className="mt-6 rounded-2xl bg-[#f8fafc] border border-[#e2e8f0] p-4">
           <div className="text-sm font-semibold text-[#0f172a]">
-            DärfÃ¶r vÃ¤ljer kunder oss
+            DÃ¤rfÃ¶r vÃ¤ljer kunder oss
           </div>
 
           <div className="mt-3 space-y-2">
             {benefits.map((item) => (
               <div key={item} className="flex gap-2 text-sm text-slate-600">
-                <span className="text-[#194C66]">Ã¢Å“â€œ</span>
+                <span className="text-[#194C66]">ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“</span>
                 <span>{item}</span>
               </div>
             ))}
@@ -721,7 +721,7 @@ function AnsweredLeftPanel() {
         <div className="rounded-2xl bg-[#eef5f9] px-4 py-4 text-sm text-[#194C66]">
           <div className="font-semibold">BehÃ¶ver ni hjÃ¤lp?</div>
           <p className="mt-1 leading-relaxed">
-            VÃ¤lj Ã¢â‚¬Å“Ändra din offertÃ¢â‚¬Â om nÃ¥got behÃ¶ver justeras innan ni
+            VÃ¤lj ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃ„ndra din offertÃƒÂ¢Ã¢â€šÂ¬Ã‚Â om nÃ¥got behÃ¶ver justeras innan ni
             godkÃ¤nner.
           </p>
         </div>
