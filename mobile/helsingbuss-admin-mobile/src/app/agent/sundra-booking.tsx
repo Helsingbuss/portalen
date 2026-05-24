@@ -178,6 +178,9 @@ export default function AgentSundraBookingScreen() {
     try {
       setIsSaving(true);
 
+      const cleanCustomerEmail = customerEmail.trim();
+      const cleanCustomerPhone = customerPhone.trim();
+
       const bookingResult = await createAgentRealSundraBooking({
         tripId: selectedTrip.id,
         departureId: selectedDeparture.id,
@@ -187,8 +190,8 @@ export default function AgentSundraBookingScreen() {
         travelDate: selectedDeparture.departureDate,
         travelTime: selectedPickup.time || selectedDeparture.departureTime,
         customerName,
-        customerEmail,
-        customerPhone,
+        customerEmail: cleanCustomerEmail,
+        customerPhone: cleanCustomerPhone,
         seatNumbers: selectedSeats,
         passengers: passengerNumber,
         pricePerPerson: Number(selectedDeparture.price || 0),
@@ -204,7 +207,6 @@ export default function AgentSundraBookingScreen() {
         `Datum: ${selectedDeparture.departureDate}\n` +
         `Resenärer: ${passengerNumber}\n` +
         `Belopp: ${formatSundraMoney(totalPrice)}`;
-
       const paymentResult = await createAndSendPaymentLink({
         title: paymentTitle,
         productTitle: paymentTitle,
@@ -215,8 +217,8 @@ export default function AgentSundraBookingScreen() {
         totalAmount: totalPrice,
         currency: "SEK",
         message: paymentMessage,
-        sendEmail: Boolean(customerEmail),
-        sendSms: Boolean(customerPhone),
+        sendEmail: cleanCustomerEmail.length > 0,
+        sendSms: cleanCustomerPhone.length > 0,
         sourceType: "agent_sundra_booking",
         sourceId: bookingResult.bookingId,
         businessUnit: "sundra",
@@ -224,7 +226,7 @@ export default function AgentSundraBookingScreen() {
 
       Alert.alert(
         "Sundra bokad",
-        `Bokningen är skapad och betalningslänk är framtagen.\n\nTotalpris: ${formatSundraMoney(totalPrice)}`,
+        cleanCustomerEmail.length > 0 ? `Bokningen är skapad och betalningslänk är framtagen.\n\nMail ska skickas till: ${cleanCustomerEmail}\n\nTotalpris: ${formatSundraMoney(totalPrice)}` : `Bokningen är skapad och betalningslänk är framtagen.\n\nOBS: Ingen e-post angavs, därför skickades inget mail.\n\nTotalpris: ${formatSundraMoney(totalPrice)}`,
         [
           {
             text: "Öppna betalning",
