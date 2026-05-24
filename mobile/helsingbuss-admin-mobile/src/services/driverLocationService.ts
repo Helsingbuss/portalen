@@ -39,7 +39,7 @@ export async function sendDriverLiveLocation(payload: DriverLocationPayload) {
   });
 
   if (error) {
-    console.log("Send driver live location error:", error);
+
     throw new Error(error.message);
   }
 
@@ -53,7 +53,7 @@ export async function stopDriverLiveLocation(sourceKind: string, sourceId: strin
   });
 
   if (error) {
-    console.log("Stop driver live location error:", error);
+
     throw new Error(error.message);
   }
 
