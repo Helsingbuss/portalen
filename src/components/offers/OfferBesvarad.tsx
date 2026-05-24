@@ -347,7 +347,7 @@ export default function OfferBesvarad({ offer }: any) {
   }
 
   return (
-    <div className="bg-[#eef2f4] overflow-hidden">
+    <div className="min-h-screen bg-[#eef2f4] overflow-x-hidden lg:overflow-hidden">
       <div style={{ height: TOPBAR_PX }}>
         <OfferTopBar
           offerNumber={offer?.offer_number ?? "HB25XXXX"}
@@ -358,16 +358,16 @@ export default function OfferBesvarad({ offer }: any) {
       </div>
 
       <div
-        className="overflow-hidden"
+        className="lg:overflow-hidden"
         style={{ height: `calc(100vh - ${TOPBAR_PX}px)` }}
       >
-        <div className="grid h-full grid-cols-1 lg:grid-cols-[420px_minmax(0,1fr)_550px] gap-0 overflow-hidden">
-          <div className="h-full p-4 lg:p-6 pb-10">
+        <div className="grid grid-cols-1 lg:h-full lg:grid-cols-[420px_minmax(0,1fr)_550px] gap-4 lg:gap-0 overflow-visible lg:overflow-hidden">
+          <div className="order-3 lg:order-1 lg:h-full p-4 lg:p-6 pb-10">
             <AnsweredLeftPanel />
           </div>
 
-          <main className="h-full pl-4 lg:pl-6 pr-2 lg:pr-3 py-4 lg:py-6 overflow-hidden">
-            <div className="h-full overflow-hidden rounded-3xl bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)] border border-white/70 flex flex-col">
+          <main className="order-1 lg:order-2 lg:h-full px-4 lg:pl-6 lg:pr-3 py-4 lg:py-6 overflow-visible lg:overflow-hidden">
+            <div className="lg:h-full overflow-visible lg:overflow-hidden rounded-3xl bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)] border border-white/70 flex flex-col">
               <div className="relative px-6 lg:px-8 pt-7 pb-6 overflow-hidden">
                 <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-br from-[#194C66]/10 via-[#edf6f8] to-white pointer-events-none" />
 
@@ -378,7 +378,7 @@ export default function OfferBesvarad({ offer }: any) {
                         Offert klar
                       </div>
 
-                      <h1 className="mt-4 text-3xl lg:text-[34px] leading-tight font-semibold tracking-tight text-[#0f172a]">
+                      <h1 className="mt-4 text-2xl sm:text-3xl lg:text-[34px] leading-tight font-semibold tracking-tight text-[#0f172a]">
                         Er offert är klar
                       </h1>
 
@@ -534,8 +534,8 @@ export default function OfferBesvarad({ offer }: any) {
             </div>
           </main>
 
-          <aside className="h-full p-4 lg:p-6">
-            <div className="h-full rounded-3xl bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)] border border-white/70 flex flex-col overflow-hidden">
+          <aside className="order-2 lg:order-3 lg:h-full p-4 lg:p-6">
+            <div className="lg:h-full rounded-3xl bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)] border border-white/70 flex flex-col overflow-hidden">
               <div className="bg-gradient-to-br from-[#194C66] to-[#0f3347] px-6 py-6 text-white">
                 <div className="text-xs uppercase tracking-[0.18em] text-white/60">
                   Offertöversikt
@@ -605,7 +605,7 @@ export default function OfferBesvarad({ offer }: any) {
                 </div>
               </div>
 
-              <div className="mt-auto px-6 pb-6 pt-5">
+              <div className="mt-4 lg:mt-auto px-6 pb-6 pt-5">
                 <div className="flex flex-col gap-3">
                   <button
                     onClick={onAcceptOffer}
