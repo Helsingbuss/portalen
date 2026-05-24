@@ -93,9 +93,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
 
-  const checkoutReference = reference
-    ? `${String(reference).replace(/\s/g, "-")}-${Date.now()}`
-    : makeReference();
+  const isSundraPaymentSource =
+    businessUnit === "sundra" ||
+    sourceType === "agent_sundra_booking" ||
+    sourceType === "sundra_booking" ||
+    sourceType === "trip_ticket";
+
+  let sundraBookingNumber = "";
+
+  if (isSundraPaymentSource && sourceId) {
+    const { data: sundraBookingForReference } = await supabaseAdmin
+      .from("sundra_bookings")
+      .select("booking_number")
+      .eq("id", sourceId)
+      .maybeSingle();
+
+    sundraBookingNumber = String(
+      sundraBookingForReference?.booking_number || ""
+    ).trim();
+  }
+
+  const cleanReference = String(
+    isSundraPaymentSource
+      ? sundraBookingNumber || reference || ""
+      : reference || ""
+  )
+    .trim()
+    .replace(/\s/g, "-");
+
+  const checkoutReference =
+    isSundraPaymentSource && cleanReference
+      ? cleanReference
+      : reference
+        ? `${String(reference).replace(/\s/g, "-")}-${Date.now()}`
+        : makeReference();
 
   const currency = getCurrency();
 
