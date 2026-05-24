@@ -121,7 +121,8 @@ export async function sendBookingAdminEmail({
 
   const adminEmail =
     process.env.TRAVELS_ADMIN_EMAIL ||
-    process.env.ADMIN_ALERT_EMAIL;
+    process.env.ADMIN_ALERT_EMAIL ||
+    "booking@sundra.se";
 
   if (!adminEmail) return;
 

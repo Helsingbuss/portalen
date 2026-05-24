@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { sendSundraBookingConfirmation } from "@/lib/email/sendSundraBookingConfirmation";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { sendShuttleBookingEmail } from "@/lib/shuttle/sendBookingEmail";
 
@@ -50,29 +51,83 @@ function isFailedStatus(status: string) {
 }
 
 async function handleSundraBooking(checkoutReference: string, checkout: any) {
-  const { data: booking, error: bookingError } = await supabaseAdmin
-    .from("sundra_bookings")
-    .select(`
-      *,
-      sundra_departures (
-        id,
-        booked_count
-      )
-    `)
-    .eq("booking_number", checkoutReference)
-    .maybeSingle();
-
-  if (bookingError) throw bookingError;
-  if (!booking) return null;
-
   const status = String(checkout?.status || "").toLowerCase();
 
+  let storeOrder: any = null;
+
+  const { data: storeOrderByReference } = await supabaseAdmin
+    .from("app_store_orders")
+    .select("*")
+    .eq("order_reference", checkoutReference)
+    .maybeSingle();
+
+  if (storeOrderByReference) {
+    storeOrder = storeOrderByReference;
+  } else {
+    const { data: storeOrderByCheckoutReference } = await supabaseAdmin
+      .from("app_store_orders")
+      .select("*")
+      .eq("sumup_checkout_reference", checkoutReference)
+      .maybeSingle();
+
+    storeOrder = storeOrderByCheckoutReference || null;
+  }
+
+  let booking: any = null;
+
+  const isAgentSundraOrder =
+    storeOrder &&
+    [
+      "agent_sundra_booking",
+      "sundra_booking",
+      "trip_ticket",
+    ].includes(String(storeOrder.source_type || ""));
+
+  if (isAgentSundraOrder && storeOrder.source_id) {
+    const { data, error } = await supabaseAdmin
+      .from("sundra_bookings")
+      .select("*")
+      .eq("id", storeOrder.source_id)
+      .maybeSingle();
+
+    if (error) throw error;
+    booking = data || null;
+  }
+
+  if (!booking) {
+    const { data, error } = await supabaseAdmin
+      .from("sundra_bookings")
+      .select("*")
+      .eq("booking_number", checkoutReference)
+      .maybeSingle();
+
+    if (error) throw error;
+    booking = data || null;
+  }
+
+  if (!booking) return null;
+
   if (!isPaidStatus(status)) {
+    if (storeOrder?.id) {
+      await supabaseAdmin
+        .from("app_store_orders")
+        .update({
+          status: status || "pending",
+          sumup_status: status || checkout?.status || "pending",
+          sumup_raw: checkout,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", storeOrder.id);
+    }
+
     return {
       ok: true,
       type: "sundra",
       ignored: true,
       status,
+      checkout_reference: checkoutReference,
+      booking_id: booking.id,
+      store_order_id: storeOrder?.id || null,
     };
   }
 
@@ -81,40 +136,144 @@ async function handleSundraBooking(checkoutReference: string, checkout: any) {
       ok: true,
       type: "sundra",
       already_paid: true,
+      booking_id: booking.id,
+      booking_number: booking.booking_number,
+      store_order_id: storeOrder?.id || null,
     };
   }
 
-  await supabaseAdmin
+  const paymentReference =
+    checkout?.id ||
+    checkout?.transaction_id ||
+    checkout?.payment_id ||
+    checkoutReference;
+
+  const { data: updatedBooking, error: updateError } = await supabaseAdmin
     .from("sundra_bookings")
     .update({
       payment_status: "paid",
       status: "confirmed",
+      payment_reference: paymentReference,
+      paid_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq("id", booking.id);
+    .eq("id", booking.id)
+    .select("*")
+    .single();
 
-  const departure: any = Array.isArray(booking.sundra_departures)
-    ? booking.sundra_departures[0]
-    : booking.sundra_departures;
+  if (updateError) throw updateError;
 
-  const currentBooked = Number(departure?.booked_count || 0);
+  if (storeOrder?.id) {
+    await supabaseAdmin
+      .from("app_store_orders")
+      .update({
+        status: "paid",
+        sumup_status: checkout?.status || "paid",
+        sumup_checkout_id: checkout?.id || storeOrder.sumup_checkout_id || null,
+        sumup_payment_url:
+          checkout?.hosted_checkout_url ||
+          checkout?.checkout_url ||
+          storeOrder.sumup_payment_url ||
+          null,
+        sumup_raw: checkout,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", storeOrder.id);
+  }
 
-  await supabaseAdmin
-    .from("sundra_departures")
-    .update({
-      booked_count: currentBooked + Number(booking.passengers_count || 0),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", booking.departure_id);
+  let ticketEmail: any = {
+    sent: false,
+    skipped: true,
+    error: null,
+  };
 
-  console.log(`Sundra booking ${booking.booking_number} markerad som betald.`);
+  if (updatedBooking?.customer_email) {
+    try {
+      const { data: trip } = updatedBooking.trip_id
+        ? await supabaseAdmin
+            .from("sundra_trips")
+            .select("*")
+            .eq("id", updatedBooking.trip_id)
+            .maybeSingle()
+        : { data: null };
+
+      const { data: departure } = updatedBooking.departure_id
+        ? await supabaseAdmin
+            .from("sundra_departures")
+            .select("*")
+            .eq("id", updatedBooking.departure_id)
+            .maybeSingle()
+        : { data: null };
+
+      const { data: passengers } = await supabaseAdmin
+        .from("sundra_passengers")
+        .select("*")
+        .eq("booking_id", updatedBooking.id)
+        .order("created_at", { ascending: true });
+
+      await sendSundraBookingConfirmation({
+        to: updatedBooking.customer_email,
+        booking: {
+          id: updatedBooking.id,
+          booking_number: updatedBooking.booking_number,
+          customer_name: updatedBooking.customer_name,
+          customer_email: updatedBooking.customer_email,
+          customer_phone: updatedBooking.customer_phone,
+          passengers_count:
+            updatedBooking.passengers_count ||
+            passengers?.length ||
+            0,
+          total_amount: updatedBooking.total_amount,
+          currency: updatedBooking.currency || "SEK",
+          payment_status: "paid",
+          ticket_hash: updatedBooking.ticket_hash || null,
+        },
+        trip: trip
+          ? {
+              title: trip.title,
+              destination: trip.destination,
+              image_url: trip.image_url,
+            }
+          : undefined,
+        departure: departure
+          ? {
+              departure_date: departure.departure_date,
+              departure_time: departure.departure_time,
+              return_time: departure.return_time,
+            }
+          : undefined,
+        passengers: passengers || [],
+      } as any);
+
+      ticketEmail = {
+        sent: true,
+        skipped: false,
+        to: updatedBooking.customer_email,
+      };
+    } catch (error: any) {
+      ticketEmail = {
+        sent: false,
+        skipped: false,
+        error: error?.message || "Kunde inte skicka biljettmail.",
+      };
+
+      console.error("[sumup webhook] Sundra biljettmail error:", error);
+    }
+  } else {
+    ticketEmail.reason = "missing_customer_email";
+  }
 
   return {
     ok: true,
     type: "sundra",
-    booking_number: booking.booking_number,
+    paid: true,
+    booking_id: updatedBooking.id,
+    booking_number: updatedBooking.booking_number,
+    store_order_id: storeOrder?.id || null,
+    ticket_email: ticketEmail,
   };
 }
+
 
 async function handleShuttleBooking(checkoutReference: string, checkout: any) {
   const { data: booking, error: bookingError } = await supabaseAdmin

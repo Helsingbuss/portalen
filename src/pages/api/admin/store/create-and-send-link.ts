@@ -1,5 +1,6 @@
 ﻿import type { NextApiRequest, NextApiResponse } from "next";
 import { requireAdminApi } from "@/lib/adminApi";
+import { sendBookingAdminEmail, sendBookingCustomerEmail } from "@/lib/sumup";
 
 function makeReference(prefix = "HB-PAY") {
   const random = Math.random().toString(36).slice(2, 7).toUpperCase();
@@ -23,6 +24,15 @@ function normalizeSwedishPhone(input: string) {
 
 function isTrue(value?: string) {
   return String(value || "").toLowerCase() === "true";
+}
+
+function shouldSend(value: any) {
+  return value === true || String(value || "").toLowerCase() === "true" || String(value || "") === "1";
+}
+
+function toPassengerCount(value: any, fallback = 1) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
 function getCurrency() {
@@ -64,6 +74,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     message,
     sourceType,
     sourceId,
+    sendEmail,
+    businessUnit,
+    productTitle,
+    passengersCount,
+    passengerNumber,
   } = req.body || {};
 
   const numberAmount = Number(amount);
@@ -354,6 +369,62 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
+  let emailResult: any = {
+    customerSent: false,
+    adminSent: false,
+    skipped: true,
+    error: null,
+  };
+
+  const isSundraPayment =
+    businessUnit === "sundra" ||
+    sourceType === "agent_sundra_booking" ||
+    sourceType === "sundra_booking" ||
+    sourceType === "trip_ticket";
+
+  if (isSundraPayment && shouldSend(sendEmail) && customerEmail) {
+    try {
+      const emailTripTitle = String(productTitle || title || "Sundra resa");
+      const passengerCount = toPassengerCount(passengersCount ?? passengerNumber, 1);
+
+      await sendBookingCustomerEmail({
+        bookingNumber: checkoutReference,
+        customerName: String(customerName || "Kund"),
+        customerEmail: String(customerEmail),
+        tripTitle: emailTripTitle,
+        totalAmount: numberAmount,
+        paymentUrl,
+      });
+
+      emailResult.customerSent = true;
+
+      await sendBookingAdminEmail({
+        bookingNumber: checkoutReference,
+        customerName: String(customerName || "Kund"),
+        customerEmail: String(customerEmail),
+        customerPhone: String(customerPhone || ""),
+        tripTitle: emailTripTitle,
+        passengersCount: passengerCount,
+        totalAmount: numberAmount,
+      });
+
+      emailResult.adminSent = true;
+      emailResult.skipped = false;
+    } catch (error: any) {
+      emailResult.skipped = false;
+      emailResult.error = error?.message || "Mail kunde inte skickas.";
+      console.error("[create-and-send-link] Sundra mail error:", error);
+    }
+  } else {
+    emailResult.reason = !isSundraPayment
+      ? "not_sundra_payment"
+      : !customerEmail
+        ? "missing_customer_email"
+        : !shouldSend(sendEmail)
+          ? "send_email_false"
+          : "unknown";
+  }
+
   res.status(200).json({
     ok: true,
     paymentUrl,
@@ -361,5 +432,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     reference: checkoutReference,
     sumupDryrun,
     sms: smsResult,
+    email: emailResult,
   });
 }
