@@ -45,6 +45,13 @@ export default function DriverLayout() {
       }}
     >
       <Tabs.Screen
+        name="notifications"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
         name="dashboard"
         options={{
           title: "Hem",

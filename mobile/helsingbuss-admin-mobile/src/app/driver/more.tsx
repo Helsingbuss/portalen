@@ -1,12 +1,5 @@
 ﻿import React from "react";
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import {
   BellRing,
@@ -39,6 +32,32 @@ export default function DriverMoreScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* DRIVER_NOTIFICATIONS_MORE_LINK_START */}
+        <Pressable
+          onPress={() => router.push("/driver/notifications" as any)}
+          style={{
+            backgroundColor: "white",
+            borderRadius: 20,
+            padding: 16,
+            marginBottom: 12,
+            borderWidth: 1,
+            borderColor: "#e2e8f0",
+          }}
+        >
+          <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: "800", color: "#0f172a" }}>
+                Notiser & meddelanden
+              </Text>
+              <Text style={{ marginTop: 5, fontSize: 13, lineHeight: 18, color: "#64748b" }}>
+                Se körförfrågningar, påminnelser och meddelanden från trafikledningen.
+              </Text>
+            </View>
+            <Text style={{ color: "#194C66", fontSize: 22, fontWeight: "800" }}>›</Text>
+          </View>
+        </Pressable>
+        {/* DRIVER_NOTIFICATIONS_MORE_LINK_END */}
+
         <View style={styles.heroCard}>
           <ShieldCheck size={38} color={colors.goldSoft} strokeWidth={2.4} />
           <Text style={styles.heroKicker}>FÖRARAPP</Text>
