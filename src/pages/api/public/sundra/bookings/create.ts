@@ -175,6 +175,219 @@ async function validateSelectedSeats({
   }
 }
 
+
+function activeSundraBooking(booking: any) {
+  const status = String(booking?.status || "").toLowerCase();
+  const paymentStatus = String(booking?.payment_status || "").toLowerCase();
+
+  const inactiveStatuses = new Set([
+    "cancelled",
+    "canceled",
+    "expired",
+    "failed",
+    "refunded",
+    "deleted",
+    "void",
+  ]);
+
+  return !inactiveStatuses.has(status) && !inactiveStatuses.has(paymentStatus);
+}
+
+function seatColumnOrder(value: any) {
+  const col = String(value || "").toUpperCase();
+  const order: Record<string, number> = {
+    A: 1,
+    B: 2,
+    C: 3,
+    D: 4,
+  };
+
+  return order[col] || 99;
+}
+
+function seatSort(a: any, b: any) {
+  const rowA = Number(a?.row_number || 0);
+  const rowB = Number(b?.row_number || 0);
+
+  if (rowA !== rowB) return rowA - rowB;
+
+  const colDiff = seatColumnOrder(a?.seat_column) - seatColumnOrder(b?.seat_column);
+  if (colDiff !== 0) return colDiff;
+
+  return String(a?.seat_number || "").localeCompare(String(b?.seat_number || ""));
+}
+
+function pickSeatsTogether(availableSeats: any[], count: number) {
+  const sorted = [...availableSeats].sort(seatSort);
+
+  if (count <= 0) return [];
+
+  const byRow = new Map<number, any[]>();
+
+  for (const seat of sorted) {
+    const row = Number(seat?.row_number || 0);
+    if (!byRow.has(row)) byRow.set(row, []);
+    byRow.get(row)!.push(seat);
+  }
+
+  const rows = Array.from(byRow.entries()).sort((a, b) => a[0] - b[0]);
+
+  for (const [, rowSeatsRaw] of rows) {
+    const rowSeats = [...rowSeatsRaw].sort(seatSort);
+
+    if (rowSeats.length >= count) {
+      for (let i = 0; i <= rowSeats.length - count; i++) {
+        const slice = rowSeats.slice(i, i + count);
+        return slice.map((s) => String(s.seat_number).toUpperCase());
+      }
+    }
+  }
+
+  const chosen: string[] = [];
+
+  for (const [, rowSeatsRaw] of rows) {
+    const rowSeats = [...rowSeatsRaw].sort(seatSort);
+
+    for (const seat of rowSeats) {
+      if (chosen.length >= count) break;
+      chosen.push(String(seat.seat_number).toUpperCase());
+    }
+
+    if (chosen.length >= count) break;
+  }
+
+  return chosen;
+}
+
+async function assignAutomaticSeats({
+  departureId,
+  passengers,
+}: {
+  departureId: string;
+  passengers: any[];
+}) {
+  const missingSeatIndexes = passengers
+    .map((passenger, index) => ({ passenger, index }))
+    .filter(({ passenger }) => !passenger?.seat_number)
+    .map(({ index }) => index);
+
+  if (missingSeatIndexes.length === 0) {
+    return passengers;
+  }
+
+  const alreadySelected = new Set(
+    passengers
+      .map((p) => p?.seat_number)
+      .filter(Boolean)
+      .map((seat) => String(seat).toUpperCase())
+  );
+
+  const { data: departure, error: departureError } = await supabaseAdmin
+    .from("sundra_departures")
+    .select(`
+      id,
+      bus_map_id,
+      sundra_bus_maps (
+        id,
+        name,
+        seats_count,
+        sundra_bus_map_seats (
+          id,
+          seat_number,
+          row_number,
+          seat_column,
+          seat_type,
+          seat_label,
+          seat_price,
+          is_active,
+          is_blocked,
+          is_selectable
+        )
+      )
+    `)
+    .eq("id", departureId)
+    .single();
+
+  if (departureError) throw departureError;
+
+  const busMap = Array.isArray(departure?.sundra_bus_maps)
+    ? departure.sundra_bus_maps[0]
+    : departure?.sundra_bus_maps;
+
+  const allSeats = busMap?.sundra_bus_map_seats || [];
+
+  if (!allSeats.length) {
+    return passengers;
+  }
+
+  const { data: occupiedPassengers, error: occupiedError } = await supabaseAdmin
+    .from("sundra_booking_passengers")
+    .select(`
+      id,
+      seat_number,
+      sundra_bookings (
+        id,
+        departure_id,
+        status,
+        payment_status
+      )
+    `)
+    .not("seat_number", "is", null);
+
+  if (occupiedError) throw occupiedError;
+
+  const occupiedSeats = new Set(
+    (occupiedPassengers || [])
+      .filter((p: any) => {
+        const booking = Array.isArray(p.sundra_bookings)
+          ? p.sundra_bookings[0]
+          : p.sundra_bookings;
+
+        return String(booking?.departure_id) === String(departureId) && activeSundraBooking(booking);
+      })
+      .map((p: any) => String(p.seat_number).toUpperCase())
+  );
+
+  const availableSeats = allSeats
+    .filter((seat: any) => {
+      const seatNumber = String(seat?.seat_number || "").toUpperCase();
+
+      if (!seatNumber) return false;
+      if (alreadySelected.has(seatNumber)) return false;
+      if (occupiedSeats.has(seatNumber)) return false;
+      if (seat.is_active === false) return false;
+      if (seat.is_blocked === true) return false;
+      if (seat.is_selectable === false) return false;
+
+      return true;
+    })
+    .sort(seatSort);
+
+  if (availableSeats.length < missingSeatIndexes.length) {
+    throw new Error(`Det finns bara ${availableSeats.length} lediga säten kvar på platskartan.`);
+  }
+
+  const pickedSeats = pickSeatsTogether(availableSeats, missingSeatIndexes.length);
+
+  if (pickedSeats.length < missingSeatIndexes.length) {
+    throw new Error("Kunde inte reservera säten automatiskt.");
+  }
+
+  return passengers.map((passenger, index) => {
+    const missingIndex = missingSeatIndexes.indexOf(index);
+
+    if (missingIndex === -1) {
+      return passenger;
+    }
+
+    return {
+      ...passenger,
+      seat_number: pickedSeats[missingIndex],
+      seat_price: 0,
+    };
+  });
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (req.method !== "POST") {
@@ -202,7 +415,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const passengersCount = Math.max(1, toNumber(body.passengers_count, 1));
     const bodyPassengers = Array.isArray(body.passengers) ? body.passengers : [];
-    const passengers = buildPassengers(
+    let passengers = buildPassengers(
       bodyPassengers,
       passengersCount,
       body.customer_name
@@ -259,6 +472,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         error: `Det finns bara ${Math.max(0, seatsLeft)} platser kvar.`,
       });
     }
+
+    passengers = await assignAutomaticSeats({
+      departureId: body.departure_id,
+      passengers,
+    });
 
     await validateSelectedSeats({
       departureId: body.departure_id,
