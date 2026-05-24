@@ -32,7 +32,46 @@ import {
   type DriverOrderPassenger,
 } from "../../services/driverPassengersService";
 
+
+function readParam(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value[0] || "";
+  return value || "";
+}
+
+function buildPassengerScannerUrl({
+  orderId,
+  departureId,
+  tripTitle,
+  orderNumber,
+  startTime,
+}: {
+  orderId?: string;
+  departureId?: string;
+  tripTitle?: string;
+  orderNumber?: string;
+  startTime?: string;
+}) {
+  const params = new URLSearchParams();
+
+  if (orderId) params.set("orderId", orderId);
+  if (departureId) params.set("departureId", departureId);
+  if (tripTitle) params.set("tripTitle", tripTitle);
+  if (orderNumber) params.set("orderNumber", orderNumber);
+  if (startTime) params.set("startTime", startTime);
+
+  const query = params.toString();
+
+  return query ? `/driver/scan?${query}` : "/driver/scan";
+}
+
 export default function DriverPassengersScreen() {
+  const scannerParams = useLocalSearchParams();
+
+  const departureId = readParam(scannerParams.departureId as any);
+  const tripTitle = readParam(scannerParams.tripTitle as any);
+  const orderNumber = readParam(scannerParams.orderNumber as any);
+  const startTime = readParam(scannerParams.startTime as any);
+
   const params = useLocalSearchParams<{ orderId?: string }>();
   const orderId = String(params.orderId || "");
 
@@ -146,7 +185,15 @@ export default function DriverPassengersScreen() {
 
         <Pressable
           style={styles.scanButton}
-          onPress={() => router.push(`/driver/scan?orderId=${orderId}` as any)}
+          onPress={() => router.push(
+            buildPassengerScannerUrl({
+              orderId: String(orderId || ""),
+              departureId,
+              tripTitle,
+              orderNumber,
+              startTime,
+            }) as any
+          )}
         >
           <QrCode size={21} color={colors.white} strokeWidth={2.5} />
           <Text style={styles.scanButtonText}>Öppna scanner</Text>

@@ -9,7 +9,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Audio } from "expo-av";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import {
   DriverScanResult,
   scanDriverTicket,
@@ -17,6 +17,11 @@ import {
 
 const successSound = require("../../../assets/sounds/scanner-success.wav");
 const errorSound = require("../../../assets/sounds/scanner-error.wav");
+
+function readParam(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value[0] || "";
+  return value || "";
+}
 
 function formatDateTime(value?: string | null) {
   if (!value) return "";
@@ -89,6 +94,13 @@ async function playFeedback(ok: boolean) {
 }
 
 export default function DriverScanScreen() {
+  const params = useLocalSearchParams();
+
+  const expectedDepartureId = readParam(params.departureId as any);
+  const scanTripTitle = readParam(params.tripTitle as any);
+  const scanOrderNumber = readParam(params.orderNumber as any);
+  const scanStartTime = readParam(params.startTime as any);
+
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
@@ -109,7 +121,7 @@ export default function DriverScanScreen() {
       setIsLocked(true);
 
       try {
-        const scanResult = await scanDriverTicket(qrData);
+        const scanResult = await scanDriverTicket(qrData, expectedDepartureId || null);
         setResult(scanResult);
         await playFeedback(scanResult.status === "approved");
       } catch (e: any) {
@@ -189,6 +201,45 @@ export default function DriverScanScreen() {
         <Text style={{ color: "rgba(255,255,255,0.7)", marginTop: 5, lineHeight: 20 }}>
           Rikta kameran mot QR-koden. Resultatet visas direkt med ljud och tydlig markering.
         </Text>
+
+        {expectedDepartureId ? (
+          <View
+            style={{
+              marginTop: 12,
+              borderRadius: 18,
+              backgroundColor: "rgba(255,255,255,0.10)",
+              padding: 12,
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.18)",
+            }}
+          >
+            <Text style={{ color: "white", fontWeight: "900", fontSize: 14 }}>
+              Scannern är kopplad till denna körning
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4, lineHeight: 18 }}>
+              {scanTripTitle || scanOrderNumber || "Aktuell körning"}
+              {scanStartTime ? ` • ${scanStartTime}` : ""}
+            </Text>
+          </View>
+        ) : (
+          <View
+            style={{
+              marginTop: 12,
+              borderRadius: 18,
+              backgroundColor: "rgba(251,191,36,0.14)",
+              padding: 12,
+              borderWidth: 1,
+              borderColor: "rgba(251,191,36,0.35)",
+            }}
+          >
+            <Text style={{ color: "#fde68a", fontWeight: "900", fontSize: 14 }}>
+              Fristående scanning
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.72)", marginTop: 4, lineHeight: 18 }}>
+              Öppna scannern från en körorder för att även kontrollera rätt avgång.
+            </Text>
+          </View>
+        )}
       </View>
 
       <View style={{ flex: 1, margin: 18, marginTop: 6, borderRadius: 28, overflow: "hidden", backgroundColor: "#111827" }}>

@@ -345,7 +345,7 @@ export default function DriverOrderDetailScreen() {
             <>
               <Pressable
                 style={styles.quickButton}
-                onPress={() => router.push(`/driver/passengers?orderId=${order.id}` as any)}
+                onPress={() => router.push(`/driver/passengers?orderId=${order.id}&departureId=${encodeURIComponent(readOrderValue(order, ["departure_id", "departureId", "sundra_departure_id", "shuttle_departure_id", "trip_departure_id", "departure_uuid"]))}&tripTitle=${encodeURIComponent(readOrderValue(order, ["trip_title", "tripTitle", "title", "route_name", "line_name", "customer_name", "customerName"]))}&orderNumber=${encodeURIComponent(readOrderValue(order, ["order_number", "orderNumber", "booking_number", "bookingNumber", "reference", "id"]))}&startTime=${encodeURIComponent(readOrderValue(order, ["start_time", "startTime", "departure_time", "departureTime", "pickup_time", "pickupTime", "time"]))}` as any)}
               >
                 <UsersRound size={21} color={colors.white} strokeWidth={2.5} />
                 <Text style={styles.quickButtonText}>Resenärer</Text>
@@ -353,7 +353,7 @@ export default function DriverOrderDetailScreen() {
 
               <Pressable
                 style={styles.quickButton}
-                onPress={() => router.push(`/driver/scan?orderId=${order.id}` as any)}
+                onPress={() => router.push(buildDriverScannerUrl(order) as any)}
               >
                 <QrCode size={21} color={colors.white} strokeWidth={2.5} />
                 <Text style={styles.quickButtonText}>Skanna</Text>
@@ -555,6 +555,72 @@ function StatusPill({ status }: { status: DriverOrderStatus }) {
       </Text>
     </View>
   );
+}
+
+
+function readOrderValue(order: any, keys: string[]) {
+  for (const key of keys) {
+    const value = order?.[key];
+
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return String(value).trim();
+    }
+  }
+
+  return "";
+}
+
+function buildDriverScannerUrl(order: any) {
+  const params = new URLSearchParams();
+
+  const orderId = readOrderValue(order, ["id", "order_id"]);
+  const departureId = readOrderValue(order, [
+    "departure_id",
+    "departureId",
+    "sundra_departure_id",
+    "shuttle_departure_id",
+    "trip_departure_id",
+    "departure_uuid",
+  ]);
+
+  const tripTitle = readOrderValue(order, [
+    "trip_title",
+    "tripTitle",
+    "title",
+    "route_name",
+    "line_name",
+    "customer_name",
+    "customerName",
+  ]);
+
+  const orderNumber = readOrderValue(order, [
+    "order_number",
+    "orderNumber",
+    "booking_number",
+    "bookingNumber",
+    "reference",
+    "id",
+  ]);
+
+  const startTime = readOrderValue(order, [
+    "start_time",
+    "startTime",
+    "departure_time",
+    "departureTime",
+    "pickup_time",
+    "pickupTime",
+    "time",
+  ]);
+
+  if (orderId) params.set("orderId", orderId);
+  if (departureId) params.set("departureId", departureId);
+  if (tripTitle) params.set("tripTitle", tripTitle);
+  if (orderNumber) params.set("orderNumber", orderNumber);
+  if (startTime) params.set("startTime", startTime);
+
+  const query = params.toString();
+
+  return query ? `/driver/scan?${query}` : "/driver/scan";
 }
 
 const styles = StyleSheet.create({
