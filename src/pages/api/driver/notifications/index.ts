@@ -1,5 +1,31 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createClient } from "@supabase/supabase-js";
+
+function getBearerToken(req: NextApiRequest) {
+  const header = String(req.headers.authorization || "");
+  return header.startsWith("Bearer ") ? header.slice(7) : "";
+}
+
+function createAuthedClient(req: NextApiRequest) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !anonKey) {
+    throw new Error("Supabase URL eller anon key saknas.");
+  }
+
+  const token = getBearerToken(req);
+
+  return createClient(url, anonKey, {
+    global: {
+      headers: token
+        ? {
+            Authorization: `Bearer ${token}`,
+          }
+        : {},
+    },
+  });
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
@@ -7,30 +33,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const driverEmail = String(req.query.driverEmail || "").trim().toLowerCase();
-    const driverUserId = String(req.query.driverUserId || "").trim();
-    const limit = Math.min(Number(req.query.limit || 50), 100);
+    const supabase = createAuthedClient(req);
 
-    if (!driverEmail && !driverUserId) {
-      return res.status(400).json({
+    const {
+      data: userData,
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !userData?.user?.email) {
+      return res.status(401).json({
         ok: false,
-        error: "driverEmail eller driverUserId saknas.",
+        error: "Du är inte inloggad.",
       });
     }
 
-    let query = supabaseAdmin
+    const userId = userData.user.id;
+    const email = String(userData.user.email || "").trim().toLowerCase();
+    const limit = Math.min(Number(req.query.limit || 50), 100);
+
+    const { data, error } = await supabase
       .from("driver_notifications")
       .select("*")
+      .or(`driver_user_id.eq.${userId},driver_email.eq.${email}`)
       .order("created_at", { ascending: false })
       .limit(limit);
-
-    if (driverUserId) {
-      query = query.eq("driver_user_id", driverUserId);
-    } else {
-      query = query.eq("driver_email", driverEmail);
-    }
-
-    const { data, error } = await query;
 
     if (error) throw error;
 
