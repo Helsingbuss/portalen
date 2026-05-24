@@ -39,10 +39,10 @@ export default function AdminUserFormScreen() {
   const [isSaving, setIsSaving] = useState(false);
 
   const roleDescription = useMemo(() => {
-    if (role === "admin") return "Admin kan hantera portal, anvÃ¤ndare, offerter, ekonomi och drift.";
+    if (role === "admin") return "Admin kan hantera portal, användare, offerter, ekonomi och drift.";
     if (role === "agent") return "Bokningsagent kan arbeta med kunder, offerter, bokningar och biljetter.";
-    if (role === "driver") return "FÃ¶rare fÃ¥r tillgÃ¥ng till fÃ¶rarvyn, kÃ¶rorder, passagerare och scanning.";
-    if (role === "partner") return "Partner fÃ¥r tillgÃ¥ng till partnerflÃ¶de och uppdrag.";
+    if (role === "driver") return "Förare får tillgång till förarvyn, körorder, passagerare och scanning.";
+    if (role === "partner") return "Partner får tillgång till partnerflöde och uppdrag.";
     return "";
   }, [role]);
 
@@ -67,8 +67,8 @@ export default function AdminUserFormScreen() {
       });
 
       Alert.alert(
-        "BehÃ¶righet tillagd",
-        `${getRoleLabel(role)} Ã¤r nu kopplad till ${cleanEmail}.`,
+        "Behörighet tillagd",
+        `${getRoleLabel(role)} är nu kopplad till ${cleanEmail}.`,
         [
           {
             text: "Till listan",
@@ -77,7 +77,7 @@ export default function AdminUserFormScreen() {
         ]
       );
     } catch (error: any) {
-      Alert.alert("Kunde inte lÃ¤gga till roll", error?.message || "FÃ¶rsÃ¶k igen.");
+      Alert.alert("Kunde inte lägga till roll", error?.message || "Försök igen.");
     } finally {
       setIsSaving(false);
     }
@@ -93,21 +93,21 @@ export default function AdminUserFormScreen() {
         <View style={styles.heroCard}>
           <UserPlus size={38} color={colors.goldSoft} strokeWidth={2.4} />
           <Text style={styles.heroKicker}>ADMIN</Text>
-          <Text style={styles.heroTitle}>LÃ¤gg till behÃ¶righet</Text>
+          <Text style={styles.heroTitle}>Lägg till behörighet</Text>
           <Text style={styles.heroText}>
-            Koppla en befintlig Supabase-anvÃ¤ndare till rÃ¤tt roll i appen.
+            Koppla en befintlig Supabase-användare till rätt roll i appen.
           </Text>
         </View>
 
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Viktigt</Text>
           <Text style={styles.infoText}>
-            AnvÃ¤ndaren mÃ¥ste redan finnas i Supabase Auth. Om personen Ã¤r ny behÃ¶ver du fÃ¶rst skapa eller bjuda in anvÃ¤ndaren dÃ¤r.
+            Användaren måste redan finnas i Supabase Auth. Om personen är ny behöver du först skapa eller bjuda in användaren där.
           </Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>VÃ¤lj roll</Text>
+          <Text style={styles.sectionTitle}>Välj roll</Text>
 
           <View style={styles.roleGrid}>
             <RoleButton role="admin" currentRole={role} onPress={() => setRole("admin")} />
@@ -120,7 +120,7 @@ export default function AdminUserFormScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>AnvÃ¤ndare</Text>
+          <Text style={styles.sectionTitle}>Användare</Text>
 
           <Field
             label="E-post"
@@ -134,7 +134,7 @@ export default function AdminUserFormScreen() {
             label="Namn"
             value={displayName}
             onChangeText={setDisplayName}
-            placeholder="Ex. Andreas EkelÃ¶f"
+            placeholder="Ex. Andreas Ekelöf"
           />
 
           <Field
@@ -149,7 +149,7 @@ export default function AdminUserFormScreen() {
           <TextInput
             value={notes}
             onChangeText={setNotes}
-            placeholder="Ex. Agent, fÃ¶rare helg, partnerkontakt..."
+            placeholder="Ex. Agent, förare helg, partnerkontakt..."
             placeholderTextColor={colors.textMuted}
             style={[styles.input, styles.textArea]}
             multiline
@@ -165,7 +165,7 @@ export default function AdminUserFormScreen() {
             ) : (
               <UserPlus size={20} color={colors.white} />
             )}
-            <Text style={styles.primaryButtonText}>Spara behÃ¶righet</Text>
+            <Text style={styles.primaryButtonText}>Spara behörighet</Text>
           </Pressable>
         </View>
       </ScrollView>

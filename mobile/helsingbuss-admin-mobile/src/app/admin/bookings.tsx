@@ -1,6 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, View, } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import {
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { router,  useLocalSearchParams  } from "expo-router";
 import BookingsHeader from "../../components/bookings/BookingsHeader";
 import BookingSearchFilters from "../../components/bookings/BookingSearchFilters";
 import BookingDaySection from "../../components/bookings/BookingDaySection";
@@ -60,8 +68,8 @@ function getDateLabel(date: string) {
     month: "long",
   }).format(parsed);
 
-  if (parsedKey === todayKey) return `Idag – ${weekday} ${dayMonth}`;
-  if (parsedKey === tomorrowKey) return `Imorgon – ${weekday} ${dayMonth}`;
+  if (parsedKey === todayKey) return `Idag - ${weekday} ${dayMonth}`;
+  if (parsedKey === tomorrowKey) return `Imorgon - ${weekday} ${dayMonth}`;
 
   return `${weekday} ${dayMonth}`;
 }
@@ -80,6 +88,54 @@ function groupBookings(items: AdminBookingFeedItem[]): BookingGroup[] {
     title,
     items: groupItems,
   }));
+}
+
+function isOfferLikeRow(row: any) {
+  const kind = String(
+    row?.kind ||
+      row?.sourceKind ||
+      row?.source_type ||
+      row?.sourceType ||
+      row?.type ||
+      row?.category ||
+      ""
+  ).toLowerCase();
+
+  const reference = String(
+    row?.reference ||
+      row?.offer_number ||
+      row?.offerNumber ||
+      row?.synergybus_id ||
+      ""
+  ).toLowerCase();
+
+  return (
+    kind === "offer" ||
+    kind === "offert" ||
+    kind.includes("offer") ||
+    kind.includes("offert") ||
+    reference.startsWith("hbtest-in") ||
+    reference.startsWith("hb")
+  );
+}
+
+function getOfferRowId(row: any) {
+  return String(row?.offerId || row?.offer_id || row?.id || row?.sourceId || "");
+}
+
+function openAdminBookingOrOffer(row: any) {
+  if (isOfferLikeRow(row)) {
+    router.push({
+      pathname: "/admin/offer-calculator",
+      params: { id: getOfferRowId(row) },
+    } as any);
+    return;
+  }
+
+  router.push({
+    pathname: "/admin/booking-detail",
+    params: { id: String(row?.id || "") },
+  } as any);
 }
 
 export default function BookingsScreen() {

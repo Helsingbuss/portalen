@@ -1,695 +1,627 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   ArrowLeft,
-  Bus,
   Calculator,
-  Check,
-  Copy,
+  CheckCircle2,
+  Clock3,
+  Gauge,
   Mail,
+  MapPin,
   Percent,
-  Route,
   Save,
-  WalletCards,
 } from "lucide-react-native";
 
 import { colors } from "../../theme/colors";
-import type { OfferCalculatorOffer } from "../../types/offerCalculator";
 import {
   formatOfferCalculatorMoney,
   getOfferCalculator,
   saveOfferCalculator,
 } from "../../services/offerCalculatorService";
 import { sendOfferProposalViaPortal } from "../../services/offerProposalService";
+import {
+  getHourPriceForMode,
+  getKmPriceForDistance,
+  getPortalBusPriceProfiles,
+  type PortalBusPriceProfile,
+} from "../../services/portalPriceRulesService";
 
-const priceLists = [
-  { label: "Beställningstrafik", value: "bestallning" },
-  { label: "Bröllop", value: "brollop" },
-  { label: "Förening", value: "forening" },
-];
+function toNumber(value: string) {
+  const clean = String(value || "")
+    .replace(/\s/g, "")
+    .replace(",", ".")
+    .replace(/[^\d.]/g, "");
 
-const busTypes = [
-  { label: "Sprinter upp till 19", value: "sprinter" },
-  { label: "Turistbuss upp till 39", value: "turistbuss" },
-  { label: "Helturistbuss upp till 63", value: "helturistbuss" },
-  { label: "Dubbeldäckare upp till 81", value: "dubbeldackare" },
-];
-
-const kmBands = [
-  { label: "0–25 km", value: "0-25" },
-  { label: "26–100 km", value: "26-100" },
-  { label: "101–250 km", value: "101-250" },
-  { label: "251+ km", value: "251+" },
-];
-
-const synergyRates = [
-  { label: "7%", value: 0.07 },
-  { label: "9%", value: 0.09 },
-  { label: "10%", value: 0.1 },
-  { label: "11%", value: 0.11 },
-];
-
-function numberFromText(value: string, fallback = 0) {
-  const parsed = Number(String(value || "").replace(/\s/g, "").replace(",", "."));
-  return Number.isFinite(parsed) ? parsed : fallback;
+  return Number(clean || 0);
 }
 
-function textFromNumber(value: any, fallback = "") {
-  if (value === null || value === undefined || value === "") return fallback;
-  return String(value);
+function toInput(value: any) {
+  const number = Number(value || 0);
+  if (!number || Number.isNaN(number)) return "";
+  return String(Math.round(number));
 }
 
-export default function OfferCalculatorScreen() {
-  const params = useLocalSearchParams<{ id?: string }>();
-
-  const [offer, setOffer] = useState<OfferCalculatorOffer | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isPreparingSend, setIsPreparingSend] = useState(false);
-
-  const [priceList, setPriceList] = useState("bestallning");
-  const [busType, setBusType] = useState("turistbuss");
-  const [kmBand, setKmBand] = useState("26-100");
-  const [busCount, setBusCount] = useState("1");
-
-  const [kmPrice, setKmPrice] = useState("15");
-  const [hourDayPrice, setHourDayPrice] = useState("480");
-  const [hourEveningPrice, setHourEveningPrice] = useState("535");
-  const [hourWeekendPrice, setHourWeekendPrice] = useState("610");
-  const [serviceFee, setServiceFee] = useState("2150");
-
-  const [includeServiceFee, setIncludeServiceFee] = useState(true);
-  const [serviceFeeMode, setServiceFeeMode] = useState<"once" | "perLeg">("once");
-
-  const [vatMode, setVatMode] = useState<"sweden" | "abroad">("sweden");
-  const [includeReturn, setIncludeReturn] = useState(false);
-
-  const [includeBridgeFee, setIncludeBridgeFee] = useState(false);
-  const [bridgeFee, setBridgeFee] = useState("2456");
-
-  const [includeFerryFee, setIncludeFerryFee] = useState(false);
-  const [ferryFee, setFerryFee] = useState("2397");
-
-  const [synergyEnabled, setSynergyEnabled] = useState(false);
-  const [synergyRate, setSynergyRate] = useState(0.07);
-
-  const [outKm, setOutKm] = useState("");
-  const [outDayHours, setOutDayHours] = useState("");
-  const [outEveningHours, setOutEveningHours] = useState("");
-  const [outWeekendHours, setOutWeekendHours] = useState("");
-
-  const [returnKm, setReturnKm] = useState("");
-  const [returnDayHours, setReturnDayHours] = useState("");
-  const [returnEveningHours, setReturnEveningHours] = useState("");
-  const [returnWeekendHours, setReturnWeekendHours] = useState("");
-
-  const [priceNote, setPriceNote] = useState("");
-
-  const loadOffer = useCallback(async (refreshing = false) => {
-    if (!params.id) return;
-
-    try {
-      if (refreshing) setIsRefreshing(true);
-      else setIsLoading(true);
-
-      const data = await getOfferCalculator(String(params.id));
-      setOffer(data);
-
-      const calc = data.calculator || {};
-
-      if (Object.keys(calc).length > 0) {
-        setPriceList(textFromNumber(calc.priceList, "bestallning"));
-        setBusType(textFromNumber(calc.busType, "turistbuss"));
-        setKmBand(textFromNumber(calc.kmBand, "26-100"));
-        setBusCount(textFromNumber(calc.busCount, "1"));
-
-        setKmPrice(textFromNumber(calc.kmPrice, "15"));
-        setHourDayPrice(textFromNumber(calc.hourDayPrice, "480"));
-        setHourEveningPrice(textFromNumber(calc.hourEveningPrice, "535"));
-        setHourWeekendPrice(textFromNumber(calc.hourWeekendPrice, "610"));
-        setServiceFee(textFromNumber(calc.serviceFee, "2150"));
-
-        setIncludeServiceFee(Boolean(calc.includeServiceFee ?? true));
-        setServiceFeeMode(calc.serviceFeeMode === "perLeg" ? "perLeg" : "once");
-
-        setVatMode(calc.vatMode === "abroad" ? "abroad" : "sweden");
-        setIncludeReturn(Boolean(calc.includeReturn));
-
-        setIncludeBridgeFee(Boolean(calc.includeBridgeFee));
-        setBridgeFee(textFromNumber(calc.bridgeFee, "2456"));
-
-        setIncludeFerryFee(Boolean(calc.includeFerryFee));
-        setFerryFee(textFromNumber(calc.ferryFee, "2397"));
-
-        setSynergyEnabled(Boolean(calc.synergyEnabled));
-        setSynergyRate(Number(calc.synergyRate || 0.07));
-
-        setOutKm(textFromNumber(calc.outKm, ""));
-        setOutDayHours(textFromNumber(calc.outDayHours, ""));
-        setOutEveningHours(textFromNumber(calc.outEveningHours, ""));
-        setOutWeekendHours(textFromNumber(calc.outWeekendHours, ""));
-
-        setReturnKm(textFromNumber(calc.returnKm, ""));
-        setReturnDayHours(textFromNumber(calc.returnDayHours, ""));
-        setReturnEveningHours(textFromNumber(calc.returnEveningHours, ""));
-        setReturnWeekendHours(textFromNumber(calc.returnWeekendHours, ""));
-
-        setPriceNote(textFromNumber(calc.priceNote, data.priceNote || ""));
-      } else {
-        setPriceNote(data.priceNote || "");
-      }
-    } catch (error: any) {
-      Alert.alert("Kunde inte hämta offert", error?.message || "Försök igen.");
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+function getInitialCalcValue(calculator: any, keys: string[]) {
+  for (const key of keys) {
+    if (calculator && calculator[key] !== undefined && calculator[key] !== null && calculator[key] !== "") {
+      return calculator[key];
     }
-  }, [params.id]);
-
-  useEffect(() => {
-    loadOffer(false);
-  }, [loadOffer]);
-
-  const calculation = useMemo(() => {
-    const buses = Math.max(1, Math.round(numberFromText(busCount, 1)));
-    const kmRate = numberFromText(kmPrice);
-    const dayRate = numberFromText(hourDayPrice);
-    const eveningRate = numberFromText(hourEveningPrice);
-    const weekendRate = numberFromText(hourWeekendPrice);
-    const baseServiceFee = numberFromText(serviceFee);
-
-    const outLeg =
-      numberFromText(outKm) * kmRate +
-      numberFromText(outDayHours) * dayRate +
-      numberFromText(outEveningHours) * eveningRate +
-      numberFromText(outWeekendHours) * weekendRate;
-
-    const returnLeg = includeReturn
-      ? numberFromText(returnKm) * kmRate +
-        numberFromText(returnDayHours) * dayRate +
-        numberFromText(returnEveningHours) * eveningRate +
-        numberFromText(returnWeekendHours) * weekendRate
-      : 0;
-
-    const legCount = includeReturn ? 2 : 1;
-    const service = includeServiceFee
-      ? baseServiceFee * (serviceFeeMode === "perLeg" ? legCount : 1) * buses
-      : 0;
-
-    const bridge = includeBridgeFee ? numberFromText(bridgeFee) : 0;
-    const ferry = includeFerryFee ? numberFromText(ferryFee) : 0;
-
-    const taxableBeforeSynergy = (outLeg + returnLeg) * buses + service + bridge;
-    const taxFreeBeforeSynergy = ferry;
-
-    const synergyMultiplier = synergyEnabled ? 1 + synergyRate : 1;
-
-    const taxableExVat = taxableBeforeSynergy * synergyMultiplier;
-    const taxFreeExVat = taxFreeBeforeSynergy * synergyMultiplier;
-
-    const vatRate = vatMode === "sweden" ? 0.06 : 0;
-    const vatAmount = taxableExVat * vatRate;
-
-    const exVat = taxableExVat + taxFreeExVat;
-    const total = exVat + vatAmount;
-
-    return {
-      buses,
-      outLeg,
-      returnLeg,
-      service,
-      bridge,
-      ferry,
-      taxableExVat,
-      taxFreeExVat,
-      exVat,
-      vatRate,
-      vatAmount,
-      total,
-    };
-  }, [
-    busCount,
-    kmPrice,
-    hourDayPrice,
-    hourEveningPrice,
-    hourWeekendPrice,
-    serviceFee,
-    includeServiceFee,
-    serviceFeeMode,
-    vatMode,
-    includeReturn,
-    includeBridgeFee,
-    bridgeFee,
-    includeFerryFee,
-    ferryFee,
-    synergyEnabled,
-    synergyRate,
-    outKm,
-    outDayHours,
-    outEveningHours,
-    outWeekendHours,
-    returnKm,
-    returnDayHours,
-    returnEveningHours,
-    returnWeekendHours,
-  ]);
-
-  function buildPayload() {
-    return {
-      priceList,
-      busType,
-      kmBand,
-      busCount,
-
-      kmPrice,
-      hourDayPrice,
-      hourEveningPrice,
-      hourWeekendPrice,
-      serviceFee,
-
-      includeServiceFee,
-      serviceFeeMode,
-      vatMode,
-      includeReturn,
-
-      includeBridgeFee,
-      bridgeFee,
-      includeFerryFee,
-      ferryFee,
-
-      synergyEnabled,
-      synergyRate,
-
-      outKm,
-      outDayHours,
-      outEveningHours,
-      outWeekendHours,
-
-      returnKm,
-      returnDayHours,
-      returnEveningHours,
-      returnWeekendHours,
-
-      priceNote,
-    };
   }
 
-  async function handleSave(status = "calculated") {
-    if (!offer?.id) return;
+  return "";
+}
+
+type HourMode = "day" | "evening" | "weekend";
+
+export default function AdminOfferCalculatorScreen() {
+  const params = useLocalSearchParams<{
+    id?: string;
+    offerId?: string;
+    sourceId?: string;
+  }>();
+
+  const offerId = String(params.id || params.offerId || params.sourceId || "");
+
+  const [offer, setOffer] = useState<any | null>(null);
+  const [profiles, setProfiles] = useState<PortalBusPriceProfile[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState("");
+  const [hourMode, setHourMode] = useState<HourMode>("day");
+
+  const [km, setKm] = useState("");
+  const [kmPrice, setKmPrice] = useState("");
+  const [hours, setHours] = useState("");
+  const [hourPrice, setHourPrice] = useState("");
+  const [serviceFee, setServiceFee] = useState("");
+  const [parkingFee, setParkingFee] = useState("0");
+  const [otherCost, setOtherCost] = useState("0");
+  const [internalCost, setInternalCost] = useState("");
+  const [marginPercentManual, setMarginPercentManual] = useState("");
+  const [customerPriceManual, setCustomerPriceManual] = useState("");
+  const [priceNote, setPriceNote] = useState("");
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+
+  const selectedProfile = useMemo(() => {
+    return profiles.find((profile) => profile.id === selectedProfileId) || null;
+  }, [profiles, selectedProfileId]);
+
+  const applyProfilePrices = useCallback(
+    (profile: PortalBusPriceProfile | null, mode: HourMode, kmValueText: string) => {
+      if (!profile) return;
+
+      const kmValue = toNumber(kmValueText);
+
+      setServiceFee(toInput(profile.baseFee));
+      setHourPrice(toInput(getHourPriceForMode(profile, mode)));
+      setKmPrice(toInput(getKmPriceForDistance(profile, kmValue)));
+    },
+    []
+  );
+
+  const loadOffer = useCallback(async () => {
+    if (!offerId) {
+      Alert.alert("Offert saknas", "Kunde inte hitta offert-ID.");
+      router.back();
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      const [result, portalProfiles] = await Promise.all([
+        getOfferCalculator(offerId),
+        getPortalBusPriceProfiles().catch(() => []),
+      ]);
+
+      const calc = result.calculator || {};
+      const savedProfileId = String(
+        getInitialCalcValue(calc, ["priceProfileId", "price_profile_id"]) || ""
+      );
+
+      const defaultProfile =
+        portalProfiles.find((profile) => profile.id === savedProfileId) ||
+        portalProfiles.find((profile) => profile.category.toLowerCase().includes("best")) ||
+        portalProfiles[0] ||
+        null;
+
+      const savedHourMode = String(
+        getInitialCalcValue(calc, ["hourMode", "hour_mode"]) || "day"
+      ) as HourMode;
+
+      const startKm = String(getInitialCalcValue(calc, ["km", "distanceKm", "distance_km"]) || "");
+      const profileToUse = defaultProfile;
+
+      setOffer(result);
+      setProfiles(portalProfiles);
+      setSelectedProfileId(profileToUse?.id || "");
+      setHourMode(["day", "evening", "weekend"].includes(savedHourMode) ? savedHourMode : "day");
+
+      setKm(startKm);
+      setHours(String(getInitialCalcValue(calc, ["hours", "totalHours", "time_hours"]) || ""));
+      setParkingFee(toInput(getInitialCalcValue(calc, ["parkingFee", "parking_fee"]) || 0));
+      setOtherCost(toInput(getInitialCalcValue(calc, ["otherCost", "other_cost"]) || 0));
+      setInternalCost(toInput(getInitialCalcValue(calc, ["internalCost", "internal_cost"]) || 0));
+      setMarginPercentManual(String(getInitialCalcValue(calc, ["marginPercentManual", "manual_margin_percent"]) || ""));
+      setCustomerPriceManual(toInput(result.priceTotal || getInitialCalcValue(calc, ["customerPrice", "customer_price"]) || 0));
+      setPriceNote(result.priceNote || "");
+
+      const savedKmPrice = getInitialCalcValue(calc, ["kmPrice", "pricePerKm", "km_price"]);
+      const savedHourPrice = getInitialCalcValue(calc, ["hourPrice", "pricePerHour", "hour_price"]);
+      const savedServiceFee = getInitialCalcValue(calc, ["serviceFee", "service_fee"]);
+
+      setKmPrice(toInput(savedKmPrice || getKmPriceForDistance(profileToUse, toNumber(startKm))));
+      setHourPrice(toInput(savedHourPrice || getHourPriceForMode(profileToUse, savedHourMode)));
+      setServiceFee(toInput(savedServiceFee || profileToUse?.baseFee || 0));
+    } catch (error: any) {
+      Alert.alert("Kunde inte hämta offerten", error?.message || "Försök igen.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [offerId]);
+
+  useEffect(() => {
+    loadOffer();
+  }, [loadOffer]);
+
+  useEffect(() => {
+    if (!selectedProfile) return;
+
+    applyProfilePrices(selectedProfile, hourMode, km);
+  }, [selectedProfileId, hourMode]);
+
+  useEffect(() => {
+    if (!selectedProfile) return;
+
+    setKmPrice(toInput(getKmPriceForDistance(selectedProfile, toNumber(km))));
+  }, [km, selectedProfileId]);
+
+  const calculation = useMemo(() => {
+    const kmValue = toNumber(km);
+    const kmPriceValue = toNumber(kmPrice);
+    const hoursValue = toNumber(hours);
+    const hourPriceValue = toNumber(hourPrice);
+    const serviceFeeValue = toNumber(serviceFee);
+    const parkingFeeValue = toNumber(parkingFee);
+    const otherCostValue = toNumber(otherCost);
+    const internalCostValue = toNumber(internalCost);
+    const manualMargin = toNumber(marginPercentManual);
+    const manualCustomerPrice = toNumber(customerPriceManual);
+
+    const kmTotal = kmValue * kmPriceValue;
+    const hoursTotal = hoursValue * hourPriceValue;
+
+    const calculatedExVat =
+      kmTotal +
+      hoursTotal +
+      serviceFeeValue +
+      parkingFeeValue +
+      otherCostValue;
+
+    const marginAmountFromPercent =
+      manualMargin > 0 && internalCostValue > 0
+        ? internalCostValue * (manualMargin / 100)
+        : 0;
+
+    const exVatBeforeManual =
+      manualMargin > 0 && internalCostValue > 0
+        ? internalCostValue + marginAmountFromPercent
+        : calculatedExVat;
+
+    const totalBeforeManual = exVatBeforeManual * 1.06;
+
+    const total = manualCustomerPrice > 0 ? manualCustomerPrice : totalBeforeManual;
+    const exVat = total / 1.06;
+    const vatAmount = total - exVat;
+    const marginAmount = exVat - internalCostValue;
+    const marginPercent =
+      internalCostValue > 0 ? (marginAmount / internalCostValue) * 100 : 0;
+
+    return {
+      kmValue,
+      kmPriceValue,
+      hoursValue,
+      hourPriceValue,
+      serviceFeeValue,
+      parkingFeeValue,
+      otherCostValue,
+      internalCostValue,
+      kmTotal,
+      hoursTotal,
+      calculatedExVat,
+      exVat,
+      vatAmount,
+      total,
+      vatRate: 6,
+      marginAmount,
+      marginPercent,
+      manualCustomerPrice,
+      manualMargin,
+    };
+  }, [
+    km,
+    kmPrice,
+    hours,
+    hourPrice,
+    serviceFee,
+    parkingFee,
+    otherCost,
+    internalCost,
+    marginPercentManual,
+    customerPriceManual,
+  ]);
+
+  async function saveCalculation(markReady = false, showAlert = true) {
+    if (!offerId) return;
+
+    if (calculation.total <= 0) {
+      Alert.alert("Pris saknas", "Fyll i km/timmar eller pris till kund innan du sparar.");
+      return;
+    }
 
     try {
       setIsSaving(true);
 
       await saveOfferCalculator({
-        offerId: offer.id,
-        calculation: buildPayload(),
+        offerId,
+        calculation: {
+          priceProfileId: selectedProfile?.id || "",
+          category: selectedProfile?.category || "",
+          busType: selectedProfile?.busType || "",
+          hourMode,
+
+          km: calculation.kmValue,
+          kmPrice: calculation.kmPriceValue,
+          kmTotal: calculation.kmTotal,
+
+          hours: calculation.hoursValue,
+          hourPrice: calculation.hourPriceValue,
+          hoursTotal: calculation.hoursTotal,
+
+          serviceFee: calculation.serviceFeeValue,
+          parkingFee: calculation.parkingFeeValue,
+          otherCost: calculation.otherCostValue,
+
+          internalCost: calculation.internalCostValue,
+          marginAmount: calculation.marginAmount,
+          marginPercent: calculation.marginPercent,
+          marginPercentManual: calculation.manualMargin,
+
+          customerPrice: calculation.total,
+          customerPriceManual: calculation.manualCustomerPrice,
+
+          vatRate: calculation.vatRate,
+        },
         result: {
           exVat: calculation.exVat,
           vatAmount: calculation.vatAmount,
           total: calculation.total,
-          vatRate: calculation.vatRate * 100,
+          vatRate: calculation.vatRate,
         },
         priceNote,
-        proposalStatus: status,
+        proposalStatus: markReady ? "ready_to_send" : "calculated",
       });
 
-      Alert.alert("Kalkyl sparad", "Prisförslaget har sparats på offerten.");
+      if (showAlert) {
+        Alert.alert(
+          "Kalkyl sparad",
+          markReady
+            ? "Kalkylen är sparad och redo att skickas."
+            : "Kalkylen är sparad på offerten."
+        );
+      }
+
+      await loadOffer();
+      return true;
     } catch (error: any) {
-      Alert.alert("Kunde inte spara", error?.message || "Försök igen.");
+      if (showAlert) {
+        Alert.alert("Kunde inte spara kalkyl", error?.message || "Försök igen.");
+      } else {
+        throw error;
+      }
+      return false;
     } finally {
       setIsSaving(false);
     }
   }
 
-  async function handlePrepareSend() {
-    if (!offer?.id) return;
+  async function sendOffer() {
+    if (!offerId) return;
 
-    if (!offer.customerEmail) {
-      Alert.alert("E-post saknas", "Offerten saknar kundens e-postadress.");
+    if (calculation.total <= 0) {
+      Alert.alert("Pris saknas", "Spara ett pris innan du skickar offerten.");
       return;
     }
 
     try {
-      setIsPreparingSend(true);
+      setIsSending(true);
 
-      await saveOfferCalculator({
-        offerId: offer.id,
-        calculation: buildPayload(),
-        result: {
-          exVat: calculation.exVat,
-          vatAmount: calculation.vatAmount,
-          total: calculation.total,
-          vatRate: calculation.vatRate * 100,
-        },
-        priceNote,
-        proposalStatus: "ready_to_send",
-      });
+      const saved = await saveCalculation(true, false);
 
-      const result = await sendOfferProposalViaPortal(offer.id);
+      if (!saved) {
+        return;
+      }
+
+      const result = await sendOfferProposalViaPortal(offerId);
 
       Alert.alert(
-        "Prisförslag skickat",
-        `Prisförslaget har skickats till:\n${result.sentTo}`
+        "Offert skickad",
+        `Offerten har skickats${result?.sentTo ? ` till ${result.sentTo}` : " till kunden"}.`,
+        [
+          {
+            text: "OK",
+            onPress: () => router.back(),
+          },
+        ]
       );
-
-      await loadOffer(true);
     } catch (error: any) {
-      Alert.alert("Kunde inte skicka prisförslag", error?.message || "Försök igen.");
+      Alert.alert("Kunde inte skicka offert", error?.message || "Försök igen.");
     } finally {
-      setIsPreparingSend(false);
+      setIsSending(false);
     }
-  }
-  function copyOutboundToReturn() {
-    setReturnKm(outKm);
-    setReturnDayHours(outDayHours);
-    setReturnEveningHours(outEveningHours);
-    setReturnWeekendHours(outWeekendHours);
-  }
-
-  if (isLoading && !offer) {
-    return (
-      <View style={styles.screen}>
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.primary} />
-          <Text style={styles.centerText}>Hämtar offertkalkyl...</Text>
-        </View>
-      </View>
-    );
   }
 
   return (
     <View style={styles.screen}>
-      <KeyboardAvoidingView
-        style={styles.keyboard}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={() => loadOffer(true)}
-              tintColor={colors.primary}
-            />
-          }
-        >
-          <View style={styles.header}>
-            <Pressable style={styles.iconButton} onPress={() => router.back()}>
-              <ArrowLeft size={22} color={colors.text} strokeWidth={2.4} />
-            </Pressable>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.topBar}>
+          <Pressable style={styles.iconButton} onPress={() => router.back()}>
+            <ArrowLeft size={22} color={colors.text} strokeWidth={2.5} />
+          </Pressable>
 
-            <View style={styles.headerText}>
-              <Text style={styles.title}>Offertdetalj</Text>
-              <Text style={styles.subtitle}>{offer?.reference || "Prisförslag"}</Text>
-            </View>
+          <Text style={styles.topTitle}>Offertkalkyl</Text>
+
+          <View style={styles.iconButtonPlaceholder} />
+        </View>
+
+        <View style={styles.heroCard}>
+          <Calculator size={38} color={colors.goldSoft} strokeWidth={2.4} />
+          <Text style={styles.heroKicker}>ADMIN</Text>
+          <Text style={styles.heroTitle}>Kalkyl & prisförslag</Text>
+          <Text style={styles.heroText}>
+            Räkna med priser från bus_price_profiles och skicka offert till kund.
+          </Text>
+        </View>
+
+        {isLoading ? (
+          <View style={styles.loadingCard}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={styles.loadingText}>Hämtar offert och prisprofiler...</Text>
           </View>
+        ) : null}
 
-          <View style={styles.heroCard}>
-            <View style={styles.heroIcon}>
-              <Calculator size={38} color={colors.goldSoft} strokeWidth={2.4} />
+        {offer ? (
+          <>
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Offertuppgifter</Text>
+              <InfoRow label="Offertnummer" value={offer.reference || offer.id} />
+              <InfoRow label="Kund" value={offer.customerName || offer.customerEmail || "Kund saknas"} />
+              <InfoRow label="Telefon" value={offer.customerPhone || "-"} />
+              <InfoRow label="Resa" value={`${offer.departure || "Start saknas"} → ${offer.destination || "Destination saknas"}`} />
+              <InfoRow label="Datum" value={offer.travelDate || "-"} />
+              <InfoRow label="Status" value={offer.status || "-"} />
             </View>
 
-            <Text style={styles.heroKicker}>KALKYL & PRISFÖRSLAG</Text>
-            <Text style={styles.heroTitle}>Offert med kalkyl längst ner.</Text>
-            <Text style={styles.heroText}>
-              Kontrollera offertens uppgifter och räkna prisförslag direkt i samma vy.
-            </Text>
-          </View>
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Prisprofil från portalen</Text>
 
-          <View style={styles.offerCard}>
-            <Text style={styles.offerTitle}>{offer?.customerName || "Kund saknas"}</Text>
-            <Text style={styles.offerText}>
-              {offer?.departure || "Start saknas"} → {offer?.destination || "Destination saknas"}
-            </Text>
-            {offer?.customerEmail ? <Text style={styles.offerMuted}>{offer.customerEmail}</Text> : null}
-          </View>
+              {profiles.length === 0 ? (
+                <Text style={styles.warningText}>
+                  Ingen prisprofil hittades i bus_price_profiles.
+                </Text>
+              ) : null}
 
-          <Section title="Prislista & buss">
-            <ChoiceGrid items={priceLists} value={priceList} onChange={setPriceList} />
-            <ChoiceGrid items={busTypes} value={busType} onChange={setBusType} />
-            <ChoiceGrid items={kmBands} value={kmBand} onChange={setKmBand} />
+              {profiles.map((profile) => {
+                const active = selectedProfileId === profile.id;
 
-            <Input label="Antal bussar" value={busCount} onChangeText={setBusCount} keyboardType="decimal-pad" />
-          </Section>
-
-          <Section title="Grundpriser">
-            <Input label="Kilometerpris" value={kmPrice} onChangeText={setKmPrice} suffix="kr/km" keyboardType="decimal-pad" />
-            <Input label="Timpris dag" value={hourDayPrice} onChangeText={setHourDayPrice} suffix="kr/tim" keyboardType="decimal-pad" />
-            <Input label="Timpris kväll" value={hourEveningPrice} onChangeText={setHourEveningPrice} suffix="kr/tim" keyboardType="decimal-pad" />
-            <Input label="Timpris helg" value={hourWeekendPrice} onChangeText={setHourWeekendPrice} suffix="kr/tim" keyboardType="decimal-pad" />
-            <Input label="Serviceavgift / grundavgift" value={serviceFee} onChangeText={setServiceFee} suffix="kr" keyboardType="decimal-pad" />
-
-            <ToggleRow label="Ta med serviceavgift" value={includeServiceFee} onChange={setIncludeServiceFee} />
-
-            <View style={styles.segmentRow}>
-              <SegmentButton label="Per uppdrag" active={serviceFeeMode === "once"} onPress={() => setServiceFeeMode("once")} />
-              <SegmentButton label="Per sträcka" active={serviceFeeMode === "perLeg"} onPress={() => setServiceFeeMode("perLeg")} />
-            </View>
-          </Section>
-
-          <Section title="Utresa">
-            <Input label="Kilometer" value={outKm} onChangeText={setOutKm} keyboardType="decimal-pad" />
-            <Input label="Timmar dag" value={outDayHours} onChangeText={setOutDayHours} keyboardType="decimal-pad" />
-            <Input label="Timmar kväll" value={outEveningHours} onChangeText={setOutEveningHours} keyboardType="decimal-pad" />
-            <Input label="Timmar helg" value={outWeekendHours} onChangeText={setOutWeekendHours} keyboardType="decimal-pad" />
-          </Section>
-
-          <Section title="Returresa">
-            <ToggleRow label="Inkludera returresa" value={includeReturn} onChange={setIncludeReturn} />
-
-            {includeReturn ? (
-              <>
-                <Pressable style={styles.copyButton} onPress={copyOutboundToReturn}>
-                  <Copy size={17} color={colors.primary} strokeWidth={2.5} />
-                  <Text style={styles.copyButtonText}>Kopiera utresa till retur</Text>
-                </Pressable>
-
-                <Input label="Retur kilometer" value={returnKm} onChangeText={setReturnKm} keyboardType="decimal-pad" />
-                <Input label="Retur timmar dag" value={returnDayHours} onChangeText={setReturnDayHours} keyboardType="decimal-pad" />
-                <Input label="Retur timmar kväll" value={returnEveningHours} onChangeText={setReturnEveningHours} keyboardType="decimal-pad" />
-                <Input label="Retur timmar helg" value={returnWeekendHours} onChangeText={setReturnWeekendHours} keyboardType="decimal-pad" />
-              </>
-            ) : null}
-          </Section>
-
-          <Section title="Avgifter & moms">
-            <View style={styles.segmentRow}>
-              <SegmentButton label="6% Sverige" active={vatMode === "sweden"} onPress={() => setVatMode("sweden")} />
-              <SegmentButton label="Utomlands 0%" active={vatMode === "abroad"} onPress={() => setVatMode("abroad")} />
-            </View>
-
-            <ToggleRow label="Inkludera broavgift" value={includeBridgeFee} onChange={setIncludeBridgeFee} />
-            {includeBridgeFee ? (
-              <Input label="Broavgift" value={bridgeFee} onChangeText={setBridgeFee} suffix="kr" keyboardType="decimal-pad" />
-            ) : null}
-
-            <ToggleRow label="Inkludera båtavgift, momsfri" value={includeFerryFee} onChange={setIncludeFerryFee} />
-            {includeFerryFee ? (
-              <Input label="Båtavgift" value={ferryFee} onChangeText={setFerryFee} suffix="kr" keyboardType="decimal-pad" />
-            ) : null}
-          </Section>
-
-          <Section title="SynergyBus">
-            <ToggleRow label="Aktivera provision" value={synergyEnabled} onChange={setSynergyEnabled} />
-
-            {synergyEnabled ? (
-              <View style={styles.rateRow}>
-                {synergyRates.map((item) => (
+                return (
                   <Pressable
-                    key={item.label}
-                    style={[styles.rateButton, synergyRate === item.value && styles.rateButtonActive]}
-                    onPress={() => setSynergyRate(item.value)}
+                    key={profile.id}
+                    style={[styles.profileCard, active && styles.profileCardActive]}
+                    onPress={() => {
+                      setSelectedProfileId(profile.id);
+                      applyProfilePrices(profile, hourMode, km);
+                    }}
                   >
-                    <Percent
-                      size={14}
-                      color={synergyRate === item.value ? colors.white : colors.primary}
-                      strokeWidth={2.5}
-                    />
-                    <Text style={[styles.rateText, synergyRate === item.value && styles.rateTextActive]}>
-                      {item.label}
+                    <Text style={[styles.profileTitle, active && styles.profileTitleActive]}>
+                      {profile.category} · {profile.busType}
+                    </Text>
+                    <Text style={styles.profileText}>
+                      Start: {formatOfferCalculatorMoney(profile.baseFee)} · Dag: {formatOfferCalculatorMoney(profile.hourWeekdayDay)} · Kväll: {formatOfferCalculatorMoney(profile.hourWeekdayEvening)} · Helg: {formatOfferCalculatorMoney(profile.hourWeekend)}
+                    </Text>
+                    <Text style={styles.profileText}>
+                      Km: 0–25 {profile.km025} kr · 26–100 {profile.km26100} kr · 101–250 {profile.km101250} kr · 251+ {profile.km251Plus} kr
                     </Text>
                   </Pressable>
-                ))}
-              </View>
-            ) : null}
-          </Section>
-
-          <Section title="Intern notering / kommentar till priset">
-            <TextInput
-              value={priceNote}
-              onChangeText={setPriceNote}
-              placeholder="T.ex. Pris baserat på 2 bussar, retur samma dag, provision inkluderad."
-              placeholderTextColor={colors.textMuted}
-              multiline
-              style={styles.noteInput}
-            />
-          </Section>
-
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryHeader}>
-              <View style={styles.summaryIcon}>
-                <WalletCards size={24} color={colors.primary} strokeWidth={2.5} />
-              </View>
-
-              <View>
-                <Text style={styles.summaryTitle}>Totalt pris</Text>
-                <Text style={styles.summarySub}>Alla bussar</Text>
-              </View>
+                );
+              })}
             </View>
 
-            <SummaryRow label="Pris exkl. moms" value={formatOfferCalculatorMoney(calculation.exVat)} />
-            <SummaryRow label={`Moms ${Math.round(calculation.vatRate * 100)}%`} value={formatOfferCalculatorMoney(calculation.vatAmount)} />
-            <SummaryRow label="Totalt inkl. moms" value={formatOfferCalculatorMoney(calculation.total)} strong />
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <Clock3 size={20} color={colors.primary} strokeWidth={2.5} />
+                <Text style={styles.sectionTitleInline}>Timpris</Text>
+              </View>
 
-            <View style={styles.actionRow}>
+              <View style={styles.modeRow}>
+                <ModeButton title="Dag" active={hourMode === "day"} onPress={() => setHourMode("day")} />
+                <ModeButton title="Kväll" active={hourMode === "evening"} onPress={() => setHourMode("evening")} />
+                <ModeButton title="Helg" active={hourMode === "weekend"} onPress={() => setHourMode("weekend")} />
+              </View>
+
+              <View style={styles.twoColumns}>
+                <Field label="Antal timmar" value={hours} onChangeText={setHours} placeholder="Ex. 4" keyboardType="numeric" />
+                <Field label="Kr/timme" value={hourPrice} onChangeText={setHourPrice} placeholder="Från prisprofil" keyboardType="numeric" />
+              </View>
+
+              <ResultRow label="Tim-del" value={formatOfferCalculatorMoney(calculation.hoursTotal)} />
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <Gauge size={20} color={colors.primary} strokeWidth={2.5} />
+                <Text style={styles.sectionTitleInline}>Körsträcka</Text>
+              </View>
+
+              <View style={styles.twoColumns}>
+                <Field label="Antal km" value={km} onChangeText={setKm} placeholder="Ex. 120" keyboardType="numeric" />
+                <Field label="Kr/km" value={kmPrice} onChangeText={setKmPrice} placeholder="Från intervall" keyboardType="numeric" />
+              </View>
+
+              <ResultRow label="Km-del" value={formatOfferCalculatorMoney(calculation.kmTotal)} />
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <MapPin size={20} color={colors.primary} strokeWidth={2.5} />
+                <Text style={styles.sectionTitleInline}>Avgifter & övrigt</Text>
+              </View>
+
+              <Field label="Start/serviceavgift" value={serviceFee} onChangeText={setServiceFee} placeholder="Från prisprofil" keyboardType="numeric" />
+              <Field label="Parkering / avgifter" value={parkingFee} onChangeText={setParkingFee} placeholder="Ex. 0" keyboardType="numeric" />
+              <Field label="Övrigt" value={otherCost} onChangeText={setOtherCost} placeholder="Ex. 0" keyboardType="numeric" />
+            </View>
+
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <Percent size={20} color={colors.primary} strokeWidth={2.5} />
+                <Text style={styles.sectionTitleInline}>Marginal & slutpris</Text>
+              </View>
+
+              <Field label="Intern kostnad / inköpspris" value={internalCost} onChangeText={setInternalCost} placeholder="Ex. 2500" keyboardType="numeric" />
+              <Field label="Manuell marginal %" value={marginPercentManual} onChangeText={setMarginPercentManual} placeholder="Ex. 20" keyboardType="numeric" />
+              <Field label="Pris till kund inkl. moms" value={customerPriceManual} onChangeText={setCustomerPriceManual} placeholder="Lämna tomt för automatiskt pris" keyboardType="numeric" />
+
+              <Text style={styles.label}>Meddelande / prisnotering</Text>
+              <TextInput
+                value={priceNote}
+                onChangeText={setPriceNote}
+                placeholder="Ex. Priset gäller buss enligt förfrågan."
+                placeholderTextColor={colors.textMuted}
+                style={[styles.input, styles.textArea]}
+                multiline
+              />
+            </View>
+
+            <View style={styles.resultCard}>
+              <Text style={styles.resultTitle}>Resultat</Text>
+
+              <ResultRow label="Pris exkl. moms" value={formatOfferCalculatorMoney(calculation.exVat)} />
+              <ResultRow label="Moms 6%" value={formatOfferCalculatorMoney(calculation.vatAmount)} />
+              <ResultRow label="Pris inkl. moms" value={formatOfferCalculatorMoney(calculation.total)} strong />
+              <ResultRow label="Intern kostnad" value={formatOfferCalculatorMoney(calculation.internalCostValue)} />
+              <ResultRow label="Marginal" value={formatOfferCalculatorMoney(calculation.marginAmount)} />
+              <ResultRow label="Marginal %" value={`${calculation.marginPercent.toFixed(1)} %`} />
+            </View>
+
+            <View style={styles.buttonGrid}>
               <Pressable
                 style={[styles.secondaryButton, isSaving && styles.disabled]}
-                onPress={() => handleSave("calculated")}
-                disabled={isSaving}
+                onPress={() => saveCalculation(false)}
+                disabled={isSaving || isSending}
               >
                 {isSaving ? (
                   <ActivityIndicator color={colors.primary} />
                 ) : (
-                  <>
-                    <Save size={18} color={colors.primary} strokeWidth={2.5} />
-                    <Text style={styles.secondaryButtonText}>Spara kalkyl</Text>
-                  </>
+                  <Save size={19} color={colors.primary} strokeWidth={2.5} />
                 )}
+                <Text style={styles.secondaryButtonText}>Spara kalkyl</Text>
               </Pressable>
 
               <Pressable
-                style={[styles.primaryButton, isPreparingSend && styles.disabled]}
-                onPress={handlePrepareSend}
-                disabled={isPreparingSend}
+                style={[styles.primaryButton, isSending && styles.disabled]}
+                onPress={sendOffer}
+                disabled={isSaving || isSending}
               >
-                {isPreparingSend ? (
+                {isSending ? (
                   <ActivityIndicator color={colors.white} />
                 ) : (
-                  <>
-                    <Mail size={18} color={colors.white} strokeWidth={2.5} />
-                    <Text style={styles.primaryButtonText}>Skicka prisförslag</Text>
-                  </>
+                  <Mail size={19} color={colors.white} strokeWidth={2.5} />
                 )}
+                <Text style={styles.primaryButtonText}>Skicka offert</Text>
               </Pressable>
             </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+
+            {offer.proposalStatus ? (
+              <View style={styles.savedBox}>
+                <CheckCircle2 size={19} color="#1F7A4D" strokeWidth={2.5} />
+                <Text style={styles.savedText}>Kalkylstatus: {offer.proposalStatus}</Text>
+              </View>
+            ) : null}
+          </>
+        ) : null}
+      </ScrollView>
     </View>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
-  );
-}
-
-function ChoiceGrid({
-  items,
-  value,
-  onChange,
+function ModeButton({
+  title,
+  active,
+  onPress,
 }: {
-  items: { label: string; value: string }[];
-  value: string;
-  onChange: (value: string) => void;
+  title: string;
+  active: boolean;
+  onPress: () => void;
 }) {
   return (
-    <View style={styles.choiceGrid}>
-      {items.map((item) => {
-        const active = value === item.value;
-
-        return (
-          <Pressable
-            key={item.value}
-            style={[styles.choiceButton, active && styles.choiceButtonActive]}
-            onPress={() => onChange(item.value)}
-          >
-            <Text style={[styles.choiceText, active && styles.choiceTextActive]}>
-              {item.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
+    <Pressable style={[styles.modeButton, active && styles.modeButtonActive]} onPress={onPress}>
+      <Text style={[styles.modeButtonText, active && styles.modeButtonTextActive]}>
+        {title}
+      </Text>
+    </Pressable>
   );
 }
 
-function Input({
+function Field({
   label,
   value,
   onChangeText,
-  suffix,
+  placeholder,
   keyboardType,
 }: {
   label: string;
   value: string;
   onChangeText: (value: string) => void;
-  suffix?: string;
-  keyboardType?: "default" | "decimal-pad";
+  placeholder: string;
+  keyboardType?: "default" | "numeric";
 }) {
   return (
-    <View style={styles.inputWrap}>
-      <Text style={styles.inputLabel}>{label}</Text>
-
-      <View style={styles.inputBox}>
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          placeholder="0"
-          placeholderTextColor={colors.textMuted}
-          keyboardType={keyboardType || "default"}
-          style={styles.input}
-        />
-        {suffix ? <Text style={styles.inputSuffix}>{suffix}</Text> : null}
-      </View>
+    <View style={styles.fieldBox}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textMuted}
+        style={styles.input}
+        keyboardType={keyboardType || "default"}
+      />
     </View>
   );
 }
 
-function ToggleRow({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: boolean;
-  onChange: (value: boolean) => void;
-}) {
+function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <Pressable style={styles.toggleRow} onPress={() => onChange(!value)}>
-      <View style={[styles.checkbox, value && styles.checkboxActive]}>
-        {value ? <Check size={15} color={colors.white} strokeWidth={3} /> : null}
-      </View>
-
-      <Text style={styles.toggleText}>{label}</Text>
-    </Pressable>
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
+    </View>
   );
 }
 
-function SegmentButton({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable style={[styles.segmentButton, active && styles.segmentButtonActive]} onPress={onPress}>
-      <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function SummaryRow({
+function ResultRow({
   label,
   value,
   strong,
@@ -699,237 +631,305 @@ function SummaryRow({
   strong?: boolean;
 }) {
   return (
-    <View style={[styles.summaryRow, strong && styles.summaryRowStrong]}>
-      <Text style={[styles.summaryLabel, strong && styles.summaryLabelStrong]}>{label}</Text>
-      <Text style={[styles.summaryValue, strong && styles.summaryValueStrong]}>{value}</Text>
+    <View style={styles.resultRow}>
+      <Text style={[styles.resultLabel, strong && styles.resultStrong]}>{label}</Text>
+      <Text style={[styles.resultValue, strong && styles.resultStrong]}>{value}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  keyboard: { flex: 1 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
-  centerText: { color: colors.textMuted, fontSize: 13, fontWeight: "800", marginTop: 10 },
   content: { paddingTop: 58, paddingHorizontal: 16, paddingBottom: 120 },
-  header: { flexDirection: "row", alignItems: "center", marginBottom: 18 },
+
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
   iconButton: {
     width: 42,
     height: 42,
-    borderRadius: 14,
+    borderRadius: 15,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 11,
   },
-  headerText: { flex: 1 },
-  title: { color: colors.text, fontSize: 25, fontWeight: "900", letterSpacing: -0.4 },
-  subtitle: { color: colors.textMuted, fontSize: 12, fontWeight: "800", marginTop: 2 },
+  iconButtonPlaceholder: { width: 42, height: 42 },
+  topTitle: { color: colors.text, fontSize: 18, fontWeight: "900" },
 
-  heroCard: { backgroundColor: colors.primary, borderRadius: 26, padding: 20, marginBottom: 14 },
-  heroIcon: {
-    width: 68,
-    height: 68,
-    borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.12)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 15,
-  },
-  heroKicker: { color: colors.goldSoft, fontSize: 11, fontWeight: "900", marginBottom: 5 },
-  heroTitle: { color: colors.white, fontSize: 24, lineHeight: 30, fontWeight: "900" },
-  heroText: { color: "#DDEBE8", fontSize: 13, lineHeight: 19, fontWeight: "700", marginTop: 7 },
-
-  offerCard: {
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
+  heroCard: {
+    backgroundColor: colors.primary,
+    borderRadius: 28,
+    padding: 20,
     marginBottom: 14,
   },
-  offerTitle: { color: colors.text, fontSize: 16, fontWeight: "900" },
-  offerText: { color: colors.text, fontSize: 12.5, fontWeight: "800", marginTop: 5 },
-  offerMuted: { color: colors.textMuted, fontSize: 12, fontWeight: "700", marginTop: 3 },
-
-  section: {
-    backgroundColor: colors.card,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
-    marginBottom: 14,
+  heroKicker: {
+    color: colors.goldSoft,
+    fontSize: 11,
+    fontWeight: "900",
+    marginTop: 12,
+    marginBottom: 5,
   },
-  sectionTitle: { color: colors.text, fontSize: 15, fontWeight: "900", marginBottom: 10 },
-  sectionHelp: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: "700",
-    lineHeight: 17,
-    marginTop: -4,
-    marginBottom: 12,
+  heroTitle: {
+    color: colors.white,
+    fontSize: 27,
+    lineHeight: 33,
+    fontWeight: "900",
   },
-  choiceGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
-  choiceButton: {
-    minHeight: 39,
-    borderRadius: 14,
-    paddingHorizontal: 11,
-    paddingVertical: 9,
-    backgroundColor: colors.cardSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  choiceButtonActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  choiceText: { color: colors.primary, fontSize: 11.5, fontWeight: "900" },
-  choiceTextActive: { color: colors.white },
-
-  inputWrap: { marginBottom: 11 },
-  inputLabel: { color: colors.text, fontSize: 12, fontWeight: "900", marginBottom: 7 },
-  inputBox: {
-    minHeight: 48,
-    borderRadius: 16,
-    backgroundColor: colors.cardSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-  },
-  input: { flex: 1, color: colors.text, fontSize: 14, fontWeight: "800", paddingVertical: 10 },
-  inputSuffix: { color: colors.textMuted, fontSize: 11, fontWeight: "800", marginLeft: 8 },
-
-  toggleRow: { flexDirection: "row", alignItems: "center", minHeight: 38, marginBottom: 7 },
-  checkbox: {
-    width: 23,
-    height: 23,
-    borderRadius: 7,
-    borderWidth: 1.4,
-    borderColor: colors.border,
-    backgroundColor: colors.cardSoft,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-  checkboxActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  toggleText: { flex: 1, color: colors.text, fontSize: 13, fontWeight: "800" },
-
-  segmentRow: { flexDirection: "row", gap: 8, marginBottom: 10 },
-  segmentButton: {
-    flex: 1,
-    borderRadius: 999,
-    paddingVertical: 10,
-    alignItems: "center",
-    backgroundColor: colors.cardSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  segmentButtonActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  segmentText: { color: colors.primary, fontSize: 11.5, fontWeight: "900" },
-  segmentTextActive: { color: colors.white },
-
-  copyButton: {
-    borderRadius: 15,
-    backgroundColor: colors.primarySoft,
-    paddingVertical: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    marginBottom: 11,
-  },
-  copyButtonText: { color: colors.primary, fontSize: 12.5, fontWeight: "900", marginLeft: 7 },
-
-  rateRow: { flexDirection: "row", gap: 8 },
-  rateButton: {
-    flex: 1,
-    borderRadius: 15,
-    backgroundColor: colors.cardSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 11,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-  },
-  rateButtonActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  rateText: { color: colors.primary, fontSize: 12, fontWeight: "900", marginLeft: 3 },
-  rateTextActive: { color: colors.white },
-
-  noteInput: {
-    minHeight: 92,
-    borderRadius: 16,
-    backgroundColor: colors.cardSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 13,
-    paddingTop: 12,
-    color: colors.text,
+  heroText: {
+    color: "#DDEBE8",
     fontSize: 13,
+    lineHeight: 19,
     fontWeight: "700",
-    textAlignVertical: "top",
+    marginTop: 7,
   },
 
-  summaryCard: {
+  loadingCard: {
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  loadingText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: "800",
+    marginLeft: 10,
+  },
+
+  card: {
     backgroundColor: colors.card,
     borderRadius: 24,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 16,
+    marginBottom: 14,
   },
-  summaryHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
-  summaryIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
-    backgroundColor: colors.primarySoft,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 11,
+  sectionTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "900",
+    marginBottom: 12,
   },
-  summaryTitle: { color: colors.text, fontSize: 16, fontWeight: "900" },
-  summarySub: { color: colors.textMuted, fontSize: 11.5, fontWeight: "800", marginTop: 2 },
-  summaryRow: {
-    minHeight: 38,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEEAE2",
+  sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    marginBottom: 12,
   },
-  summaryRowStrong: { borderBottomWidth: 0, marginTop: 5 },
-  summaryLabel: { color: colors.textMuted, fontSize: 12.5, fontWeight: "900" },
-  summaryValue: { color: colors.text, fontSize: 13.5, fontWeight: "900" },
-  summaryLabelStrong: { color: colors.text, fontSize: 14, fontWeight: "900" },
-  summaryValueStrong: { color: colors.primary, fontSize: 18, fontWeight: "900" },
+  sectionTitleInline: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: "900",
+    marginLeft: 8,
+  },
 
-  actionRow: { flexDirection: "row", gap: 10, marginTop: 16 },
-  secondaryButton: {
-    flex: 1,
-    minHeight: 48,
-    borderRadius: 17,
+  profileCard: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
+    padding: 12,
+    marginBottom: 10,
+  },
+  profileCardActive: {
     backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+  },
+  profileTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  profileTitleActive: {
+    color: colors.primary,
+  },
+  profileText: {
+    color: colors.textMuted,
+    fontSize: 11.5,
+    lineHeight: 16,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  warningText: {
+    color: "#B76E00",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "800",
+    marginBottom: 10,
+  },
+
+  modeRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 12,
+  },
+  modeButton: {
+    flex: 1,
+    borderRadius: 16,
+    minHeight: 42,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
-    flexDirection: "row",
   },
-  secondaryButtonText: { color: colors.primary, fontSize: 12, fontWeight: "900", marginLeft: 6 },
-  primaryButton: {
-    flex: 1.25,
-    minHeight: 48,
-    borderRadius: 17,
+  modeButtonActive: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  modeButtonText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  modeButtonTextActive: {
+    color: colors.white,
+  },
+
+  twoColumns: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  fieldBox: {
+    flex: 1,
+  },
+  label: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "900",
+    marginBottom: 7,
+    marginTop: 6,
+  },
+  input: {
+    minHeight: 52,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    paddingHorizontal: 13,
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "800",
+    marginBottom: 10,
+  },
+  textArea: {
+    minHeight: 92,
+    paddingTop: 13,
+    textAlignVertical: "top",
+  },
+
+  infoRow: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 8,
+    marginTop: 8,
+  },
+  infoLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  infoValue: {
+    color: colors.text,
+    fontSize: 12.5,
+    fontWeight: "800",
+    marginTop: 2,
+  },
+
+  resultCard: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: 24,
+    padding: 16,
+    marginBottom: 14,
+  },
+  resultTitle: {
+    color: colors.primary,
+    fontSize: 17,
+    fontWeight: "900",
+    marginBottom: 10,
+  },
+  resultRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    borderTopWidth: 1,
+    borderTopColor: "#D4E7E2",
+    paddingTop: 8,
+    marginTop: 8,
+  },
+  resultLabel: {
+    color: colors.text,
+    fontSize: 12.5,
+    fontWeight: "800",
+    flex: 1,
+  },
+  resultValue: {
+    color: colors.text,
+    fontSize: 12.5,
+    fontWeight: "900",
+    marginLeft: 8,
+  },
+  resultStrong: {
+    color: colors.primary,
+    fontSize: 14,
+  },
+
+  buttonGrid: {
+    gap: 10,
+    marginBottom: 14,
+  },
+  primaryButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 18,
+    minHeight: 54,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
   },
-  primaryButtonText: { color: colors.white, fontSize: 12, fontWeight: "900", marginLeft: 6 },
+  primaryButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: "900",
+    marginLeft: 8,
+  },
+  secondaryButton: {
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    minHeight: 54,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+  },
+  secondaryButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: "900",
+    marginLeft: 8,
+  },
   disabled: { opacity: 0.65 },
+
+  savedBox: {
+    backgroundColor: "#ECFDF3",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#B7E4C7",
+    padding: 13,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  savedText: {
+    color: "#1F7A4D",
+    fontSize: 12.5,
+    fontWeight: "900",
+    marginLeft: 8,
+  },
 });
-
-
-

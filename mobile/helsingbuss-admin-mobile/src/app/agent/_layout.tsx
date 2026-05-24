@@ -1,3 +1,4 @@
+import PushTokenBootstrap from "../../components/PushTokenBootstrap";
 import React from "react";
 import { Tabs } from "expo-router";
 import {
@@ -13,7 +14,9 @@ import { colors } from "../../theme/colors";
 
 export default function AgentLayout() {
   return (
-    <Tabs
+    <>
+      <PushTokenBootstrap appRole="agent" />
+      <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.gold,
@@ -96,6 +99,7 @@ export default function AgentLayout() {
           <Tabs.Screen name="profile" options={{ href: null }} />
           <Tabs.Screen name="agent-rules" options={{ href: null }} />
     </Tabs>
+    </>
   );
 }
 

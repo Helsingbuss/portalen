@@ -1,3 +1,4 @@
+import PushTokenBootstrap from "../../components/PushTokenBootstrap";
 import React, { useEffect } from "react";
 import { Tabs, router } from "expo-router";
 import { Bell, CalendarDays, Home, Menu, Route } from "lucide-react-native";
@@ -25,7 +26,9 @@ export default function AdminTabsLayout() {
   }, []);
 
   return (
-    <Tabs
+    <>
+      <PushTokenBootstrap appRole="admin" />
+      <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.gold,
@@ -141,6 +144,7 @@ export default function AdminTabsLayout() {
           <Tabs.Screen name="documents-help" options={{ href: null }} />
           <Tabs.Screen name="help-document" options={{ href: null }} />
           <Tabs.Screen name="users" options={{ href: null }} />`r`n          <Tabs.Screen name="user-form" options={{ href: null }} />`r`n          <Tabs.Screen name="user-detail" options={{ href: null }} />`r`n          <Tabs.Screen name="driver-orders" options={{ href: null }} />`r`n          <Tabs.Screen name="driver-order-form" options={{ href: null }} />`r`n    </Tabs>
+    </>
   );
 }
 

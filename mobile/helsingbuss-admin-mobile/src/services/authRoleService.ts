@@ -34,7 +34,7 @@ export async function getCurrentAppRole(): Promise<AppRoleResult> {
     console.log("getCurrentAppRole exception:", error?.message || error);
   }
 
-  // TillfÃ¤llig sÃ¤ker fallback fÃ¶r testanvÃ¤ndaren
+  // Tillfällig säker fallback för testanvändaren
   if (email === "agent@helsingbuss.se") {
     return {
       role: "agent",

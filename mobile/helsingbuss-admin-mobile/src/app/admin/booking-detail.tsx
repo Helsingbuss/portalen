@@ -1,3 +1,4 @@
+import AdminOfferCalculatorShortcut from "../../components/AdminOfferCalculatorShortcut";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View, } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
@@ -78,6 +79,7 @@ export default function BookingDetailScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <AdminOfferCalculatorShortcut />
         <View style={styles.header}>
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={22} color={colors.text} />

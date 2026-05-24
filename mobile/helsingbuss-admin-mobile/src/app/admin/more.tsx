@@ -6,7 +6,7 @@ import {
   StyleSheet,
   Text,
   View,
-} from "react-native";
+  } from "react-native";
 import { router } from "expo-router";
 import {
   BellRing,
@@ -119,6 +119,56 @@ export default function AdminMoreScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Pressable
+          testID="adminOffersQuickButton"
+          onPress={() => router.push("/admin/offers" as any)}
+          style={{
+            backgroundColor: colors.card,
+            borderRadius: 22,
+            borderWidth: 1,
+            borderColor: colors.border,
+            padding: 14,
+            marginBottom: 14,
+            flexDirection: "row",
+            alignItems: "center",
+          }}
+        >
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 17,
+              backgroundColor: colors.primarySoft,
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: 12,
+            }}
+          >
+            <FileText size={23} color={colors.primary} strokeWidth={2.5} />
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: "900" }}>
+              Offerter
+            </Text>
+            <Text
+              style={{
+                color: colors.textMuted,
+                fontSize: 12,
+                lineHeight: 17,
+                fontWeight: "700",
+                marginTop: 3,
+              }}
+            >
+              Se inkomna offerter, öppna kalkyl och skicka prisförslag
+            </Text>
+          </View>
+
+          <Text style={{ color: colors.textMuted, fontSize: 24, fontWeight: "900" }}>
+            ›
+          </Text>
+        </Pressable>
+
         <View style={styles.heroCard}>
           <ShieldCheck size={38} color={colors.goldSoft} strokeWidth={2.4} />
           <Text style={styles.heroKicker}>ADMIN</Text>
@@ -167,6 +217,71 @@ export default function AdminMoreScreen() {
         </Pressable>
       </ScrollView>
     </View>
+  );
+}
+
+
+
+function MenuCard({
+  title,
+  text,
+  icon,
+  onPress,
+}: {
+  title: string;
+  text: string;
+  icon: React.ReactNode;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        backgroundColor: colors.card,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: 14,
+        marginBottom: 10,
+        flexDirection: "row",
+        alignItems: "center",
+      }}
+    >
+      <View
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 15,
+          backgroundColor: colors.primarySoft,
+          alignItems: "center",
+          justifyContent: "center",
+          marginRight: 12,
+        }}
+      >
+        {icon}
+      </View>
+
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: colors.text, fontSize: 15, fontWeight: "900" }}>
+          {title}
+        </Text>
+        <Text
+          style={{
+            color: colors.textMuted,
+            fontSize: 12,
+            lineHeight: 17,
+            fontWeight: "700",
+            marginTop: 3,
+          }}
+        >
+          {text}
+        </Text>
+      </View>
+
+      <Text style={{ color: colors.textMuted, fontSize: 24, fontWeight: "900" }}>
+        ›
+      </Text>
+    </Pressable>
   );
 }
 
@@ -277,3 +392,11 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 });
+          <MenuCard
+            title="Offerter"
+            text="Se inkomna offerter, öppna kalkyl och skicka prisförslag"
+            icon={<FileText size={22} color={colors.primary} strokeWidth={2.5} />}
+            onPress={() => router.push("/admin/offers" as any)}
+          />
+
+

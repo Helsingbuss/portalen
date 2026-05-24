@@ -4,7 +4,7 @@ function getApiBaseUrl() {
   const value = process.env.EXPO_PUBLIC_API_BASE_URL;
 
   if (!value) {
-    throw new Error("EXPO_PUBLIC_API_BASE_URL saknas. Exempel: http://192.168.10.114:3000");
+    throw new Error("EXPO_PUBLIC_API_BASE_URL saknas. Exempel: https://login.helsingbuss.se");
   }
 
   return value.replace(/\/$/, "");

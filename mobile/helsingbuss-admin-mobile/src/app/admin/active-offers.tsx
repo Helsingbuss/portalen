@@ -156,7 +156,7 @@ function ActiveOfferCard({ offer }: { offer: ActiveOfferItem }) {
       style={styles.offerCard}
       onPress={() =>
         router.push({
-          pathname: "/admin/offer-detail",
+          pathname: "/admin/offer-calculator",
           params: { id: offer.id },
         } as any)
       }

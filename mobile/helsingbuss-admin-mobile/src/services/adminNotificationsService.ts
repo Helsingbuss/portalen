@@ -16,21 +16,23 @@ export type AdminNotificationItem = {
 };
 
 function cleanPushText(value: string) {
+  const re = (...codes: number[]) => new RegExp(String.fromCharCode(...codes), "g");
+
   return String(value || "")
-    .replace(/Ãƒ¥/g, "å")
-    .replace(/Ãƒ¤/g, "ä")
-    .replace(/Ãƒ¶/g, "ö")
-    .replace(/Ãƒ…/g, "Å")
-    .replace(/Ãƒ„/g, "Ä")
-    .replace(/Ãƒ–/g, "Ö")
-    .replace(/Ã¥/g, "å")
-    .replace(/Ã¤/g, "ä")
-    .replace(/Ã¶/g, "ö")
-    .replace(/Ã…/g, "Å")
-    .replace(/Ã„/g, "Ä")
-    .replace(/Ã–/g, "Ö")
-    .replace(/ï»¿/g, "")
-    .replace(/Â/g, "");
+    .replace(re(0x00c3, 0x0192, 0x00a5), "å")
+    .replace(re(0x00c3, 0x0192, 0x00a4), "ä")
+    .replace(re(0x00c3, 0x0192, 0x00b6), "ö")
+    .replace(re(0x00c3, 0x0192, 0x2026), "Å")
+    .replace(re(0x00c3, 0x0192, 0x201e), "Ä")
+    .replace(re(0x00c3, 0x0192, 0x2013), "Ö")
+    .replace(re(0x00c3, 0x00a5), "å")
+    .replace(re(0x00c3, 0x00a4), "ä")
+    .replace(re(0x00c3, 0x00b6), "ö")
+    .replace(re(0x00c3, 0x2026), "Å")
+    .replace(re(0x00c3, 0x201e), "Ä")
+    .replace(re(0x00c3, 0x2013), "Ö")
+    .replace(re(0x00ef, 0x00bb, 0x00bf), "")
+    .replace(re(0x00c2), "");
 }
 
 export async function getMyAdminNotifications(): Promise<AdminNotificationItem[]> {

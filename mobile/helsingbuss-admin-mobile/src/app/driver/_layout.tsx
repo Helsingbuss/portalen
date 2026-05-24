@@ -1,3 +1,4 @@
+import PushTokenBootstrap from "../../components/PushTokenBootstrap";
 import React from "react";
 import { Tabs } from "expo-router";
 import {
@@ -23,7 +24,9 @@ function TabIcon({
 
 export default function DriverLayout() {
   return (
-    <Tabs
+    <>
+      <PushTokenBootstrap appRole="driver" />
+      <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.goldSoft,
@@ -103,6 +106,8 @@ export default function DriverLayout() {
 
             <Tabs.Screen name="order-detail" options={{ href: null }} />
       <Tabs.Screen name="index" options={{ href: null }} />
+          <Tabs.Screen name="schedules" options={{ href: null }} />
     </Tabs>
+    </>
   );
 }
