@@ -26,7 +26,7 @@ type Breakdown = {
 };
 
 function money(n?: number | null) {
-  if (n == null) return "—";
+  if (n == null) return "-";
   const rounded = Math.round(Number(n));
   return new Intl.NumberFormat("sv-SE", {
     style: "currency",
@@ -35,7 +35,7 @@ function money(n?: number | null) {
   }).format(rounded);
 }
 
-function v(x: any, fallback = "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â") {
+function v(x: any, fallback = "-") {
   if (x === null || x === undefined || x === "") return fallback;
   return String(x);
 }
@@ -67,7 +67,7 @@ export default function OfferBesvarad({ offer }: any) {
     ...(roundTrip
       ? [
           {
-            title: "Ãƒâ€¦terresa",
+            title: "Återresa",
             date: offer?.return_date,
             time: offer?.return_time,
             from: offer?.destination,
@@ -103,17 +103,17 @@ export default function OfferBesvarad({ offer }: any) {
       Number(breakdown?.fees?.boatFeeTotal || 0) > 0
     ) {
       const qty = breakdown?.fees?.boatFeeQty;
-      parts.push(qty ? `bÃ¥tavgift (${qty} st, momsfri)` : "bÃ¥tavgift");
+      parts.push(qty ? `båtavgift (${qty} st, momsfri)` : "båtavgift");
     }
 
     if (parts.length > 0) {
-      return `Priset Ã¤r inklusive ${parts.join(" och ")}.`;
+      return `Priset är inklusive ${parts.join(" och ")}.`;
     }
 
     const priceNote = String(offer?.price_note || "");
     if (
       priceNote.toLowerCase().includes("broavgift") ||
-      priceNote.toLowerCase().includes("bÃ¥tavgift")
+      priceNote.toLowerCase().includes("båtavgift")
     ) {
       return priceNote;
     }
@@ -270,7 +270,7 @@ export default function OfferBesvarad({ offer }: any) {
       const auth = getAuthQueryFromUrl();
       window.location.href = `/offert/${offer.offer_number}${qBase}${auth}`;
     } catch (e: any) {
-      alert(e?.message || "Tekniskt fel vid godkÃ¤nnande.");
+      alert(e?.message || "Tekniskt fel vid godkännande.");
     } finally {
       setBusy(null);
     }
@@ -298,13 +298,13 @@ export default function OfferBesvarad({ offer }: any) {
 
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error || `Kunde inte avbÃ¶ja (HTTP ${res.status})`);
+        throw new Error(j?.error || `Kunde inte avböja (HTTP ${res.status})`);
       }
 
       const auth = getAuthQueryFromUrl();
       window.location.href = `/offert/${offer.offer_number}?view=avbojd${auth}`;
     } catch (e: any) {
-      alert(e?.message || "Tekniskt fel vid avbÃ¶j.");
+      alert(e?.message || "Tekniskt fel vid avböj.");
     } finally {
       setBusy(null);
     }
@@ -326,7 +326,7 @@ export default function OfferBesvarad({ offer }: any) {
           customerEmail: email,
           offerNumber: offer.offer_number,
           message:
-            "Kunden Ã¶nskar Ã¤ndringar i offerten. Kontakta kunden fÃ¶r detaljer.",
+            "Kunden önskar ändringar i offerten. Kontakta kunden för detaljer.",
         }
       );
 
@@ -334,13 +334,13 @@ export default function OfferBesvarad({ offer }: any) {
         const j = await res.json().catch(() => ({}));
         throw new Error(
           j?.error ||
-            `Kunde inte skicka Ã¤ndringsfÃ¶rfrÃ¥gan (HTTP ${res.status})`
+            `Kunde inte skicka ändringsförfrågan (HTTP ${res.status})`
         );
       }
 
-      alert("Tack! Vi Ã¥terkommer med uppdaterad offert.");
+      alert("Tack! Vi återkommer med uppdaterad offert.");
     } catch (e: any) {
-      alert(e?.message || "Tekniskt fel vid Ã¤ndringsfÃ¶rfrÃ¥gan.");
+      alert(e?.message || "Tekniskt fel vid ändringsförfrågan.");
     } finally {
       setBusy(null);
     }
@@ -379,15 +379,15 @@ export default function OfferBesvarad({ offer }: any) {
                       </div>
 
                       <h1 className="mt-4 text-3xl lg:text-[34px] leading-tight font-semibold tracking-tight text-[#0f172a]">
-                        Er offert Ã¤r klar
+                        Er offert är klar
                       </h1>
 
                       <p className="mt-2 text-sm text-slate-600">
                         Offert{" "}
                         <span className="font-semibold text-[#194C66]">
-                          {offer?.offer_number || "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}
+                          {offer?.offer_number || "-"}
                         </span>{" "}
-                        Ã¤r besvarad och redo att godkÃ¤nnas.
+                        är besvarad och redo att godkännas.
                       </p>
                     </div>
 
@@ -409,15 +409,15 @@ export default function OfferBesvarad({ offer }: any) {
                     <p>
                       Hej!
                       <br />
-                      Er offert Ã¤r nu klar och sammanstÃ¤ller en tydlig plan fÃ¶r
+                        Er offert är klar
                       resan. Nedan ser ni rutt, tider, pris och villkor.
-                      Kontrollera uppgifterna innan ni godkÃ¤nner.
+                      Kontrollera uppgifterna innan ni godkänner.
                     </p>
 
                     <p className="mt-3">
-                      Ãƒâ€“nskar ni justera antal resenÃ¤rer, hÃ¥llplatser, bagage,
-                      barnstol/tillgÃ¤nglighet eller service ombord? Klicka pÃ¥{" "}
-                      <strong>Ã„ndra din offert</strong> sÃ¥ Ã¥terkommer vi med en
+                      Önskar ni justera antal resenärer, hållplatser, bagage,
+                      barnstol/tillgänglighet eller service ombord? Klicka på{" "}
+                      <strong>Ändra din offert</strong> så återkommer vi med en
                       uppdaterad offert.
                     </p>
                   </div>
@@ -431,7 +431,7 @@ export default function OfferBesvarad({ offer }: any) {
                       Resedetaljer
                     </h2>
                     <p className="text-sm text-slate-500">
-                      Kontrollera datum, tider, platser och antal resenÃ¤rer.
+                      Kontrollera datum, tider, platser och antal resenärer.
                     </p>
                   </div>
 
@@ -446,10 +446,10 @@ export default function OfferBesvarad({ offer }: any) {
                       key={idx}
                       title={
                         withinSweden
-                          ? `Bussresa inom Sverige ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${trip.title}`
-                          : `Bussresa utomlands ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${trip.title}`
+                          ? `Bussresa inom Sverige • ${trip.title}`
+                          : `Bussresa utomlands • ${trip.title}`
                       }
-                      subtitle="AvstÃ¥nd och tider baseras preliminÃ¤rt"
+                      subtitle="Avstånd och tider baseras preliminärt"
                       date={trip.date}
                       time={trip.time}
                       from={trip.from}
@@ -467,11 +467,11 @@ export default function OfferBesvarad({ offer }: any) {
                 >
                   <div className="rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-5 text-[#0f172a]/80">
                     <div className="mb-2 text-sm font-semibold text-[#0f172a]">
-                      NÃ¤sta steg
+                      Nästa steg
                     </div>
                     <p>
-                      GodkÃ¤nn offerten digitalt fÃ¶r att vi ska kunna gÃ¥ vidare
-                      med bokningen och sÃ¤kra kapacitet fÃ¶r resan.
+                      Godkänn offerten digitalt för att vi ska kunna gå vidare
+                      med bokningen och säkra kapacitet för resan.
                     </p>
                   </div>
 
@@ -480,8 +480,8 @@ export default function OfferBesvarad({ offer }: any) {
                       Viktig information
                     </div>
                     <p>
-                      Slutlig kapacitet bekrÃ¤ftas fÃ¶rst genom en skriftlig
-                      bokningsbekrÃ¤ftelse frÃ¥n Helsingbuss.
+                      Slutlig kapacitet bekräftas först genom en skriftlig
+                      bokningsbekräftelse från Helsingbuss.
                     </p>
                   </div>
                 </div>
@@ -491,21 +491,21 @@ export default function OfferBesvarad({ offer }: any) {
                   style={{ lineHeight: LINE_HEIGHT }}
                 >
                   <p>
-                    Genom att godkÃ¤nna offerten bekrÃ¤ftar ni att ni har tagit
-                    del av vÃ¥ra resevillkor. Datum och tider Ã¤r i mÃ¥n av
-                    tillgÃ¤nglighet tills bokningen Ã¤r skriftligt bekrÃ¤ftad.
+                    Genom att godkänna offerten bekräftar ni att ni har tagit
+                    del av våra resevillkor. Datum och tider är i mån av
+                    tillgänglighet tills bokningen är skriftligt bekräftad.
                   </p>
 
                   <p className="mt-3">
-                    Vill ni boka eller har frÃ¥gor/Ã¤ndringar? Kontakta oss sÃ¥
-                    hjÃ¤lper vi gÃ¤rna. VÃ¥ra Ã¶ppettider Ã¤r vardagar kl.
-                    08:00â€“17:00. FÃ¶r akuta Ã¤renden eller bokningar med kortare
-                    varsel Ã¤n tvÃ¥ arbetsdagar, ring vÃ¥rt journummer:{" "}
-                    <strong>010â€“777 21 58</strong>.
+                    Vill ni boka eller har frågor/ändringar? Kontakta oss så
+                    hjälper vi gärna. Våra öppettider är vardagar kl.
+                    08:00-17:00. För akuta ärenden eller bokningar med kortare
+                    varsel än två arbetsdagar, ring vårt journummer:{" "}
+                    <strong>010-777 21 58</strong>.
                   </p>
 
                   <p className="mt-4 rounded-xl bg-[#194C66] px-4 py-3 text-[12px] uppercase tracking-wide font-semibold text-white">
-                    Kontrollera uppgifterna och godkÃ¤nn offerten fÃ¶r att gÃ¥
+                    Kontrollera uppgifterna och godkänn offerten för att gå
                     vidare.
                   </p>
                 </div>
@@ -538,13 +538,13 @@ export default function OfferBesvarad({ offer }: any) {
             <div className="h-full rounded-3xl bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)] border border-white/70 flex flex-col overflow-hidden">
               <div className="bg-gradient-to-br from-[#194C66] to-[#0f3347] px-6 py-6 text-white">
                 <div className="text-xs uppercase tracking-[0.18em] text-white/60">
-                  OffertÃ¶versikt
+                  Offertöversikt
                 </div>
                 <h2 className="mt-2 text-2xl font-semibold">
                   {offer?.contact_person ?? "Kund"}
                 </h2>
                 <p className="mt-1 text-sm text-white/70">
-                  HÃ¤r ser ni pris, betalningsvillkor och kan svara pÃ¥ offerten.
+                  Här ser ni pris, betalningsvillkor och kan svara på offerten.
                 </p>
               </div>
 
@@ -555,19 +555,19 @@ export default function OfferBesvarad({ offer }: any) {
 
                 <dl className="mt-4 grid grid-cols-[auto,1fr] gap-x-6 gap-y-1 text-[14px] text-[#0f172a] leading-tight">
                   <DT>Offertdatum:</DT>
-                  <DD>{v(offer?.offer_date, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
+                  <DD>{v(offer?.offer_date, "-")}</DD>
                   <DT>Er referens:</DT>
-                  <DD>{v(offer?.customer_reference, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
-                  <DT>VÃ¥r referens:</DT>
-                  <DD>{v(offer?.internal_reference, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
+                  <DD>{v(offer?.customer_reference, "-")}</DD>
+                  <DT>Vår referens:</DT>
+                  <DD>{v(offer?.internal_reference, "-")}</DD>
                   <DT>Namn:</DT>
-                  <DD>{v(offer?.contact_person, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
+                  <DD>{v(offer?.contact_person, "-")}</DD>
                   <DT>Adress:</DT>
-                  <DD>{v(offer?.customer_address, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
+                  <DD>{v(offer?.customer_address, "-")}</DD>
                   <DT>Telefon:</DT>
-                  <DD>{v(offer?.contact_phone, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
+                  <DD>{v(offer?.contact_phone, "-")}</DD>
                   <DT>E-post:</DT>
-                  <DD>{v(email, "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")}</DD>
+                  <DD>{v(email, "-")}</DD>
                 </dl>
 
                 <div className="mt-6 rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-4">
@@ -579,7 +579,7 @@ export default function OfferBesvarad({ offer }: any) {
                   </div>
 
                   <div className="mt-3 text-sm text-[#0f172a]/70">
-                    Totala kostnaden fÃ¶r denna offert Ã¤r:
+                    Totala kostnaden för denna offert är:
                   </div>
 
                   <div className="mt-1 text-3xl font-semibold text-[#0f172a]">
@@ -588,7 +588,7 @@ export default function OfferBesvarad({ offer }: any) {
 
                   {includedFeesText && (
                     <div className="mt-3 rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2 text-[13px] text-emerald-700">
-                      ÃƒÂ¢Ã…â€œÃ¢â‚¬Â {includedFeesText}
+                      ✓ {includedFeesText}
                     </div>
                   )}
                 </div>
@@ -598,8 +598,8 @@ export default function OfferBesvarad({ offer }: any) {
                     Betalningsvillkor
                   </div>
                   <p className="text-[13px] text-[#0f172a]/80 leading-relaxed">
-                    10 dagar netto om det Ã¤r fÃ¶retag/fÃ¶rening, faktura kommer
-                    efter uppdrag. FÃ¶r privatperson ska fakturan vara betald
+                    10 dagar netto om det är företag/förening, faktura kommer
+                    efter uppdrag. För privatperson ska fakturan vara betald
                     minst 3 dagar innan uppdraget.
                   </p>
                 </div>
@@ -612,7 +612,7 @@ export default function OfferBesvarad({ offer }: any) {
                     disabled={busy !== null}
                     className="w-full px-5 py-3 rounded-xl bg-[#194C66] text-white font-semibold hover:bg-[#163b4d] disabled:opacity-60"
                   >
-                    {busy === "accept" ? "Accepterarâ€¦" : "Acceptera offert"}
+                    {busy === "accept" ? "Accepterar..." : "Acceptera offert"}
                   </button>
 
                   <button
@@ -620,7 +620,7 @@ export default function OfferBesvarad({ offer }: any) {
                     disabled={busy !== null}
                     className="w-full px-5 py-3 rounded-xl border border-[#e2e8f0] text-[#0f172a] bg-white hover:bg-[#f8fafc] disabled:opacity-60"
                   >
-                    {busy === "change" ? "Skickarâ€¦" : "Ã„ndra din offert"}
+                    {busy === "change" ? "Skickar..." : "Ändra din offert"}
                   </button>
 
                   <button
@@ -628,7 +628,7 @@ export default function OfferBesvarad({ offer }: any) {
                     disabled={busy !== null}
                     className="w-full px-5 py-3 rounded-xl border border-red-100 text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-60"
                   >
-                    {busy === "decline" ? "AvbÃ¶jerâ€¦" : "AvbÃ¶j offert"}
+                    {busy === "decline" ? "Avböjer..." : "Avböj offert"}
                   </button>
                 </div>
               </div>
@@ -642,17 +642,17 @@ export default function OfferBesvarad({ offer }: any) {
 
 function AnsweredLeftPanel() {
   const steps = [
-    "FÃ¶rfrÃ¥gan mottagen",
+    "Förfrågan mottagen",
     "Offert framtagen",
-    "Ni vÃ¤ljer svar",
-    "Bokning bekrÃ¤ftas",
+    "Ni väljer svar",
+    "Bokning bekräftas",
   ];
 
   const benefits = [
     "Tydlig offert med totalpris",
-    "Digitalt godkÃ¤nnande",
-    "Personlig hjÃ¤lp vid Ã¤ndringar",
-    "Trygg planering hela vÃ¤gen",
+    "Digitalt godkännande",
+    "Personlig hjälp vid ändringar",
+    "Trygg planering hela vägen",
   ];
 
   return (
@@ -661,10 +661,10 @@ function AnsweredLeftPanel() {
         <div className="text-xs uppercase tracking-[0.18em] text-white/60">
           Helsingbuss
         </div>
-        <h2 className="mt-2 text-xl font-semibold">Offerten Ã¤r klar</h2>
+        <h2 className="mt-2 text-xl font-semibold">Offerten är klar</h2>
         <p className="mt-2 text-sm leading-relaxed text-white/75">
-          Kontrollera uppgifterna och vÃ¤lj om ni vill godkÃ¤nna, Ã¤ndra eller
-          avbÃ¶ja offerten.
+          Kontrollera uppgifterna och välj om ni vill godkänna, ändra eller
+          avböja offerten.
         </p>
       </div>
 
@@ -703,13 +703,13 @@ function AnsweredLeftPanel() {
 
         <div className="mt-6 rounded-2xl bg-[#f8fafc] border border-[#e2e8f0] p-4">
           <div className="text-sm font-semibold text-[#0f172a]">
-            DÃ¤rfÃ¶r vÃ¤ljer kunder oss
+            Därför väljer kunder oss
           </div>
 
           <div className="mt-3 space-y-2">
             {benefits.map((item) => (
               <div key={item} className="flex gap-2 text-sm text-slate-600">
-                <span className="text-[#194C66]">ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“</span>
+                <span className="text-[#194C66]">✓</span>
                 <span>{item}</span>
               </div>
             ))}
@@ -719,10 +719,10 @@ function AnsweredLeftPanel() {
 
       <div className="mt-auto p-5">
         <div className="rounded-2xl bg-[#eef5f9] px-4 py-4 text-sm text-[#194C66]">
-          <div className="font-semibold">BehÃ¶ver ni hjÃ¤lp?</div>
+          <div className="font-semibold">Behöver ni hjälp?</div>
           <p className="mt-1 leading-relaxed">
-            VÃ¤lj ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃ„ndra din offertÃƒÂ¢Ã¢â€šÂ¬Ã‚Â om nÃ¥got behÃ¶ver justeras innan ni
-            godkÃ¤nner.
+            Välj “Ändra din offert” om något behöver justeras innan ni
+            godkänner.
           </p>
         </div>
       </div>
