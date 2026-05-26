@@ -199,6 +199,14 @@ export default function AgentSundraBookingScreen() {
         seatSelectionPrice,
         totalPrice,
       });
+      const cleanBookingNumber = String(
+        (bookingResult as any)?.bookingNumber ||
+          (bookingResult as any)?.booking_number ||
+          (bookingResult as any)?.reference ||
+          ""
+      ).trim();
+
+
 
       const paymentTitle = `Sundra resa - ${selectedTrip.title}`;
       const paymentMessage =
@@ -222,6 +230,7 @@ export default function AgentSundraBookingScreen() {
         sourceType: "agent_sundra_booking",
         sourceId: bookingResult.bookingId,
         businessUnit: "sundra",
+        reference: cleanBookingNumber || undefined,
       } as any);
 
       Alert.alert(

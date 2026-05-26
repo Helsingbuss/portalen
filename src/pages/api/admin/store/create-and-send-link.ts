@@ -2,6 +2,14 @@
 import { requireAdminApi } from "@/lib/adminApi";
 import { sendBookingAdminEmail, sendBookingCustomerEmail } from "@/lib/sumup";
 
+function isUuidLike(value: any) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value || "").trim());
+}
+
+function isSundraBookingNumber(value: any) {
+  return /^SU\d{6,}$/i.test(String(value || "").trim());
+}
+
 function makeReference(prefix = "HB-PAY") {
   const random = Math.random().toString(36).slice(2, 7).toUpperCase();
   return `${prefix}-${Date.now()}-${random}`;
@@ -101,16 +109,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   let sundraBookingNumber = "";
 
-  if (isSundraPaymentSource && sourceId) {
-    const { data: sundraBookingForReference } = await supabaseAdmin
+  if (isSundraPaymentSource) {
+    const sourceText = String(sourceId || "").trim();
+    const referenceText = String(reference || "").trim();
+
+    let query = supabaseAdmin
       .from("sundra_bookings")
-      .select("booking_number")
-      .eq("id", sourceId)
-      .maybeSingle();
+      .select("id, booking_number")
+      .limit(1);
+
+    if (isUuidLike(sourceText)) {
+      query = query.eq("id", sourceText);
+    } else if (isSundraBookingNumber(sourceText)) {
+      query = query.eq("booking_number", sourceText.toUpperCase());
+    } else if (isSundraBookingNumber(referenceText)) {
+      query = query.eq("booking_number", referenceText.toUpperCase());
+    } else {
+      query = query.eq("id", "00000000-0000-0000-0000-000000000000");
+    }
+
+    const { data: sundraBookingForReference } = await query.maybeSingle();
 
     sundraBookingNumber = String(
       sundraBookingForReference?.booking_number || ""
     ).trim();
+
+    if (!sundraBookingNumber && isSundraBookingNumber(referenceText)) {
+      sundraBookingNumber = referenceText.toUpperCase();
+    }
+
+    if (!sundraBookingNumber) {
+      return res.status(400).json({
+        ok: false,
+        error:
+          "Sundra-betalning saknar SU-bokningsnummer. Betalningslänk stoppad så att HB-PAY inte skapas.",
+      });
+    }
   }
 
   const cleanReference = String(
@@ -122,8 +156,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .replace(/\s/g, "-");
 
   const checkoutReference =
-    isSundraPaymentSource && cleanReference
-      ? cleanReference
+    isSundraPaymentSource
+      ? sundraBookingNumber
       : reference
         ? `${String(reference).replace(/\s/g, "-")}-${Date.now()}`
         : makeReference();
