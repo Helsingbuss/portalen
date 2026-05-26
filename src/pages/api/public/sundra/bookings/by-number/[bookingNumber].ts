@@ -1,4 +1,4 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+﻿import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 
 const supabase: any =
@@ -43,6 +43,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return_date,
           return_time,
           price
+        ),
+        sundra_line_stops (
+          id,
+          stop_name,
+          stop_city,
+          departure_time,
+          price,
+          order_index
         ),
         sundra_booking_passengers (
           id,

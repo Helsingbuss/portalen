@@ -1,4 +1,4 @@
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+﻿import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import QRCode from "qrcode";
 import fs from "fs/promises";
 import path from "path";
@@ -26,6 +26,13 @@ type GenerateTicketInput = {
     id?: string | null;
     title?: string | null;
     destination?: string | null;
+  } | null;
+
+  pickupStop?: {
+    id?: string | null;
+    stop_name?: string | null;
+    stop_city?: string | null;
+    departure_time?: string | null;
   } | null;
 
   departure?: {
@@ -236,6 +243,10 @@ export async function generateSundraTicketPdf(input: GenerateTicketInput) {
     color: muted,
   });
 
+  const pickupText = input.pickupStop?.stop_name
+    ? `${input.pickupStop.stop_name}${input.pickupStop.stop_city ? `, ${input.pickupStop.stop_city}` : ""}${input.pickupStop.departure_time ? ` kl. ${fmtTime(input.pickupStop.departure_time)}` : ""}`
+    : "Ej angivet";
+
   const status = paymentLabel(input.booking.payment_status);
 
   page.drawRectangle({
@@ -302,6 +313,16 @@ export async function generateSundraTicketPdf(input: GenerateTicketInput) {
 
   drawInfo(
     page,
+    "Upphämtning",
+    pickupText,
+    col1,
+    yTop - 108,
+    font,
+    bold
+  );
+
+  drawInfo(
+    page,
     "Resenärer",
     `${input.booking.passengers_count || input.passengers?.length || 0} st`,
     col3,
@@ -346,7 +367,7 @@ export async function generateSundraTicketPdf(input: GenerateTicketInput) {
       const name =
         `${p.first_name || ""} ${p.last_name || ""}`.trim() || "—";
 
-      const seatText = p.seat_number ? ` • Plats ${p.seat_number}` : "";
+      const seatText = p.seat_number ? ` • Plats ${p.seat_number}` : " • Plats ej tilldelad";
 
       page.drawText(
         `${index + 1}. ${name} (${p.passenger_type || "Vuxen"})${seatText}`,

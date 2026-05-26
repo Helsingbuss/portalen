@@ -1,4 +1,4 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+﻿import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 
 import { generateSundraTicketPdf } from "@/lib/pdf/generateSundraTicketPdf";
@@ -68,6 +68,26 @@ export default async function handler(
       departure = data;
     }
 
+    // PICKUP STOP
+    let pickupStop: any = null;
+
+    const pickupStopId =
+      booking.line_stop_id ||
+      booking.pickup_stop_id ||
+      booking.stop_id ||
+      booking.selected_line_stop_id ||
+      null;
+
+    if (pickupStopId) {
+      const { data } = await supabase
+        .from("sundra_line_stops")
+        .select("id, stop_name, stop_city, departure_time, price, order_index")
+        .eq("id", pickupStopId)
+        .maybeSingle();
+
+      pickupStop = data;
+    }
+
     // PASSENGERS
     const { data: passengers } = await supabase
       .from("sundra_booking_passengers")
@@ -99,6 +119,24 @@ export default async function handler(
             destination: trip.destination,
           }
         : null,
+
+      pickupStop: pickupStop
+        ? {
+            id: pickupStop.id,
+            stop_name: pickupStop.stop_name,
+            stop_city: pickupStop.stop_city,
+            departure_time: pickupStop.departure_time,
+          }
+        : {
+            stop_name:
+              booking.pickup_stop_name ||
+              booking.pickup_place ||
+              booking.selected_stop_name ||
+              booking.selected_pickup_stop ||
+              null,
+            stop_city: booking.pickup_stop_city || null,
+            departure_time: booking.pickup_time || null,
+          },
 
       departure: departure
         ? {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Image from "next/image";
 
@@ -32,6 +32,20 @@ type Booking = {
     image_url?: string | null;
     currency?: string | null;
   } | null;
+  sundra_line_stops?: {
+    id?: string | null;
+    stop_name?: string | null;
+    stop_city?: string | null;
+    departure_time?: string | null;
+    price?: number | null;
+    order_index?: number | null;
+  } | null;
+  pickup_stop_name?: string | null;
+  pickup_stop_city?: string | null;
+  pickup_time?: string | null;
+  pickup_place?: string | null;
+  selected_stop_name?: string | null;
+  selected_pickup_stop?: string | null;
   sundra_departures?: {
     id: string;
     departure_date?: string | null;
@@ -169,6 +183,23 @@ export default function MyBookingPage() {
 
   const trip = booking.sundra_trips;
   const departure = booking.sundra_departures;
+  const pickupStop = booking.sundra_line_stops;
+  const pickupName =
+    pickupStop?.stop_name ||
+    booking.pickup_stop_name ||
+    booking.pickup_place ||
+    booking.selected_stop_name ||
+    booking.selected_pickup_stop ||
+    null;
+  const pickupCity = pickupStop?.stop_city || booking.pickup_stop_city || null;
+  const pickupTime =
+    pickupStop?.departure_time ||
+    booking.pickup_time ||
+    departure?.departure_time ||
+    null;
+  const pickupText = pickupName
+    ? `${pickupName}${pickupCity ? `, ${pickupCity}` : ""}${pickupTime ? ` kl. ${fmtTime(pickupTime)}` : ""}`
+    : "Ej angivet";
   const passengers = booking.sundra_booking_passengers || [];
   const currency = booking.currency || trip?.currency || "SEK";
   const ticketUrl = `/api/public/sundra/bookings/${booking.id}/ticket`;
@@ -227,6 +258,7 @@ export default function MyBookingPage() {
                     departure?.return_time
                   )}`}
                 />
+                <Info label="Upphämtningsplats" value={pickupText} />
               </div>
             </div>
           </div>
@@ -246,6 +278,7 @@ export default function MyBookingPage() {
                   label="Avresetid"
                   value={fmtTime(departure?.departure_time)}
                 />
+                <Info label="Upphämtningsplats" value={pickupText} />
                 <Info
                   label="Returdatum"
                   value={fmtDate(departure?.return_date)}
@@ -325,6 +358,7 @@ export default function MyBookingPage() {
                 label="Status"
                 value={paymentLabel(booking.payment_status)}
               />
+              <Summary label="Upphämtning" value={pickupText} />
               <Summary
                 label="Totalt"
                 value={money(booking.total_amount, currency)}
