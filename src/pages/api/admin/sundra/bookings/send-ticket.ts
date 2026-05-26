@@ -50,13 +50,17 @@ export default async function handler(
 
     const {
       booking_id,
+      booking_number,
     } = req.body || {};
 
-    if (!booking_id) {
+    const bookingId = String(booking_id || "").trim();
+    const bookingNumber = String(booking_number || "").trim();
+
+    if (!bookingId && !bookingNumber) {
       return res.status(400).json({
         ok: false,
         error:
-          "booking_id saknas.",
+          "booking_id eller booking_number saknas.",
       });
     }
 
