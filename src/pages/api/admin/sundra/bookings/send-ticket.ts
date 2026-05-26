@@ -35,6 +35,12 @@ function fmtTime(
   return String(time).slice(0, 5);
 }
 
+function isUuidLike(value: any) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    String(value || "").trim()
+  );
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -67,13 +73,8 @@ export default async function handler(
     // =========================
     // BOOKING
     // =========================
-    const {
-      data: booking,
-      error,
-    } = await supabase
-      .from(
-        "sundra_bookings"
-      )
+    let bookingQuery = supabase
+      .from("sundra_bookings")
       .select(`
         *,
         sundra_trips (
@@ -83,13 +84,30 @@ export default async function handler(
         sundra_departures (
           departure_date,
           departure_time,
-          return_date,
           return_time,
           departure_location
         )
-      `)
-      .eq("id", booking_id)
-      .limit(1).maybeSingle();
+      `);
+
+    if (isUuidLike(bookingId)) {
+      bookingQuery = bookingQuery.eq("id", bookingId);
+    } else if (bookingNumber) {
+      bookingQuery = bookingQuery.eq("booking_number", bookingNumber.toUpperCase());
+    } else if (bookingId && bookingId.toUpperCase().startsWith("SU")) {
+      bookingQuery = bookingQuery.eq("booking_number", bookingId.toUpperCase());
+    } else {
+      return res.status(400).json({
+        ok: false,
+        error: "Ogiltigt booking_id eller booking_number.",
+      });
+    }
+
+    const {
+      data: booking,
+      error,
+    } = await bookingQuery
+      .limit(1)
+      .maybeSingle();
 
     if (error || !booking) {
       throw (
