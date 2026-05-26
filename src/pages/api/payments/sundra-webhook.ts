@@ -8,6 +8,65 @@ const supabase: any =
   (admin as any).supabase ||
   (admin as any).default;
 
+function getInternalBaseUrl(req: any) {
+  const envBase =
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL ||
+    process.env.CUSTOMER_BASE_URL ||
+    process.env.VERCEL_URL ||
+    "";
+
+  if (envBase) {
+    return envBase.startsWith("http") ? envBase.replace(/\/$/, "") : `https://${envBase.replace(/\/$/, "")}`;
+  }
+
+  const proto = req.headers["x-forwarded-proto"] || "http";
+  const host = req.headers.host;
+
+  return `${proto}://${host}`;
+}
+
+async function sendSundraTicketAfterPayment(req: any, bookingId: string) {
+  try {
+    const baseUrl = getInternalBaseUrl(req);
+
+    const response = await fetch(`${baseUrl}/api/admin/sundra/bookings/send-ticket`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-sundra-ticket": process.env.INTERNAL_API_SECRET || "internal",
+      },
+      body: JSON.stringify({
+        bookingId,
+        id: bookingId,
+        reason: "payment_paid",
+      }),
+    });
+
+    const json = await response.json().catch(() => ({}));
+
+    if (!response.ok || json?.ok === false) {
+      console.error("Kunde inte skicka Sundra-biljett efter betalning:", json);
+      return {
+        ok: false,
+        error: json?.error || "Kunde inte skicka Sundra-biljett.",
+      };
+    }
+
+    return {
+      ok: true,
+      result: json,
+    };
+  } catch (error: any) {
+    console.error("sendSundraTicketAfterPayment error:", error);
+
+    return {
+      ok: false,
+      error: error?.message || "Kunde inte skicka Sundra-biljett.",
+    };
+  }
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (req.method !== "POST") {
@@ -86,10 +145,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           updated_at: new Date().toISOString(),
         })
         .eq("id", booking.id);
+    return res.status(200).json({
+      ok: true,
 
-      return res.status(200).json({
-        ok: true,
-        message: "Webhook mottagen men betalning är inte markerad som betald.",
+message: "Webhook mottagen men betalning är inte markerad som betald.",
       });
     }
 
@@ -162,8 +221,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    return res.status(200).json({
+    const ticketSendResult = updatedBooking?.id
+      ? await sendSundraTicketAfterPayment(req, String(updatedBooking.id))
+      : {
+          ok: false,
+          error: "updatedBooking saknas, kunde inte skicka Sundra-biljett.",
+        };
+
+return res.status(200).json({
       ok: true,
+      ticketSend: ticketSendResult,
       message: "Betalning markerad som betald och mail skickat.",
       booking_id: updatedBooking.id,
       booking_number: updatedBooking.booking_number,
