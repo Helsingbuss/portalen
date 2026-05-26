@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { sendSundraReceiptAndTicketAfterPayment } from "@/lib/sundraPostPaymentEmails";
 import { sendSundraBookingConfirmation } from "@/lib/email/sendSundraBookingConfirmation";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { sendShuttleBookingEmail } from "@/lib/shuttle/sendBookingEmail";
@@ -50,7 +51,7 @@ function isFailedStatus(status: string) {
   );
 }
 
-async function handleSundraBooking(checkoutReference: string, checkout: any) {
+async function handleSundraBooking(req: NextApiRequest, checkoutReference: string, checkout: any) {
   const status = String(checkout?.status || "").toLowerCase();
 
   let storeOrder: any = null;
@@ -263,8 +264,18 @@ async function handleSundraBooking(checkoutReference: string, checkout: any) {
     ticketEmail.reason = "missing_customer_email";
   }
 
-  return {
+  
+  const receiptAndTicketResult = await sendSundraReceiptAndTicketAfterPayment(
+    req,
+    {
+      bookingId: String(updatedBooking.id),
+      paymentReference: String(paymentReference || updatedBooking.payment_reference || ""),
+    }
+  );
+
+return {
     ok: true,
+    receipt_and_ticket: receiptAndTicketResult,
     type: "sundra",
     paid: true,
     booking_id: updatedBooking.id,
@@ -447,6 +458,7 @@ export default async function handler(
     }
 
     const sundraResult = await handleSundraBooking(
+      req,
       String(checkoutReference),
       checkout
     );

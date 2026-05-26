@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { sendSundraReceiptAndTicketAfterPayment } from "@/lib/sundraPostPaymentEmails";
 import * as admin from "@/lib/supabaseAdmin";
 
 import { sendSundraBookingConfirmation } from "@/lib/email/sendSundraBookingConfirmation";
@@ -221,16 +222,18 @@ message: "Webhook mottagen men betalning är inte markerad som betald.",
       });
     }
 
-    const ticketSendResult = updatedBooking?.id
-      ? await sendSundraTicketAfterPayment(req, String(updatedBooking.id))
-      : {
-          ok: false,
-          error: "updatedBooking saknas, kunde inte skicka Sundra-biljett.",
-        };
+    const receiptAndTicketResult = await sendSundraReceiptAndTicketAfterPayment(
+      req,
+      {
+        bookingId: String(updatedBooking.id),
+        paymentReference: String(paymentReference || updatedBooking.payment_reference || ""),
+      }
+    );
 
 return res.status(200).json({
       ok: true,
-      ticketSend: ticketSendResult,
+      receiptAndTicket: receiptAndTicketResult,
+
       message: "Betalning markerad som betald och mail skickat.",
       booking_id: updatedBooking.id,
       booking_number: updatedBooking.booking_number,
