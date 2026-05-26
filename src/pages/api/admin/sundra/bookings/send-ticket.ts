@@ -85,7 +85,7 @@ export default async function handler(
         )
       `)
       .eq("id", booking_id)
-      .single();
+      .limit(1).maybeSingle();
 
     if (error || !booking) {
       throw (
