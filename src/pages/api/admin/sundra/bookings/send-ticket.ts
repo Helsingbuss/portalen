@@ -131,9 +131,13 @@ export default async function handler(
     // =========================
     // PDF URL
     // =========================
-    const baseUrl =
+    const baseUrl = (
+      process.env.NEXT_PUBLIC_BASE_URL ||
       process.env.NEXT_PUBLIC_SITE_URL ||
-      "https://login.helsingbuss.se";
+      process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL ||
+      process.env.CUSTOMER_BASE_URL ||
+      "https://login.helsingbuss.se"
+    ).replace(/\/$/, "");
 
     const pdfUrl = `${baseUrl}/api/public/sundra/bookings/${booking.id}/ticket`;
 
