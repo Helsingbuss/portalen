@@ -583,7 +583,7 @@ export async function generateSundraTicketPdf(input: GenerateTicketInput) {
   text(page, "Helsingbuss", 99, 126, 61, bold, C.white);
   text(page, "Sundra resor", 100, 161, 27, font, C.mint);
 
-  // SÄTESRUTA
+  // SÃ„TESRUTA
   roundRect(page, 729, 89, 193, 140, 18, {
     color: C.teal,
     borderColor: C.gold,
@@ -649,7 +649,7 @@ export async function generateSundraTicketPdf(input: GenerateTicketInput) {
   text(page, pickupName, 187, 823, 18, bold, C.dark, 210);
   text(page, pickupSub, 187, 848, 16, font, C.teal, 210);
 
-  text(page, "\u2192", 420, 825, 30, bold, C.dark);
+  text(page, ">", 420, 825, 30, bold, C.dark);
 
   text(page, "Till", 509, 792, 14, font, C.muted);
   text(page, destination, 509, 823, 18, bold, C.dark, 190);
@@ -664,7 +664,7 @@ export async function generateSundraTicketPdf(input: GenerateTicketInput) {
     text(page, `Retur ${fmtTime(input.departure.return_time)}`, 759, 852, 14, font, C.teal);
   }
 
-  // RESENÄR
+  // RESENÃ„R
   card(page, 102, 877, 819, 90, C.white);
   sectionTitle(page, "Resen\u00e4r", 128, 907, bold);
 
