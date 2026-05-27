@@ -4,7 +4,7 @@ export function publicOrigin(kind: "offer" | "default" = "default") {
   const base = process.env.NEXT_PUBLIC_BASE_URL;           // t.ex. https://login.helsingbuss.se
 
   if (kind === "offer" && kund) return kund;
-  return base || "http://localhost:3000";
+  return base || "https://login.helsingbuss.se";
 }
 
 // Exempel: bygga offert-lÃ¤nk fÃ¶r mail etc.

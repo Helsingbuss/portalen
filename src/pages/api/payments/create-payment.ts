@@ -90,7 +90,7 @@ export default async function handler(
     // 🌍 BASE URL
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ||
-      "http://localhost:3000";
+      "https://login.helsingbuss.se";
 
     const paymentLink = `${baseUrl}/pay/${ticket.id}`;
 

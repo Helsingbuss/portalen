@@ -5,7 +5,7 @@ export function getPublicBaseUrl(fallbackHost?: string) {
 
   if (fallbackHost) return `https://${fallbackHost.replace(/\/+$/, "")}`;
 
-  return "http://localhost:3000";
+  return "https://login.helsingbuss.se";
 }
 
 // Offertlänk – OBS: din publika sida ligger under /offert/[id]

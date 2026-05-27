@@ -133,7 +133,7 @@ export default async function handler(
     // =========================
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ||
-      "http://localhost:3000";
+      "https://login.helsingbuss.se";
 
     const pdfUrl = `${baseUrl}/api/public/sundra/bookings/${booking.id}/ticket`;
 

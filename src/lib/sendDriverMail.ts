@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://login.helsingbuss.se";
 
 export type DriverOrderSummary = {
   order_number?: string | null;

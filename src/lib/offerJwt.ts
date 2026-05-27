@@ -29,7 +29,7 @@ export async function verifyOfferToken(token: string): Promise<{ offer_id: strin
 
 /** Hjälpare för bas-URL:er */
 export function baseUrl() {
-  return (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "") || "http://localhost:3000";
+  return (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "") || "https://login.helsingbuss.se";
 }
 
 export function customerBaseUrl() {

@@ -49,7 +49,7 @@ function baseUrl() {
       .NEXT_PUBLIC_CUSTOMER_BASE_URL ||
     process.env.CUSTOMER_BASE_URL ||
     process.env.NEXT_PUBLIC_BASE_URL ||
-    "http://localhost:3000";
+    "https://login.helsingbuss.se";
 
   return raw.replace(/\/$/, "");
 }

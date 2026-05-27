@@ -7,7 +7,7 @@ import { Resend } from "resend";
 
 const supabase = (admin as any).supabaseAdmin || (admin as any).supabase || (admin as any).default;
 
-const BASE = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "") || "http://localhost:3000";
+const BASE = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "") || "https://login.helsingbuss.se";
 const ADMIN_TO = process.env.MAIL_ADMIN || "offert@helsingbuss.se";
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 

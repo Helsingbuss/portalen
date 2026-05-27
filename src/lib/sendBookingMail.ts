@@ -29,7 +29,7 @@ function resolveBaseUrl(explicit?: string | null) {
     process.env.VERCEL_PROJECT_PRODUCTION_URL ||
     process.env.VERCEL_URL ||
     "";
-  if (!envUrl) return "http://localhost:3000";
+  if (!envUrl) return "https://login.helsingbuss.se";
   const hasProtocol = /^https?:\/\//i.test(envUrl);
   return (hasProtocol ? envUrl : `https://${envUrl}`).replace(/\/+$/, "");
 }

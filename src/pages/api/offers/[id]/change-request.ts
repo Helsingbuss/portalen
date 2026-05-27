@@ -11,7 +11,7 @@ const supabase =
 
 const BASE =
   (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "") ||
-  "http://localhost:3000";
+  "https://login.helsingbuss.se";
 
 const ADMIN_TO = process.env.MAIL_ADMIN || "offert@helsingbuss.se";
 const resend = process.env.RESEND_API_KEY

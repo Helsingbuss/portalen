@@ -12,7 +12,7 @@ export default function GlomtLosenord() {
     setLoading(true);
 
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: "http://localhost:3000/reset-losenord", // ändra när du deployar
+      redirectTo: "https://login.helsingbuss.se/reset-losenord", // ändra när du deployar
     });
 
     setLoading(false);

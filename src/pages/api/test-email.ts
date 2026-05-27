@@ -19,7 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const base =
     process.env.NEXT_PUBLIC_LOGIN_BASE_URL ||
     process.env.NEXT_PUBLIC_BASE_URL ||
-    "http://localhost:3000";
+    "https://login.helsingbuss.se";
 
   if (!key) return res.status(500).json({ error: "Missing RESEND_API_KEY" });
   if (!to)  return res.status(400).json({ error: "No TEST_MAIL_TO / OFFERS_INBOX / ADMIN_ALERT_EMAIL" });

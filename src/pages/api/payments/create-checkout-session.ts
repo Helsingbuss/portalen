@@ -56,7 +56,7 @@ function ensureBaseUrl(): string {
       "").trim();
 
   if (!raw) {
-    return "http://localhost:3000";
+    return "https://login.helsingbuss.se";
   }
 
   let url = raw;
