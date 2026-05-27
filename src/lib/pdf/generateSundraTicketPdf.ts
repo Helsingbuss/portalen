@@ -1,640 +1,762 @@
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, PDFPage, PDFFont, RGB, rgb, StandardFonts } from "pdf-lib";
 import QRCode from "qrcode";
 
-type AnyObj = Record<string, any>;
+type Passenger = {
+  first_name?: string | null;
+  last_name?: string | null;
+  passenger_type?: string | null;
+  seat_number?: string | null;
+};
 
-function clean(value: any, fallback = "") {
-  const text = String(value ?? "").trim();
-  return text || fallback;
+type GenerateTicketInput = {
+  booking: {
+    id: string;
+    booking_number?: string | null;
+    customer_name?: string | null;
+    passengers_count?: number | null;
+    total_amount?: number | null;
+    currency?: string | null;
+    payment_status?: string | null;
+    ticket_hash?: string | null;
+    created_at?: string | null;
+    purchased_at?: string | null;
+    payment_method?: string | null;
+    card_last4?: string | null;
+    transaction_id?: string | null;
+    reference_number?: string | null;
+    authorization_code?: string | null;
+  };
+
+  trip?: {
+    id?: string | null;
+    title?: string | null;
+    destination?: string | null;
+  } | null;
+
+  pickupStop?: {
+    id?: string | null;
+    stop_name?: string | null;
+    stop_city?: string | null;
+    departure_time?: string | null;
+  } | null;
+
+  departure?: {
+    id?: string | null;
+    departure_date?: string | null;
+    departure_time?: string | null;
+    return_date?: string | null;
+    return_time?: string | null;
+  } | null;
+
+  passengers?: Passenger[];
+};
+
+const PAGE_W = 595;
+const PAGE_H = 842;
+const S = PAGE_W / 1024;
+
+const C = {
+  pageBg: rgb(0.965, 0.963, 0.945),
+  white: rgb(1, 1, 1),
+  navy: rgb(0.025, 0.105, 0.165),
+  navy2: rgb(0.03, 0.13, 0.19),
+  dark: rgb(0.045, 0.085, 0.14),
+  muted: rgb(0.35, 0.43, 0.54),
+  teal: rgb(0.02, 0.38, 0.36),
+  teal2: rgb(0.02, 0.50, 0.44),
+  mint: rgb(0.64, 0.90, 0.84),
+  gold: rgb(1, 0.70, 0.28),
+  border: rgb(0.82, 0.88, 0.92),
+  softBorder: rgb(0.89, 0.93, 0.95),
+  cardBg: rgb(0.965, 0.982, 0.988),
+  importantBg: rgb(0.93, 0.975, 0.985),
+};
+
+function p(v: number) {
+  return v * S;
 }
 
-function money(value: any, currency = "SEK") {
-  const amount = Number(value || 0);
+function yBase(y: number) {
+  return PAGE_H - p(y);
+}
 
-  return `${amount.toLocaleString("sv-SE", {
+function yRect(y: number, h: number) {
+  return PAGE_H - p(y + h);
+}
+
+function pt(x: number, y: number) {
+  return { x: p(x), y: yBase(y) };
+}
+
+function cleanText(value?: string | number | null) {
+  return String(value ?? "-")
+    .replace(/\u00c3\u00a5/g, "\u00e5")
+    .replace(/\u00c3\u00a4/g, "\u00e4")
+    .replace(/\u00c3\u00b6/g, "\u00f6")
+    .replace(/\u00c3\u0085/g, "\u00c5")
+    .replace(/\u00c3\u0084/g, "\u00c4")
+    .replace(/\u00c3\u0096/g, "\u00d6")
+    .replace(/\u00e2\u20ac\u201c/g, "-")
+    .replace(/\u00e2\u20ac\u2122/g, "'")
+    .replace(/\u2013/g, "-")
+    .replace(/\u2014/g, "-")
+    .replace(/\u2019/g, "'")
+    .replace(/\u00a0/g, " ");
+}
+
+function money(value?: number | null, currency = "SEK") {
+  if (value == null) return "-";
+
+  return new Intl.NumberFormat("sv-SE", {
+    style: "currency",
+    currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })} ${currency || "SEK"}`;
+  }).format(Number(value));
 }
 
-function dateText(value: any) {
-  if (!value) return "Ej angivet";
+function fmtDate(date?: string | null) {
+  if (!date) return "-";
+  return String(date).slice(0, 10);
+}
 
-  try {
-    return new Intl.DateTimeFormat("sv-SE", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(value));
-  } catch {
-    return String(value);
+function fmtTime(time?: string | null) {
+  if (!time) return "-";
+  return String(time).slice(0, 5);
+}
+
+function fmtDateTime(value?: string | null) {
+  if (!value) return "-";
+
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+
+  return new Intl.DateTimeFormat("sv-SE", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+    .format(d)
+    .replace(",", "");
+}
+
+function paymentLabel(status?: string | null) {
+  switch (status) {
+    case "paid":
+    case "completed":
+    case "succeeded":
+      return "Betalning godk\u00e4nd";
+    case "pending":
+    case "pending_payment":
+      return "Inv\u00e4ntar betalning";
+    case "unpaid":
+      return "Obetald";
+    case "failed":
+      return "Betalning misslyckades";
+    default:
+      return status || "Ok\u00e4nd";
   }
 }
 
-function timeText(value: any) {
-  if (!value) return "Ej angivet";
-  return String(value).slice(0, 5);
+function passengerName(passengers: Passenger[], fallback?: string | null) {
+  if (!passengers.length) return cleanText(fallback || "-");
+
+  const first = passengers[0];
+  const name = cleanText(`${first.first_name || ""} ${first.last_name || ""}`.trim());
+
+  if (!name || name === "-") return cleanText(fallback || "-");
+  if (passengers.length === 1) return name;
+
+  return `${name} + ${passengers.length - 1} till`;
 }
 
-function truncate(text: string, max = 36) {
-  if (!text) return "";
-  return text.length > max ? text.slice(0, max - 1) + "…" : text;
+function ticketTypeLabel(passengers: Passenger[], count?: number | null) {
+  if (!passengers.length) return `${count || 1} Vuxen`;
+
+  const grouped = passengers.reduce<Record<string, number>>((acc, passenger) => {
+    const type = cleanText(passenger.passenger_type || "Vuxen");
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {});
+
+  return Object.entries(grouped)
+    .map(([type, amount]) => `${amount} ${type}`)
+    .join(", ");
 }
 
-function getBooking(input: AnyObj) {
-  return input?.booking || input || {};
-}
-
-function getTrip(input: AnyObj, booking: AnyObj) {
-  return input?.trip || booking?.sundra_trips || booking?.trip || {};
-}
-
-function getDeparture(input: AnyObj, booking: AnyObj) {
-  return input?.departure || booking?.sundra_departures || booking?.departure || {};
-}
-
-function getPassengers(input: AnyObj, booking: AnyObj) {
-  const passengers =
-    input?.passengers ||
-    booking?.sundra_booking_passengers ||
-    booking?.passengers_list ||
-    [];
-
-  return Array.isArray(passengers) ? passengers : [];
-}
-
-function firstPassengerName(passengers: AnyObj[], booking: AnyObj) {
-  const p = passengers[0] || {};
-
-  const name =
-    clean(p.name) ||
-    clean(p.passenger_name) ||
-    [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
-
-  return name || clean(booking.customer_name, "Resenär");
-}
-
-function seatText(passengers: AnyObj[], booking: AnyObj) {
+function seatSummary(passengers: Passenger[]) {
   const seats = passengers
-    .map((p) => clean(p.seat_number || p.seat || p.seatNumber))
-    .filter(Boolean);
+    .map((passenger) => cleanText(passenger.seat_number || ""))
+    .filter(Boolean)
+    .map((seat) => {
+      const lower = seat.toLowerCase();
 
-  const bookingSeats = clean(booking.seat_numbers || booking.seat_number || booking.seat);
+      if (lower.includes("automat")) return "Ej valt";
+      if (lower.includes("till")) return "Ej valt";
+      if (seat.length > 8) return "Ej valt";
 
-  if (seats.length) return seats.join(", ");
-  if (bookingSeats) return bookingSeats;
+      return seat;
+    });
 
-  return "Automatiskt tilldelas";
+  if (!seats.length) return "Ej valt";
+
+  const unique = Array.from(new Set(seats));
+
+  if (unique.length === 1) return unique[0];
+  if (unique.length > 2) return `${unique.length} s\u00e4ten`;
+
+  return unique.join(", ");
 }
 
-function totalPrice(booking: AnyObj) {
-  return (
-    booking.ticket_total_price ||
-    booking.total_price ||
-    booking.total_amount ||
-    booking.amount ||
-    booking.price ||
-    0
-  );
+function vatIncluded(total?: number | null) {
+  if (total == null) return null;
+  const value = Number(total);
+  return value - value / 1.06;
 }
 
-function drawRoundRect(page: any, x: number, y: number, w: number, h: number, color: any, borderColor?: any) {
-  page.drawRectangle({
-    x,
-    y,
-    width: w,
-    height: h,
+function roundedRectPath(width: number, height: number, radius: number) {
+  const r = Math.min(radius, width / 2, height / 2);
+  const c = r * 0.5522847498;
+
+  return [
+    `M ${r} 0`,
+    `L ${width - r} 0`,
+    `C ${width - r + c} 0 ${width} ${r - c} ${width} ${r}`,
+    `L ${width} ${height - r}`,
+    `C ${width} ${height - r + c} ${width - r + c} ${height} ${width - r} ${height}`,
+    `L ${r} ${height}`,
+    `C ${r - c} ${height} 0 ${height - r + c} 0 ${height - r}`,
+    `L 0 ${r}`,
+    `C 0 ${r - c} ${r - c} 0 ${r} 0`,
+    "Z",
+  ].join(" ");
+}
+
+function roundRect(
+  page: PDFPage,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+  options: {
+    color?: RGB;
+    borderColor?: RGB;
+    borderWidth?: number;
+  }
+) {
+  page.drawSvgPath(roundedRectPath(p(w), p(h), p(r)), {
+    x: p(x),
+    y: yRect(y, h),
+    color: options.color,
+    borderColor: options.borderColor,
+    borderWidth: options.borderWidth ? p(options.borderWidth) : undefined,
+  });
+}
+
+function card(page: PDFPage, x: number, y: number, w: number, h: number, fill = C.white) {
+  roundRect(page, x, y, w, h, 12, {
+    color: fill,
+    borderColor: C.border,
+    borderWidth: 1.5,
+  });
+}
+
+function fitText(text: string, font: PDFFont, sizePx: number, maxWidthPx: number) {
+  const size = p(sizePx);
+  const maxWidth = p(maxWidthPx);
+  const value = cleanText(text);
+
+  if (font.widthOfTextAtSize(value, size) <= maxWidth) return value;
+
+  let out = value;
+
+  while (out.length > 3 && font.widthOfTextAtSize(`${out}...`, size) > maxWidth) {
+    out = out.slice(0, -1);
+  }
+
+  return `${out}...`;
+}
+
+function fitFontSize(text: string, font: PDFFont, startPx: number, minPx: number, maxWidthPx: number) {
+  let sizePx = startPx;
+  const value = cleanText(text);
+
+  while (sizePx > minPx && font.widthOfTextAtSize(value, p(sizePx)) > p(maxWidthPx)) {
+    sizePx -= 1;
+  }
+
+  return sizePx;
+}
+
+function text(
+  page: PDFPage,
+  value: string,
+  x: number,
+  y: number,
+  sizePx: number,
+  font: PDFFont,
+  color: RGB,
+  maxWidthPx?: number
+) {
+  const finalValue =
+    maxWidthPx != null ? fitText(value, font, sizePx, maxWidthPx) : cleanText(value);
+
+  page.drawText(finalValue, {
+    x: p(x),
+    y: yBase(y),
+    size: p(sizePx),
+    font,
+    color,
+  });
+}
+
+function centerText(
+  page: PDFPage,
+  value: string,
+  x: number,
+  y: number,
+  w: number,
+  sizePx: number,
+  font: PDFFont,
+  color: RGB
+) {
+  const finalValue = cleanText(value);
+  const size = p(sizePx);
+  const width = font.widthOfTextAtSize(finalValue, size);
+
+  page.drawText(finalValue, {
+    x: p(x) + (p(w) - width) / 2,
+    y: yBase(y),
+    size,
+    font,
+    color,
+  });
+}
+
+function rightText(
+  page: PDFPage,
+  value: string,
+  rightX: number,
+  y: number,
+  sizePx: number,
+  font: PDFFont,
+  color: RGB
+) {
+  const finalValue = cleanText(value);
+  const size = p(sizePx);
+  const width = font.widthOfTextAtSize(finalValue, size);
+
+  page.drawText(finalValue, {
+    x: p(rightX) - width,
+    y: yBase(y),
+    size,
+    font,
+    color,
+  });
+}
+
+function line(page: PDFPage, x1: number, y1: number, x2: number, y2: number, color: RGB, width = 1) {
+  page.drawLine({
+    start: pt(x1, y1),
+    end: pt(x2, y2),
+    thickness: p(width),
+    color,
+  });
+}
+
+function circle(page: PDFPage, x: number, y: number, size: number, color?: RGB, borderColor?: RGB, borderWidth = 1) {
+  page.drawCircle({
+    x: p(x),
+    y: yBase(y),
+    size: p(size),
     color,
     borderColor,
-    borderWidth: borderColor ? 0.8 : 0,
+    borderWidth: borderColor ? p(borderWidth) : undefined,
   });
 }
 
-function drawLabelValue({
-  page,
-  font,
-  bold,
-  x,
-  y,
-  label,
-  value,
-  max = 34,
-}: {
-  page: any;
-  font: any;
-  bold: any;
-  x: number;
-  y: number;
-  label: string;
-  value: string;
-  max?: number;
-}) {
-  page.drawText(label.toUpperCase(), {
-    x,
-    y,
-    size: 6.8,
-    font: bold,
-    color: rgb(0.0, 0.38, 0.36),
-  });
+function icon(page: PDFPage, x: number, y: number, type: string) {
+  const stroke = C.teal;
+  const sw = 1.7;
 
-  page.drawText(truncate(value || "Ej angivet", max), {
-    x,
-    y: y - 12,
-    size: 9.2,
-    font: bold,
-    color: rgb(0.05, 0.09, 0.16),
-  });
+  if (type === "calendar") {
+    line(page, x + 4, y + 7, x + 20, y + 7, stroke, sw);
+    line(page, x + 4, y + 7, x + 4, y + 21, stroke, sw);
+    line(page, x + 20, y + 7, x + 20, y + 21, stroke, sw);
+    line(page, x + 4, y + 21, x + 20, y + 21, stroke, sw);
+    line(page, x + 8, y + 4, x + 8, y + 9, stroke, sw);
+    line(page, x + 16, y + 4, x + 16, y + 9, stroke, sw);
+    return;
+  }
+
+  if (type === "id") {
+    line(page, x + 4, y + 5, x + 20, y + 5, stroke, sw);
+    line(page, x + 4, y + 5, x + 4, y + 21, stroke, sw);
+    line(page, x + 20, y + 5, x + 20, y + 21, stroke, sw);
+    line(page, x + 4, y + 21, x + 20, y + 21, stroke, sw);
+    circle(page, x + 9, y + 11, 2.2, undefined, stroke, sw);
+    line(page, x + 13, y + 11, x + 18, y + 11, stroke, sw);
+    line(page, x + 8, y + 16, x + 18, y + 16, stroke, sw);
+    return;
+  }
+
+  if (type === "clock") {
+    circle(page, x + 12, y + 13, 8.5, undefined, stroke, sw);
+    line(page, x + 12, y + 13, x + 12, y + 8, stroke, sw);
+    line(page, x + 12, y + 13, x + 17, y + 13, stroke, sw);
+    return;
+  }
+
+  if (type === "bus") {
+    line(page, x + 5, y + 7, x + 19, y + 7, stroke, sw);
+    line(page, x + 5, y + 7, x + 5, y + 18, stroke, sw);
+    line(page, x + 19, y + 7, x + 19, y + 18, stroke, sw);
+    line(page, x + 5, y + 18, x + 19, y + 18, stroke, sw);
+    line(page, x + 8, y + 11, x + 16, y + 11, stroke, sw);
+    circle(page, x + 8, y + 20, 1.8, stroke);
+    circle(page, x + 16, y + 20, 1.8, stroke);
+    return;
+  }
+
+  if (type === "ticket") {
+    line(page, x + 5, y + 8, x + 19, y + 8, stroke, sw);
+    line(page, x + 5, y + 8, x + 5, y + 18, stroke, sw);
+    line(page, x + 19, y + 8, x + 19, y + 18, stroke, sw);
+    line(page, x + 5, y + 18, x + 19, y + 18, stroke, sw);
+    line(page, x + 10, y + 8, x + 10, y + 18, stroke, 1.2);
+    return;
+  }
+
+  if (type === "person") {
+    circle(page, x + 12, y + 8, 4, undefined, stroke, sw);
+    line(page, x + 5, y + 22, x + 8, y + 16, stroke, sw);
+    line(page, x + 8, y + 16, x + 16, y + 16, stroke, sw);
+    line(page, x + 16, y + 16, x + 19, y + 22, stroke, sw);
+    return;
+  }
+
+  if (type === "seat") {
+    line(page, x + 8, y + 6, x + 8, y + 18, stroke, sw);
+    line(page, x + 8, y + 14, x + 17, y + 14, stroke, sw);
+    line(page, x + 17, y + 14, x + 19, y + 20, stroke, sw);
+    line(page, x + 8, y + 20, x + 20, y + 20, stroke, sw);
+    return;
+  }
+
+  if (type === "card") {
+    line(page, x + 4, y + 8, x + 20, y + 8, stroke, sw);
+    line(page, x + 4, y + 8, x + 4, y + 19, stroke, sw);
+    line(page, x + 20, y + 8, x + 20, y + 19, stroke, sw);
+    line(page, x + 4, y + 19, x + 20, y + 19, stroke, sw);
+    line(page, x + 4, y + 12, x + 20, y + 12, stroke, sw);
+    return;
+  }
+
+  if (type === "receipt") {
+    line(page, x + 7, y + 5, x + 17, y + 5, stroke, sw);
+    line(page, x + 7, y + 5, x + 7, y + 21, stroke, sw);
+    line(page, x + 17, y + 5, x + 17, y + 21, stroke, sw);
+    line(page, x + 7, y + 21, x + 17, y + 21, stroke, sw);
+    line(page, x + 9, y + 10, x + 15, y + 10, stroke, 1.2);
+    line(page, x + 9, y + 14, x + 15, y + 14, stroke, 1.2);
+    line(page, x + 9, y + 18, x + 13, y + 18, stroke, 1.2);
+    return;
+  }
+
+  if (type === "check") {
+    circle(page, x + 12, y + 13, 8.5, undefined, stroke, sw);
+    line(page, x + 8, y + 13, x + 11, y + 16, stroke, sw);
+    line(page, x + 11, y + 16, x + 17, y + 9, stroke, sw);
+    return;
+  }
+
+  circle(page, x + 12, y + 13, 8.5, undefined, stroke, sw);
 }
 
-export async function generateSundraTicketPdf(input: AnyObj): Promise<Uint8Array> {
-  const booking = getBooking(input);
-  const trip = getTrip(input, booking);
-  const departure = getDeparture(input, booking);
-  const passengers = getPassengers(input, booking);
+function field(
+  page: PDFPage,
+  label: string,
+  value: string,
+  iconType: string,
+  iconX: number,
+  textX: number,
+  labelY: number,
+  font: PDFFont,
+  bold: PDFFont,
+  maxW = 190
+) {
+  icon(page, iconX, labelY - 18, iconType);
+  text(page, label, textX, labelY, 13, font, C.muted);
+  text(page, value, textX, labelY + 24, 16, bold, C.dark, maxW);
+}
 
+function sectionTitle(page: PDFPage, title: string, x: number, y: number, bold: PDFFont) {
+  text(page, title.toUpperCase(), x, y, 15, bold, C.teal);
+}
+
+function wave(page: PDFPage, y: number, color: RGB, width: number, offset = 0) {
+  page.drawSvgPath(
+    `M 0 0 C ${p(170)} ${p(26 + offset)} ${p(265)} ${p(15 - offset)} ${p(390)} ${p(0)}
+     C ${p(560)} ${p(-22)} ${p(735)} ${p(20 + offset)} ${p(1010)} ${p(-55)}`,
+    {
+      x: p(42),
+      y: yBase(y),
+      borderColor: color,
+      borderWidth: p(width),
+    }
+  );
+}
+
+export async function generateSundraTicketPdf(input: GenerateTicketInput) {
   const pdf = await PDFDocument.create();
-  const page = pdf.addPage([595.28, 841.89]);
+  const page = pdf.addPage([PAGE_W, PAGE_H]);
 
-  const regular = await pdf.embedFont(StandardFonts.Helvetica);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
-  const dark = rgb(0.04, 0.14, 0.20);
-  const teal = rgb(0.0, 0.38, 0.36);
-  const soft = rgb(0.95, 0.98, 0.98);
-  const border = rgb(0.77, 0.88, 0.90);
-  const orange = rgb(0.96, 0.59, 0.11);
+  const passengers = input.passengers || [];
+  const seats = seatSummary(passengers);
 
-  const margin = 42;
-  const pageW = 595.28;
+  const bookingNumber =
+    input.booking.booking_number ||
+    `SUN-${String(input.booking.id).slice(0, 8).toUpperCase()}`;
 
-  const bookingNumber = clean(booking.booking_number || booking.bookingNumber, clean(booking.id, "Saknas"));
-  const bookingId = clean(booking.id || booking.booking_id, "");
-  const currency = clean(booking.currency, "SEK");
-  const price = totalPrice(booking);
-  const paid = clean(booking.payment_status).toLowerCase() === "paid";
-  const status = paid ? "Betalning godkänd" : clean(booking.payment_status || booking.status, "Ej betald");
+  const bookingId = String(input.booking.id || "-").slice(0, 8).toUpperCase();
 
-  const tripTitle = clean(trip.title || booking.trip_title, "Sundra resa");
-  const destination = clean(trip.destination || booking.destination || departure.destination, "Destination ej angiven");
-  const pickup = clean(
-    booking.pickup_place ||
-      booking.departure_place ||
-      departure.pickup_place ||
-      departure.departure_location,
-    "Vald hållplats"
-  );
+  const tripTitle = cleanText(input.trip?.title || "Sundra resa");
+  const destination = cleanText(input.trip?.destination || "Destination ej angiven");
 
-  const travelDate = dateText(departure.departure_date || booking.travel_date || booking.departure_date);
-  const travelTime = timeText(departure.departure_time || booking.travel_time || booking.departure_time);
+  const pickupName = cleanText(input.pickupStop?.stop_name || "Vald h\u00e5llplats");
+  const pickupSub = cleanText(input.pickupStop?.stop_city || "Upph\u00e4mtningsplats");
 
-  const passengerName = firstPassengerName(passengers, booking);
-  const seats = seatText(passengers, booking);
-  const passengerCount =
-    Number(booking.passengers_count || booking.passenger_count || booking.passengers || passengers.length || 1) || 1;
+  const departureTime =
+    input.pickupStop?.departure_time ||
+    input.departure?.departure_time ||
+    null;
 
-  const qrData = bookingNumber || bookingId;
-  const qrPng = await QRCode.toDataURL(qrData, {
-    margin: 1,
-    width: 260,
-    errorCorrectionLevel: "M",
+  const ticketHash =
+    input.booking.ticket_hash ||
+    `${input.booking.id}-${input.departure?.id || ""}`;
+
+  const qrPayload = JSON.stringify({
+    type: "sundra_ticket",
+    booking_id: input.booking.id,
+    booking_number: input.booking.booking_number,
+    trip_id: input.trip?.id || null,
+    departure_id: input.departure?.id || null,
+    pickup_stop: pickupName,
+    passengers_count: input.booking.passengers_count || passengers.length || 0,
+    ticket_hash: ticketHash,
   });
 
-  const qrBytes = Buffer.from(qrPng.split(",")[1], "base64");
-  const qrImage = await pdf.embedPng(qrBytes);
+  const qrDataUrl = await QRCode.toDataURL(qrPayload, {
+    margin: 1,
+    width: 360,
+  });
 
-  // Background
+  const qrImage = await pdf.embedPng(Buffer.from(qrDataUrl.split(",")[1], "base64"));
+
   page.drawRectangle({
     x: 0,
     y: 0,
-    width: 595.28,
-    height: 841.89,
-    color: rgb(0.965, 0.965, 0.94),
+    width: PAGE_W,
+    height: PAGE_H,
+    color: C.pageBg,
   });
 
-  // Header
-  page.drawRectangle({
-    x: margin,
-    y: 700,
-    width: pageW - margin * 2,
-    height: 100,
-    color: dark,
+  roundRect(page, 24, 20, 976, 1400, 14, {
+    color: C.white,
   });
 
-  page.drawText("Helsingbuss", {
-    x: margin + 24,
-    y: 758,
-    size: 25,
-    font: bold,
-    color: rgb(0.92, 0.97, 1),
+  // TOPPBANNER
+  roundRect(page, 42, 40, 940, 221, 16, {
+    color: C.navy,
   });
 
-  page.drawText("Sundra resor", {
-    x: margin + 26,
-    y: 735,
-    size: 10,
-    font: regular,
-    color: rgb(0.82, 0.96, 0.92),
+  wave(page, 186, C.gold, 4, 0);
+  wave(page, 203, C.mint, 3, 4);
+  wave(page, 222, C.teal2, 4, -2);
+
+  text(page, "Helsingbuss", 99, 126, 61, bold, C.white);
+  text(page, "Sundra resor", 100, 161, 27, font, C.mint);
+
+  // SÄTESRUTA
+  roundRect(page, 729, 89, 193, 140, 18, {
+    color: C.teal,
+    borderColor: C.gold,
+    borderWidth: 4,
   });
 
-  page.drawLine({
-    start: { x: margin, y: 720 },
-    end: { x: pageW - margin, y: 736 },
-    thickness: 1.4,
-    color: orange,
-  });
+  centerText(page, "S\u00c4TE / SEAT", 729, 128, 193, 19, bold, C.white);
 
-  page.drawLine({
-    start: { x: margin, y: 708 },
-    end: { x: pageW - margin, y: 724 },
-    thickness: 1,
-    color: rgb(0.45, 0.9, 0.83),
-  });
+  const seatSize = fitFontSize(seats, bold, 56, 26, 160);
+  centerText(page, seats, 729, 196, 193, seatSize, bold, C.white);
 
-  page.drawText("SÄTE / SEAT", {
-    x: 443,
-    y: 764,
-    size: 8,
-    font: bold,
-    color: rgb(1, 1, 1),
-  });
+  // RUBRIK + QR
+  text(page, "Kvitto", 100, 343, 61, bold, C.dark);
+  text(page, "Bokningsbekr\u00e4ftelse", 101, 385, 27, bold, C.teal);
+  text(page, "Tack f\u00f6r din bokning med Sundra resor.", 101, 420, 16, font, C.muted);
+  text(page, "Detta kvitto g\u00e4ller som bekr\u00e4ftelse f\u00f6r din resa.", 101, 443, 16, font, C.muted);
 
-  page.drawText(truncate(seats, 15), {
-    x: 443,
-    y: 742,
-    size: 19,
-    font: bold,
-    color: rgb(1, 1, 1),
-  });
-
-  // Intro card
-  page.drawRectangle({
-    x: margin,
-    y: 660,
-    width: pageW - margin * 2,
-    height: 70,
-    color: rgb(0.035, 0.13, 0.18),
-  });
-
-  page.drawText("Biljett", {
-    x: margin + 24,
-    y: 695,
-    size: 24,
-    font: bold,
-    color: rgb(1, 1, 1),
-  });
-
-  page.drawText("Bokningsbekräftelse", {
-    x: margin + 24,
-    y: 675,
-    size: 12,
-    font: bold,
-    color: rgb(0.55, 0.95, 0.90),
-  });
-
-  page.drawText("Tack för din bokning med Sundra resor. Visa QR-koden vid påstigning.", {
-    x: margin + 24,
-    y: 660,
-    size: 8,
-    font: regular,
-    color: rgb(0.84, 0.9, 0.92),
-  });
-
-  // QR box
-  page.drawRectangle({
-    x: 418,
-    y: 637,
-    width: 94,
-    height: 94,
-    color: rgb(1, 1, 1),
-    borderColor: orange,
-    borderWidth: 1.2,
-  });
+  card(page, 674, 285, 247, 195, C.white);
+  centerText(page, "Visa biljett (QR-kod)", 674, 315, 247, 16, font, C.muted);
 
   page.drawImage(qrImage, {
-    x: 428,
-    y: 647,
-    width: 74,
-    height: 74,
+    x: p(731),
+    y: yRect(331, 128),
+    width: p(128),
+    height: p(128),
   });
 
-  // Info rows
-  drawRoundRect(page, margin + 24, 580, pageW - margin * 2 - 48, 55, rgb(1, 1, 1), border);
+  for (let x = 101; x < 922; x += 12) {
+    line(page, x, 502, x + 5, 502, C.border, 1);
+  }
 
-  drawLabelValue({
+  // BOKNINGSINFO
+  card(page, 102, 520, 819, 203, C.cardBg);
+
+  field(page, "Bokningsnummer", bookingNumber, "calendar", 132, 185, 554, font, bold, 180);
+  field(page, "Boknings-ID", bookingId, "id", 132, 185, 617, font, bold, 180);
+  field(
     page,
-    font: regular,
+    "K\u00f6pt datum",
+    fmtDateTime(input.booking.purchased_at || input.booking.created_at),
+    "calendar",
+    132,
+    185,
+    681,
+    font,
     bold,
-    x: margin + 42,
-    y: 615,
-    label: "Bokningsnummer",
-    value: bookingNumber,
-  });
+    180
+  );
 
-  drawLabelValue({
-    page,
-    font: regular,
-    bold,
-    x: margin + 190,
-    y: 615,
-    label: "Giltig för resa",
-    value: travelDate,
-  });
-
-  drawLabelValue({
-    page,
-    font: regular,
-    bold,
-    x: margin + 335,
-    y: 615,
-    label: "Resa",
-    value: tripTitle,
-    max: 28,
-  });
-
-  drawLabelValue({
-    page,
-    font: regular,
-    bold,
-    x: margin + 42,
-    y: 590,
-    label: "Boknings-ID",
-    value: bookingId || bookingNumber,
-    max: 18,
-  });
-
-  drawLabelValue({
-    page,
-    font: regular,
-    bold,
-    x: margin + 190,
-    y: 590,
-    label: "Biljettyp",
-    value: `${passengerCount} Vuxen`,
-  });
-
-  drawLabelValue({
-    page,
-    font: regular,
-    bold,
-    x: margin + 335,
-    y: 590,
-    label: "Status",
-    value: status,
-  });
+  field(page, "Giltig f\u00f6r resa", fmtDate(input.departure?.departure_date), "clock", 525, 578, 554, font, bold, 190);
+  field(page, "Resa", tripTitle, "bus", 525, 578, 617, font, bold, 280);
+  field(page, "Biljettyp", ticketTypeLabel(passengers, input.booking.passengers_count), "ticket", 525, 578, 681, font, bold, 220);
 
   // DIN RESA
-  drawRoundRect(page, margin + 24, 482, pageW - margin * 2 - 48, 78, soft, border);
+  card(page, 102, 737, 819, 124, C.white);
+  sectionTitle(page, "Din resa", 128, 765, bold);
 
-  page.drawText("DIN RESA", {
-    x: margin + 40,
-    y: 538,
-    size: 8,
-    font: bold,
-    color: teal,
-  });
+  circle(page, 152, 791, 5, C.teal);
+  line(page, 152, 797, 152, 832, C.teal, 3);
+  circle(page, 152, 838, 5, C.teal);
 
-  drawLabelValue({
-    page,
-    font: regular,
-    bold,
-    x: margin + 40,
-    y: 515,
-    label: "Från",
-    value: pickup,
-    max: 28,
-  });
+  text(page, "Upph\u00e4mtning", 187, 792, 14, font, C.muted);
+  text(page, pickupName, 187, 823, 18, bold, C.dark, 210);
+  text(page, pickupSub, 187, 848, 16, font, C.teal, 210);
 
-  drawLabelValue({
-    page,
-    font: regular,
-    bold,
-    x: margin + 220,
-    y: 515,
-    label: "Till",
-    value: destination,
-    max: 30,
-  });
+  text(page, "\u2192", 420, 825, 30, bold, C.dark);
 
-  drawLabelValue({
-    page,
-    font: regular,
-    bold,
-    x: margin + 405,
-    y: 515,
-    label: "Avgångstid",
-    value: travelTime,
-  });
+  text(page, "Till", 509, 792, 14, font, C.muted);
+  text(page, destination, 509, 823, 18, bold, C.dark, 190);
+  text(page, "Sundra resor", 509, 848, 16, font, C.teal);
 
-  page.drawText(`Retur: ${timeText(departure.return_time || booking.return_time)}`, {
-    x: margin + 405,
-    y: 490,
-    size: 7.5,
-    font: regular,
-    color: teal,
-  });
+  line(page, 708, 766, 708, 840, C.border, 1.5);
+
+  text(page, "Avg\u00e5ngstid", 759, 792, 14, font, C.muted);
+  text(page, fmtTime(departureTime), 759, 829, 32, bold, C.dark);
+
+  if (input.departure?.return_time) {
+    text(page, `Retur ${fmtTime(input.departure.return_time)}`, 759, 852, 14, font, C.teal);
+  }
 
   // RESENÄR
-  drawRoundRect(page, margin + 24, 405, pageW - margin * 2 - 48, 58, rgb(1, 1, 1), border);
+  card(page, 102, 877, 819, 90, C.white);
+  sectionTitle(page, "Resen\u00e4r", 128, 907, bold);
 
-  page.drawText("RESENÄR", {
-    x: margin + 40,
-    y: 443,
-    size: 8,
-    font: bold,
-    color: teal,
-  });
+  icon(page, 133, 922, "person");
+  text(page, "Namn", 185, 925, 14, font, C.muted);
+  text(page, passengerName(passengers, input.booking.customer_name), 185, 948, 17, bold, C.dark, 200);
 
-  drawLabelValue({
-    page,
-    font: regular,
-    bold,
-    x: margin + 40,
-    y: 424,
-    label: "Namn",
-    value: passengerName,
-    max: 30,
-  });
+  icon(page, 419, 922, "person");
+  text(page, "Resen\u00e4r", 472, 925, 14, font, C.muted);
+  text(page, ticketTypeLabel(passengers, input.booking.passengers_count), 472, 948, 17, bold, C.dark, 190);
 
-  drawLabelValue({
-    page,
-    font: regular,
-    bold,
-    x: margin + 235,
-    y: 424,
-    label: "Resenär",
-    value: `${passengerCount} Vuxen`,
-  });
-
-  drawLabelValue({
-    page,
-    font: regular,
-    bold,
-    x: margin + 405,
-    y: 424,
-    label: "Säte",
-    value: seats,
-    max: 16,
-  });
+  icon(page, 711, 922, "seat");
+  text(page, "S\u00e4te", 766, 925, 14, font, C.muted);
+  text(page, seats, 766, 948, 17, bold, C.dark, 120);
 
   // BETALNING
-  drawRoundRect(page, margin + 24, 310, pageW - margin * 2 - 48, 78, rgb(1, 1, 1), border);
+  card(page, 102, 983, 819, 145, C.white);
+  sectionTitle(page, "Betalning", 128, 1014, bold);
 
-  page.drawText("BETALNING", {
-    x: margin + 40,
-    y: 366,
-    size: 8,
-    font: bold,
-    color: teal,
-  });
+  const paymentMethod =
+    input.booking.payment_method ||
+    (input.booking.card_last4 ? `Kort **** ${input.booking.card_last4}` : "Kort / online");
 
-  drawLabelValue({
-    page,
-    font: regular,
-    bold,
-    x: margin + 40,
-    y: 344,
-    label: "Betalsätt",
-    value: clean(booking.payment_provider, "Kort / online"),
-  });
+  const transactionId =
+    input.booking.transaction_id ||
+    input.booking.ticket_hash ||
+    `TXN-${String(input.booking.id).slice(0, 8).toUpperCase()}`;
 
-  drawLabelValue({
-    page,
-    font: regular,
-    bold,
-    x: margin + 210,
-    y: 344,
-    label: "Referensnummer",
-    value: clean(booking.payment_reference, bookingNumber),
-  });
+  const referenceNumber = input.booking.reference_number || bookingNumber;
+  const authorizationCode = input.booking.authorization_code || "Godk\u00e4nd";
+  const paymentStatus = paymentLabel(input.booking.payment_status);
 
-  drawLabelValue({
-    page,
-    font: regular,
-    bold,
-    x: margin + 385,
-    y: 344,
-    label: "Transaktions-ID",
-    value: clean(booking.transaction_id || booking.payment_transaction_id, "TXN-" + bookingNumber),
-    max: 18,
-  });
+  icon(page, 133, 1034, "card");
+  text(page, "Betals\u00e4tt", 185, 1035, 14, font, C.muted);
+  text(page, paymentMethod, 185, 1058, 17, bold, C.dark, 200);
 
-  drawLabelValue({
-    page,
-    font: regular,
-    bold,
-    x: margin + 40,
-    y: 318,
-    label: "Kontroll",
-    value: paid ? "Godkänd" : "Ej godkänd",
-  });
+  icon(page, 419, 1034, "receipt");
+  text(page, "Referensnummer", 472, 1035, 14, font, C.muted);
+  text(page, referenceNumber, 472, 1058, 17, bold, C.dark, 200);
 
-  drawLabelValue({
-    page,
-    font: regular,
-    bold,
-    x: margin + 210,
-    y: 318,
-    label: "Godkännandekod",
-    value: paid ? "Godkänd" : "Saknas",
-  });
+  icon(page, 711, 1034, "receipt");
+  text(page, "Transaktions-ID", 766, 1035, 14, font, C.muted);
+  text(page, transactionId, 766, 1058, 17, bold, C.dark, 145);
 
-  drawLabelValue({
-    page,
-    font: regular,
-    bold,
-    x: margin + 385,
-    y: 318,
-    label: "Status",
-    value: status,
-  });
+  icon(page, 133, 1091, "check");
+  text(page, "Kontroll", 185, 1092, 14, font, C.muted);
+  text(page, authorizationCode, 185, 1115, 17, bold, C.dark, 200);
+
+  icon(page, 419, 1091, "check");
+  text(page, "Godk\u00e4nnandekod", 472, 1092, 14, font, C.muted);
+  text(page, authorizationCode, 472, 1115, 17, bold, C.dark, 200);
+
+  icon(page, 711, 1091, "clock");
+  text(page, "Status", 766, 1092, 14, font, C.muted);
+  text(page, paymentStatus, 766, 1115, 17, bold, C.dark, 145);
 
   // PRIS
-  drawRoundRect(page, margin + 24, 230, pageW - margin * 2 - 48, 58, rgb(1, 1, 1), border);
+  const totalAmount = input.booking.total_amount ?? null;
+  const currency = input.booking.currency || "SEK";
+  const vat = vatIncluded(totalAmount);
 
-  page.drawText("PRISSPECIFIKATION", {
-    x: margin + 40,
-    y: 268,
-    size: 8,
-    font: bold,
-    color: teal,
+  card(page, 102, 1144, 819, 133, C.white);
+  sectionTitle(page, "Prisspecifikation", 128, 1173, bold);
+
+  text(page, "Pris", 128, 1205, 17, font, C.dark);
+  rightText(page, money(totalAmount, currency), 854, 1205, 17, font, C.dark);
+
+  text(page, "Varav moms (6,00%)", 128, 1232, 17, font, C.dark);
+  rightText(page, vat == null ? "-" : money(vat, currency), 854, 1232, 17, font, C.dark);
+
+  line(page, 128, 1248, 854, 1248, C.softBorder, 1.5);
+
+  text(page, "SUMMA", 128, 1272, 25, bold, C.dark);
+  rightText(page, money(totalAmount, currency), 854, 1272, 25, bold, C.dark);
+
+  // VIKTIGT
+  roundRect(page, 102, 1294, 819, 54, 10, {
+    color: C.importantBg,
+    borderColor: C.border,
+    borderWidth: 1.5,
   });
 
-  page.drawText("Pris", {
-    x: margin + 40,
-    y: 248,
-    size: 8.2,
-    font: regular,
-    color: rgb(0.05, 0.09, 0.16),
-  });
+  icon(page, 128, 1308, "check");
+  text(page, "Viktigt:", 177, 1324, 17, bold, C.teal);
+  text(page, "Detta kvitto g\u00e4ller f\u00f6r den bokade resan. Visa QR-koden vid p\u00e5stigning.", 240, 1324, 15, font, C.muted, 620);
 
-  page.drawText(money(price, currency), {
-    x: 420,
-    y: 248,
-    size: 9,
-    font: bold,
-    color: rgb(0.05, 0.09, 0.16),
-  });
+  // FOOTER
+  line(page, 66, 1370, 970, 1370, C.border, 1.5);
 
-  page.drawText("Varav moms (6,00%)", {
-    x: margin + 40,
-    y: 235,
-    size: 7.6,
-    font: regular,
-    color: rgb(0.27, 0.35, 0.45),
-  });
+  text(page, "Helsingbuss AB  \u2022  info@helsingbuss.se  \u2022  helsingbuss.se", 66, 1404, 16, font, C.muted);
+  rightText(page, "Res tillsammans. Upplev mer. Vi k\u00f6r.", 970, 1404, 16, bold, C.teal);
 
-  page.drawText(money(Number(price || 0) * 0.0566, currency), {
-    x: 420,
-    y: 235,
-    size: 8,
-    font: regular,
-    color: rgb(0.27, 0.35, 0.45),
-  });
-
-  drawRoundRect(page, margin + 24, 185, pageW - margin * 2 - 48, 34, rgb(0.98, 1, 1), border);
-
-  page.drawText("SUMMA", {
-    x: margin + 40,
-    y: 202,
-    size: 11,
-    font: bold,
-    color: rgb(0.05, 0.09, 0.16),
-  });
-
-  page.drawText(money(price, currency), {
-    x: 407,
-    y: 202,
-    size: 12,
-    font: bold,
-    color: rgb(0.05, 0.09, 0.16),
-  });
-
-  // Footer
-  page.drawRectangle({
-    x: margin,
-    y: 55,
-    width: pageW - margin * 2,
-    height: 26,
-    color: rgb(1, 1, 1),
-  });
-
-  page.drawText("Helsingbuss AB  ·  info@helsingbuss.se  ·  helsingbuss.se", {
-    x: margin + 12,
-    y: 65,
-    size: 7,
-    font: regular,
-    color: rgb(0.42, 0.51, 0.62),
-  });
-
-  page.drawText("Res tillsammans. Upplev mer. Vi kör.", {
-    x: 382,
-    y: 65,
-    size: 7,
-    font: bold,
-    color: teal,
-  });
-
-  return await pdf.save();
+  const pdfBytes = await pdf.save();
+  return Buffer.from(pdfBytes);
 }
-
-export default generateSundraTicketPdf;

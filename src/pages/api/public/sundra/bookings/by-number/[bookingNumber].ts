@@ -1,21 +1,20 @@
-﻿import type { NextApiRequest, NextApiResponse } from "next";
-import * as admin from "@/lib/supabaseAdmin";
+import type { NextApiRequest, NextApiResponse } from "next";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-const supabase: any =
-  (admin as any).supabaseAdmin ||
-  (admin as any).supabase ||
-  (admin as any).default;
+function clean(value: any) {
+  return String(value || "").trim();
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  try {
-    if (req.method !== "GET") {
-      return res.status(405).json({
-        ok: false,
-        error: "Method not allowed",
-      });
-    }
+  if (req.method !== "GET") {
+    return res.status(405).json({
+      ok: false,
+      error: "Method not allowed",
+    });
+  }
 
-    const bookingNumber = String(req.query.bookingNumber || "").trim();
+  try {
+    const bookingNumber = clean(req.query.bookingNumber).toUpperCase();
 
     if (!bookingNumber) {
       return res.status(400).json({
@@ -24,63 +23,70 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    const { data, error } = await supabase
+    const { data: booking, error: bookingError } = await supabaseAdmin
       .from("sundra_bookings")
-      .select(`
-        *,
-        sundra_trips (
-          id,
-          title,
-          slug,
-          destination,
-          image_url,
-          currency
-        ),
-        sundra_departures (
-          id,
-          departure_date,
-          departure_time,
-          return_date,
-          return_time,
-          price
-        ),
-        sundra_line_stops (
-          id,
-          stop_name,
-          stop_city,
-          departure_time,
-          price,
-          order_index
-        ),
-        sundra_booking_passengers (
-          id,
-          first_name,
-          last_name,
-          passenger_type,
-          date_of_birth,
-          special_requests,
-          seat_number
-        )
-      `)
-      .eq("booking_number", bookingNumber)
-      .single();
+      .select("*")
+      .ilike("booking_number", bookingNumber)
+      .limit(1)
+      .maybeSingle();
 
-    if (error || !data) {
+    if (bookingError) {
+      throw bookingError;
+    }
+
+    if (!booking) {
       return res.status(404).json({
         ok: false,
         error: "Bokningen hittades inte.",
+        booking_number: bookingNumber,
       });
     }
 
+    let trip: any = null;
+    let departure: any = null;
+    let passengers: any[] = [];
+
+    if (booking.trip_id) {
+      const { data } = await supabaseAdmin
+        .from("sundra_trips")
+        .select("*")
+        .eq("id", booking.trip_id)
+        .limit(1)
+        .maybeSingle();
+
+      trip = data || null;
+    }
+
+    if (booking.departure_id) {
+      const { data } = await supabaseAdmin
+        .from("sundra_departures")
+        .select("*")
+        .eq("id", booking.departure_id)
+        .limit(1)
+        .maybeSingle();
+
+      departure = data || null;
+    }
+
+    const { data: passengerRows } = await supabaseAdmin
+      .from("sundra_booking_passengers")
+      .select("*")
+      .eq("booking_id", booking.id)
+      .order("created_at", { ascending: true });
+
+    passengers = passengerRows || [];
+
     return res.status(200).json({
       ok: true,
-      booking: data,
+      booking: {
+        ...booking,
+        sundra_trips: trip,
+        sundra_departures: departure,
+        sundra_booking_passengers: passengers,
+      },
     });
   } catch (e: any) {
-    console.error(
-      "/api/public/sundra/bookings/by-number/[bookingNumber] error:",
-      e
-    );
+    console.error("/api/public/sundra/bookings/by-number/[bookingNumber] error:", e);
 
     return res.status(500).json({
       ok: false,
