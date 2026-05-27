@@ -162,7 +162,13 @@ export default async function handler(
       `inline; filename="${fileName}.pdf"`
     );
 
-    return res.status(200).send(pdfBuffer);
+    const finalPdfBuffer = Buffer.isBuffer(pdfBuffer)
+  ? pdfBuffer
+  : Buffer.from(pdfBuffer);
+
+res.setHeader("Content-Length", finalPdfBuffer.length.toString());
+
+return res.status(200).end(finalPdfBuffer);
   } catch (e: any) {
     console.error(
       "/api/public/sundra/bookings/[id]/ticket error",
@@ -176,3 +182,4 @@ export default async function handler(
     });
   }
 }
+
