@@ -98,7 +98,41 @@ export default async function handler(
     // GENERERA PDF
     const assetBaseUrl = `${String(req.headers["x-forwarded-proto"] || "https")}://${String(req.headers.host || "")}`;
 
-    const pdfBuffer = await generateSundraTicketPdf({
+    
+    // Prisfallback för PDF:
+    // Om äldre/testbokningar har total_amount = 0 använder vi delbelopp,
+    // avgångens pris eller resans price_from gånger antal resenärer.
+    const bookingAny = booking as any;
+    const tripAny = (trip || {}) as any;
+    const departureAny = (departure || {}) as any;
+
+    const pdfPassengerCount =
+      Number(
+        bookingAny.passengers_count ||
+          bookingAny.passengers ||
+          passengers?.length ||
+          1
+      ) || 1;
+
+    const pdfCalculatedTotal =
+      (Number(bookingAny.subtotal || 0) || 0) +
+      (Number(bookingAny.options_total || 0) || 0) +
+      (Number(bookingAny.room_total || 0) || 0) +
+      (Number(bookingAny.seat_extra_total || 0) || 0) -
+      (Number(bookingAny.discount_amount || 0) || 0);
+
+    const pdfFallbackUnitPrice =
+      Number(departureAny.price || 0) ||
+      Number(tripAny.price_from || 0) ||
+      0;
+
+    const pdfResolvedTotalAmount =
+      Number(bookingAny.total_amount || 0) ||
+      pdfCalculatedTotal ||
+      pdfFallbackUnitPrice * Math.max(pdfPassengerCount, 1) ||
+      0;
+
+const pdfBuffer = await generateSundraTicketPdf({
       assetBaseUrl,
       booking: {
         id: booking.id,
@@ -108,7 +142,7 @@ export default async function handler(
           booking.passengers_count ||
           passengers?.length ||
           0,
-        total_amount: booking.total_amount,
+        total_amount: pdfResolvedTotalAmount,
         currency: booking.currency || "SEK",
         payment_status:
           booking.payment_status || "pending",

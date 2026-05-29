@@ -833,7 +833,15 @@ const passengerRows = Array.isArray(passengers) ? passengers : [];
 
 // PRISSPECIFIKATION
   const psCurrency = cleanText(input.booking.currency || "SEK");
-  const psTotalRaw = Number(input.booking.total_amount || bookingAny.amount || bookingAny.price || 0) || 0;
+  const psTripAny = (input.trip || {}) as any;
+  const psDepartureAny = (input.departure || {}) as any;
+
+  const psPassengerCount =
+    Number(bookingAny.passengers_count || bookingAny.passengers || input.passengers?.length || 1) || 1;
+
+  const psTotalRaw =
+    Number(input.booking.total_amount || bookingAny.amount || bookingAny.price || 0) || 0;
+
   const psCalculatedAmount =
     (Number(bookingAny.subtotal || 0) || 0) +
     (Number(bookingAny.options_total || 0) || 0) +
@@ -841,7 +849,19 @@ const passengerRows = Array.isArray(passengers) ? passengers : [];
     (Number(bookingAny.seat_extra_total || 0) || 0) -
     (Number(bookingAny.discount_amount || 0) || 0);
 
-  const psTotalAmount = psTotalRaw > 0 ? psTotalRaw : Math.max(0, psCalculatedAmount);
+  const psFallbackUnitPrice =
+    Number(psDepartureAny?.price || 0) ||
+    Number(psTripAny?.price_from || 0) ||
+    0;
+
+  const psFallbackAmount =
+    psFallbackUnitPrice * Math.max(psPassengerCount, 1);
+
+  const psTotalAmount =
+    psTotalRaw > 0
+      ? psTotalRaw
+      : Math.max(0, psCalculatedAmount || psFallbackAmount);
+
   const psVatAmount = Math.round((psTotalAmount - psTotalAmount / 1.06) * 100) / 100;
   const psFormatMoney = (value: number) => value.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " " + (psCurrency === "SEK" ? "kr" : psCurrency);
 

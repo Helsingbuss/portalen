@@ -195,6 +195,7 @@ export default function MyBookingPage() {
     );
   }
 
+  const bookingAny = booking as any;
   const trip = booking.sundra_trips;
   const departure = booking.sundra_departures;
   const departureAny = departure as any;
@@ -291,7 +292,23 @@ export default function MyBookingPage() {
   const heroPassengerLabel =
     heroPassengerCount === 1 ? "1 st" : heroPassengerCount + " st";
 
-  const heroTotalAmount = Number(booking.total_amount || 0) || 0;
+  const bookingCalculatedTotal =
+    (Number(bookingAny.subtotal || 0) || 0) +
+    (Number(bookingAny.options_total || 0) || 0) +
+    (Number(bookingAny.room_total || 0) || 0) +
+    (Number(bookingAny.seat_extra_total || 0) || 0) -
+    (Number(bookingAny.discount_amount || 0) || 0);
+
+  const bookingFallbackUnitPrice =
+    Number(departureAny?.price || 0) ||
+    Number((trip as any)?.price_from || 0) ||
+    0;
+
+  const heroTotalAmount =
+    Number(booking.total_amount || 0) ||
+    bookingCalculatedTotal ||
+    bookingFallbackUnitPrice * Math.max(heroPassengerCount, 1) ||
+    0;
 
   const heroTotalPrice =
     heroTotalAmount > 0
