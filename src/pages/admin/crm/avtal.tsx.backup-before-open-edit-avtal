@@ -1,0 +1,492 @@
+import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import AdminMenu from "@/components/AdminMenu";
+import Header from "@/components/Header";
+
+type AgreementRow = {
+  id: string;
+  agreement_number?: string | null;
+  title?: string | null;
+  customer_name?: string | null;
+  company_name?: string | null;
+  org_number?: string | null;
+  contact_person?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  agreement_type?: string | null;
+  status?: string | null;
+  discount_percent?: number | null;
+  fixed_price?: number | null;
+  currency?: string | null;
+  valid_from?: string | null;
+  valid_until?: string | null;
+  created_at?: string | null;
+};
+
+type ApiResponse = {
+  ok: boolean;
+  needsSetup?: boolean;
+  agreements?: AgreementRow[];
+  summary?: {
+    total: number;
+    active: number;
+    draft: number;
+    expired: number;
+  };
+  error?: string;
+};
+
+function fmtDate(date?: string | null) {
+  if (!date) return "—";
+
+  try {
+    return new Intl.DateTimeFormat("sv-SE", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(String(date) + "T00:00:00"));
+  } catch {
+    return date;
+  }
+}
+
+function fmtMoney(value?: number | null, currency = "SEK") {
+  const amount = Number(value || 0);
+
+  if (!amount) return "—";
+
+  return new Intl.NumberFormat("sv-SE", {
+    style: "currency",
+    currency: currency || "SEK",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function statusLabel(status?: string | null) {
+  switch (status) {
+    case "active":
+      return "Aktivt";
+    case "draft":
+      return "Utkast";
+    case "expired":
+      return "Utgånget";
+    case "paused":
+      return "Pausat";
+    case "cancelled":
+      return "Avslutat";
+    default:
+      return status || "Ej satt";
+  }
+}
+
+function statusClass(status?: string | null) {
+  switch (status) {
+    case "active":
+      return "bg-emerald-100 text-emerald-700";
+    case "draft":
+      return "bg-slate-100 text-slate-700";
+    case "expired":
+      return "bg-amber-100 text-amber-700";
+    case "paused":
+      return "bg-blue-100 text-blue-700";
+    case "cancelled":
+      return "bg-red-100 text-red-700";
+    default:
+      return "bg-slate-100 text-slate-700";
+  }
+}
+
+function typeLabel(type?: string | null) {
+  switch (type) {
+    case "company":
+      return "Företagsavtal";
+    case "association":
+      return "Föreningsavtal";
+    case "agent":
+      return "Agentavtal";
+    case "framework":
+      return "Ramavtal";
+    case "customer_price":
+      return "Kundpris";
+    default:
+      return type || "Avtal";
+  }
+}
+
+export default function CrmAvtalAdminPage() {
+  const [agreements, setAgreements] = useState<AgreementRow[]>([]);
+  const [summary, setSummary] = useState<ApiResponse["summary"]>({
+    total: 0,
+    active: 0,
+    draft: 0,
+    expired: 0,
+  });
+  const [needsSetup, setNeedsSetup] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
+  const [type, setType] = useState("");
+  const [error, setError] = useState("");
+
+  async function loadAgreements() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const params = new URLSearchParams();
+
+      if (q.trim()) params.set("q", q.trim());
+      if (status) params.set("status", status);
+      if (type) params.set("type", type);
+
+      const res = await fetch("/api/admin/crm/avtal?" + params.toString());
+      const json: ApiResponse = await res.json().catch(() => ({ ok: false }));
+
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || "Kunde inte hämta avtal.");
+      }
+
+      setAgreements(json.agreements || []);
+      setSummary(json.summary || { total: 0, active: 0, draft: 0, expired: 0 });
+      setNeedsSetup(Boolean(json.needsSetup));
+    } catch (err: any) {
+      setError(err?.message || "Något gick fel.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadAgreements();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const filteredTotal = useMemo(() => agreements.length, [agreements]);
+
+  return (
+    <>
+      <AdminMenu />
+
+      <div className="min-h-screen bg-[#f5f4f0] lg:pl-64">
+        <Header />
+
+        <main className="px-6 pb-8 pt-10">
+          <div className="w-full space-y-8">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#00645d]">
+                  CRM
+                </p>
+
+                <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#194C66]">
+                  Avtal & kundpriser
+                </h1>
+
+                <p className="mt-2 max-w-3xl text-sm text-slate-600">
+                  Här samlar du kundavtal, föreningsavtal, agentavtal och särskilda kundpriser.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={loadAgreements}
+                className="inline-flex items-center justify-center rounded-xl bg-[#194C66] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f3548]"
+              >
+                Uppdatera
+              </button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-4">
+              <SummaryCard label="Totalt" value={summary?.total || 0} />
+              <SummaryCard label="Aktiva" value={summary?.active || 0} tone="green" />
+              <SummaryCard label="Utkast" value={summary?.draft || 0} tone="blue" />
+              <SummaryCard label="Utgångna" value={summary?.expired || 0} tone="amber" />
+            </div>
+
+            {needsSetup && (
+              <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm">
+                <h2 className="text-base font-bold">
+                  Databastabellen för CRM-avtal saknas ännu
+                </h2>
+                <p className="mt-2 text-sm leading-6">
+                  Sidan är skapad och redo, men tabellen <strong>crm_avtal</strong> finns inte i databasen ännu.
+                  Nästa steg blir att skapa SQL-tabellen så riktiga avtal kan sparas och visas här.
+                </p>
+              </section>
+            )}
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="grid gap-4 lg:grid-cols-[1fr_220px_220px_140px]">
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Sök
+                  </label>
+                  <input
+                    value={q}
+                    onChange={(event) => setQ(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") loadAgreements();
+                    }}
+                    placeholder="Sök kund, företag, org.nr, avtal eller kontaktperson..."
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#194C66] focus:ring-2 focus:ring-[#194C66]/10"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Status
+                  </label>
+                  <select
+                    value={status}
+                    onChange={(event) => setStatus(event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#194C66] focus:ring-2 focus:ring-[#194C66]/10"
+                  >
+                    <option value="">Alla</option>
+                    <option value="active">Aktiva</option>
+                    <option value="draft">Utkast</option>
+                    <option value="expired">Utgångna</option>
+                    <option value="paused">Pausade</option>
+                    <option value="cancelled">Avslutade</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Avtalstyp
+                  </label>
+                  <select
+                    value={type}
+                    onChange={(event) => setType(event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#194C66] focus:ring-2 focus:ring-[#194C66]/10"
+                  >
+                    <option value="">Alla</option>
+                    <option value="company">Företagsavtal</option>
+                    <option value="association">Föreningsavtal</option>
+                    <option value="agent">Agentavtal</option>
+                    <option value="framework">Ramavtal</option>
+                    <option value="customer_price">Kundpris</option>
+                  </select>
+                </div>
+
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={loadAgreements}
+                    className="w-full rounded-xl bg-[#00645d] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#004f49]"
+                  >
+                    Filtrera
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                  {error}
+                </div>
+              )}
+            </section>
+
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div>
+                  <h2 className="text-lg font-bold text-[#194C66]">
+                    Avtalslista
+                  </h2>
+                  <p className="text-sm text-slate-500">
+                    Visar {filteredTotal} avtal
+                  </p>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-[1150px] w-full border-collapse text-left text-sm">
+                  <thead className="bg-[#194C66] text-white">
+                    <tr>
+                      <Th>Avtal</Th>
+                      <Th>Kund / Företag</Th>
+                      <Th>Kontakt</Th>
+                      <Th>Typ</Th>
+                      <Th>Status</Th>
+                      <Th>Kundpris</Th>
+                      <Th>Giltighet</Th>
+                      <Th>Åtgärder</Th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-slate-100">
+                    {loading ? (
+                      <tr>
+                        <td colSpan={8} className="px-5 py-8 text-center text-slate-500">
+                          Laddar avtal...
+                        </td>
+                      </tr>
+                    ) : agreements.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-5 py-10 text-center">
+                          <div className="mx-auto max-w-lg">
+                            <div className="text-base font-bold text-[#194C66]">
+                              Inga avtal hittades
+                            </div>
+                            <p className="mt-2 text-sm leading-6 text-slate-500">
+                              När CRM-avtal eller kundpriser läggs in kommer de att visas här.
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      agreements.map((agreement) => {
+                        const customerName =
+                          agreement.company_name ||
+                          agreement.customer_name ||
+                          "—";
+
+                        const contact =
+                          agreement.contact_person ||
+                          agreement.email ||
+                          agreement.phone ||
+                          "—";
+
+                        return (
+                          <tr key={agreement.id} className="align-top transition hover:bg-slate-50">
+                            <Td>
+                              <div className="font-bold text-[#194C66]">
+                                {agreement.agreement_number || agreement.title || "Avtal"}
+                              </div>
+                              {agreement.title && agreement.agreement_number && (
+                                <div className="mt-1 max-w-[220px] truncate text-xs text-slate-500">
+                                  {agreement.title}
+                                </div>
+                              )}
+                            </Td>
+
+                            <Td>
+                              <div className="max-w-[220px] truncate font-semibold text-slate-900">
+                                {customerName}
+                              </div>
+                              {agreement.org_number && (
+                                <div className="mt-1 text-xs text-slate-500">
+                                  Org.nr {agreement.org_number}
+                                </div>
+                              )}
+                            </Td>
+
+                            <Td>
+                              <div className="max-w-[190px] truncate font-semibold text-slate-900">
+                                {contact}
+                              </div>
+                              {(agreement.email || agreement.phone) && (
+                                <div className="mt-1 max-w-[190px] truncate text-xs text-slate-500">
+                                  {agreement.email || agreement.phone}
+                                </div>
+                              )}
+                            </Td>
+
+                            <Td>
+                              <span className="rounded-full bg-[#eef8fb] px-3 py-1 text-xs font-semibold text-[#194C66]">
+                                {typeLabel(agreement.agreement_type)}
+                              </span>
+                            </Td>
+
+                            <Td>
+                              <span
+                                className={
+                                  "inline-flex rounded-full px-3 py-1 text-xs font-semibold " +
+                                  statusClass(agreement.status)
+                                }
+                              >
+                                {statusLabel(agreement.status)}
+                              </span>
+                            </Td>
+
+                            <Td>
+                              {agreement.discount_percent ? (
+                                <div className="font-bold text-slate-900">
+                                  {agreement.discount_percent}% rabatt
+                                </div>
+                              ) : (
+                                <div className="font-bold text-slate-900">
+                                  {fmtMoney(agreement.fixed_price, agreement.currency || "SEK")}
+                                </div>
+                              )}
+                            </Td>
+
+                            <Td>
+                              <div className="font-semibold text-slate-900">
+                                {fmtDate(agreement.valid_from)}
+                              </div>
+                              <div className="mt-1 text-xs text-slate-500">
+                                t.o.m. {fmtDate(agreement.valid_until)}
+                              </div>
+                            </Td>
+
+                            <Td>
+                              <div className="flex min-w-[180px] flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#194C66] transition hover:bg-slate-50"
+                                >
+                                  Öppna
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="rounded-lg bg-[#00645d] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#004f49]"
+                                >
+                                  Redigera
+                                </button>
+                              </div>
+                            </Td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </main>
+      </div>
+    </>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: "green" | "amber" | "red" | "blue";
+}) {
+  const color =
+    tone === "green"
+      ? "text-emerald-700 bg-emerald-50"
+      : tone === "amber"
+        ? "text-amber-700 bg-amber-50"
+        : tone === "red"
+          ? "text-red-700 bg-red-50"
+          : tone === "blue"
+            ? "text-blue-700 bg-blue-50"
+            : "text-[#194C66] bg-white";
+
+  return (
+    <div className={"rounded-2xl border border-slate-200 p-5 shadow-sm " + color}>
+      <div className="text-sm font-semibold opacity-80">{label}</div>
+      <div className="mt-2 text-3xl font-bold">{value}</div>
+    </div>
+  );
+}
+
+function Th({ children }: { children: ReactNode }) {
+  return (
+    <th className="whitespace-nowrap px-5 py-4 text-xs font-bold uppercase tracking-wide">
+      {children}
+    </th>
+  );
+}
+
+function Td({ children }: { children: ReactNode }) {
+  return <td className="px-5 py-4">{children}</td>;
+}
