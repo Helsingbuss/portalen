@@ -9,6 +9,7 @@ type Passenger = {
 };
 
 type GenerateTicketInput = {
+  assetBaseUrl?: string;
   booking: {
     id: string;
     booking_number?: string | null;
@@ -874,11 +875,6 @@ const passengerRows = Array.isArray(passengers) ? passengers : [];
 
   // SUNDRA_LOGO_HEADER_OVERLAY_START
   try {
-    const fsModule = await import("node:fs");
-    const pathModule = await import("node:path");
-    const logoPath = pathModule.join(process.cwd(), "public", "assets", "sundra", "sundra-logo.png");
-
-    // Täck bara gamla mörka bannern, inte hela toppen
     page.drawRectangle({
       x: 35,
       y: 690,
@@ -887,10 +883,44 @@ const passengerRows = Array.isArray(passengers) ? passengers : [];
       color: rgb(1, 1, 1),
     });
 
-    if (fsModule.existsSync(logoPath)) {
-      const logoBytes = fsModule.readFileSync(logoPath);
-      const logoImage = await pdf.embedPng(logoBytes);
+    let logoBytes: Uint8Array | Buffer | null = null;
 
+    const assetBaseUrlRaw = String((input as any).assetBaseUrl || process.env.NEXT_PUBLIC_BASE_URL || process.env.PUBLIC_BASE_URL || process.env.VERCEL_URL || "").trim();
+    const assetBaseUrl = assetBaseUrlRaw
+      ? assetBaseUrlRaw.startsWith("http")
+        ? assetBaseUrlRaw.replace(/\/$/, "")
+        : `https://${assetBaseUrlRaw.replace(/\/$/, "")}`
+      : "";
+
+    if (assetBaseUrl) {
+      try {
+        const logoUrl = `${assetBaseUrl}/assets/sundra/sundra-logo.png`;
+        const logoResponse = await fetch(logoUrl, { cache: "no-store" as any });
+        if (logoResponse.ok) {
+          logoBytes = new Uint8Array(await logoResponse.arrayBuffer());
+        } else {
+          console.error("Sundra-logo kunde inte hämtas via URL:", logoUrl, logoResponse.status);
+        }
+      } catch (fetchLogoError) {
+        console.error("Sundra-logo URL-fel:", fetchLogoError);
+      }
+    }
+
+    if (!logoBytes) {
+      try {
+        const fsModule = await import("node:fs");
+        const pathModule = await import("node:path");
+        const localLogoPath = pathModule.join(process.cwd(), "public", "assets", "sundra", "sundra-logo.png");
+        if (fsModule.existsSync(localLogoPath)) {
+          logoBytes = fsModule.readFileSync(localLogoPath);
+        }
+      } catch (fsLogoError) {
+        console.error("Sundra-logo lokal fil-fel:", fsLogoError);
+      }
+    }
+
+    if (logoBytes) {
+      const logoImage = await pdf.embedPng(logoBytes);
       const logoWidth = 245;
       const logoHeight = (logoImage.height / logoImage.width) * logoWidth;
 

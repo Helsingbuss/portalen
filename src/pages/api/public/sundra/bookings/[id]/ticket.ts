@@ -96,7 +96,10 @@ export default async function handler(
       .order("created_at", { ascending: true });
 
     // GENERERA PDF
+    const assetBaseUrl = `${String(req.headers["x-forwarded-proto"] || "https")}://${String(req.headers.host || "")}`;
+
     const pdfBuffer = await generateSundraTicketPdf({
+      assetBaseUrl,
       booking: {
         id: booking.id,
         booking_number: booking.booking_number,
