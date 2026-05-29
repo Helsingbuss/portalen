@@ -2,43 +2,42 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { Resend } from "resend";
 import * as admin from "@/lib/supabaseAdmin";
 
-const resend = new Resend(
-  process.env.RESEND_API_KEY
-);
-
 const supabase: any =
   (admin as any).supabaseAdmin ||
   (admin as any).supabase ||
   (admin as any).default;
 
-function fmtDate(date?: string | null) {
-  if (!date) return "—";
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-  try {
-    return new Intl.DateTimeFormat(
-      "sv-SE",
-      {
-        dateStyle: "medium",
-      }
-    ).format(
-      new Date(`${date}T00:00:00`)
-    );
-  } catch {
-    return date;
+function getBaseUrl(req: NextApiRequest) {
+  const envUrl =
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL ||
+    process.env.CUSTOMER_BASE_URL ||
+    "";
+
+  if (envUrl) {
+    return envUrl.replace(/\/$/, "");
   }
+
+  const proto =
+    (req.headers["x-forwarded-proto"] as string) ||
+    "http";
+
+  const host =
+    (req.headers["x-forwarded-host"] as string) ||
+    req.headers.host ||
+    "127.0.0.1:3000";
+
+  return `${proto}://${host}`;
 }
 
-function fmtTime(
-  time?: string | null
-) {
-  if (!time) return "—";
-  return String(time).slice(0, 5);
-}
-
-function isUuidLike(value: any) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-    String(value || "").trim()
-  );
+function escapeHtml(value: any) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 export default async function handler(
@@ -49,235 +48,148 @@ export default async function handler(
     if (req.method !== "POST") {
       return res.status(405).json({
         ok: false,
-        error:
-          "Method not allowed",
+        error: "Method not allowed",
       });
     }
 
-    const {
-      booking_id,
-      booking_number,
-    } = req.body || {};
+    const body =
+      typeof req.body === "string"
+        ? JSON.parse(req.body || "{}")
+        : req.body || {};
 
-    const bookingId = String(booking_id || "").trim();
-    const bookingNumber = String(booking_number || "").trim();
+    const bookingId =
+      body.booking_id ||
+      body.bookingId ||
+      body.id ||
+      null;
+
+    const bookingNumber =
+      body.booking_number ||
+      body.bookingNumber ||
+      null;
 
     if (!bookingId && !bookingNumber) {
       return res.status(400).json({
         ok: false,
-        error:
-          "booking_id eller booking_number saknas.",
+        error: "booking_id eller booking_number saknas.",
       });
     }
 
-    // =========================
-    // BOOKING
-    // =========================
-    let bookingQuery = supabase
+    let query = supabase
       .from("sundra_bookings")
-      .select(`
-        *,
-        sundra_trips (
-          title,
-          destination
-        ),
-        sundra_departures (
-          departure_date,
-          departure_time,
-          return_time,
-          departure_location
-        )
-      `);
+      .select("*");
 
-    if (isUuidLike(bookingId)) {
-      bookingQuery = bookingQuery.eq("id", bookingId);
-    } else if (bookingNumber) {
-      bookingQuery = bookingQuery.eq("booking_number", bookingNumber.toUpperCase());
-    } else if (bookingId && bookingId.toUpperCase().startsWith("SU")) {
-      bookingQuery = bookingQuery.eq("booking_number", bookingId.toUpperCase());
+    if (bookingId) {
+      query = query.eq("id", bookingId);
     } else {
-      return res.status(400).json({
-        ok: false,
-        error: "Ogiltigt booking_id eller booking_number.",
-      });
+      query = query.eq("booking_number", bookingNumber);
     }
 
-    const {
-      data: booking,
-      error,
-    } = await bookingQuery
-      .limit(1)
-      .maybeSingle();
+    const { data: booking, error } = await query.maybeSingle();
 
     if (error || !booking) {
-      throw (
-        error ||
-        new Error(
-          "Bokningen hittades inte."
-        )
-      );
+      console.error("send-ticket booking lookup error", error);
+
+      return res.status(404).json({
+        ok: false,
+        error: "Kunde inte hitta bokningen.",
+      });
     }
 
-    if (
-      !booking.customer_email
-    ) {
+    const customerEmail =
+      booking.customer_email ||
+      booking.email ||
+      booking.contact_email ||
+      booking.billing_email ||
+      null;
+
+    if (!customerEmail) {
       return res.status(400).json({
         ok: false,
-        error:
-          "Kunden saknar e-postadress.",
+        error: "Bokningen saknar e-postadress.",
       });
     }
 
-    // =========================
-    // PDF URL
-    // =========================
-    const baseUrl = (
-      process.env.NEXT_PUBLIC_BASE_URL ||
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      process.env.NEXT_PUBLIC_CUSTOMER_BASE_URL ||
-      process.env.CUSTOMER_BASE_URL ||
-      "https://login.helsingbuss.se"
-    ).replace(/\/$/, "");
+    const baseUrl = getBaseUrl(req);
 
-    const pdfUrl = `${baseUrl}/api/public/sundra/bookings/${booking.id}/ticket`;
+    const ticketUrl = `${baseUrl}/api/public/sundra/bookings/${booking.id}/ticket`;
 
-    const portalUrl = `${baseUrl}/min-bokning/${booking.booking_number}`;
+    const customerName =
+      booking.customer_name ||
+      booking.name ||
+      "kund";
 
-    // =========================
-    // MAIL
-    // =========================
-    const mail =
-      await resend.emails.send({
-        from:
-          "Helsingbuss <noreply@helsingbuss.se>",
+    const publicBookingNumber =
+      booking.booking_number ||
+      bookingNumber ||
+      booking.id;
 
-        to: booking.customer_email,
+    const subject = `Din biljett från Sundra resor - ${publicBookingNumber}`;
 
-        subject: `Din biljett – ${booking.booking_number}`,
-
-        html: `
-          <div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;padding:24px;">
-            
-            <h1 style="color:#194C66;margin-bottom:10px;">
-              Din biljett är klar 🎫
-            </h1>
-
-            <p style="font-size:15px;color:#374151;line-height:1.7;">
-              Tack för din betalning. Din biljett och QR-kod är nu aktiverad.
-            </p>
-
-            <div style="margin-top:24px;padding:20px;border-radius:16px;background:#f8fafc;border:1px solid #e5e7eb;">
-              
-              <h2 style="margin-top:0;color:#194C66;">
-                Resinformation
-              </h2>
-
-              <p>
-                <strong>Bokningsnummer:</strong>
-                ${booking.booking_number}
-              </p>
-
-              <p>
-                <strong>Resa:</strong>
-                ${
-                  booking
-                    .sundra_trips
-                    ?.title || "Sundra resa"
-                }
-              </p>
-
-              <p>
-                <strong>Destination:</strong>
-                ${
-                  booking
-                    .sundra_trips
-                    ?.destination || "—"
-                }
-              </p>
-
-              <p>
-                <strong>Avgång:</strong>
-                ${fmtDate(
-                  booking
-                    .sundra_departures
-                    ?.departure_date
-                )} kl ${fmtTime(
-          booking
-            .sundra_departures
-            ?.departure_time
-        )}
-              </p>
-
-              <p>
-                <strong>Påstigning:</strong>
-                ${
-                  booking
-                    .sundra_departures
-                    ?.departure_location ||
-                  "—"
-                }
-              </p>
-
-            </div>
-
-            <div style="margin-top:24px;">
-              
-              <a
-                href="${pdfUrl}"
-                style="
-                  display:inline-block;
-                  background:#194C66;
-                  color:#ffffff;
-                  text-decoration:none;
-                  padding:14px 22px;
-                  border-radius:999px;
-                  font-weight:600;
-                  margin-right:10px;
-                "
-              >
-                Ladda ner biljett
-              </a>
-
-              <a
-                href="${portalUrl}"
-                style="
-                  display:inline-block;
-                  background:#0f766e;
-                  color:#ffffff;
-                  text-decoration:none;
-                  padding:14px 22px;
-                  border-radius:999px;
-                  font-weight:600;
-                "
-              >
-                Min bokning
-              </a>
-
-            </div>
-
-            <p style="margin-top:32px;font-size:14px;color:#6b7280;line-height:1.7;">
-              Visa QR-koden vid boarding för snabb incheckning.
-            </p>
-
+    const html = `
+      <div style="font-family: Arial, sans-serif; background:#f6f8fa; padding:24px;">
+        <div style="max-width:620px; margin:0 auto; background:#ffffff; border-radius:14px; overflow:hidden; border:1px solid #d8e4ea;">
+          <div style="background:#071f2e; padding:26px 30px;">
+            <h1 style="margin:0; color:#ffffff; font-size:30px;">Helsingbuss</h1>
+            <p style="margin:6px 0 0; color:#a8e6dc; font-size:16px;">Sundra resor</p>
           </div>
-        `,
-      });
+
+          <div style="padding:30px;">
+            <h2 style="margin:0 0 10px; color:#0b1f33; font-size:26px;">Din biljett</h2>
+
+            <p style="margin:0 0 18px; color:#4a5b6d; line-height:1.5;">
+              Hej ${escapeHtml(customerName)}!<br>
+              Här kommer din biljett/bokningsbekräftelse för Sundra resor.
+            </p>
+
+            <div style="background:#f2fbfd; border:1px solid #d8e4ea; border-radius:12px; padding:18px; margin:20px 0;">
+              <p style="margin:0; color:#526171; font-size:14px;">Bokningsnummer</p>
+              <p style="margin:4px 0 0; color:#0b1f33; font-size:20px; font-weight:700;">
+                ${escapeHtml(publicBookingNumber)}
+              </p>
+            </div>
+
+            <a href="${escapeHtml(ticketUrl)}"
+              style="display:inline-block; background:#00645d; color:#ffffff; text-decoration:none; padding:14px 22px; border-radius:10px; font-weight:700;">
+              Öppna biljett
+            </a>
+
+            <p style="margin:22px 0 0; color:#6b7a89; font-size:13px; line-height:1.5;">
+              Om knappen inte fungerar kan du kopiera länken här:<br>
+              <span style="word-break:break-all;">${escapeHtml(ticketUrl)}</span>
+            </p>
+          </div>
+
+          <div style="padding:16px 30px; border-top:1px solid #e2ebf0; color:#607080; font-size:13px;">
+            Helsingbuss AB · info@helsingbuss.se · helsingbuss.se
+          </div>
+        </div>
+      </div>
+    `;
+
+    await resend.emails.send({
+      from:
+        process.env.RESEND_FROM ||
+        "Helsingbuss <noreply@helsingbuss.se>",
+      to: customerEmail,
+      subject,
+      html,
+    });
 
     return res.status(200).json({
       ok: true,
-      mail,
+      message: "Biljett skickad som länk utan PDF-bilaga.",
+      to: customerEmail,
+      ticketUrl,
     });
   } catch (e: any) {
-    console.error(
-      "/api/admin/sundra/bookings/send-ticket error:",
-      e
-    );
+    console.error("/api/admin/sundra/bookings/send-ticket error", e);
 
     return res.status(500).json({
       ok: false,
       error:
         e?.message ||
-        "Kunde inte skicka biljett.",
+        "Kunde inte skicka biljetten.",
     });
   }
 }

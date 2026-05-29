@@ -195,6 +195,7 @@ export default function SundraBookingConfirmationPage() {
   const trip = booking.sundra_trips;
   const departure = booking.sundra_departures;
   const passengers = booking.sundra_booking_passengers || [];
+  const ticketUrl = booking?.id ? `/api/public/sundra/bookings/${booking.id}/ticket` : "";
   const currency = booking.currency || trip?.currency || "SEK";
 
   return (
@@ -373,13 +374,26 @@ export default function SundraBookingConfirmationPage() {
                 Skriv ut bekräftelse
               </button>
 
-              <button
-                disabled
-                className="w-full rounded-full bg-[#194C66] px-5 py-3 text-sm font-semibold text-white opacity-50"
-                title="Kopplas på när PDF-biljett är klar"
-              >
-                Ladda ner biljett
-              </button>
+              <a
+  href={ticketUrl}
+  target="_blank"
+  rel="noreferrer"
+  style={{
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    borderRadius: "12px",
+    background: "#00645d",
+    color: "#ffffff",
+    padding: "12px 18px",
+    fontWeight: 800,
+    textDecoration: "none",
+    boxShadow: "0 10px 24px rgba(0,100,93,0.20)",
+  }}
+>
+  Öppna biljett
+</a>
             </div>
 
             <p className="mt-4 text-xs leading-relaxed text-gray-500">
