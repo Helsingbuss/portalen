@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { useRouter } from "next/router";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
 
@@ -168,6 +169,7 @@ function priorityClass(priority?: string | null) {
 }
 
 export default function CrmKommunikationPage() {
+  const router = useRouter();
   const [communications, setCommunications] = useState<CommunicationRow[]>([]);
   const [summary, setSummary] = useState<ApiResponse["summary"]>({
     total: 0,
@@ -564,7 +566,7 @@ export default function CrmKommunikationPage() {
                       </tr>
                     ) : (
                       communications.map((item) => (
-                        <tr key={item.id} className="align-top transition hover:bg-slate-50">
+                        <tr key={item.id} onClick={() => router.push("/admin/crm/kommunikation/" + encodeURIComponent(item.id))} className="cursor-pointer align-top transition hover:bg-slate-50">
                           <Td>
                             <div className="font-bold text-[#194C66]">
                               {channelLabel(item.channel)}
