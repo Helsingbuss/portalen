@@ -275,9 +275,9 @@ export default function AdminMenu({ active }: Props) {
 
       {/* ÖVRIGA PARTNERS */}
       <div className="text-[10px] text-gray-400 mt-2">Övriga partners</div>
-      <Link href="#" className={subLink}>Hotell & boenden</Link>
-      <Link href="#" className={subLink}>Leverantörer</Link>
-      <Link href="#" className={subLink}>Samarbeten / partnerskap</Link>
+      <Link href="/admin/partners/hotell" className={subLink}>Hotell & boenden</Link>
+      <Link href="/admin/partners/leverantorer" className={subLink}>Leverantörer</Link>
+      <Link href="/admin/partners/samarbeten" className={subLink}>Samarbeten / partnerskap</Link>
 
     </div>
   )}
