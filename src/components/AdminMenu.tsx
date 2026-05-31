@@ -302,25 +302,25 @@ export default function AdminMenu({ active }: Props) {
 
       {/* FORDON */}
       <div className="text-[10px] text-gray-400 mt-1">Fordon</div>
-      <Link href="#" className={subLink}>Flotta</Link>
-      <Link href="#" className={subLink}>Fordonsstatus / checklistor</Link>
+      <Link href="/admin/fordon/flotta" className={subLink}>Flotta</Link>
+      <Link href="/admin/fordon/status" className={subLink}>Fordonsstatus / checklistor</Link>
 
       {/* UNDERHÅLL */}
       <div className="text-[10px] text-gray-400 mt-2">Underhåll</div>
-      <Link href="#" className={subLink}>Service & besiktning</Link>
-      <Link href="#" className={subLink}>Skador & incidenter</Link>
+      <Link href="/admin/fordon/service" className={subLink}>Service & besiktning</Link>
+      <Link href="/admin/fordon/skador" className={subLink}>Skador & incidenter</Link>
 
       {/* AVTAL */}
       <div className="text-[10px] text-gray-400 mt-2">Avtal</div>
-      <Link href="#" className={subLink}>Försäkring & leasing</Link>
+      <Link href="/admin/fordon/avtal" className={subLink}>Försäkring & leasing</Link>
 
       {/* DOKUMENT */}
       <div className="text-[10px] text-gray-400 mt-2">Dokument</div>
-      <Link href="#" className={subLink}>Dokument & tillstånd</Link>
+      <Link href="/admin/fordon/dokument" className={subLink}>Dokument & tillstånd</Link>
 
       {/* MILJÖ & DRIFT */}
       <div className="text-[10px] text-gray-400 mt-2">Miljö & drift</div>
-      <Link href="#" className={subLink}>Bränsle & miljö</Link>
+      <Link href="/admin/fordon/miljo" className={subLink}>Bränsle & miljö</Link>
 
     </div>
   )}
