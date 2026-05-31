@@ -268,10 +268,10 @@ export default function AdminMenu({ active }: Props) {
 
       {/* OPERATÖRER */}
       <div className="text-[10px] text-gray-400 mt-1">Operatörer</div>
-      <Link href="#" className={subLink}>Operatörsregister</Link>
-      <Link href="#" className={subLink}>Fordon per operatör</Link>
-      <Link href="#" className={subLink}>Avtal & dokument</Link>
-      <Link href="#" className={subLink}>Kvalitet / uppföljning</Link>
+      <Link href="/admin/partners/operatorer" className={subLink}>Operatörsregister</Link>
+      <Link href="/admin/partners/fordon" className={subLink}>Fordon per operatör</Link>
+      <Link href="/admin/partners/avtal" className={subLink}>Avtal & dokument</Link>
+      <Link href="/admin/partners/kvalitet" className={subLink}>Kvalitet / uppföljning</Link>
 
       {/* ÖVRIGA PARTNERS */}
       <div className="text-[10px] text-gray-400 mt-2">Övriga partners</div>
