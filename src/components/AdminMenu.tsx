@@ -345,17 +345,17 @@ export default function AdminMenu({ active }: Props) {
 
       {/* ANSTÄLLDA */}
       <div className="text-[10px] text-gray-400 mt-1">Anställda</div>
-      <Link href="#" className={subLink}>Lägg till anställd</Link>
-      <Link href="#" className={subLink}>Lista över anställda</Link>
-      <Link href="#" className={subLink}>Chaufförer</Link>
+      <Link href="/admin/personal/anstallda/skapa" className={subLink}>Lägg till anställd</Link>
+      <Link href="/admin/personal/anstallda" className={subLink}>Lista över anställda</Link>
+      <Link href="/admin/personal/chaufforer" className={subLink}>Chaufförer</Link>
 
       {/* SCHEMA */}
       <div className="text-[10px] text-gray-400 mt-2">Schemaläggning</div>
-      <Link href="#" className={subLink}>Schema</Link>
+      <Link href="/admin/personal/schema" className={subLink}>Schema</Link>
 
       {/* TID */}
       <div className="text-[10px] text-gray-400 mt-2">Tid & rapportering</div>
-      <Link href="#" className={subLink}>Tidrapportering</Link>
+      <Link href="/admin/personal/tidrapportering" className={subLink}>Tidrapportering</Link>
 
     </div>
   )}
