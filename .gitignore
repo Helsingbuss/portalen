@@ -53,3 +53,11 @@ node_modules/
 apps/hbshuttle/node_modules/
 
 api-route-backups-*/
+
+# Local generated patch/backup files
+*.backup-before-*
+create-*.js
+patch-*.js
+fix-*.js
+*.tsbuildinfo
+

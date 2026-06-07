@@ -380,14 +380,14 @@ export default function AdminMenu({ active }: Props) {
 
       {/* LÖNEKÖRNING */}
       <div className="text-[10px] text-gray-400 mt-1">Lönekörning</div>
-      <Link href="#" className={subLink}>Skapa lönekörning</Link>
-      <Link href="#" className={subLink}>Pågående löner</Link>
+      <Link href="/admin/lon/lonekoring/skapa" className={subLink}>Skapa lönekörning</Link>
+      <Link href="/admin/lon/lonekoring" className={subLink}>Pågående löner</Link>
       <Link href="#" className={subLink}>Historik</Link>
 
       {/* TID */}
       <div className="text-[10px] text-gray-400 mt-2">Tid & underlag</div>
       <Link href="#" className={subLink}>Tidrapporter</Link>
-      <Link href="#" className={subLink}>Godkänn tider</Link>
+      <Link href="/admin/lon/godkann-tider" className={subLink}>Godkänn tider</Link>
       <Link href="#" className={subLink}>Frånvaro</Link>
 
       {/* ERSÄTTNINGAR */}
@@ -398,14 +398,19 @@ export default function AdminMenu({ active }: Props) {
 
       {/* LÖNEUNDERLAG */}
       <div className="text-[10px] text-gray-400 mt-2">Löneunderlag</div>
-      <Link href="#" className={subLink}>Lönebesked</Link>
-      <Link href="#" className={subLink}>Export till bokföring</Link>
+      <Link href="/admin/lon/lonebesked" className={subLink}>Lönebesked</Link>
+      <Link href="/admin/lon/export" className={subLink}>Export</Link>
+            <Link href="/admin/lon/bankfil" className={subLink}>Bankfil / utbetalningsunderlag</Link>
+            <Link href="/admin/lon/status" className={subLink}>Exportstatus / betalstatus</Link>\n            <Link href="/admin/lon/historik" className={subLink}>Historik / arkiv</Link>\n            <Link href="/admin/lon/bokforing" className={subLink}>Bokföringsexport</Link>\n            <Link href="/admin/lon/swedbank" className={subLink}>Swedbank / ISO 20022</Link>
 
       {/* INSTÄLLNINGAR */}
       <div className="text-[10px] text-gray-400 mt-2">Inställningar</div>
-      <Link href="#" className={subLink}>Lönearter</Link>
-      <Link href="#" className={subLink}>Timlön / månadslön</Link>
-      <Link href="#" className={subLink}>Skatter & regler</Link>
+      <Link href="/admin/lon/lonearter" className={subLink}>Lönearter</Link>
+      <Link href="/admin/lon/lonesatser" className={subLink}>Timlön / månadslön</Link>
+            <Link href="/admin/lon/bankuppgifter" className={subLink}>Bankuppgifter</Link>
+      <Link href="/admin/lon/regler" className={subLink}>Skatter & regler</Link>
+            <Link href="/admin/lon/skatteprofiler" className={subLink}>Skatteprofiler</Link>
+            <Link href="/admin/lon/skatt-netto" className={subLink}>Skatteavdrag / nettolön</Link>
 
     </div>
   )}

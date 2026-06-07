@@ -1,0 +1,511 @@
+import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import AdminMenu from "@/components/AdminMenu";
+import Header from "@/components/Header";
+
+type PayrollRun = {
+  id: string;
+  title?: string | null;
+  period_start?: string | null;
+  period_end?: string | null;
+  payout_date?: string | null;
+  status?: string | null;
+  total_employees?: number | null;
+  total_hours?: number | null;
+  total_gross?: number | null;
+  total_employer_fee?: number | null;
+  total_cost?: number | null;
+};
+
+type PayrollRow = {
+  id: string;
+  employee_name_snapshot?: string | null;
+  employee_role_snapshot?: string | null;
+  pay_type?: string | null;
+  hours?: number | null;
+  hourly_rate?: number | null;
+  monthly_salary?: number | null;
+  vacation_percent?: number | null;
+  gross_base?: number | null;
+  vacation_pay?: number | null;
+  gross_total?: number | null;
+  preliminary_tax_percent?: number | null;
+  preliminary_tax_amount?: number | null;
+  net_pay?: number | null;
+  payout_amount?: number | null;
+  employer_fee_percent?: number | null;
+  employer_fee?: number | null;
+  total_cost?: number | null;
+  status?: string | null;
+  notes?: string | null;
+};
+
+type ApiResponse = {
+  ok: boolean;
+  needsSetup?: boolean;
+  runs?: PayrollRun[];
+  selectedRun?: PayrollRun | null;
+  rows?: PayrollRow[];
+  summary?: {
+    rows: number;
+    totalHours: number;
+    grossBase: number;
+    vacationPay: number;
+    grossTotal: number;
+    employerFee: number;
+    totalCost: number;
+  };
+  error?: string;
+};
+
+function fmtMoney(value?: number | null) {
+  return new Intl.NumberFormat("sv-SE", {
+    style: "currency",
+    currency: "SEK",
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+}
+
+function fmtNumber(value?: number | null) {
+  return new Intl.NumberFormat("sv-SE", {
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+}
+
+function fmtDate(value?: string | null) {
+  if (!value) return "—";
+
+  try {
+    return new Intl.DateTimeFormat("sv-SE", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function roleLabel(role?: string | null) {
+  switch (role) {
+    case "driver":
+      return "Chaufför";
+    case "traffic_manager":
+      return "Trafikledare";
+    case "booking_agent":
+      return "Bokningsagent";
+    case "admin":
+      return "Administratör";
+    case "employee":
+      return "Anställd";
+    default:
+      return role || "Personal";
+  }
+}
+
+function payTypeLabel(type?: string | null) {
+  switch (type) {
+    case "hourly":
+      return "Timlön";
+    case "monthly":
+      return "Månadslön";
+    default:
+      return type || "Lönetyp";
+  }
+}
+
+function statusLabel(status?: string | null) {
+  switch (status) {
+    case "draft":
+      return "Utkast";
+    case "approved":
+      return "Godkänd";
+    case "sent":
+      return "Skickad";
+    case "exported":
+      return "Exporterad";
+    case "paid":
+      return "Betald";
+    case "cancelled":
+      return "Avbruten";
+    default:
+      return status || "Status";
+  }
+}
+
+function statusClass(status?: string | null) {
+  switch (status) {
+    case "paid":
+      return "bg-emerald-100 text-emerald-700";
+    case "approved":
+      return "bg-blue-100 text-blue-700";
+    case "sent":
+    case "exported":
+      return "bg-purple-100 text-purple-700";
+    case "cancelled":
+      return "bg-red-100 text-red-700";
+    case "draft":
+      return "bg-amber-100 text-amber-700";
+    default:
+      return "bg-slate-100 text-slate-700";
+  }
+}
+
+export default function LonExportPage() {
+  const [mounted, setMounted] = useState(false);
+
+  const [runs, setRuns] = useState<PayrollRun[]>([]);
+  const [selectedRun, setSelectedRun] = useState<PayrollRun | null>(null);
+  const [rows, setRows] = useState<PayrollRow[]>([]);
+  const [summary, setSummary] = useState<ApiResponse["summary"]>({
+    rows: 0,
+    totalHours: 0,
+    grossBase: 0,
+    vacationPay: 0,
+    grossTotal: 0,
+    employerFee: 0,
+    totalCost: 0,
+  });
+
+  const [runId, setRunId] = useState("");
+  const [needsSetup, setNeedsSetup] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function loadExport(nextRunId = runId) {
+    try {
+      setLoading(true);
+      setError("");
+
+      const params = new URLSearchParams();
+      if (nextRunId) params.set("payroll_run_id", nextRunId);
+
+      const res = await fetch("/api/admin/lon/export?" + params.toString());
+      const json: ApiResponse = await res.json().catch(() => ({ ok: false }));
+
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || "Kunde inte hämta exportunderlag.");
+      }
+
+      setRuns(json.runs || []);
+      setSelectedRun(json.selectedRun || null);
+      setRows(json.rows || []);
+      setSummary(json.summary || {
+        rows: 0,
+        totalHours: 0,
+        grossBase: 0,
+        vacationPay: 0,
+        grossTotal: 0,
+        employerFee: 0,
+        totalCost: 0,
+      });
+      setNeedsSetup(Boolean(json.needsSetup));
+
+      if (!nextRunId && json.selectedRun?.id) {
+        setRunId(json.selectedRun.id);
+      }
+    } catch (err: any) {
+      setError(err?.message || "Något gick fel.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function downloadCsv() {
+    if (!selectedRun?.id) {
+      setError("Välj en lönekörning först.");
+      return;
+    }
+
+    window.location.href = "/api/admin/lon/export/" + encodeURIComponent(selectedRun.id) + "/csv";
+  }
+
+  useEffect(() => {
+    setMounted(true);
+    loadExport("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const filteredTotal = useMemo(() => rows.length, [rows]);
+
+  if (!mounted) {
+    return (
+      <>
+        <AdminMenu />
+        <div className="min-h-screen bg-[#f5f4f0] lg:pl-64">
+          <Header />
+          <main className="px-6 pb-8 pt-10">
+            <section className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">
+              Laddar export...
+            </section>
+          </main>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <AdminMenu />
+
+      <div className="min-h-screen bg-[#f5f4f0] lg:pl-64">
+        <Header />
+
+        <main className="px-6 pb-8 pt-10">
+          <div className="w-full space-y-8">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#00645d]">
+                  Lön
+                </p>
+
+                <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#194C66]">
+                  Export
+                </h1>
+
+                <p className="mt-2 max-w-3xl text-sm text-slate-600">
+                  Exportera löneunderlag till CSV som kan öppnas i Excel. Detta används för kontroll, revisor och bokföring innan bankfil/Swedbank byggs.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => loadExport(runId)}
+                  disabled={loading}
+                  className="inline-flex items-center justify-center rounded-xl bg-[#194C66] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0f3548] disabled:opacity-60"
+                >
+                  {loading ? "Hämtar..." : "Uppdatera"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={downloadCsv}
+                  disabled={!selectedRun?.id || rows.length === 0}
+                  className="inline-flex items-center justify-center rounded-xl bg-[#00645d] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#004f49] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Exportera CSV / Excel
+                </button>
+              </div>
+            </div>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="grid gap-4 lg:grid-cols-[1fr_160px_180px]">
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Välj lönekörning
+                  </label>
+                  <select
+                    value={runId}
+                    onChange={(event) => {
+                      setRunId(event.target.value);
+                      loadExport(event.target.value);
+                    }}
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#194C66] focus:ring-2 focus:ring-[#194C66]/10"
+                  >
+                    <option value="">Välj lönekörning</option>
+                    {runs.map((run) => (
+                      <option key={run.id} value={run.id}>
+                        {(run.title || "Lönekörning") + " · " + fmtDate(run.period_start) + " - " + fmtDate(run.period_end)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-end">
+                  <a
+                    href="/admin/lon/lonekoring"
+                    className="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-[#194C66] transition hover:bg-slate-50"
+                  >
+                    Pågående löner
+                  </a>
+                </div>
+
+                <div className="flex items-end">
+                  <a
+                    href="/admin/lon/lonebesked"
+                    className="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-[#194C66] transition hover:bg-slate-50"
+                  >
+                    Lönebesked
+                  </a>
+                </div>
+              </div>
+
+              {selectedRun && (
+                <div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
+                  <strong className="text-[#194C66]">{selectedRun.title}</strong>
+                  <div className="mt-1">
+                    Period: {fmtDate(selectedRun.period_start)} – {fmtDate(selectedRun.period_end)}
+                    {" · "}
+                    Utbetalning: {fmtDate(selectedRun.payout_date)}
+                    {" · "}
+                    Status: {statusLabel(selectedRun.status)}
+                  </div>
+                </div>
+              )}
+
+              {needsSetup && (
+                <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                  Tabellerna för lönekörning saknas. Skapa lönekörning först.
+                </div>
+              )}
+
+              {error && (
+                <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                  {error}
+                </div>
+              )}
+            </section>
+
+            <div className="grid gap-4 md:grid-cols-6">
+              <SummaryCard label="Rader" value={summary?.rows || 0} />
+              <SummaryCard label="Timmar" valueText={fmtNumber(summary?.totalHours || 0)} tone="blue" />
+              <SummaryCard label="Grundlön" valueText={fmtMoney(summary?.grossBase || 0)} tone="blue" />
+              <SummaryCard label="Semester" valueText={fmtMoney(summary?.vacationPay || 0)} tone="green" />
+              <SummaryCard label="Brutto" valueText={fmtMoney(summary?.grossTotal || 0)} tone="green" />
+              <SummaryCard label="Total kostnad" valueText={fmtMoney(summary?.totalCost || 0)} tone="amber" />
+            </div>
+
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div>
+                  <h2 className="text-lg font-bold text-[#194C66]">
+                    Exportunderlag
+                  </h2>
+                  <p className="text-sm text-slate-500">
+                    Visar {filteredTotal} rader
+                  </p>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-[1650px] w-full border-collapse text-left text-sm">
+                  <thead className="bg-[#194C66] text-white">
+                    <tr>
+                      <Th>Anställd</Th>
+                      <Th>Roll</Th>
+                      <Th>Lönetyp</Th>
+                      <Th>Timmar</Th>
+                      <Th>Timlön</Th>
+                      <Th>Månadslön</Th>
+                      <Th>Grundlön</Th>
+                      <Th>Semester</Th>
+                      <Th>Brutto</Th>
+                      <Th>Prel. skatt</Th>
+                      <Th>Nettolön</Th>
+                      <Th>Utbetalning</Th>
+                      <Th>Arbetsgivaravgift</Th>
+                      <Th>Total kostnad</Th>
+                      <Th>Status</Th>
+                      <Th>Anteckning</Th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-slate-100">
+                    {loading ? (
+                      <tr>
+                        <td colSpan={16} className="px-5 py-8 text-center text-slate-500">
+                          Hämtar exportunderlag...
+                        </td>
+                      </tr>
+                    ) : rows.length === 0 ? (
+                      <tr>
+                        <td colSpan={16} className="px-5 py-10 text-center">
+                          <div className="mx-auto max-w-lg">
+                            <div className="text-base font-bold text-[#194C66]">
+                              Inget exportunderlag hittades
+                            </div>
+                            <p className="mt-2 text-sm leading-6 text-slate-500">
+                              Välj en lönekörning med lönerader först.
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      rows.map((row) => (
+                        <tr key={row.id} className="align-top transition hover:bg-slate-50">
+                          <Td>
+                            <div className="font-bold text-[#194C66]">
+                              {row.employee_name_snapshot || "Anställd"}
+                            </div>
+                          </Td>
+                          <Td>{roleLabel(row.employee_role_snapshot)}</Td>
+                          <Td>{payTypeLabel(row.pay_type)}</Td>
+                          <Td>{fmtNumber(row.hours)} h</Td>
+                          <Td>{fmtMoney(row.hourly_rate)}</Td>
+                          <Td>{fmtMoney(row.monthly_salary)}</Td>
+                          <Td>{fmtMoney(row.gross_base)}</Td>
+                          <Td>{fmtMoney(row.vacation_pay)} ({fmtNumber(row.vacation_percent)} %)</Td>
+                          <Td><strong>{fmtMoney(row.gross_total)}</strong></Td>
+                          <Td><strong className="text-red-700">{fmtMoney(row.preliminary_tax_amount)}</strong></Td>
+                          <Td><strong className="text-emerald-700">{fmtMoney(row.net_pay)}</strong></Td>
+                          <Td><strong>{fmtMoney(row.payout_amount || row.net_pay)}</strong></Td>
+                          <Td>{fmtMoney(row.employer_fee)} ({fmtNumber(row.employer_fee_percent)} %)</Td>
+                          <Td><strong>{fmtMoney(row.total_cost)}</strong></Td>
+                          <Td>
+                            <span className={"inline-flex rounded-full px-3 py-1 text-xs font-semibold " + statusClass(row.status)}>
+                              {statusLabel(row.status)}
+                            </span>
+                          </Td>
+                          <Td>
+                            <div className="max-w-[260px] truncate text-slate-600">
+                              {row.notes || "—"}
+                            </div>
+                          </Td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </main>
+      </div>
+    </>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  valueText,
+  tone,
+}: {
+  label: string;
+  value?: number;
+  valueText?: string;
+  tone?: "green" | "amber" | "red" | "blue" | "slate";
+}) {
+  const color =
+    tone === "green"
+      ? "text-emerald-700 bg-emerald-50"
+      : tone === "amber"
+        ? "text-amber-700 bg-amber-50"
+        : tone === "red"
+          ? "text-red-700 bg-red-50"
+          : tone === "blue"
+            ? "text-blue-700 bg-blue-50"
+            : tone === "slate"
+              ? "text-slate-700 bg-slate-50"
+              : "text-[#194C66] bg-white";
+
+  return (
+    <div className={"rounded-2xl border border-slate-200 p-5 shadow-sm " + color}>
+      <div className="text-sm font-semibold opacity-80">{label}</div>
+      <div className="mt-2 text-2xl font-bold">{valueText || value || 0}</div>
+    </div>
+  );
+}
+
+function Th({ children }: { children: ReactNode }) {
+  return (
+    <th className="whitespace-nowrap px-5 py-4 text-xs font-bold uppercase tracking-wide">
+      {children}
+    </th>
+  );
+}
+
+function Td({ children }: { children: ReactNode }) {
+  return <td className="px-5 py-4">{children}</td>;
+}
