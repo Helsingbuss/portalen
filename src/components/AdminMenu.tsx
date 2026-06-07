@@ -389,6 +389,7 @@ export default function AdminMenu({ active }: Props) {
       <Link href="#" className={subLink}>Tidrapporter</Link>
       <Link href="/admin/lon/godkann-tider" className={subLink}>Godkänn tider</Link>
             <Link href="/admin/lon/loneunderlag" className={subLink}>Löneunderlag</Link>
+            <Link href="/admin/lon/behorighet" className={subLink}>Behörighet</Link>
       <Link href="/admin/lon/franvaro" className={subLink}>Frånvaro</Link>
 
       {/* ERSÄTTNINGAR */}

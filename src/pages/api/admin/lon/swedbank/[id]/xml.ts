@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createClient } from "@supabase/supabase-js";
 import { canCreateSwedbankFile, swedbankBlockedMessage } from "@/lib/payrollSafety";
+import { requirePayrollAccess } from "@/lib/payrollAccess";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -272,6 +273,8 @@ function buildPain001Xml(run: any, rows: any[], settings: any) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!requirePayrollAccess(req, res)) return;
+
   const id = String(req.query.id || "").trim();
 
   if (!id) {

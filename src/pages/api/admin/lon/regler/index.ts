@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createClient } from "@supabase/supabase-js";
+import { requirePayrollAccess } from "@/lib/payrollAccess";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -182,6 +183,8 @@ function buildSettingsData(body: any) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!requirePayrollAccess(req, res)) return;
+
   try {
     const supabase = getSupabase();
 
