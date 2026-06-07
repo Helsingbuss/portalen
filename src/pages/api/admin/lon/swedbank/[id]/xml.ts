@@ -1,6 +1,7 @@
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createClient } from "@supabase/supabase-js";
+import { canCreateSwedbankFile, swedbankBlockedMessage } from "@/lib/payrollSafety";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -298,6 +299,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .single();
 
     if (runError) throw runError;
+
+    if (!canCreateSwedbankFile(run)) {
+      return res.status(409).json({
+        ok: false,
+        error: swedbankBlockedMessage(run),
+      });
+    }
 
     const rows = await loadRowsForRun(supabase, id);
     const summary = buildSummary(rows);

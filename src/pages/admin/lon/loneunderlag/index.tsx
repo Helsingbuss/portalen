@@ -107,8 +107,26 @@ export default function LonUnderlagPage() {
         throw new Error("Välj en lönekörning först.");
       }
 
+      const alreadySynced = Boolean(selectedRun?.payroll_underlag_synced_at);
+
+      if (alreadySynced) {
+        const confirmed = window.confirm(
+          "Den här lönekörningen har redan kopplat löneunderlag. Vill du koppla om och räkna om lönebeskeden?"
+        );
+
+        if (!confirmed) {
+          return;
+        }
+      }
+
       const res = await fetch("/api/admin/lon/loneunderlag/" + encodeURIComponent(runId) + "/sync", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          confirm_resync: alreadySynced,
+        }),
       });
 
       const json = await res.json().catch(() => ({}));

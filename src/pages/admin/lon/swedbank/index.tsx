@@ -101,6 +101,10 @@ function statusLabel(status?: string | null) {
   }
 }
 
+function canCreateSwedbankFileFromStatus(status?: string | null) {
+  return status === "approved";
+}
+
 function maskAccount(value?: string | null) {
   const text = String(value || "").replace(/\s/g, "");
   if (!text) return "—";
@@ -258,6 +262,7 @@ export default function LonSwedbankPage() {
   const rowTotal = useMemo(() => rows.length, [rows]);
   const canDownload =
     Boolean(selectedRun?.id) &&
+    canCreateSwedbankFileFromStatus(selectedRun?.status) &&
     Boolean(debtorName.trim()) &&
     Boolean(debtorIban.trim() || debtorAccount.trim()) &&
     (summary?.rows || 0) > 0 &&
@@ -348,6 +353,12 @@ export default function LonSwedbankPage() {
                   </a>
                 </div>
               </div>
+
+              {selectedRun && !canCreateSwedbankFileFromStatus(selectedRun.status) && (
+                <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                  Bankfil kan bara skapas när lönekörningen är Godkänd.
+                </div>
+              )}
 
               {selectedRun && (
                 <div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">

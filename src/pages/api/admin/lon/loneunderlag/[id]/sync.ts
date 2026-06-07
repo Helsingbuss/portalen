@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createClient } from "@supabase/supabase-js";
+import { isPayrollRunLocked, payrollRunLockedMessage } from "@/lib/payrollSafety";
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -262,6 +263,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabase = getSupabase();
 
     const run = await loadRun(supabase, id);
+
+    if (isPayrollRunLocked(run)) {
+      return res.status(409).json({
+        ok: false,
+        error: payrollRunLockedMessage(run),
+      });
+    }
+
+    const alreadySynced = Boolean(run.payroll_underlag_synced_at);
+    const confirmResync =
+      req.body?.confirm_resync === true ||
+      req.body?.confirm_resync === "true";
+
+    if (alreadySynced && !confirmResync) {
+      return res.status(409).json({
+        ok: false,
+        requiresConfirm: true,
+        error:
+          "Löneunderlag är redan kopplat till den här lönekörningen. Bekräfta att du vill koppla om och räkna om lönebeskeden.",
+      });
+    }
     const rows = await loadRows(supabase, id);
 
     const periodStart = dateOnly(run.period_start);
