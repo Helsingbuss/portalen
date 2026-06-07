@@ -1,3 +1,4 @@
+import PayrollUnderlagBreakdown from "@/components/lon/PayrollUnderlagBreakdown";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
@@ -171,7 +172,12 @@ export default function LonebeskedPrintPage() {
           </p>
         </section>
 
-        {payslip.tax_notes && (
+        
+            {payslip && (
+              <PayrollUnderlagBreakdown payslip={payslip} />
+            )}
+
+            {payslip.tax_notes && (
           <section className="mt-8">
             <h2 className="text-base font-bold text-[#194C66]">Skatteanteckning</h2>
             <p className="mt-2 text-sm text-slate-600">{payslip.tax_notes}</p>

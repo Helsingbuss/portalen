@@ -127,6 +127,27 @@ function wrapText(text: string, font: any, size: number, maxWidth: number) {
   return lines;
 }
 
+
+function payslipPdfNumber(value: any) {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function payslipPdfHasValue(value: any) {
+  return Math.abs(payslipPdfNumber(value)) > 0.009;
+}
+
+function payslipPdfHasUnderlag(payslip: any) {
+  return (
+    payslipPdfHasValue(payslip?.absence_deduction) ||
+    payslipPdfHasValue(payslip?.ob_allowance_amount) ||
+    payslipPdfHasValue(payslip?.per_diem_taxable_amount) ||
+    payslipPdfHasValue(payslip?.per_diem_tax_free_amount) ||
+    payslipPdfHasValue(payslip?.bonus_amount) ||
+    Boolean(String(payslip?.payroll_adjustment_notes || "").trim())
+  );
+}
+
 function drawWrappedText(page: any, text: string, x: number, y: number, maxWidth: number, size: number, font: any) {
   const lines = wrapText(text, font, size, maxWidth);
   let currentY = y;
@@ -207,7 +228,38 @@ export async function generatePayslipPdfBytes({
   y -= 28;
   drawRow(page, "Utbetalningsbelopp", money(payslip.payout_amount || payslip.net_pay), rowX, y, rowWidth, font, bold, true);
 
-  y -= 60;
+  y -= 42;
+
+  if (payslipPdfHasUnderlag(payslip)) {
+    drawText(page, "Löneunderlag", margin, y, 16, bold, rgb(0.1, 0.3, 0.42));
+    y -= 24;
+
+    const underlagRows = [
+      ["Frånvaroavdrag", "-" + money(Math.abs(payslipPdfNumber(payslip.absence_deduction))), payslip.absence_deduction],
+      ["OB / tillägg", money(payslip.ob_allowance_amount), payslip.ob_allowance_amount],
+      ["Skattepliktigt traktamente", money(payslip.per_diem_taxable_amount), payslip.per_diem_taxable_amount],
+      ["Skattefritt traktamente", money(payslip.per_diem_tax_free_amount), payslip.per_diem_tax_free_amount],
+      ["Bonus / provision", money(payslip.bonus_amount), payslip.bonus_amount],
+    ].filter((row: any[]) => payslipPdfHasValue(row[2]));
+
+    for (const row of underlagRows) {
+      drawRow(page, String(row[0]), String(row[1]), rowX, y, rowWidth, font, bold);
+      y -= 22;
+    }
+
+    if (payslip.payroll_adjustment_notes) {
+      y -= 12;
+      drawText(page, "Anteckning från underlag", margin, y, 11, bold, rgb(0.1, 0.3, 0.42));
+      y -= 18;
+      y = drawWrappedText(page, payslip.payroll_adjustment_notes, margin, y, contentWidth, 8, font);
+    }
+
+    y -= 26;
+  } else {
+    y -= 18;
+  }
+
+  y -= 42;
 
   page.drawRectangle({
     x: margin,

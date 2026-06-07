@@ -61,3 +61,4 @@ patch-*.js
 fix-*.js
 *.tsbuildinfo
 
+show-*.js

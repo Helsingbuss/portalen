@@ -1,3 +1,4 @@
+import PayrollUnderlagBreakdown from "@/components/lon/PayrollUnderlagBreakdown";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
@@ -300,6 +301,11 @@ export default function PersonalLonebeskedDetailPage() {
                 <Row label="Utbetalningsbelopp" value={fmtMoney(payslip.payout_amount || payslip.net_pay)} strong />
               </div>
             </section>
+
+            
+            {payslip && (
+              <PayrollUnderlagBreakdown payslip={payslip} />
+            )}
 
             {payslip.tax_notes && (
               <section className="mt-8 rounded-xl bg-slate-50 p-5 text-sm leading-6 text-slate-600">
