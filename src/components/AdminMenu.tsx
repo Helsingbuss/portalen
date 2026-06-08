@@ -446,7 +446,8 @@ export default function AdminMenu({ active }: Props) {
 
       {/* INTÄKTER */}
       <div className="text-[10px] text-gray-400 mt-2">Intäkter & utgifter</div>
-      <Link href="#" className={subLink}>Intäkter & utgifter</Link>
+      <Link href="/admin/ekonomi/artiklar" className={subLink}>Artiklar</Link>
+            <Link href="/admin/ekonomi/intakter-utgifter" className={subLink}>Intäkter & utgifter</Link>
       <Link href="#" className={subLink}>Budget & prognos</Link>
 
       {/* FAKTURERING */}
