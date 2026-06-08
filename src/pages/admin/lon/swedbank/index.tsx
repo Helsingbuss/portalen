@@ -145,6 +145,7 @@ export default function LonSwedbankPage() {
   const [saving, setSaving] = useState(false);
 
   const [message, setMessage] = useState("");
+  const [paymentInfo, setPaymentInfo] = useState<any>(null);
   const [error, setError] = useState("");
 
   function params(nextRunId = runId) {
@@ -313,7 +314,14 @@ export default function LonSwedbankPage() {
               </div>
             </div>
 
-            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-900 shadow-sm">
+                        {paymentInfo?.payrollAccount && (
+              <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm leading-6 text-emerald-900 shadow-sm">
+                <strong>Primärt lönekonto från Ekonomi:</strong>{" "}
+                {paymentInfo.payrollAccount.account_label} · {paymentInfo.payrollAccount.bank_name} · konto {paymentInfo.payrollAccount.account_number_masked} · IBAN {paymentInfo.payrollAccount.iban_masked} · BIC {paymentInfo.payrollAccount.bic}
+              </section>
+            )}
+
+<section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-900 shadow-sm">
               <strong>Viktigt:</strong> detta är en första ISO 20022/pain.001-version för test. Swedbank MIG och bankens validering styr exakt vilka fält som krävs för ert avtal, kanal och betaltyp. Testa filen innan skarp användning.
             </section>
 

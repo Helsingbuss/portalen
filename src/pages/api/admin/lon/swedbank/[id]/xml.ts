@@ -3,6 +3,36 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { createClient } from "@supabase/supabase-js";
 import { canCreateSwedbankFile, swedbankBlockedMessage } from "@/lib/payrollSafety";
 import { requirePayrollAccess } from "@/lib/payrollAccess";
+import { loadPrimaryPayrollAccount, normalizeAccountNumber, normalizeIban } from "@/lib/companyFinance";
+
+function resolvePayrollDebtorAccount(body: any, account: any) {
+  const bodyAccount =
+    body?.debtor_account ||
+    body?.debtorAccount ||
+    body?.account_number ||
+    body?.accountNumber ||
+    body?.bank_account ||
+    body?.bankAccount;
+
+  const bodyIban =
+    body?.debtor_iban ||
+    body?.debtorIban ||
+    body?.iban;
+
+  const accountNumber = normalizeAccountNumber(bodyAccount || account?.account_number);
+  const iban = normalizeIban(bodyIban || account?.iban);
+  const bic = String(body?.debtor_bic || body?.debtorBic || account?.bic || "SWEDSESS").trim();
+
+  return {
+    accountNumber,
+    iban,
+    bic,
+    clearingNumber: String(body?.clearing_number || body?.clearingNumber || account?.clearing_number || "").trim(),
+    bankName: String(body?.bank_name || body?.bankName || account?.bank_name || "Swedbank").trim(),
+    label: String(account?.account_label || "Lönekonto").trim(),
+  };
+}
+
 
 const supabaseUrl =
   process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
