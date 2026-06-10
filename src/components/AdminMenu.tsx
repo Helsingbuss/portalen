@@ -447,6 +447,19 @@ export default function AdminMenu({ active }: Props) {
       {/* INTÄKTER */}
       <div className="text-[10px] text-gray-400 mt-2">Intäkter & utgifter</div>
       <Link href="/admin/ekonomi/artiklar" className={subLink}>Artiklar</Link>
+            <Link href="/admin/ekonomi/moms" className={subLink}>Moms</Link>
+            <Link href="/admin/ekonomi/oversikt" className={subLink}>Ekonomisk översikt</Link>\n            <Link href="/admin/ekonomi/manadsrapport" className={subLink}>Månadsrapport</Link>\n            <Link href="/admin/ekonomi/arsoversikt" className={subLink}>Årsöversikt</Link>\n            <Link href="/admin/ekonomi/lasta-perioder" className={subLink}>Låsta perioder</Link>
+            <Link href="/admin/ekonomi/momsrapport" className={subLink}>Momsrapport</Link>
+            <Link href="/admin/ekonomi/bank" className={subLink}>Bank & betalning</Link>
+            <Link href="/admin/ekonomi/betalningskontroll" className={subLink}>Betalningskontroll</Link>
+            <Link href="/admin/ekonomi/avprickning" className={subLink}>Manuell avprickning</Link>
+            <Link href="/admin/ekonomi/bankhandelser" className={subLink}>Bankhändelser / import</Link>
+            <Link href="/admin/ekonomi/betalningspaminnelser" className={subLink}>Påminnelser & betalstatus</Link>\n            <Link href="/admin/ekonomi/paminnelseko" className={subLink}>Automatisk påminnelsekö</Link>
+            <Link href="/admin/ekonomi/installningar" className={subLink}>Inställningar</Link>
+            <Link href="/admin/ekonomi/fakturor" className={subLink}>Fakturor</Link>\n            <Link href="/admin/ekonomi/leverantorer" className={subLink}>Leverantörsregister</Link>
+              <Link href="/admin/ekonomi/bokforingsunderlag">
+                Bokföringsunderlag
+              </Link>\n            <Link href="/admin/ekonomi/kunder" className={subLink}>Kundregister</Link>
             <Link href="/admin/ekonomi/intakter-utgifter" className={subLink}>Intäkter & utgifter</Link>
       <Link href="#" className={subLink}>Budget & prognos</Link>
 
@@ -464,7 +477,8 @@ export default function AdminMenu({ active }: Props) {
       {/* RESKONTRA */}
       <div className="text-[10px] text-gray-400 mt-2">Reskontra</div>
       <Link href="#" className={subLink}>Kundreskontra</Link>
-      <Link href="#" className={subLink}>Leverantörsreskontra</Link>
+      <Link href="#" className={subLink}><Link href="/admin/ekonomi/leverantorsreskontra" className={subLink}>Leverantörsreskontra</Link>
+            <Link href="/admin/ekonomi/resultat-uppdrag" className={subLink}>Resultat per uppdrag</Link></Link>
 
       {/* AVSTÄMNING */}
       <div className="text-[10px] text-gray-400 mt-2">Avstämning</div>

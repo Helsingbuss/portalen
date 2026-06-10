@@ -18,6 +18,7 @@ const emptyAccount = {
   account_number: "",
   bankgiro: "",
   plusgiro: "",
+  swish_number: "",
   iban: "",
   bic: "SWEDSESS",
   is_primary_for_invoices: false,
@@ -380,6 +381,7 @@ export default function EkonomiBankPage() {
                   <Field label="Kontonummer" value={accountForm.account_number} onChange={(v) => updateAccount("account_number", v)} />
                   <Field label="Bankgiro" value={accountForm.bankgiro} onChange={(v) => updateAccount("bankgiro", v)} />
                   <Field label="Plusgiro" value={accountForm.plusgiro} onChange={(v) => updateAccount("plusgiro", v)} />
+                  <Field label="Swishnummer" value={accountForm.swish_number} onChange={(v) => updateAccount("swish_number", v)} />
                   <Field label="IBAN" value={accountForm.iban} onChange={(v) => updateAccount("iban", v)} />
                   <Field label="BIC / SWIFT" value={accountForm.bic} onChange={(v) => updateAccount("bic", v)} />
 
@@ -450,6 +452,7 @@ export default function EkonomiBankPage() {
                       <Th>Clearing</Th>
                       <Th>Konto</Th>
                       <Th>IBAN</Th>
+                      <Th>Swish</Th>
                       <Th>BIC</Th>
                       <Th>Primär</Th>
                       <Th>Åtgärd</Th>
@@ -459,7 +462,7 @@ export default function EkonomiBankPage() {
                   <tbody className="divide-y divide-slate-100">
                     {accounts.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="px-5 py-10 text-center text-slate-500">
+                        <td colSpan={11} className="px-5 py-10 text-center text-slate-500">
                           Inga bankkonton är inlagda ännu.
                         </td>
                       </tr>
@@ -476,6 +479,7 @@ export default function EkonomiBankPage() {
                           <Td>{account.clearing_number || "—"}</Td>
                           <Td>{maskValue(account.account_number)}</Td>
                           <Td>{maskValue(account.iban)}</Td>
+                          <Td>{account.swish_number || "—"}</Td>
                           <Td>{account.bic || "—"}</Td>
                           <Td>
                             <div className="flex flex-col gap-1">

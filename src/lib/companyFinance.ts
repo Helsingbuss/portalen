@@ -8,6 +8,7 @@ export type CompanyBankAccount = {
   account_number?: string | null;
   bankgiro?: string | null;
   plusgiro?: string | null;
+  swish_number?: string | null;
   iban?: string | null;
   bic?: string | null;
   is_primary_for_invoices?: boolean | null;
@@ -73,6 +74,7 @@ export function paymentAccountText(account?: CompanyBankAccount | null) {
 
   if (account.bankgiro) parts.push("Bankgiro: " + account.bankgiro);
   if (account.plusgiro) parts.push("Plusgiro: " + account.plusgiro);
+  if (account.swish_number) parts.push("Swish: " + account.swish_number);
   if (account.iban) parts.push("IBAN: " + formatIban(account.iban));
   if (account.bic) parts.push("BIC/SWIFT: " + account.bic);
 

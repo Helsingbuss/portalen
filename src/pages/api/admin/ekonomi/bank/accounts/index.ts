@@ -60,6 +60,7 @@ function buildAccount(body: any) {
     account_number: cleanText(body.account_number),
     bankgiro: cleanText(body.bankgiro),
     plusgiro: cleanText(body.plusgiro),
+    swish_number: cleanText(body.swish_number),
     iban: cleanText(body.iban),
     bic: cleanText(body.bic) || "SWEDSESS",
     is_primary_for_invoices: cleanBoolean(body.is_primary_for_invoices, false),
