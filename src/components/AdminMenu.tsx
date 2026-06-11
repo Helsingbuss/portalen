@@ -463,6 +463,9 @@ export default function AdminMenu({ active }: Props) {
             <Link href="/admin/ekonomi/arsoversikt" className={subLink}>Årsöversikt</Link>
             <div className="px-3 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Avstämning</div>
             <Link href="/admin/ekonomi/lasta-perioder" className={subLink}>Låsta perioder</Link>
+            <Link href="/admin/ekonomi/avstamning/sundra" className={subLink}>Sundra</Link>
+            <Link href="/admin/ekonomi/avstamning/shuttle" className={subLink}>Shuttle</Link>
+            <Link href="/admin/ekonomi/avstamning/bestallningstrafik" className={subLink}>Beställningstrafik</Link>
             <div className="px-3 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Grunddata & inställningar</div>
             <Link href="/admin/ekonomi/artiklar" className={subLink}>Artiklar</Link>
             <Link href="/admin/ekonomi/intakter-utgifter" className={subLink}>Intäkter & utgifter</Link>
