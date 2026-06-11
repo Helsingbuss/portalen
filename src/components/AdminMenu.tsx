@@ -589,7 +589,28 @@ export default function AdminMenu({ active }: Props) {
   )}
 </div>
 
-      </nav>
+      
+          <div className="mt-6">
+            <div className="px-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
+              Rapporter & analys
+            </div>
+
+            <div className="mt-2 space-y-1">
+              <Link href="/admin/rapporter-analys" className={subLink}>Översikt</Link>
+              <Link href="/admin/rapporter-analys/salda-biljetter" className={subLink}>Sålda biljetter</Link>
+              <Link href="/admin/rapporter-analys/intaktsrapport" className={subLink}>Intäktsrapport</Link>
+              <Link href="/admin/rapporter-analys/agentrapport" className={subLink}>Agentrapport</Link>
+              <Link href="/admin/rapporter-analys/forarrapport" className={subLink}>Förarrapport</Link>
+              <Link href="/admin/rapporter-analys/operatorrapport" className={subLink}>Operatörsrapport</Link>
+              <Link href="/admin/rapporter-analys/belaggning-kapacitet" className={subLink}>Beläggning & kapacitet</Link>
+              <Link href="/admin/rapporter-analys/kundanalys" className={subLink}>Kundanalys</Link>
+              <Link href="/admin/rapporter-analys/per-vecka" className={subLink}>Per vecka</Link>
+              <Link href="/admin/rapporter-analys/per-manad" className={subLink}>Per månad</Link>
+              <Link href="/admin/rapporter-analys/per-produkt" className={subLink}>Per produkt</Link>
+            </div>
+          </div>
+
+</nav>
 
       {/* FOOTER */}
       <div className="p-3 border-t">
