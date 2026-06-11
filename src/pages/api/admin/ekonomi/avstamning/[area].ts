@@ -106,7 +106,6 @@ function areaConfig(area: string) {
     return {
       area,
       label: "Sundra",
-      keywords: ["sundra", "resa", "resor", "dagsresa", "biljett", "lucy", "allsång"],
     };
   }
 
@@ -114,14 +113,12 @@ function areaConfig(area: string) {
     return {
       area,
       label: "Shuttle",
-      keywords: ["shuttle", "airport", "flygbuss", "flyg", "ängelholm", "malmö airport", "airport shuttle"],
     };
   }
 
   return {
     area: "bestallningstrafik",
     label: "Beställningstrafik",
-    keywords: ["beställningstrafik", "bestallningstrafik", "charter", "uppdrag", "bokning", "offert", "bussbokning"],
   };
 }
 
@@ -132,10 +129,81 @@ function rowText(row: any) {
     .toLowerCase();
 }
 
-function matchesArea(row: any, config: any) {
+function areaName(row: any) {
+  const directArea = String(
+    row?.business_area ||
+      row?.businessArea ||
+      row?.area ||
+      row?.product_area ||
+      row?.sales_area ||
+      ""
+  ).toLowerCase();
+
+  if (
+    directArea.includes("shuttle") ||
+    directArea.includes("airport") ||
+    directArea.includes("flygbuss")
+  ) {
+    return "Shuttle";
+  }
+
+  if (
+    directArea.includes("sundra") ||
+    directArea.includes("dagsresa") ||
+    directArea.includes("paketresa")
+  ) {
+    return "Sundra";
+  }
+
+  if (
+    directArea.includes("beställning") ||
+    directArea.includes("bestallning") ||
+    directArea.includes("charter") ||
+    directArea.includes("uppdrag")
+  ) {
+    return "Beställningstrafik";
+  }
+
   const text = rowText(row);
 
-  return config.keywords.some((keyword: string) => text.includes(keyword.toLowerCase()));
+  if (
+    text.includes("shuttle") ||
+    text.includes("airport shuttle") ||
+    text.includes("flygbuss") ||
+    text.includes("airport") ||
+    text.includes("ängelholm airport") ||
+    text.includes("angelholm airport") ||
+    text.includes("malmö airport") ||
+    text.includes("malmo airport")
+  ) {
+    return "Shuttle";
+  }
+
+  if (
+    text.includes("sundra") ||
+    text.includes("sundra resor") ||
+    text.includes("dagsresa") ||
+    text.includes("paketresa") ||
+    text.includes("lucy") ||
+    text.includes("allsång") ||
+    text.includes("allsang") ||
+    text.includes("vallarna") ||
+    text.includes("gekås") ||
+    text.includes("gekas") ||
+    text.includes("ullared") ||
+    text.includes("liseberg") ||
+    text.includes("legoland") ||
+    text.includes("lalandia") ||
+    text.includes("kryssning")
+  ) {
+    return "Sundra";
+  }
+
+  return "Beställningstrafik";
+}
+
+function matchesArea(row: any, config: any) {
+  return areaName(row) === config.label;
 }
 
 function statusLabel(status: any) {
