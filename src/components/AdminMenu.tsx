@@ -552,11 +552,11 @@ export default function AdminMenu({ active }: Props) {
 
       {/* ANVÄNDARE */}
       <div className="text-[10px] text-gray-400 mt-1">Användare</div>
-      <Link href="#" className={subLink}>Roller & behörigheter</Link>
+      <Link href="/admin/system/roller-behorigheter" className={subLink}>Roller & behörigheter</Link>
 
       {/* NOTISER */}
       <div className="text-[10px] text-gray-400 mt-2">Kommunikation</div>
-      <Link href="#" className={subLink}>Notiser & mallar</Link>
+      <Link href="/admin/system/notiser-mallar" className={subLink}>Notiser & mallar</Link>
 
       {/* INTEGRATIONER */}
       <div className="text-[10px] text-gray-400 mt-2">Integrationer</div>
@@ -567,9 +567,9 @@ export default function AdminMenu({ active }: Props) {
 
       {/* API */}
       <div className="text-[10px] text-gray-400 mt-2">API & utvecklare</div>
-      <Link href="#" className={subLink}>API-nycklar</Link>
-      <Link href="#" className={subLink}>Webhookar</Link>
-      <Link href="#" className={subLink}>Dokumentation</Link>
+      <Link href="/admin/system/api-nycklar" className={subLink}>API-nycklar</Link>
+      <Link href="/admin/system/webhookar" className={subLink}>Webhookar</Link>
+      <Link href="/admin/system/dokumentation" className={subLink}>Dokumentation</Link>
 
       {/* SÄKERHET */}
       <div className="text-[10px] text-gray-400 mt-2">Säkerhet</div>
@@ -578,13 +578,13 @@ export default function AdminMenu({ active }: Props) {
 
       {/* SYSTEM */}
       <div className="text-[10px] text-gray-400 mt-2">System</div>
-      <Link href="#" className={subLink}>Systemstatus</Link>
+      <Link href="/admin/system/systemstatus" className={subLink}>Systemstatus</Link>
       <Link href="#" className={subLink}>Auditlogg</Link>
 
       {/* DATA */}
       <div className="text-[10px] text-gray-400 mt-2">Data</div>
-      <Link href="#" className={subLink}>Backup & återställning</Link>
-      <Link href="#" className={subLink}>Export / import</Link>
+      <Link href="/admin/system/backup-aterstallning" className={subLink}>Backup & återställning</Link>
+      <Link href="/admin/system/export-import" className={subLink}>Export / import</Link>
 
     </div>
   )}
