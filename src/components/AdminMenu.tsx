@@ -505,28 +505,29 @@ export default function AdminMenu({ active }: Props) {
 
       {/* FÖRSÄLJNING */}
       <div className="text-[10px] text-gray-400 mt-1">Försäljning</div>
-      <Link href="#" className={subLink}>Sålda biljetter</Link>
-      <Link href="#" className={subLink}>Intäktsrapport</Link>
+      <Link href="/admin/rapporter-analys" className={subLink}>Översikt</Link>
+      <Link href="/admin/rapporter-analys/salda-biljetter" className={subLink}>Sålda biljetter</Link>
+      <Link href="/admin/rapporter-analys/intaktsrapport" className={subLink}>Intäktsrapport</Link>
 
       {/* RAPPORTER */}
       <div className="text-[10px] text-gray-400 mt-2">Rapporter</div>
-      <Link href="#" className={subLink}>Agentrapport</Link>
-      <Link href="#" className={subLink}>Förarrapport</Link>
-      <Link href="#" className={subLink}>Operatörsrapport</Link>
+      <Link href="/admin/rapporter-analys/agentrapport" className={subLink}>Agentrapport</Link>
+      <Link href="/admin/rapporter-analys/forarrapport" className={subLink}>Förarrapport</Link>
+      <Link href="/admin/rapporter-analys/operatorrapport" className={subLink}>Operatörsrapport</Link>
 
       {/* DRIFT */}
       <div className="text-[10px] text-gray-400 mt-2">Drift</div>
-      <Link href="#" className={subLink}>Beläggning & kapacitet</Link>
+      <Link href="/admin/rapporter-analys/belaggning-kapacitet" className={subLink}>Beläggning & kapacitet</Link>
 
       {/* KUNDER */}
       <div className="text-[10px] text-gray-400 mt-2">Kunder</div>
-      <Link href="#" className={subLink}>Kundanalys</Link>
+      <Link href="/admin/rapporter-analys/kundanalys" className={subLink}>Kundanalys</Link>
 
       {/* SAMMANFATTNING */}
       <div className="text-[10px] text-gray-400 mt-2">Sammanfattning</div>
-      <Link href="#" className={subLink}>Per vecka</Link>
-      <Link href="#" className={subLink}>Per månad</Link>
-      <Link href="#" className={subLink}>Per produkt</Link>
+      <Link href="/admin/rapporter-analys/per-vecka" className={subLink}>Per vecka</Link>
+      <Link href="/admin/rapporter-analys/per-manad" className={subLink}>Per månad</Link>
+      <Link href="/admin/rapporter-analys/per-produkt" className={subLink}>Per produkt</Link>
 
     </div>
   )}
@@ -590,26 +591,6 @@ export default function AdminMenu({ active }: Props) {
 </div>
 
       
-          <div className="mt-6">
-            <div className="px-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-              Rapporter & analys
-            </div>
-
-            <div className="mt-2 space-y-1">
-              <Link href="/admin/rapporter-analys" className={subLink}>Översikt</Link>
-              <Link href="/admin/rapporter-analys/salda-biljetter" className={subLink}>Sålda biljetter</Link>
-              <Link href="/admin/rapporter-analys/intaktsrapport" className={subLink}>Intäktsrapport</Link>
-              <Link href="/admin/rapporter-analys/agentrapport" className={subLink}>Agentrapport</Link>
-              <Link href="/admin/rapporter-analys/forarrapport" className={subLink}>Förarrapport</Link>
-              <Link href="/admin/rapporter-analys/operatorrapport" className={subLink}>Operatörsrapport</Link>
-              <Link href="/admin/rapporter-analys/belaggning-kapacitet" className={subLink}>Beläggning & kapacitet</Link>
-              <Link href="/admin/rapporter-analys/kundanalys" className={subLink}>Kundanalys</Link>
-              <Link href="/admin/rapporter-analys/per-vecka" className={subLink}>Per vecka</Link>
-              <Link href="/admin/rapporter-analys/per-manad" className={subLink}>Per månad</Link>
-              <Link href="/admin/rapporter-analys/per-produkt" className={subLink}>Per produkt</Link>
-            </div>
-          </div>
-
 </nav>
 
       {/* FOOTER */}
