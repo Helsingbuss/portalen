@@ -15,7 +15,7 @@ export default function ShuttleInterestPage() {
   const [signups, setSignups] = useState<Signup[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
-  const [testEmail, setTestEmail] = useState("ekelof.andreas@hotmail.com");
+  const [testEmail, setTestEmail] = useState("info@helsingbuss.se");
   const [sendStatus, setSendStatus] = useState("");
 
   const [subject, setSubject] = useState(

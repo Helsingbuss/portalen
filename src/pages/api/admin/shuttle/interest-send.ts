@@ -17,13 +17,49 @@ function isEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function escapeHtml(value: string) {
+function fixText(value: string) {
   return String(value || "")
+    .replaceAll("Ã¥", "å")
+    .replaceAll("Ã¤", "ä")
+    .replaceAll("Ã¶", "ö")
+    .replaceAll("Ã…", "Å")
+    .replaceAll("Ã„", "Ä")
+    .replaceAll("Ã–", "Ö")
+    .replaceAll("â€“", "–")
+    .replaceAll("â€”", "—")
+    .replaceAll("â€œ", "“")
+    .replaceAll("â€", "”")
+    .replaceAll("â€™", "’")
+    .replaceAll("Â", "");
+}
+
+function escapeHtml(value: string) {
+  return fixText(value)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function buildText(input: {
+  previewText: string;
+  emailTitle: string;
+  emailBody: string;
+  buttonText: string;
+  buttonLink: string;
+}) {
+  return [
+    fixText(input.emailTitle),
+    "",
+    fixText(input.previewText),
+    "",
+    fixText(input.emailBody),
+    "",
+    `${fixText(input.buttonText)}: ${fixText(input.buttonLink)}`,
+    "",
+    "Du får detta mail eftersom du har anmält intresse för Helsingbuss Airport Shuttle.",
+  ].join("\n");
 }
 
 function buildHtml(input: {
@@ -38,7 +74,7 @@ function buildHtml(input: {
   const buttonText = escapeHtml(input.buttonText);
   const buttonLink = escapeHtml(input.buttonLink);
 
-  const bodyHtml = input.emailBody
+  const bodyHtml = fixText(input.emailBody)
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
@@ -51,7 +87,8 @@ function buildHtml(input: {
 <!doctype html>
 <html>
   <head>
-    <meta charset="utf-8" />
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>${emailTitle}</title>
   </head>
 
@@ -104,6 +141,8 @@ function buildHtml(input: {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -122,12 +161,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const body = req.body as SendRequest;
 
-  const subject = String(body.subject || "").trim();
-  const previewText = String(body.previewText || "").trim();
-  const emailTitle = String(body.emailTitle || "").trim();
-  const emailBody = String(body.emailBody || "").trim();
-  const buttonText = String(body.buttonText || "Boka nu").trim();
-  const buttonLink = String(body.buttonLink || "https://hbshuttle.se/start").trim();
+  const subject = fixText(String(body.subject || "").trim());
+  const previewText = fixText(String(body.previewText || "").trim());
+  const emailTitle = fixText(String(body.emailTitle || "").trim());
+  const emailBody = fixText(String(body.emailBody || "").trim());
+  const buttonText = fixText(String(body.buttonText || "Boka nu").trim());
+  const buttonLink = fixText(String(body.buttonLink || "https://hbshuttle.se/start").trim());
 
   if (!subject || !emailTitle || !emailBody) {
     return res.status(400).json({
@@ -160,6 +199,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     buttonLink,
   });
 
+  const text = buildText({
+    previewText,
+    emailTitle,
+    emailBody,
+    buttonText,
+    buttonLink,
+  });
+
   let sent = 0;
 
   for (const to of validRecipients) {
@@ -168,6 +215,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       to,
       subject,
       html,
+      text,
     });
 
     if ((result as any)?.error) {
