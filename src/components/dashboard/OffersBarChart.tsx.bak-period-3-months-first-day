@@ -1,0 +1,333 @@
+﻿import React, { useMemo } from "react";
+
+export type Series = {
+  weeks: string[];
+  dates?: string[];
+  offer_answered: number[];
+  offer_unanswered: number[];
+  booking_in: number[];
+  booking_done: number[];
+  offer_declined?: number[];
+};
+
+export type StatsTotals = {
+  offer_answered_count: number;
+  offer_answered_amount: number | string;
+  offer_approved_count: number;
+  offer_approved_amount: number | string;
+  booking_booked_count: number;
+  booking_booked_amount: number | string;
+  booking_done_count: number;
+  booking_done_amount: number | string;
+  tickets_count?: number;
+  tickets_amount?: number | string;
+};
+
+type Props = {
+  series: Series;
+  totals?: StatsTotals;
+};
+
+type WeekPoint = {
+  label: string;
+  week: number;
+  year: number;
+};
+
+const BAR_HEIGHT = 155;
+
+const formatKr = (v: any) =>
+  new Intl.NumberFormat("sv-SE", {
+    maximumFractionDigits: 0,
+  }).format(Number(v || 0));
+
+function safeNumber(value: any) {
+  const n = Number(value || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function startOfIsoWeek(date: Date) {
+  const d = startOfDay(date);
+  const day = d.getDay();
+  const isoDay = day === 0 ? 7 : day;
+  d.setDate(d.getDate() - isoDay + 1);
+  return d;
+}
+
+function getIsoWeekYear(date: Date) {
+  const d = startOfDay(date);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  return d.getFullYear();
+}
+
+function getIsoWeek(date: Date) {
+  const d = startOfDay(date);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
+function getVisibleWeeks() {
+  const now = new Date();
+
+  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const periodEnd = new Date(now.getFullYear(), now.getMonth() + 4, 0);
+
+  let cursor = startOfIsoWeek(periodStart);
+  const endWeek = startOfIsoWeek(periodEnd);
+
+  const weeks: WeekPoint[] = [];
+
+  while (cursor <= endWeek) {
+    const week = getIsoWeek(cursor);
+    const year = getIsoWeekYear(cursor);
+
+    weeks.push({
+      label: String(week),
+      week,
+      year,
+    });
+
+    cursor = addDays(cursor, 7);
+  }
+
+  return weeks;
+}
+
+function parseWeekLabel(label: string | undefined, fallbackYear: number) {
+  if (!label) return null;
+
+  const text = String(label).trim();
+
+  const dateMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (dateMatch) {
+    const d = new Date(
+      Number(dateMatch[1]),
+      Number(dateMatch[2]) - 1,
+      Number(dateMatch[3])
+    );
+
+    return {
+      week: getIsoWeek(d),
+      year: getIsoWeekYear(d),
+    };
+  }
+
+  const weekWithYear = text.match(/(?:v|vecka)?\s*(\d{1,2}).*?(\d{4})/i);
+  if (weekWithYear) {
+    return {
+      week: Number(weekWithYear[1]),
+      year: Number(weekWithYear[2]),
+    };
+  }
+
+  const weekOnly = text.match(/(?:v|vecka)?\s*(\d{1,2})/i);
+  if (weekOnly) {
+    return {
+      week: Number(weekOnly[1]),
+      year: fallbackYear,
+    };
+  }
+
+  return null;
+}
+
+function weekKey(year: number, week: number) {
+  return `${year}-${week}`;
+}
+
+function buildMap(labels: string[], values: number[] | undefined, fallbackYear: number) {
+  const map = new Map<string, number>();
+
+  labels.forEach((label, index) => {
+    const parsed = parseWeekLabel(label, fallbackYear);
+    if (!parsed) return;
+
+    map.set(weekKey(parsed.year, parsed.week), safeNumber(values?.[index]));
+  });
+
+  return map;
+}
+
+function monthRangeLabel() {
+  const now = new Date();
+
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 4, 0);
+
+  const startText = start.toLocaleDateString("sv-SE", { month: "long" });
+  const endText = end.toLocaleDateString("sv-SE", {
+    month: "short",
+    year: "numeric",
+  });
+
+  return `${startText} – ${endText}`;
+}
+
+export default function OffersBarChart({ series, totals }: Props) {
+  const labels =
+    series.dates && series.dates.length === series.weeks.length
+      ? series.dates
+      : series.weeks || [];
+
+  const visibleWeeks = useMemo(() => getVisibleWeeks(), []);
+  const fallbackYear = getIsoWeekYear(new Date());
+
+  const data = useMemo(() => {
+    const answered = buildMap(labels, series.offer_answered, fallbackYear);
+    const unanswered = buildMap(labels, series.offer_unanswered, fallbackYear);
+    const declined = buildMap(labels, series.offer_declined, fallbackYear);
+    const bookingIn = buildMap(labels, series.booking_in, fallbackYear);
+    const bookingDone = buildMap(labels, series.booking_done, fallbackYear);
+
+    return visibleWeeks.map((point) => {
+      const key = weekKey(point.year, point.week);
+
+      return {
+        ...point,
+        booking_done: safeNumber(bookingDone.get(key)),
+        booking_in: safeNumber(bookingIn.get(key)),
+        offer_answered: safeNumber(answered.get(key)),
+        offer_unanswered: Math.max(
+          0,
+          safeNumber(unanswered.get(key)) - safeNumber(declined.get(key))
+        ),
+      };
+    });
+  }, [labels, series, visibleWeeks, fallbackYear]);
+
+  const maxY = useMemo(() => {
+    return Math.max(
+      1,
+      ...data.map((d) => d.booking_done),
+      ...data.map((d) => d.booking_in),
+      ...data.map((d) => d.offer_answered),
+      ...data.map((d) => d.offer_unanswered)
+    );
+  }, [data]);
+
+  return (
+    <div className="px-1 py-1">
+      <div className="mb-4 grid grid-cols-3 gap-2">
+        <KPI label="Biljetter" value={totals?.tickets_count ?? 0} color="text-green-600" />
+        <KPI label="Bokningar" value={totals?.booking_booked_count ?? 0} color="text-red-600" />
+        <KPI label="Offerter" value={totals?.offer_answered_count ?? 0} color="text-blue-600" />
+      </div>
+
+      <div className="mb-3 flex items-end justify-between">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            Statistikperiod
+          </p>
+          <p className="text-sm font-semibold text-[#194C66]">
+            {monthRangeLabel()}
+          </p>
+        </div>
+
+        <p className="text-[11px] text-gray-400">Max {maxY} st</p>
+      </div>
+
+      <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500">
+        <Legend color="#16a34a" label="Klara bokningar" />
+        <Legend color="#dc2626" label="Bokningar in" />
+        <Legend color="#2563eb" label="Besvarade offerter" />
+        <Legend color="#bfdbfe" label="Obesvarade offerter" />
+      </div>
+
+      <div className="relative h-[200px] overflow-hidden rounded-2xl border border-gray-100 bg-gradient-to-b from-gray-50 to-white px-3 pb-8 pt-4">
+        <div className="pointer-events-none absolute inset-x-3 top-4 h-px bg-gray-200" />
+        <div className="pointer-events-none absolute inset-x-3 top-[62px] h-px bg-gray-200/80" />
+        <div className="pointer-events-none absolute inset-x-3 top-[110px] h-px bg-gray-200/80" />
+        <div className="pointer-events-none absolute inset-x-3 top-[158px] h-px bg-gray-200/80" />
+
+        <div className="relative z-10 flex h-full items-end justify-between gap-2">
+          {data.map((point) => {
+            const bars = [
+              { key: "done", label: "Klara bokningar", value: point.booking_done, color: "#16a34a" },
+              { key: "in", label: "Bokningar in", value: point.booking_in, color: "#dc2626" },
+              { key: "answered", label: "Besvarade offerter", value: point.offer_answered, color: "#2563eb" },
+              { key: "unanswered", label: "Obesvarade offerter", value: point.offer_unanswered, color: "#bfdbfe" },
+            ];
+
+            return (
+              <div key={`${point.year}-${point.week}`} className="flex min-w-0 flex-1 flex-col items-center">
+                <div className="flex h-[155px] items-end gap-[3px]">
+                  {bars.map((bar) => {
+                    const height = Math.max(
+                      bar.value > 0 ? 5 : 0,
+                      Math.min((bar.value / maxY) * BAR_HEIGHT, BAR_HEIGHT)
+                    );
+
+                    return (
+                      <div
+                        key={bar.key}
+                        title={`Vecka ${point.week} · ${bar.label}: ${bar.value} st`}
+                        className="w-[7px] rounded-t-lg shadow-sm transition hover:-translate-y-0.5 hover:opacity-80"
+                        style={{
+                          height,
+                          backgroundColor: bar.color,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+
+                <span className="mt-2 text-[10px] text-gray-400">
+                  {point.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+        <Row label="Offerter" count={totals?.offer_answered_count ?? 0} amount={totals?.offer_answered_amount ?? 0} />
+        <Row label="Bokningar" count={totals?.booking_done_count ?? 0} amount={totals?.booking_done_amount ?? 0} />
+        <Row label="Biljetter" count={totals?.tickets_count ?? 0} amount={totals?.tickets_amount ?? 0} />
+      </div>
+    </div>
+  );
+}
+
+function KPI({ label, value, color }: any) {
+  return (
+    <div className="rounded-2xl bg-gray-50 px-3 py-3 text-center">
+      <span className="block text-[10px] text-gray-400">{label}</span>
+      <span className={`mt-1 block text-base font-bold ${color}`}>{value ?? 0}</span>
+    </div>
+  );
+}
+
+function Legend({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+      {label}
+    </span>
+  );
+}
+
+function Row({ label, count, amount }: { label: string; count: number; amount: any }) {
+  return (
+    <>
+      <div className="flex justify-between">
+        <span className="text-gray-400">{label}</span>
+        <span className="font-medium">{count} st</span>
+      </div>
+      <div className="text-right font-medium text-[#194C66]">
+        {formatKr(amount)} kr
+      </div>
+    </>
+  );
+}
