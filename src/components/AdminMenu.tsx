@@ -213,6 +213,7 @@ export default function AdminMenu({ active }: Props) {
       <Link href="/admin/shuttle/hemsida/flygplatser" className={subLink}>Populära flygplatser</Link>
       <Link href="/admin/shuttle/hemsida/faq" className={subLink}>Vanliga frågor</Link>
       <Link href="/admin/shuttle/hemsida/nyhetsbrev" className={subLink}>Nyhetsbrev</Link>
+      <Link href="/admin/shuttle/hemsida/intresse" className={subLink}>Intresseanmälningar</Link>
 
       {/* KUNDINFO */}
       <div className="text-[10px] text-gray-400 mt-2">Kundinfo</div>

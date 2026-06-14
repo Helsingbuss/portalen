@@ -11,9 +11,15 @@ const sections = [
   },
   {
     title: "Bildkort / highlights",
-    text: "Här finns bildkorten vi skapade. De är kopplade till databasen och hbshuttle.se.",
+    text: "Hantera bildkorten som visas på hbshuttle.se och som är kopplade till databasen.",
     href: "/admin/shuttle/hemsida/highlights",
     status: "Kopplad",
+  },
+  {
+    title: "Intresseanmälningar",
+    text: "Se personer som vill bli meddelade när bokningen öppnar.",
+    href: "/admin/shuttle/hemsida/intresse",
+    status: "Ny",
   },
   {
     title: "Populära flygplatser",
@@ -44,58 +50,62 @@ export default function ShuttleHeroAdminPage() {
         <AdminMenu />
 
         <main className="flex-1 px-8 pb-12 pt-28">
-          <div className="mx-auto w-full max-w-[1380px] space-y-7">
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-sm font-medium text-[#007764]">
+          <div className="mx-auto w-full max-w-[1180px] space-y-8">
+            <section className="rounded-3xl border border-slate-200 bg-white px-8 py-8 text-center shadow-sm">
+              <p className="text-sm font-bold text-[#007764]">
                 Helsingbuss Airport Shuttle
               </p>
 
-              <h1 className="mt-2 text-2xl font-bold text-slate-900">
+              <h1 className="mt-3 text-3xl font-bold text-slate-900">
                 Hemsida & innehåll
               </h1>
 
-              <p className="mt-2 max-w-3xl text-sm text-slate-600">
-                Här samlar vi allt innehåll som ska kunna styras från portalen och visas på hbshuttle.se.
-                Bildkorten är redan skapade och kopplade. Övriga delar bygger vi vidare steg för steg.
+              <p className="mx-auto mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                Här samlar vi allt innehåll som styr hbshuttle.se. Du kan hantera
+                startsidans delar, bildkort, intresseanmälningar och information
+                som kunderna ser inför trafikstarten.
               </p>
             </section>
 
-            <section className="grid gap-5 xl:grid-cols-3">
+            <section className="grid justify-center gap-5 md:grid-cols-2 xl:grid-cols-3">
               {sections.map((section) => (
                 <Link
                   key={section.href}
                   href={section.href}
-                  className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  className="group flex min-h-[190px] flex-col justify-between rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-[#007764]/30 hover:shadow-md"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <h2 className="text-lg font-bold text-slate-900">
-                      {section.title}
-                    </h2>
+                  <div>
+                    <div className="flex items-start justify-between gap-4">
+                      <h2 className="max-w-[230px] text-lg font-bold text-slate-900">
+                        {section.title}
+                      </h2>
 
-                    <span className="rounded-full bg-[#007764]/10 px-3 py-1 text-xs font-bold text-[#007764]">
-                      {section.status}
-                    </span>
+                      <span className="rounded-full bg-[#007764]/10 px-3 py-1 text-xs font-bold text-[#007764]">
+                        {section.status}
+                      </span>
+                    </div>
+
+                    <p className="mt-4 text-sm leading-6 text-slate-600">
+                      {section.text}
+                    </p>
                   </div>
 
-                  <p className="mt-3 text-sm leading-6 text-slate-600">
-                    {section.text}
-                  </p>
-
-                  <div className="mt-5 text-sm font-bold text-[#007764]">
+                  <div className="mt-6 text-sm font-bold text-[#007764] group-hover:underline">
                     Öppna →
                   </div>
                 </Link>
               ))}
             </section>
 
-            <section className="rounded-2xl border border-emerald-100 bg-emerald-50 p-6">
+            <section className="rounded-3xl border border-emerald-100 bg-emerald-50 px-8 py-6 text-center">
               <h2 className="text-lg font-bold text-slate-900">
-                Det som är klart just nu
+                Klart och kopplat
               </h2>
 
-              <p className="mt-2 text-sm leading-6 text-slate-700">
-                Bildkort / highlights är skapad i portalen, sparas i databasen och är kopplad till hbshuttle.se.
-                Klicka på Bildkort / highlights ovan för att öppna den sidan.
+              <p className="mx-auto mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+                Bildkort / highlights är kopplade till hbshuttle.se. Nästa viktiga
+                koppling är intresseanmälningar, så alla som fyller i “Meddela mig”
+                sparas direkt i portalen.
               </p>
             </section>
           </div>
