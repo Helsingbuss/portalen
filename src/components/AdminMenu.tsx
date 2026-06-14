@@ -205,6 +205,21 @@ export default function AdminMenu({ active }: Props) {
       <Link href="/admin/shuttle/fordon/new" className={subLink}>Lägg till fordon</Link>
       <Link href="/admin/shuttle/fordon" className={subLink}>Fordonslista</Link>
 
+
+      {/* HEMSIDA & INNEHÅLL */}
+      <div className="text-[10px] text-gray-400 mt-2">Hemsida & innehåll</div>
+      <Link href="/admin/shuttle/hemsida/hero" className={subLink}>Hero & säsongsbilder</Link>
+      <Link href="/admin/shuttle/hemsida/highlights" className={subLink}>Bildkort / highlights</Link>
+      <Link href="/admin/shuttle/hemsida/flygplatser" className={subLink}>Populära flygplatser</Link>
+      <Link href="/admin/shuttle/hemsida/faq" className={subLink}>Vanliga frågor</Link>
+      <Link href="/admin/shuttle/hemsida/nyhetsbrev" className={subLink}>Nyhetsbrev</Link>
+
+      {/* KUNDINFO */}
+      <div className="text-[10px] text-gray-400 mt-2">Kundinfo</div>
+      <Link href="/admin/shuttle/bagage" className={subLink}>Bagage</Link>
+      <Link href="/admin/shuttle/kundservice" className={subLink}>Kundservice</Link>
+      <Link href="/admin/shuttle/app" className={subLink}>App & e-biljett</Link>
+
       {/* KAMPANJER */}
       <div className="text-[10px] text-gray-400 mt-2">Kampanjer</div>
       <Link href="/admin/shuttle/kampanjer" className={subLink}>Kampanjer & rabatter</Link>
@@ -379,8 +394,8 @@ export default function AdminMenu({ active }: Props) {
   {isOpen("salary") && (
     <div className="ml-4 mt-1 space-y-1 border-l pl-2">
 
-      {/* LÖNEK�RNING */}
-      <div className="text-[10px] text-gray-400 mt-1">Lönek�rning</div>
+      {/* LÖNEKÖRNING */}
+      <div className="text-[10px] text-gray-400 mt-1">Lönekörning</div>
       <Link href="/admin/lon/lonekoring/skapa" className={subLink}>Skapa lönekörning</Link>
       <Link href="/admin/lon/lonekoring" className={subLink}>Pågående löner</Link>
       <Link href="#" className={subLink}>Historik</Link>
@@ -461,7 +476,7 @@ export default function AdminMenu({ active }: Props) {
             <Link href="/admin/ekonomi/momsrapport" className={subLink}>Momsrapport</Link>
             <Link href="/admin/ekonomi/bokforingsunderlag" className={subLink}>Bokföringsunderlag</Link>
             <Link href="/admin/ekonomi/manadsrapport" className={subLink}>Månadsrapport</Link>
-            <Link href="/admin/ekonomi/arsoversikt" className={subLink}>�rsÖversikt</Link>
+            <Link href="/admin/ekonomi/arsoversikt" className={subLink}>Årsöversikt</Link>
             <div className="px-3 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Avstämning</div>
             <Link href="/admin/ekonomi/lasta-perioder" className={subLink}>Låsta perioder</Link>
             <Link href="/admin/ekonomi/avstamning/sundra" className={subLink}>Sundra</Link>
@@ -604,6 +619,7 @@ export default function AdminMenu({ active }: Props) {
     </aside>
   );
 }
+
 
 
 
