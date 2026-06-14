@@ -1,4 +1,4 @@
-// src/components/AdminMenu.tsx
+﻿// src/components/AdminMenu.tsx
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
@@ -25,7 +25,7 @@ export default function AdminMenu({ active }: Props) {
 
   const label = "flex items-center gap-2";
 
-  // 🔥 IKON FIX (VIKTIG)
+  // IKON FIX (VIKTIG)
   const Icon = ({ src }: { src: string }) => (
     <img
       src={src}
@@ -379,8 +379,8 @@ export default function AdminMenu({ active }: Props) {
   {isOpen("salary") && (
     <div className="ml-4 mt-1 space-y-1 border-l pl-2">
 
-      {/* LÖNEKÖRNING */}
-      <div className="text-[10px] text-gray-400 mt-1">Lönekörning</div>
+      {/* LÖNEK�RNING */}
+      <div className="text-[10px] text-gray-400 mt-1">Lönek�rning</div>
       <Link href="/admin/lon/lonekoring/skapa" className={subLink}>Skapa lönekörning</Link>
       <Link href="/admin/lon/lonekoring" className={subLink}>Pågående löner</Link>
       <Link href="#" className={subLink}>Historik</Link>
@@ -442,7 +442,7 @@ export default function AdminMenu({ active }: Props) {
 
       {/* ÖVERSIKT */}
             <div className="px-3 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Översikt</div>
-            <Link href="/admin/ekonomi/oversikt" className={subLink}>Ekonomisk översikt</Link>
+            <Link href="/admin/ekonomi/oversikt" className={subLink}>Ekonomisk Översikt</Link>
             <Link href="/admin/ekonomi/resultat-uppdrag" className={subLink}>Resultat per uppdrag</Link>
             <div className="px-3 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Fakturering</div>
             <Link href="/admin/ekonomi/fakturor" className={subLink}>Kundfakturor</Link>
@@ -461,7 +461,7 @@ export default function AdminMenu({ active }: Props) {
             <Link href="/admin/ekonomi/momsrapport" className={subLink}>Momsrapport</Link>
             <Link href="/admin/ekonomi/bokforingsunderlag" className={subLink}>Bokföringsunderlag</Link>
             <Link href="/admin/ekonomi/manadsrapport" className={subLink}>Månadsrapport</Link>
-            <Link href="/admin/ekonomi/arsoversikt" className={subLink}>Årsöversikt</Link>
+            <Link href="/admin/ekonomi/arsoversikt" className={subLink}>�rsÖversikt</Link>
             <div className="px-3 pt-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Avstämning</div>
             <Link href="/admin/ekonomi/lasta-perioder" className={subLink}>Låsta perioder</Link>
             <Link href="/admin/ekonomi/avstamning/sundra" className={subLink}>Sundra</Link>
@@ -604,3 +604,7 @@ export default function AdminMenu({ active }: Props) {
     </aside>
   );
 }
+
+
+
+
