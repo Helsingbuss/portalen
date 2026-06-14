@@ -1,5 +1,39 @@
-﻿import AdminMenu from "@/components/AdminMenu";
+﻿import Link from "next/link";
+import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
+
+const sections = [
+  {
+    title: "Hero & säsongsbilder",
+    text: "Styr startsidans stora bild, rubrik, knapp och säsongsperioder.",
+    href: "/admin/shuttle/hemsida/hero",
+    status: "Påbörjad",
+  },
+  {
+    title: "Bildkort / highlights",
+    text: "Här finns bildkorten vi skapade. De är kopplade till databasen och hbshuttle.se.",
+    href: "/admin/shuttle/hemsida/highlights",
+    status: "Kopplad",
+  },
+  {
+    title: "Populära flygplatser",
+    text: "Styr flygplatskorten på startsidan, status och kommande flygplatser.",
+    href: "/admin/shuttle/hemsida/flygplatser",
+    status: "Nästa",
+  },
+  {
+    title: "Vanliga frågor",
+    text: "Hantera frågor och svar som visas på startsidan.",
+    href: "/admin/shuttle/hemsida/faq",
+    status: "Ej kopplad",
+  },
+  {
+    title: "Nyhetsbrev",
+    text: "Styr texten och innehållet i nyhetsbrevssektionen.",
+    href: "/admin/shuttle/hemsida/nyhetsbrev",
+    status: "Ej kopplad",
+  },
+];
 
 export default function ShuttleHeroAdminPage() {
   return (
@@ -17,22 +51,51 @@ export default function ShuttleHeroAdminPage() {
               </p>
 
               <h1 className="mt-2 text-2xl font-bold text-slate-900">
-                Hero & säsongsbilder
+                Hemsida & innehåll
               </h1>
 
               <p className="mt-2 max-w-3xl text-sm text-slate-600">
-                Här ska du kunna styra startsidans stora hero-bild, rubrik,
-                text, knapp och säsongsbilder.
+                Här samlar vi allt innehåll som ska kunna styras från portalen och visas på hbshuttle.se.
+                Bildkorten är redan skapade och kopplade. Övriga delar bygger vi vidare steg för steg.
               </p>
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <section className="grid gap-5 xl:grid-cols-3">
+              {sections.map((section) => (
+                <Link
+                  key={section.href}
+                  href={section.href}
+                  className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <h2 className="text-lg font-bold text-slate-900">
+                      {section.title}
+                    </h2>
+
+                    <span className="rounded-full bg-[#007764]/10 px-3 py-1 text-xs font-bold text-[#007764]">
+                      {section.status}
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {section.text}
+                  </p>
+
+                  <div className="mt-5 text-sm font-bold text-[#007764]">
+                    Öppna →
+                  </div>
+                </Link>
+              ))}
+            </section>
+
+            <section className="rounded-2xl border border-emerald-100 bg-emerald-50 p-6">
               <h2 className="text-lg font-bold text-slate-900">
-                Sidan är skapad
+                Det som är klart just nu
               </h2>
 
-              <p className="mt-2 text-sm text-slate-600">
-                Nästa steg blir att koppla hero och säsongsbilder till databasen.
+              <p className="mt-2 text-sm leading-6 text-slate-700">
+                Bildkort / highlights är skapad i portalen, sparas i databasen och är kopplad till hbshuttle.se.
+                Klicka på Bildkort / highlights ovan för att öppna den sidan.
               </p>
             </section>
           </div>
