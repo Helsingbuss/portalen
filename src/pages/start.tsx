@@ -13,6 +13,26 @@ import GreetingNews from "@/components/dashboard/GreetingNews";
 import EconomyCard from "@/components/dashboard/EconomyCard";
 import { AdjustmentsHorizontalIcon } from "@heroicons/react/24/outline";
 
+function toDateInputValue(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function getDashboardDefaultPeriod() {
+  const now = new Date();
+
+  const fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  const toDate = new Date(now.getFullYear(), now.getMonth() + 3, 1);
+
+  return {
+    from: toDateInputValue(fromDate),
+    to: toDateInputValue(toDate),
+  };
+}
+
+
 /* ---------- Typer för dashboard ---------- */
 type StatsData = {
   range: string;
@@ -57,8 +77,8 @@ export default function Start() {
   const today = new Date();
 
   // 🔹 Standardintervall: hela 2026
-  const [from, setFrom] = useState("2026-01-01");
-  const [to, setTo] = useState("2026-12-31");
+  const [from, setFrom] = useState(() => getDashboardDefaultPeriod().from);
+  const [to, setTo] = useState(() => getDashboardDefaultPeriod().to);
 
   const [stats, setStats] = useState<StatsData>(EMPTY_STATS);
   const [unanswered, setUnanswered] = useState<UnansweredRow[]>([]);
@@ -146,8 +166,9 @@ export default function Start() {
   }
 
   useEffect(() => {
-    // Ladda direkt med 2026-01-01 – 2026-12-31, per vecka
-    loadStats("2026-01-01", "2026-12-31", "week");
+    // Ladda direkt med standardperioden: aktuell månad till första dagen 3 månader framåt
+    const defaultPeriod = getDashboardDefaultPeriod();
+    loadStats(defaultPeriod.from, defaultPeriod.to, "week");
     loadUnanswered();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -164,12 +185,10 @@ export default function Start() {
 
     if (g === "ytd") {
       // Hittills i år: 1 jan – idag
-      const year = today.getFullYear();
-      const startOfYear = `${year}-01-01`;
-      const todayStr = ymd(today);
-      setFrom(startOfYear);
-      setTo(todayStr);
-      loadStats(startOfYear, todayStr, g);
+      const defaultPeriod = getDashboardDefaultPeriod();
+      setFrom(defaultPeriod.from);
+      setTo(defaultPeriod.to);
+      loadStats(defaultPeriod.from, defaultPeriod.to, g);
     } else {
       // Vecka / månad – behåll nuvarande datumintervall
       loadStats(from, to, g);
@@ -196,7 +215,7 @@ export default function Start() {
                       Offert – och bokningar
                     </h2>
                     <p className="text-xs text-[#6B7280] mt-1">
-                      {stats.range || `${from} – ${to}`}
+                      {`${from} – ${to}`}
                     </p>
                   </div>
 
