@@ -68,6 +68,7 @@ export default function AdminMenu({ active }: Props) {
       <Link href="/admin/offers/new" className={subLink}>Skapa offert</Link>
       <Link href="/admin/offers" className={subLink}>Offertlista</Link>
       <Link href="/admin/offers/calender" className={subLink}>Offertkalender</Link>
+      <Link href="/admin/offers/synergybus" className={subLink}>SynergyBus</Link>
       <Link href="/admin/prislistor/" className={subLink}>Prisregler</Link>
 
       {/* BOKNINGAR */}
