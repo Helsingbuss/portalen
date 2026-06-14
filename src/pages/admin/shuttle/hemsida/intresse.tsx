@@ -14,6 +14,9 @@ type Signup = {
 export default function ShuttleInterestPage() {
   const [signups, setSignups] = useState<Signup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
+  const [testEmail, setTestEmail] = useState("ekelof.andreas@hotmail.com");
+  const [sendStatus, setSendStatus] = useState("");
 
   const [subject, setSubject] = useState(
     "Nu är biljetterna släppta – boka din resa med Helsingbuss Airport Shuttle"
@@ -32,10 +35,14 @@ export default function ShuttleInterestPage() {
   const [buttonText, setButtonText] = useState("Boka nu");
   const [buttonLink, setButtonLink] = useState("https://hbshuttle.se/start");
 
+  const selectedCount = selectedEmails.length;
+
   useEffect(() => {
     async function loadSignups() {
       try {
-        const response = await fetch("/api/admin/shuttle/interest");
+        const response = await fetch(`/api/admin/shuttle/interest?t=${Date.now()}`, {
+          cache: "no-store",
+        });
 
         if (!response.ok) {
           setSignups([]);
@@ -54,6 +61,59 @@ export default function ShuttleInterestPage() {
 
     loadSignups();
   }, []);
+
+  function toggleEmail(email: string) {
+    setSelectedEmails((current) =>
+      current.includes(email)
+        ? current.filter((item) => item !== email)
+        : [...current, email]
+    );
+  }
+
+  function toggleAll() {
+    if (selectedEmails.length === signups.length) {
+      setSelectedEmails([]);
+      return;
+    }
+
+    setSelectedEmails(signups.map((item) => item.email));
+  }
+
+  async function sendMail(mode: "test" | "selected") {
+    setSendStatus("Skickar...");
+
+    try {
+      const response = await fetch("/api/admin/shuttle/interest-send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mode,
+          testEmail,
+          recipients: selectedEmails,
+          subject,
+          previewText,
+          emailTitle,
+          emailBody,
+          buttonText,
+          buttonLink,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setSendStatus(data?.error || "Kunde inte skicka mail.");
+        return;
+      }
+
+      setSendStatus(`Klart! ${data.sent} mail skickades.`);
+    } catch (error) {
+      console.error("Could not send email:", error);
+      setSendStatus("Kunde inte skicka mail.");
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -77,8 +137,8 @@ export default function ShuttleInterestPage() {
 
                   <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
                     Här samlas personer som vill bli meddelade när bokningen öppnar.
-                    Du kan senare använda listan för att skicka ett färdigt utskick
-                    eller skriva en egen text manuellt.
+                    Kryssa i vilka som ska få mail, skriv utskicket manuellt och
+                    skicka först ett testmail innan du skickar till markerade.
                   </p>
                 </div>
 
@@ -91,14 +151,26 @@ export default function ShuttleInterestPage() {
             <section className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_420px] 2xl:grid-cols-[minmax(0,1fr)_460px]">
               <div className="space-y-8">
                 <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-                  <div className="border-b border-slate-200 px-7 py-5">
-                    <h2 className="text-xl font-bold text-slate-900">
-                      E-postlista
-                    </h2>
+                  <div className="flex flex-col gap-3 border-b border-slate-200 px-7 py-5 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-900">
+                        E-postlista
+                      </h2>
 
-                    <p className="mt-1 text-sm text-slate-500">
-                      Alla som fyllt i “Meddela mig” på hbshuttle.se visas här.
-                    </p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Alla som fyllt i “Meddela mig” på hbshuttle.se visas här.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={toggleAll}
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700"
+                    >
+                      {selectedEmails.length === signups.length && signups.length > 0
+                        ? "Avmarkera alla"
+                        : "Markera alla"}
+                    </button>
                   </div>
 
                   {loading ? (
@@ -112,6 +184,13 @@ export default function ShuttleInterestPage() {
                       <table className="w-full text-left text-sm">
                         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                           <tr>
+                            <th className="w-[70px] px-7 py-4">
+                              <input
+                                type="checkbox"
+                                checked={signups.length > 0 && selectedEmails.length === signups.length}
+                                onChange={toggleAll}
+                              />
+                            </th>
                             <th className="px-7 py-4">E-post</th>
                             <th className="px-7 py-4">Källa</th>
                             <th className="px-7 py-4">Status</th>
@@ -122,6 +201,14 @@ export default function ShuttleInterestPage() {
                         <tbody className="divide-y divide-slate-100">
                           {signups.map((item) => (
                             <tr key={item.id} className="hover:bg-slate-50">
+                              <td className="px-7 py-4">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedEmails.includes(item.email)}
+                                  onChange={() => toggleEmail(item.email)}
+                                />
+                              </td>
+
                               <td className="px-7 py-4 font-medium text-slate-900">
                                 {item.email}
                               </td>
@@ -150,19 +237,18 @@ export default function ShuttleInterestPage() {
                 </section>
 
                 <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-                  <div className="flex flex-col gap-2">
+                  <div>
                     <p className="text-sm font-bold text-[#007764]">
                       Utskick
                     </p>
 
-                    <h2 className="text-xl font-bold text-slate-900">
+                    <h2 className="mt-2 text-xl font-bold text-slate-900">
                       Skapa mail när biljetterna släpps
                     </h2>
 
-                    <p className="text-sm leading-6 text-slate-600">
-                      Här kan du förbereda ett färdigt mailutskick. I nästa steg
-                      kopplar vi knapparna till Resend så du kan skicka testmail
-                      och sedan skicka till alla anmälda.
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Skriv din egen text, skicka först testmail till dig själv
+                      och skicka sedan till markerade mottagare.
                     </p>
                   </div>
 
@@ -236,6 +322,27 @@ export default function ShuttleInterestPage() {
                       </label>
                     </div>
 
+                    <label className="block">
+                      <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Testmail skickas till
+                      </span>
+                      <input
+                        value={testEmail}
+                        onChange={(e) => setTestEmail(e.target.value)}
+                        className="mt-2 w-full rounded-2xl border border-slate-300 px-5 py-4 text-sm outline-none focus:border-[#007764]"
+                      />
+                    </label>
+
+                    <div className="rounded-2xl bg-slate-50 px-5 py-4 text-sm font-bold text-slate-700">
+                      Markerade mottagare: {selectedCount}
+                    </div>
+
+                    {sendStatus ? (
+                      <div className="rounded-2xl bg-[#007764]/10 px-5 py-4 text-sm font-bold text-[#007764]">
+                        {sendStatus}
+                      </div>
+                    ) : null}
+
                     <div className="flex flex-wrap gap-3 pt-2">
                       <button
                         type="button"
@@ -246,6 +353,7 @@ export default function ShuttleInterestPage() {
 
                       <button
                         type="button"
+                        onClick={() => sendMail("test")}
                         className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700"
                       >
                         Skicka testmail
@@ -253,9 +361,11 @@ export default function ShuttleInterestPage() {
 
                       <button
                         type="button"
-                        className="rounded-xl bg-[#007764] px-5 py-3 text-sm font-bold text-white"
+                        onClick={() => sendMail("selected")}
+                        disabled={selectedCount === 0}
+                        className="rounded-xl bg-[#007764] px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Skicka till alla
+                        Skicka till markerade
                       </button>
                     </div>
                   </div>
@@ -263,7 +373,7 @@ export default function ShuttleInterestPage() {
               </div>
 
               <aside className="space-y-8">
-                <section className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+                <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
                   <h2 className="text-xl font-bold text-slate-900">
                     Förhandsvisning
                   </h2>
@@ -304,13 +414,13 @@ export default function ShuttleInterestPage() {
 
                 <section className="rounded-3xl border border-amber-100 bg-amber-50 p-7">
                   <h2 className="text-lg font-bold text-slate-900">
-                    Nästa koppling
+                    Tips innan utskick
                   </h2>
 
                   <p className="mt-2 text-sm leading-6 text-slate-700">
-                    Knapparna är förberedda. Nästa steg är att koppla dem till
-                    ett riktigt utskick via Resend, så du först kan skicka testmail
-                    till dig själv och sedan till hela listan.
+                    Skicka alltid testmail först. Kontrollera ämne, länk och text.
+                    När allt ser rätt ut markerar du mottagare i listan och trycker
+                    på “Skicka till markerade”.
                   </p>
                 </section>
               </aside>

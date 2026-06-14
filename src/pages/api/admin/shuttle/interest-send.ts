@@ -18,7 +18,7 @@ function isEmail(email: string) {
 }
 
 function escapeHtml(value: string) {
-  return value
+  return String(value || "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
