@@ -108,9 +108,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2025-11-17.clover",
-    });
+    const stripe = new Stripe(stripeSecretKey);
 
     const bookingReference = `HB-${Date.now()}`;
 
