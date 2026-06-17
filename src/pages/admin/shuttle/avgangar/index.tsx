@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import AdminMenu from "@/components/AdminMenu";
@@ -142,6 +142,13 @@ export default function ShuttleDeparturesPage() {
                           <div className="mt-2 text-sm text-gray-500">
                             {booked}/{capacity} bokade
                           </div>
+
+                          <Link
+                            href={`/admin/shuttle/avgangar/${departure.id}`}
+                            className="mt-3 inline-flex rounded-full border border-[#194C66]/20 px-4 py-2 text-sm font-semibold text-[#194C66] hover:bg-[#eef5f9]"
+                          >
+                            Redigera
+                          </Link>
                         </div>
                       </div>
                     </div>
@@ -155,3 +162,4 @@ export default function ShuttleDeparturesPage() {
     </>
   );
 }
+
