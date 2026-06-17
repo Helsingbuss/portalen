@@ -1,216 +1,302 @@
 ﻿import type { NextApiRequest, NextApiResponse } from "next";
-import { requireAdmin } from "@/lib/supabaseAdmin";
+import * as admin from "@/lib/supabaseAdmin";
 
-const db = requireAdmin();
+const supabase: any =
+  (admin as any).supabaseAdmin ||
+  (admin as any).supabase ||
+  (admin as any).default;
 
-function setCors(res: NextApiResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+function setCors(req: NextApiRequest, res: NextApiResponse) {
+  const allowedOrigins = [
+    "http://localhost:3000",
+    "https://hbshuttle.se",
+    "https://www.hbshuttle.se",
+  ];
+
+  const origin = String(req.headers.origin || "");
+
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  } else {
+    res.setHeader("Access-Control-Allow-Origin", "https://hbshuttle.se");
+  }
+
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
-function pick(row: any, keys: string[], fallback: any = "") {
-  for (const key of keys) {
-    if (row?.[key] !== undefined && row?.[key] !== null && row?.[key] !== "") {
-      return row[key];
-    }
-  }
-
-  return fallback;
+function normalizeText(value: any) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
 }
 
-function normalizeDeparture(row: any) {
-  const departureTime = pick(row, [
-    "departure_time",
-    "departure",
-    "start_time",
-    "time_departure",
-    "departureTime",
-  ]);
+function samePlace(a: any, b: any) {
+  const aa = normalizeText(a);
+  const bb = normalizeText(b);
 
-  const arrivalTime = pick(row, [
-    "arrival_time",
-    "arrival",
-    "end_time",
-    "time_arrival",
-    "arrivalTime",
-  ]);
+  if (!aa || !bb) return false;
 
-  const fromName = pick(row, [
-    "from_name",
-    "from_stop_name",
-    "departure_stop_name",
-    "from_stop",
-    "departure_stop",
-    "start_stop_name",
-  ]);
+  return aa === bb || aa.includes(bb) || bb.includes(aa);
+}
 
-  const toName = pick(row, [
-    "to_name",
-    "to_stop_name",
-    "arrival_stop_name",
-    "to_stop",
-    "arrival_stop",
-    "end_stop_name",
-  ]);
+function timeToMinutes(value: any) {
+  const text = String(value || "");
+  const match = text.match(/^(\d{1,2}):(\d{2})/);
+
+  if (!match) return 0;
+
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function money(value: any) {
+  if (value === "" || value === null || value === undefined) return 0;
+
+  const n = Number(String(value).replace(",", "."));
+
+  return Number.isFinite(n) ? n : 0;
+}
+
+function getStopName(stop: any) {
+  return (
+    stop?.stop_name ||
+    stop?.name ||
+    stop?.shuttle_stops?.name ||
+    stop?.city ||
+    "Hållplats"
+  );
+}
+
+function getStopTime(stop: any) {
+  return (
+    stop?.scheduled_time ||
+    stop?.departure_time ||
+    stop?.arrival_time ||
+    null
+  );
+}
+
+function formatDeparture(row: any, query: any) {
+  const stops = [...(row.shuttle_departure_stops || [])]
+    .sort((a: any, b: any) => Number(a.stop_order || 0) - Number(b.stop_order || 0))
+    .map((stop: any) => ({
+      id: stop.id,
+      lineStopId: stop.line_stop_id,
+      stopId: stop.stop_id,
+      name: getStopName(stop),
+      city: stop.city || null,
+      order: Number(stop.stop_order || 0),
+      time: getStopTime(stop),
+      price: money(stop.price),
+      direction: stop.direction || row.direction || "outbound",
+      isReturn: Boolean(stop.is_return),
+    }));
+
+  const fromQuery = query.from ? String(query.from) : "";
+  const toQuery = query.to ? String(query.to) : "";
+
+  const fromStop =
+    stops.find((stop: any) => samePlace(stop.name, fromQuery)) ||
+    stops[0] ||
+    null;
+
+  const toStop =
+    stops.find((stop: any) => samePlace(stop.name, toQuery)) ||
+    stops[stops.length - 1] ||
+    null;
+
+  const fromIndex = fromStop ? stops.findIndex((s: any) => s.id === fromStop.id) : 0;
+  const toIndex = toStop ? stops.findIndex((s: any) => s.id === toStop.id) : stops.length - 1;
+
+  const visibleStops =
+    fromIndex >= 0 && toIndex >= 0 && fromIndex <= toIndex
+      ? stops.slice(fromIndex, toIndex + 1)
+      : stops;
+
+  const departureTime =
+    getStopTime(fromStop) ||
+    row.departure_time ||
+    null;
+
+  const arrivalTime =
+    getStopTime(toStop) ||
+    visibleStops[visibleStops.length - 1]?.time ||
+    row.arrival_time ||
+    null;
+
+  const stopPrice = money(fromStop?.price);
+  const rowPrice = money(row.price);
+  const ticketPrice = stopPrice > 0 ? stopPrice : rowPrice;
+
+  const departureMinutes = timeToMinutes(departureTime);
+  const arrivalMinutes = timeToMinutes(arrivalTime);
+  const durationMinutes =
+    arrivalMinutes >= departureMinutes
+      ? arrivalMinutes - departureMinutes
+      : null;
+
+  const line = row.shuttle_lines || {};
+  const route = row.shuttle_routes || {};
 
   return {
     id: row.id,
+    departureId: row.id,
 
-    lineId: pick(row, ["line_id", "shuttle_line_id", "lineId"], null),
-    routeId: pick(row, ["route_id", "shuttle_route_id", "routeId"], null),
+    routeId: row.route_id,
+    lineId: row.line_id,
+
+    line: line.code ? `Linje ${line.code}` : line.name || "HB Shuttle",
+    lineCode: line.code || null,
+    lineName: line.name || null,
+
+    routeName: route.name || null,
+    routeCode: route.route_code || null,
+
+    date: row.departure_date,
+    departureDate: row.departure_date,
 
     departureTime,
     arrivalTime,
+    durationMinutes,
 
-    duration: pick(row, [
-      "duration",
-      "travel_time",
-      "estimated_duration",
-      "duration_text",
-    ], ""),
+    from: fromStop?.name || row.departure_location || line.start_city || null,
+    to: toStop?.name || row.destination_location || line.end_city || null,
 
-    fromStopId: pick(row, [
-      "from_stop_id",
-      "departure_stop_id",
-      "start_stop_id",
-    ], null),
+    departureLocation: row.departure_location,
+    destinationLocation: row.destination_location,
 
-    toStopId: pick(row, [
-      "to_stop_id",
-      "arrival_stop_id",
-      "end_stop_id",
-    ], null),
+    price: ticketPrice,
+    ticketPrice,
 
-    fromName,
-    toName,
+    capacity: Number(row.capacity || 0),
+    bookedCount: Number(row.booked_count || 0),
+    seatsLeft: Math.max(Number(row.capacity || 0) - Number(row.booked_count || 0), 0),
 
-    vehicle: pick(row, [
-      "vehicle",
-      "bus_name",
-      "vehicle_name",
-      "service_name",
-    ], "HB Shuttle Direkt"),
+    status: row.status || "open",
+    direction: row.direction || "outbound",
+    isReturn: Boolean(row.is_return),
 
-    lineName: pick(row, [
-      "line_name",
-      "line",
-      "route_name",
-    ], "Linje 101"),
+    vehicle: row.vehicle_name || "HB Shuttle",
+    comfort: row.comfort || "standard",
+    ticketType: row.ticket_type || "Enkel",
 
-    priceEconomy: Number(pick(row, [
-      "price_economy",
-      "economy_price",
-      "price",
-      "price_from",
-    ], 129)),
-
-    pricePlus: Number(pick(row, [
-      "price_plus",
-      "plus_price",
-      "premium_price",
-    ], 169)),
-
-    active: pick(row, ["active", "is_active"], true),
-
-    date: pick(row, ["date", "departure_date"], null),
-    validFrom: pick(row, ["valid_from", "start_date"], null),
-    validTo: pick(row, ["valid_to", "end_date"], null),
-
-    raw: row,
+    stops,
+    visibleStops,
   };
 }
 
-function matchesText(value: any, search: string) {
-  return String(value || "")
-    .toLowerCase()
-    .includes(search.toLowerCase());
-}
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  setCors(res);
+  setCors(req, res);
 
   if (req.method === "OPTIONS") {
-    return res.status(200).end();
+    return res.status(204).end();
   }
 
   if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({
+      ok: false,
+      error: "Method not allowed",
+    });
   }
 
-  const { from, to, date } = req.query;
+  try {
+    const { date, line_id, lineCode, direction } = req.query;
 
-  const { data, error } = await db
-    .from("shuttle_departures")
-    .select("*");
+    let query = supabase
+      .from("shuttle_departures")
+      .select(`
+        *,
+        shuttle_routes (
+          id,
+          name,
+          route_code,
+          airport_name,
+          from_city,
+          to_city,
+          start_city,
+          end_city
+        ),
+        shuttle_lines (
+          id,
+          name,
+          code,
+          start_city,
+          end_city
+        ),
+        shuttle_departure_stops (
+          id,
+          departure_id,
+          line_id,
+          line_stop_id,
+          stop_id,
+          stop_name,
+          city,
+          stop_order,
+          scheduled_time,
+          price,
+          direction,
+          is_return
+        )
+      `)
+      .order("departure_date", { ascending: true })
+      .order("departure_time", { ascending: true });
 
-  if (error) {
-    console.error("Public shuttle departures error:", error);
+    if (date) {
+      query = query.eq("departure_date", String(date));
+    }
+
+    if (line_id) {
+      query = query.eq("line_id", String(line_id));
+    }
+
+    if (direction) {
+      query = query.eq("direction", String(direction));
+    }
+
+    query = query.in("status", ["open", "active", "scheduled"]);
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    let departures = (data || []).map((row: any) => formatDeparture(row, req.query));
+
+    if (lineCode) {
+      const wantedLineCode = normalizeText(lineCode);
+      departures = departures.filter((departure: any) =>
+        normalizeText(departure.lineCode) === wantedLineCode ||
+        normalizeText(departure.line).includes(wantedLineCode)
+      );
+    }
+
+    if (req.query.from || req.query.to) {
+      departures = departures.filter((departure: any) => {
+        const hasFrom = req.query.from
+          ? departure.stops.some((stop: any) => samePlace(stop.name, req.query.from))
+          : true;
+
+        const hasTo = req.query.to
+          ? departure.stops.some((stop: any) => samePlace(stop.name, req.query.to))
+          : true;
+
+        return hasFrom && hasTo;
+      });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      count: departures.length,
+      departures,
+    });
+  } catch (e: any) {
+    console.error("/api/public/shuttle/departures error:", e);
 
     return res.status(500).json({
-      error: "Kunde inte hämta avgångar.",
-      details: error.message,
+      ok: false,
+      error: e?.message || "Kunde inte hämta avgångar.",
+      departures: [],
     });
   }
-
-  let departures = (data || [])
-    .map(normalizeDeparture)
-    .filter((item) => item.active !== false);
-
-  if (date) {
-    const selectedDate = String(date);
-
-    departures = departures.filter((item) => {
-      if (item.date) {
-        return String(item.date) === selectedDate;
-      }
-
-      if (item.validFrom && String(item.validFrom) > selectedDate) {
-        return false;
-      }
-
-      if (item.validTo && String(item.validTo) < selectedDate) {
-        return false;
-      }
-
-      return true;
-    });
-  }
-
-  if (from) {
-    const fromText = String(from);
-
-    departures = departures.filter((item) => {
-      return (
-        matchesText(item.fromName, fromText) ||
-        matchesText(item.raw?.from_stop, fromText) ||
-        matchesText(item.raw?.departure_stop, fromText) ||
-        matchesText(item.raw?.start_stop, fromText)
-      );
-    });
-  }
-
-  if (to) {
-    const toText = String(to);
-
-    departures = departures.filter((item) => {
-      return (
-        matchesText(item.toName, toText) ||
-        matchesText(item.raw?.to_stop, toText) ||
-        matchesText(item.raw?.arrival_stop, toText) ||
-        matchesText(item.raw?.end_stop, toText)
-      );
-    });
-  }
-
-  departures.sort((a, b) => {
-    return String(a.departureTime || "").localeCompare(
-      String(b.departureTime || "")
-    );
-  });
-
-  return res.status(200).json({
-    departures,
-    count: departures.length,
-  });
 }
