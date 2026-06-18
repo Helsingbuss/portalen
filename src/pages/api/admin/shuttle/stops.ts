@@ -1,4 +1,4 @@
-﻿import type { NextApiRequest, NextApiResponse } from "next";
+import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 
 const supabase: any =
@@ -92,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!body.name?.trim()) {
         return res.status(400).json({
           ok: false,
-          error: "HÃ¥llplatsnamn saknas.",
+          error: "Hållplatsnamn saknas.",
         });
       }
 
@@ -117,14 +117,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!id) {
         return res.status(400).json({
           ok: false,
-          error: "HÃ¥llplats-ID saknas.",
+          error: "Hållplats-ID saknas.",
         });
       }
 
       if (!body.name?.trim()) {
         return res.status(400).json({
           ok: false,
-          error: "HÃ¥llplatsnamn saknas.",
+          error: "Hållplatsnamn saknas.",
         });
       }
 
@@ -149,7 +149,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!id) {
         return res.status(400).json({
           ok: false,
-          error: "HÃ¥llplats-ID saknas.",
+          error: "Hållplats-ID saknas.",
         });
       }
 
@@ -159,8 +159,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(409).json({
           ok: false,
           error:
-            `HÃ¥llplatsen kan inte tas bort eftersom den anvÃ¤nds av ${usage.lineStopCount} linjekoppling/ar och ${usage.departureStopCount} avgÃ¥ngsstopp. ` +
-            "Ta bort kopplingarna fÃ¶rst.",
+            `Hållplatsen kan inte tas bort eftersom den används av ${usage.lineStopCount} linjekoppling/ar och ${usage.departureStopCount} avgångsstopp. ` +
+            "Ta bort kopplingarna först.",
           usage,
         });
       }
@@ -187,7 +187,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(500).json({
       ok: false,
-      error: e?.message || "Kunde inte hantera hÃ¥llplatser.",
+      error: e?.message || "Kunde inte hantera hållplatser.",
     });
   }
 }
