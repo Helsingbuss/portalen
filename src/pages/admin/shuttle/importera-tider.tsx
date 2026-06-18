@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
 
-const exampleText = `Datum; Linje; Riktning; Helsingborg C; Helsingborg Stattena; Ängelholm Station; Ängelholms Flygplats; Pris; Kapacitet
+const exampleText = `Datum; Linje; Riktning; Helsingborg C; Helsingborg Stattena; Ã„ngelholm Station; Ã„ngelholms Flygplats; Pris; Kapacitet
 2027-01-02; 811; outbound; 08:40; 08:46; 09:08; 09:20; 199; 49
 2027-01-03; 811; outbound; 10:40; 10:46; 11:08; 11:20; 199; 49`;
 
@@ -39,7 +39,7 @@ export default function ImporteraShuttleTiderPage() {
     } catch (error: any) {
       setResult({
         ok: false,
-        message: error?.message || "Något gick fel.",
+        message: error?.message || "NÃ¥got gick fel.",
       });
     } finally {
       setLoading(false);
@@ -59,11 +59,11 @@ export default function ImporteraShuttleTiderPage() {
               Flygbuss
             </p>
             <h1 className="mt-2 text-3xl font-semibold text-[#1A545F]">
-              Importera avgångstider
+              Importera avgÃ¥ngstider
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-              Klistra in många avgångar samtidigt. Börja med förhandsgranskning
-              så kontrollerar systemet datum, linje och hållplatser innan något sparas.
+              Klistra in mÃ¥nga avgÃ¥ngar samtidigt. BÃ¶rja med fÃ¶rhandsgranskning
+              sÃ¥ kontrollerar systemet datum, linje och hÃ¥llplatser innan nÃ¥got sparas.
             </p>
           </div>
 
@@ -93,7 +93,7 @@ export default function ImporteraShuttleTiderPage() {
               disabled={loading}
               className="rounded-full bg-[#1A545F] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#164852] disabled:opacity-60"
             >
-              {loading ? "Arbetar..." : "Förhandsgranska"}
+              {loading ? "Arbetar..." : "FÃ¶rhandsgranska"}
             </button>
 
             <button
@@ -102,7 +102,7 @@ export default function ImporteraShuttleTiderPage() {
               disabled={loading}
               className="rounded-full bg-[#007764] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#006A59] disabled:opacity-60"
             >
-              {loading ? "Importerar..." : "Importera avgångar"}
+              {loading ? "Importerar..." : "Importera avgÃ¥ngar"}
             </button>
           </div>
         </div>
@@ -113,12 +113,12 @@ export default function ImporteraShuttleTiderPage() {
               Format
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Första raden är rubriker. Hållplatserna skrivs som egna kolumner.
-              Varje rad efter det blir en avgång.
+              FÃ¶rsta raden Ã¤r rubriker. HÃ¥llplatserna skrivs som egna kolumner.
+              Varje rad efter det blir en avgÃ¥ng.
             </p>
 
             <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-xs leading-6 text-slate-600">
-              <p>Datum; Linje; Riktning; Helsingborg C; Ängelholms Flygplats; Pris; Kapacitet</p>
+              <p>Datum; Linje; Riktning; Helsingborg C; Ã„ngelholms Flygplats; Pris; Kapacitet</p>
               <p>2027-01-02; 811; outbound; 08:40; 09:20; 199; 49</p>
             </div>
           </div>
@@ -128,8 +128,8 @@ export default function ImporteraShuttleTiderPage() {
               Tips
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Använd linjenummer som redan finns i Portalen, till exempel 811.
-              Hållplatsnamnen måste matcha hållplatserna som redan finns upplagda.
+              AnvÃ¤nd linjenummer som redan finns i Portalen, till exempel 811.
+              HÃ¥llplatsnamnen mÃ¥ste matcha hÃ¥llplatserna som redan finns upplagda.
             </p>
           </div>
         </aside>
@@ -143,7 +143,7 @@ export default function ImporteraShuttleTiderPage() {
                 Resultat
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                {result.ok ? "Kontrollen är klar." : "Något behöver rättas."}
+                {result.ok ? "Kontrollen Ã¤r klar." : "NÃ¥got behÃ¶ver rÃ¤ttas."}
               </p>
             </div>
 
@@ -195,7 +195,7 @@ export default function ImporteraShuttleTiderPage() {
 
               <div className="rounded-2xl bg-slate-50 p-4">
                 <p className="text-xs uppercase tracking-wide text-slate-500">
-                  Hoppade över
+                  Hoppade Ã¶ver
                 </p>
                 <strong className="mt-1 block text-2xl text-[#1A545F]">
                   {result.skippedCount ?? 0}
@@ -223,7 +223,7 @@ export default function ImporteraShuttleTiderPage() {
                       <td className="px-4 py-3">{row.date}</td>
                       <td className="px-4 py-3">{row.line}</td>
                       <td className="px-4 py-3">
-                        {row.departureTime} -> {row.arrivalTime}
+                        {row.departureTime}{" -> "}{row.arrivalTime}
                       </td>
                       <td className="px-4 py-3">
                         {row.errors?.length ? (
@@ -243,13 +243,13 @@ export default function ImporteraShuttleTiderPage() {
 
           {Array.isArray(result.imported) && result.imported.length > 0 ? (
             <div className="mt-6 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-800">
-              {result.imported.length} avgångar importerades.
+              {result.imported.length} avgÃ¥ngar importerades.
             </div>
           ) : null}
 
           {Array.isArray(result.skipped) && result.skipped.length > 0 ? (
             <div className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
-              {result.skipped.length} avgångar fanns redan och hoppades över.
+              {result.skipped.length} avgÃ¥ngar fanns redan och hoppades Ã¶ver.
             </div>
           ) : null}
         </section>
@@ -258,6 +258,7 @@ export default function ImporteraShuttleTiderPage() {
     </>
   );
 }
+
 
 
 
