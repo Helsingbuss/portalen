@@ -159,7 +159,7 @@ function formatDeparture(row: any, query: any) {
 
     departureTime,
     arrivalTime,
-    durationMinutes,
+    durationMinutes: Number(route.estimated_duration_minutes || line.estimated_duration_minutes || durationMinutes || 0),
 
     from: fromStop?.name || row.departure_location || line.start_city || null,
     to: toStop?.name || row.destination_location || line.end_city || null,
@@ -178,7 +178,8 @@ function formatDeparture(row: any, query: any) {
     direction: row.direction || "outbound",
     isReturn: Boolean(row.is_return),
 
-    vehicle: row.vehicle_name || "HB Shuttle",
+    vehicle: row.vehicle_name || route.operator_name || "Helsingbuss",
+    operatorName: route.operator_name || null,
     comfort: row.comfort || "standard",
     ticketType: row.ticket_type || "Enkel",
 
@@ -216,7 +217,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           from_city,
           to_city,
           start_city,
-          end_city
+          end_city,
+          operator_name,
+          estimated_duration_minutes
         ),
         shuttle_lines (
           id,
@@ -300,3 +303,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 }
+
+
