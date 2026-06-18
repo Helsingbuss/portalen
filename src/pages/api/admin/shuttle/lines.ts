@@ -6,6 +6,20 @@ const supabase: any =
   (admin as any).supabase ||
   (admin as any).default;
 
+function linePayload(body: any) {
+  return {
+    route_id: body.route_id || null,
+    name: String(body.name || "").trim(),
+    code: body.code || null,
+    start_city: body.start_city || null,
+    end_city: body.end_city || null,
+    color: body.color || "#194C66",
+    description: body.description || null,
+    status: body.status || "active",
+    updated_at: new Date().toISOString(),
+  };
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (req.method === "GET") {
@@ -68,21 +82,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const { data, error } = await supabase
         .from("shuttle_lines")
-        .insert({
-          route_id: body.route_id || null,
-
-          name: body.name.trim(),
-          code: body.code || null,
-
-          start_city: body.start_city || null,
-          end_city: body.end_city || null,
-
-          color: body.color || "#194C66",
-          description: body.description || null,
-
-          status: body.status || "active",
-          updated_at: new Date().toISOString(),
-        })
+        .insert(linePayload(body))
         .select()
         .single();
 
@@ -97,6 +97,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === "PATCH" || req.method === "PUT") {
       const body = req.body || {};
 
+      if (body.action === "update_line") {
+        if (!body.id) {
+          return res.status(400).json({
+            ok: false,
+            error: "Linje-ID saknas.",
+          });
+        }
+
+        if (!body.name?.trim()) {
+          return res.status(400).json({
+            ok: false,
+            error: "Linjenamn saknas.",
+          });
+        }
+
+        const { data, error } = await supabase
+          .from("shuttle_lines")
+          .update(linePayload(body))
+          .eq("id", body.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        return res.status(200).json({
+          ok: true,
+          line: data,
+        });
+      }
+
       if (body.action === "link_stop_to_line") {
         if (!body.line_id || !body.stop_id) {
           return res.status(400).json({
@@ -110,14 +140,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .insert({
             line_id: body.line_id,
             stop_id: body.stop_id,
-
             stop_order: Number(body.stop_order || 0),
-
             departure_time: body.departure_time || null,
             arrival_time: body.arrival_time || null,
-
             price: Number(body.price || 0),
-
             is_active: body.is_active !== false,
             updated_at: new Date().toISOString(),
           })
@@ -170,11 +196,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (req.method === "DELETE") {
       const id = String(req.query.id || "");
+      const type = String(req.query.type || "line_stop");
 
       if (!id) {
         return res.status(400).json({
           ok: false,
           error: "ID saknas.",
+        });
+      }
+
+      if (type === "line") {
+        const { count: departureCount, error: departureCountError } = await supabase
+          .from("shuttle_departures")
+          .select("id", { count: "exact", head: true })
+          .eq("line_id", id);
+
+        if (departureCountError) throw departureCountError;
+
+        if (Number(departureCount || 0) > 0) {
+          return res.status(409).json({
+            ok: false,
+            error:
+              `Linjen kan inte tas bort eftersom den används av ${departureCount} avgång/avgångar. ` +
+              "Ta bort eller flytta avgångarna först.",
+          });
+        }
+
+        const { error: lineStopsError } = await supabase
+          .from("shuttle_line_stops")
+          .delete()
+          .eq("line_id", id);
+
+        if (lineStopsError) throw lineStopsError;
+
+        const { error: lineError } = await supabase
+          .from("shuttle_lines")
+          .delete()
+          .eq("id", id);
+
+        if (lineError) throw lineError;
+
+        return res.status(200).json({
+          ok: true,
+          deleted: id,
         });
       }
 
@@ -203,3 +267,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 }
+

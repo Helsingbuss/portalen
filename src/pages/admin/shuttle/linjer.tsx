@@ -87,6 +87,11 @@ export default function ShuttleLinesPage() {
   const [savingLink, setSavingLink] = useState(false);
   const [error, setError] = useState("");
 
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
+  const [editLineForm, setEditLineForm] = useState<typeof EMPTY_LINE | null>(null);
+  const [savingEditLine, setSavingEditLine] = useState(false);
+  const [deletingLineId, setDeletingLineId] = useState<string | null>(null);
+
   async function loadData() {
     try {
       setLoading(true);
@@ -252,6 +257,107 @@ export default function ShuttleLinesPage() {
     }
   }
 
+  function startEditLine(line: Line) {
+    setError("");
+    setEditingLineId(line.id);
+    setEditLineForm({
+      route_id: line.route_id || "",
+      name: line.name || "",
+      code: line.code || "",
+      start_city: line.start_city || "",
+      end_city: line.end_city || "",
+      color: line.color || "#194C66",
+      description: line.description || "",
+      status: line.status || "active",
+    });
+  }
+
+  function cancelEditLine() {
+    setEditingLineId(null);
+    setEditLineForm(null);
+  }
+
+  function updateEditLine(key: keyof typeof EMPTY_LINE, value: any) {
+    setEditLineForm((prev) => {
+      if (!prev) return prev;
+
+      return {
+        ...prev,
+        [key]: value,
+      };
+    });
+  }
+
+  async function saveEditLine(lineId: string) {
+    try {
+      if (!editLineForm) return;
+
+      setSavingEditLine(true);
+      setError("");
+
+      if (!editLineForm.name.trim()) {
+        throw new Error("Linjenamn saknas.");
+      }
+
+      const res = await fetch("/api/admin/shuttle/lines", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "update_line",
+          id: lineId,
+          ...editLineForm,
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Kunde inte uppdatera linjen.");
+      }
+
+      setEditingLineId(null);
+      setEditLineForm(null);
+      await loadData();
+    } catch (e: any) {
+      setError(e?.message || "Något gick fel.");
+    } finally {
+      setSavingEditLine(false);
+    }
+  }
+
+  async function deleteLine(line: Line) {
+    if (!confirm(`Vill du ta bort linjen "${line.name}"?\n\nOm linjen används av avgångar kommer den inte tas bort.`)) {
+      return;
+    }
+
+    try {
+      setDeletingLineId(line.id);
+      setError("");
+
+      const res = await fetch(`/api/admin/shuttle/lines?type=line&id=${encodeURIComponent(line.id)}`, {
+        method: "DELETE",
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Kunde inte ta bort linjen.");
+      }
+
+      if (editingLineId === line.id) {
+        setEditingLineId(null);
+        setEditLineForm(null);
+      }
+
+      await loadData();
+    } catch (e: any) {
+      setError(e?.message || "Något gick fel.");
+    } finally {
+      setDeletingLineId(null);
+    }
+  }
   const stats = useMemo(() => {
     return {
       lines: lines.length,
@@ -504,21 +610,151 @@ export default function ShuttleLinesPage() {
                 <div className="divide-y">
                   {lines.map((line) => (
                     <div key={line.id} className="p-5">
-                      <div className="mb-4 flex items-center gap-3">
-                        <span
-                          className="h-4 w-4 rounded-full"
-                          style={{ backgroundColor: line.color || "#194C66" }}
-                        />
-                        <div>
-                          <h3 className="font-semibold text-[#0f172a]">
-                            {line.name}
-                          </h3>
-                          <p className="text-xs text-gray-500">
-                            {line.shuttle_routes?.name || "Ingen rutt"} ·{" "}
-                            {line.code || "Ingen kod"}
-                          </p>
+                      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <span
+                            className="h-4 w-4 rounded-full"
+                            style={{ backgroundColor: line.color || "#194C66" }}
+                          />
+                          <div>
+                            <h3 className="font-semibold text-[#0f172a]">
+                              {line.name}
+                            </h3>
+                            <p className="text-xs text-gray-500">
+                              {line.shuttle_routes?.name || "Ingen rutt"} ·{" "}
+                              {line.code || "Ingen kod"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => startEditLine(line)}
+                            className="rounded-full border bg-white px-4 py-2 text-xs font-semibold text-[#194C66] hover:bg-[#f8fafc]"
+                          >
+                            Redigera
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => deleteLine(line)}
+                            disabled={deletingLineId === line.id}
+                            className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                          >
+                            {deletingLineId === line.id ? "Tar bort..." : "Ta bort"}
+                          </button>
                         </div>
                       </div>
+
+                      {editingLineId === line.id && editLineForm ? (
+                        <div className="mb-5 rounded-2xl border bg-[#f8fafc] p-4">
+                          <h4 className="mb-3 text-sm font-semibold text-[#194C66]">
+                            Redigera linje
+                          </h4>
+
+                          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                            <Field label="Rutt">
+                              <select
+                                value={editLineForm.route_id}
+                                onChange={(e) => updateEditLine("route_id", e.target.value)}
+                                className="w-full rounded-xl border px-3 py-2"
+                              >
+                                <option value="">Välj rutt</option>
+                                {routes.map((route) => (
+                                  <option key={route.id} value={route.id}>
+                                    {route.name}
+                                    {route.route_code ? ` (${route.route_code})` : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            </Field>
+
+                            <Field label="Linjenamn">
+                              <input
+                                value={editLineForm.name}
+                                onChange={(e) => updateEditLine("name", e.target.value)}
+                                className="w-full rounded-xl border px-3 py-2"
+                              />
+                            </Field>
+
+                            <Field label="Linjekod">
+                              <input
+                                value={editLineForm.code}
+                                onChange={(e) => updateEditLine("code", e.target.value)}
+                                className="w-full rounded-xl border px-3 py-2"
+                              />
+                            </Field>
+
+                            <Field label="Startort">
+                              <input
+                                value={editLineForm.start_city}
+                                onChange={(e) => updateEditLine("start_city", e.target.value)}
+                                className="w-full rounded-xl border px-3 py-2"
+                              />
+                            </Field>
+
+                            <Field label="Slutort">
+                              <input
+                                value={editLineForm.end_city}
+                                onChange={(e) => updateEditLine("end_city", e.target.value)}
+                                className="w-full rounded-xl border px-3 py-2"
+                              />
+                            </Field>
+
+                            <Field label="Färg">
+                              <input
+                                type="color"
+                                value={editLineForm.color}
+                                onChange={(e) => updateEditLine("color", e.target.value)}
+                                className="h-11 w-full rounded-xl border p-1"
+                              />
+                            </Field>
+
+                            <Field label="Status">
+                              <select
+                                value={editLineForm.status}
+                                onChange={(e) => updateEditLine("status", e.target.value)}
+                                className="w-full rounded-xl border px-3 py-2"
+                              >
+                                <option value="active">Aktiv</option>
+                                <option value="draft">Utkast</option>
+                                <option value="inactive">Inaktiv</option>
+                              </select>
+                            </Field>
+
+                            <div className="md:col-span-2 xl:col-span-3">
+                              <Field label="Beskrivning">
+                                <textarea
+                                  rows={3}
+                                  value={editLineForm.description}
+                                  onChange={(e) => updateEditLine("description", e.target.value)}
+                                  className="w-full rounded-xl border px-3 py-2"
+                                />
+                              </Field>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={cancelEditLine}
+                              className="rounded-full border bg-white px-4 py-2 text-sm font-semibold text-[#194C66]"
+                            >
+                              Avbryt
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => saveEditLine(line.id)}
+                              disabled={savingEditLine}
+                              className="rounded-full bg-[#194C66] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                            >
+                              {savingEditLine ? "Sparar..." : "Spara ändringar"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
 
                       {!line.shuttle_line_stops?.length ? (
                         <div className="rounded-2xl border bg-[#f8fafc] p-4 text-sm text-gray-500">
@@ -661,3 +897,4 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
+
