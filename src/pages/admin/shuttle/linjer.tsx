@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
 
@@ -70,7 +70,7 @@ function money(value?: number | null) {
 }
 
 function tidyTime(value?: string | null) {
-  if (!value) return "â€”";
+  if (!value) return "-";
   return String(value).slice(0, 5);
 }
 
@@ -116,7 +116,7 @@ export default function ShuttleLinesPage() {
       setStops(stopsJson.stops || []);
       setLines(linesJson.lines || []);
     } catch (e: any) {
-      setError(e?.message || "NÃ¥got gick fel.");
+      setError(e?.message || "Något gick fel.");
     } finally {
       setLoading(false);
     }
@@ -160,7 +160,7 @@ export default function ShuttleLinesPage() {
       setLineForm(EMPTY_LINE);
       await loadData();
     } catch (e: any) {
-      setError(e?.message || "NÃ¥got gick fel.");
+      setError(e?.message || "Något gick fel.");
     } finally {
       setSavingLine(false);
     }
@@ -172,7 +172,7 @@ export default function ShuttleLinesPage() {
       setError("");
 
       if (!linkForm.line_id || !linkForm.stop_id) {
-        throw new Error("VÃ¤lj linje och hÃ¥llplats.");
+        throw new Error("Välj linje och hållplats.");
       }
 
       const res = await fetch("/api/admin/shuttle/lines", {
@@ -191,7 +191,7 @@ export default function ShuttleLinesPage() {
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Kunde inte koppla hÃ¥llplats.");
+        throw new Error(json?.error || "Kunde inte koppla hållplats.");
       }
 
       setLinkForm((prev) => ({
@@ -201,7 +201,7 @@ export default function ShuttleLinesPage() {
 
       await loadData();
     } catch (e: any) {
-      setError(e?.message || "NÃ¥got gick fel.");
+      setError(e?.message || "Något gick fel.");
     } finally {
       setSavingLink(false);
     }
@@ -233,17 +233,17 @@ export default function ShuttleLinesPage() {
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Kunde inte uppdatera hÃ¥llplats.");
+        throw new Error(json?.error || "Kunde inte uppdatera hållplats.");
       }
 
       await loadData();
     } catch (e: any) {
-      setError(e?.message || "NÃ¥got gick fel.");
+      setError(e?.message || "Något gick fel.");
     }
   }
 
   async function removeLineStop(id: string) {
-    if (!confirm("Ta bort hÃ¥llplatsen frÃ¥n linjen?")) return;
+    if (!confirm("Ta bort hållplatsen från linjen?")) return;
 
     try {
       const res = await fetch(`/api/admin/shuttle/lines?id=${id}`, {
@@ -258,7 +258,7 @@ export default function ShuttleLinesPage() {
 
       await loadData();
     } catch (e: any) {
-      setError(e?.message || "NÃ¥got gick fel.");
+      setError(e?.message || "Något gick fel.");
     }
   }
 
@@ -326,14 +326,14 @@ export default function ShuttleLinesPage() {
       setEditLineForm(null);
       await loadData();
     } catch (e: any) {
-      setError(e?.message || "NÃ¥got gick fel.");
+      setError(e?.message || "Något gick fel.");
     } finally {
       setSavingEditLine(false);
     }
   }
 
   async function deleteLine(line: Line) {
-    if (!confirm(`Vill du ta bort linjen "${line.name}"?\n\nOm linjen anvÃ¤nds av avgÃ¥ngar kommer den inte tas bort.`)) {
+    if (!confirm(`Vill du ta bort linjen "${line.name}"?\n\nOm linjen används av avgångar kommer den inte tas bort.`)) {
       return;
     }
 
@@ -358,7 +358,7 @@ export default function ShuttleLinesPage() {
 
       await loadData();
     } catch (e: any) {
-      setError(e?.message || "NÃ¥got gick fel.");
+      setError(e?.message || "Något gick fel.");
     } finally {
       setDeletingLineId(null);
     }
@@ -384,10 +384,10 @@ export default function ShuttleLinesPage() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold text-[#194C66]">
-                Airport Shuttle â€“ Linjer
+                Airport Shuttle - Linjer
               </h1>
               <p className="mt-1 text-sm text-[#194C66]/70">
-                Skapa linjer och koppla hÃ¥llplatser, tider och priser.
+                Skapa linjer och koppla hållplatser, tider och priser.
               </p>
             </div>
 
@@ -401,7 +401,7 @@ export default function ShuttleLinesPage() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <Stat title="Linjer" value={stats.lines} />
-            <Stat title="Kopplade hÃ¥llplatser" value={stats.linkedStops} />
+            <Stat title="Kopplade hållplatser" value={stats.linkedStops} />
           </div>
 
           {error && (
@@ -424,7 +424,7 @@ export default function ShuttleLinesPage() {
                       onChange={(e) => updateLine("route_id", e.target.value)}
                       className="w-full rounded-xl border px-3 py-2"
                     >
-                      <option value="">VÃ¤lj rutt</option>
+                      <option value="">Välj rutt</option>
                       {routes.map((route) => (
                         <option key={route.id} value={route.id}>
                           {route.name}
@@ -472,7 +472,7 @@ export default function ShuttleLinesPage() {
                     </Field>
                   </div>
 
-                  <Field label="FÃ¤rg">
+                  <Field label="Färg">
                     <input
                       type="color"
                       value={lineForm.color}
@@ -502,7 +502,7 @@ export default function ShuttleLinesPage() {
 
               <section className="rounded-3xl bg-white p-6 shadow">
                 <h2 className="text-lg font-semibold text-[#194C66]">
-                  Koppla hÃ¥llplats till linje
+                  Koppla hållplats till linje
                 </h2>
 
                 <div className="mt-5 space-y-4">
@@ -512,7 +512,7 @@ export default function ShuttleLinesPage() {
                       onChange={(e) => updateLink("line_id", e.target.value)}
                       className="w-full rounded-xl border px-3 py-2"
                     >
-                      <option value="">VÃ¤lj linje</option>
+                      <option value="">Välj linje</option>
                       {lines.map((line) => (
                         <option key={line.id} value={line.id}>
                           {line.name}
@@ -522,17 +522,17 @@ export default function ShuttleLinesPage() {
                     </select>
                   </Field>
 
-                  <Field label="HÃ¥llplats">
+                  <Field label="Hållplats">
                     <select
                       value={linkForm.stop_id}
                       onChange={(e) => updateLink("stop_id", e.target.value)}
                       className="w-full rounded-xl border px-3 py-2"
                     >
-                      <option value="">VÃ¤lj hÃ¥llplats</option>
+                      <option value="">Välj hållplats</option>
                       {stops.map((stop) => (
                         <option key={stop.id} value={stop.id}>
                           {stop.name}
-                          {stop.city ? ` â€“ ${stop.city}` : ""}
+                          {stop.city ? ` - ${stop.city}` : ""}
                         </option>
                       ))}
                     </select>
@@ -548,7 +548,7 @@ export default function ShuttleLinesPage() {
                       />
                     </Field>
 
-                    <Field label="AvgÃ¥ngstid">
+                    <Field label="Avgångstid">
                       <input
                         type="time"
                         value={timeInputValue(linkForm.departure_time)}
@@ -584,7 +584,7 @@ export default function ShuttleLinesPage() {
                       checked={linkForm.is_active}
                       onChange={(e) => updateLink("is_active", e.target.checked)}
                     />
-                    Aktiv pÃ¥ linjen
+                    Aktiv på linjen
                   </label>
 
                   <button
@@ -592,7 +592,7 @@ export default function ShuttleLinesPage() {
                     disabled={savingLink}
                     className="w-full rounded-2xl bg-[#00866f] px-4 py-3 font-semibold text-white disabled:opacity-50"
                   >
-                    {savingLink ? "Kopplar..." : "Koppla hÃ¥llplats"}
+                    {savingLink ? "Kopplar..." : "Koppla hållplats"}
                   </button>
                 </div>
               </section>
@@ -601,7 +601,7 @@ export default function ShuttleLinesPage() {
             <section className="rounded-3xl bg-white shadow">
               <div className="border-b p-5">
                 <h2 className="text-lg font-semibold text-[#194C66]">
-                  Linjer med hÃ¥llplatser
+                  Linjer med hållplatser
                 </h2>
               </div>
 
@@ -609,7 +609,7 @@ export default function ShuttleLinesPage() {
                 <div className="p-6 text-sm text-gray-500">Laddar...</div>
               ) : lines.length === 0 ? (
                 <div className="p-6 text-sm text-gray-500">
-                  Inga linjer skapade Ã¤nnu.
+                  Inga linjer skapade ännu.
                 </div>
               ) : (
                 <div className="divide-y">
@@ -626,7 +626,7 @@ export default function ShuttleLinesPage() {
                               {line.name}
                             </h3>
                             <p className="text-xs text-gray-500">
-                              {line.shuttle_routes?.name || "Ingen rutt"} Â·{" "}
+                              {line.shuttle_routes?.name || "Ingen rutt"} -{" "}
                               {line.code || "Ingen kod"}
                             </p>
                           </div>
@@ -665,7 +665,7 @@ export default function ShuttleLinesPage() {
                                 onChange={(e) => updateEditLine("route_id", e.target.value)}
                                 className="w-full rounded-xl border px-3 py-2"
                               >
-                                <option value="">VÃ¤lj rutt</option>
+                                <option value="">Välj rutt</option>
                                 {routes.map((route) => (
                                   <option key={route.id} value={route.id}>
                                     {route.name}
@@ -707,7 +707,7 @@ export default function ShuttleLinesPage() {
                               />
                             </Field>
 
-                            <Field label="FÃ¤rg">
+                            <Field label="Färg">
                               <input
                                 type="color"
                                 value={editLineForm.color}
@@ -755,7 +755,7 @@ export default function ShuttleLinesPage() {
                               disabled={savingEditLine}
                               className="rounded-full bg-[#194C66] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                             >
-                              {savingEditLine ? "Sparar..." : "Spara Ã¤ndringar"}
+                              {savingEditLine ? "Sparar..." : "Spara ändringar"}
                             </button>
                           </div>
                         </div>
@@ -763,7 +763,7 @@ export default function ShuttleLinesPage() {
 
                       {!line.shuttle_line_stops?.length ? (
                         <div className="rounded-2xl border bg-[#f8fafc] p-4 text-sm text-gray-500">
-                          Inga hÃ¥llplatser kopplade Ã¤nnu.
+                          Inga hållplatser kopplade ännu.
                         </div>
                       ) : (
                         <div className="overflow-x-auto rounded-2xl border">
@@ -771,8 +771,8 @@ export default function ShuttleLinesPage() {
                             <thead className="bg-[#f8fafc] text-xs text-gray-500">
                               <tr>
                                 <th className="px-3 py-2">Ordning</th>
-                                <th className="px-3 py-2">HÃ¥llplats</th>
-                                <th className="px-3 py-2">AvgÃ¥ng</th>
+                                <th className="px-3 py-2">Hållplats</th>
+                                <th className="px-3 py-2">Avgång</th>
                                 <th className="px-3 py-2">Ankomst</th>
                                 <th className="px-3 py-2">Pris</th>
                                 <th className="px-3 py-2">Aktiv</th>
@@ -798,7 +798,7 @@ export default function ShuttleLinesPage() {
 
                                   <td className="px-3 py-2">
                                     <div className="font-medium">
-                                      {ls.shuttle_stops?.name || "â€”"}
+                                      {ls.shuttle_stops?.name || "-"}
                                     </div>
                                     <div className="text-xs text-gray-500">
                                       {ls.shuttle_stops?.city || ""}

@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
 
@@ -223,7 +223,7 @@ export default function ImporteraShuttleTiderPage() {
                       <td className="px-4 py-3">{row.date}</td>
                       <td className="px-4 py-3">{row.line}</td>
                       <td className="px-4 py-3">
-                        {row.departureTime} → {row.arrivalTime}
+                        {row.departureTime} -> {row.arrivalTime}
                       </td>
                       <td className="px-4 py-3">
                         {row.errors?.length ? (

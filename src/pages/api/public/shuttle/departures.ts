@@ -1,4 +1,4 @@
-﻿import type { NextApiRequest, NextApiResponse } from "next";
+import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 
 const supabase: any =
