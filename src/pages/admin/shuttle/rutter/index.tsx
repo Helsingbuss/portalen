@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
@@ -224,7 +224,7 @@ export default function ShuttleRoutesPage() {
       <div className="min-h-screen bg-[#f5f4f0] lg:pl-64">
         <Header />
 
-        <main className="mx-auto w-full max-w-7xl space-y-6 p-6 pt-24">
+        <main className="space-y-6 p-6 pt-24">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold text-[#194C66]">
@@ -572,3 +572,4 @@ function Stat({ title, value }: { title: string; value: any }) {
     </div>
   );
 }
+
