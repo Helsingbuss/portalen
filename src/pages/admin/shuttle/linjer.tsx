@@ -74,6 +74,11 @@ function tidyTime(value?: string | null) {
   return String(value).slice(0, 5);
 }
 
+function timeInputValue(value?: string | null) {
+  if (!value) return "";
+  return String(value).slice(0, 5);
+}
+
 export default function ShuttleLinesPage() {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [stops, setStops] = useState<Stop[]>([]);
@@ -897,6 +902,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
+
 
 
 
