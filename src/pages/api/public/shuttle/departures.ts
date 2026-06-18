@@ -81,7 +81,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const { data: routes, error: routesError } = await db
       .from("shuttle_routes")
-      .select("id, name, code, operator_name, estimated_duration_minutes")
+      .select("id, name, operator_name, estimated_duration_minutes")
       .in("id", routeIds.length ? routeIds : ["00000000-0000-0000-0000-000000000000"]);
 
     if (routesError) throw routesError;
@@ -181,7 +181,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           lineCode: lineInfo?.code || null,
           lineName: lineInfo?.name || null,
           routeName: routeInfo?.name || null,
-          routeCode: routeInfo?.code || null,
+          routeCode: null,
           date: row.departure_date,
           departureDate: row.departure_date,
           departureTime,
@@ -222,3 +222,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 }
+
