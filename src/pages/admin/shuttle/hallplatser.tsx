@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
 
@@ -13,7 +13,6 @@ type Stop = {
   description?: string | null;
   sort_order?: number | null;
   status?: string | null;
-  is_active?: boolean | null;
 };
 
 type StopForm = {
@@ -26,7 +25,6 @@ type StopForm = {
   description: string;
   sort_order: string;
   status: string;
-  is_active: boolean;
 };
 
 const EMPTY_STOP: StopForm = {
@@ -39,11 +37,9 @@ const EMPTY_STOP: StopForm = {
   description: "",
   sort_order: "",
   status: "active",
-  is_active: true,
 };
 
-function statusLabel(status?: string | null, isActive?: boolean | null) {
-  if (isActive === false) return "Inaktiv";
+function statusLabel(status?: string | null) {
   if (status === "active") return "Aktiv";
   if (status === "draft") return "Utkast";
   if (status === "inactive") return "Inaktiv";
@@ -62,7 +58,6 @@ function stopToForm(stop: Stop): StopForm {
     description: stop.description || "",
     sort_order: stop.sort_order === null || stop.sort_order === undefined ? "" : String(stop.sort_order),
     status: stop.status || "active",
-    is_active: stop.is_active !== false,
   };
 }
 
@@ -91,12 +86,12 @@ export default function ShuttleStopsPage() {
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Kunde inte hämta hållplatser.");
+        throw new Error(json?.error || "Kunde inte hÃ¤mta hÃ¥llplatser.");
       }
 
       setStops(json.stops || []);
     } catch (e: any) {
-      setError(e?.message || "Något gick fel.");
+      setError(e?.message || "NÃ¥got gick fel.");
     } finally {
       setLoading(false);
     }
@@ -109,7 +104,7 @@ export default function ShuttleStopsPage() {
   const stats = useMemo(() => {
     return {
       total: stops.length,
-      active: stops.filter((stop) => stop.is_active !== false && stop.status !== "inactive").length,
+      active: stops.filter((stop) => stop.status !== "inactive").length,
     };
   }, [stops]);
 
@@ -138,7 +133,7 @@ export default function ShuttleStopsPage() {
       setMessage("");
 
       if (!form.name.trim()) {
-        throw new Error("Ange namn på hållplatsen.");
+        throw new Error("Ange namn pÃ¥ hÃ¥llplatsen.");
       }
 
       const res = await fetch("/api/admin/shuttle/stops", {
@@ -152,14 +147,14 @@ export default function ShuttleStopsPage() {
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Kunde inte skapa hållplats.");
+        throw new Error(json?.error || "Kunde inte skapa hÃ¥llplats.");
       }
 
       setForm(EMPTY_STOP);
-      setMessage("Hållplatsen är skapad.");
+      setMessage("HÃ¥llplatsen Ã¤r skapad.");
       await loadStops();
     } catch (e: any) {
-      setError(e?.message || "Något gick fel.");
+      setError(e?.message || "NÃ¥got gick fel.");
     } finally {
       setSaving(false);
     }
@@ -186,7 +181,7 @@ export default function ShuttleStopsPage() {
       setMessage("");
 
       if (!editForm.name.trim()) {
-        throw new Error("Ange namn på hållplatsen.");
+        throw new Error("Ange namn pÃ¥ hÃ¥llplatsen.");
       }
 
       const res = await fetch("/api/admin/shuttle/stops", {
@@ -203,15 +198,15 @@ export default function ShuttleStopsPage() {
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Kunde inte spara hållplatsen.");
+        throw new Error(json?.error || "Kunde inte spara hÃ¥llplatsen.");
       }
 
       setEditingId(null);
       setEditForm(null);
-      setMessage("Hållplatsen är uppdaterad.");
+      setMessage("HÃ¥llplatsen Ã¤r uppdaterad.");
       await loadStops();
     } catch (e: any) {
-      setError(e?.message || "Något gick fel.");
+      setError(e?.message || "NÃ¥got gick fel.");
     } finally {
       setSavingEditId(null);
     }
@@ -219,7 +214,7 @@ export default function ShuttleStopsPage() {
 
   async function deleteStop(stop: Stop) {
     const confirmDelete = window.confirm(
-      `Vill du ta bort hållplatsen "${stop.name}"?\n\nOm hållplatsen används av en linje eller avgång kommer den inte tas bort.`
+      `Vill du ta bort hÃ¥llplatsen "${stop.name}"?\n\nOm hÃ¥llplatsen anvÃ¤nds av en linje eller avgÃ¥ng kommer den inte tas bort.`
     );
 
     if (!confirmDelete) return;
@@ -236,7 +231,7 @@ export default function ShuttleStopsPage() {
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || "Kunde inte ta bort hållplatsen.");
+        throw new Error(json?.error || "Kunde inte ta bort hÃ¥llplatsen.");
       }
 
       if (editingId === stop.id) {
@@ -244,10 +239,10 @@ export default function ShuttleStopsPage() {
         setEditForm(null);
       }
 
-      setMessage("Hållplatsen är borttagen.");
+      setMessage("HÃ¥llplatsen Ã¤r borttagen.");
       await loadStops();
     } catch (e: any) {
-      setError(e?.message || "Något gick fel.");
+      setError(e?.message || "NÃ¥got gick fel.");
     } finally {
       setDeletingId(null);
     }
@@ -264,10 +259,10 @@ export default function ShuttleStopsPage() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold text-[#194C66]">
-                Airport Shuttle – Hållplatser
+                Airport Shuttle â€“ HÃ¥llplatser
               </h1>
               <p className="mt-1 text-sm text-[#194C66]/70">
-                Skapa, redigera och hantera hållplatser för flygbusstrafiken.
+                Skapa, redigera och hantera hÃ¥llplatser fÃ¶r flygbusstrafiken.
               </p>
             </div>
 
@@ -281,7 +276,7 @@ export default function ShuttleStopsPage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <Stat title="Hållplatser" value={stats.total} />
+            <Stat title="HÃ¥llplatser" value={stats.total} />
             <Stat title="Aktiva" value={stats.active} />
           </div>
 
@@ -300,11 +295,11 @@ export default function ShuttleStopsPage() {
           <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
             <aside className="rounded-3xl bg-white p-6 shadow">
               <h2 className="text-lg font-semibold text-[#194C66]">
-                Skapa hållplats
+                Skapa hÃ¥llplats
               </h2>
 
               <div className="mt-5 space-y-4">
-                <Field label="Hållplatsnamn">
+                <Field label="HÃ¥llplatsnamn">
                   <input
                     value={form.name}
                     onChange={(e) => updateForm("name", e.target.value)}
@@ -326,13 +321,13 @@ export default function ShuttleStopsPage() {
                   <input
                     value={form.address}
                     onChange={(e) => updateForm("address", e.target.value)}
-                    placeholder="Järnvägsgatan 22"
+                    placeholder="JÃ¤rnvÃ¤gsgatan 22"
                     className="w-full rounded-xl border px-3 py-2"
                   />
                 </Field>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <Field label="Hållplatskod">
+                  <Field label="HÃ¥llplatskod">
                     <input
                       value={form.stop_code}
                       onChange={(e) => updateForm("stop_code", e.target.value)}
@@ -389,7 +384,7 @@ export default function ShuttleStopsPage() {
                     checked={form.is_active}
                     onChange={(e) => updateForm("is_active", e.target.checked)}
                   />
-                  Aktiv hållplats
+                  Aktiv hÃ¥llplats
                 </label>
 
                 <Field label="Beskrivning">
@@ -407,7 +402,7 @@ export default function ShuttleStopsPage() {
                   disabled={saving}
                   className="w-full rounded-2xl bg-[#194C66] px-4 py-3 font-semibold text-white disabled:opacity-50"
                 >
-                  {saving ? "Sparar..." : "Skapa hållplats"}
+                  {saving ? "Sparar..." : "Skapa hÃ¥llplats"}
                 </button>
               </div>
             </aside>
@@ -415,15 +410,15 @@ export default function ShuttleStopsPage() {
             <section className="overflow-hidden rounded-3xl bg-white shadow">
               <div className="border-b p-5">
                 <h2 className="text-lg font-semibold text-[#194C66]">
-                  Hållplatslista
+                  HÃ¥llplatslista
                 </h2>
               </div>
 
               {loading ? (
-                <div className="p-6 text-sm text-gray-500">Laddar hållplatser...</div>
+                <div className="p-6 text-sm text-gray-500">Laddar hÃ¥llplatser...</div>
               ) : stops.length === 0 ? (
                 <div className="p-6 text-sm text-gray-500">
-                  Inga hållplatser skapade ännu.
+                  Inga hÃ¥llplatser skapade Ã¤nnu.
                 </div>
               ) : (
                 <div className="divide-y">
@@ -446,26 +441,26 @@ export default function ShuttleStopsPage() {
                               )}
 
                               <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
-                                {statusLabel(stop.status, stop.is_active)}
+                                {statusLabel(stop.status)}
                               </span>
                             </div>
 
                             <p className="mt-1 text-sm text-gray-500">
-                              {stop.city || "—"} {stop.address ? `· ${stop.address}` : ""}
+                              {stop.city || "â€”"} {stop.address ? `Â· ${stop.address}` : ""}
                             </p>
 
                             <div className="mt-3 grid gap-2 text-sm text-gray-600 md:grid-cols-3">
                               <div>
                                 <span className="font-semibold">Ordning:</span>{" "}
-                                {stop.sort_order ?? "—"}
+                                {stop.sort_order ?? "â€”"}
                               </div>
                               <div>
                                 <span className="font-semibold">Lat:</span>{" "}
-                                {stop.latitude ?? "—"}
+                                {stop.latitude ?? "â€”"}
                               </div>
                               <div>
                                 <span className="font-semibold">Lng:</span>{" "}
-                                {stop.longitude ?? "—"}
+                                {stop.longitude ?? "â€”"}
                               </div>
                             </div>
                           </div>
@@ -493,11 +488,11 @@ export default function ShuttleStopsPage() {
                         {isEditing && (
                           <div className="mt-5 rounded-3xl border bg-[#f8fafc] p-5">
                             <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#194C66]/70">
-                              Redigera hållplats
+                              Redigera hÃ¥llplats
                             </h4>
 
                             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                              <Field label="Hållplatsnamn">
+                              <Field label="HÃ¥llplatsnamn">
                                 <input
                                   value={editForm.name}
                                   onChange={(e) => updateEditForm("name", e.target.value)}
@@ -521,7 +516,7 @@ export default function ShuttleStopsPage() {
                                 />
                               </Field>
 
-                              <Field label="Hållplatskod">
+                              <Field label="HÃ¥llplatskod">
                                 <input
                                   value={editForm.stop_code}
                                   onChange={(e) => updateEditForm("stop_code", e.target.value)}
@@ -572,7 +567,7 @@ export default function ShuttleStopsPage() {
                                   checked={editForm.is_active}
                                   onChange={(e) => updateEditForm("is_active", e.target.checked)}
                                 />
-                                Aktiv hållplats
+                                Aktiv hÃ¥llplats
                               </label>
 
                               <div className="md:col-span-2 xl:col-span-3">
@@ -602,7 +597,7 @@ export default function ShuttleStopsPage() {
                                 disabled={savingEditId === stop.id}
                                 className="rounded-full bg-[#194C66] px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
                               >
-                                {savingEditId === stop.id ? "Sparar..." : "Spara ändringar"}
+                                {savingEditId === stop.id ? "Sparar..." : "Spara Ã¤ndringar"}
                               </button>
                             </div>
                           </div>
@@ -643,3 +638,4 @@ function Stat({ title, value }: { title: string; value: any }) {
     </div>
   );
 }
+

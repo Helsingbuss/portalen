@@ -1,4 +1,4 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+﻿import type { NextApiRequest, NextApiResponse } from "next";
 import * as admin from "@/lib/supabaseAdmin";
 
 const supabase: any =
@@ -43,7 +43,6 @@ function stopPayload(body: any) {
     sort_order: numberOrZero(body.sort_order),
 
     status: body.status || "active",
-    is_active: boolValue(body.is_active, true),
 
     updated_at: new Date().toISOString(),
   };
@@ -93,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!body.name?.trim()) {
         return res.status(400).json({
           ok: false,
-          error: "Hållplatsnamn saknas.",
+          error: "HÃ¥llplatsnamn saknas.",
         });
       }
 
@@ -118,14 +117,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!id) {
         return res.status(400).json({
           ok: false,
-          error: "Hållplats-ID saknas.",
+          error: "HÃ¥llplats-ID saknas.",
         });
       }
 
       if (!body.name?.trim()) {
         return res.status(400).json({
           ok: false,
-          error: "Hållplatsnamn saknas.",
+          error: "HÃ¥llplatsnamn saknas.",
         });
       }
 
@@ -150,7 +149,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!id) {
         return res.status(400).json({
           ok: false,
-          error: "Hållplats-ID saknas.",
+          error: "HÃ¥llplats-ID saknas.",
         });
       }
 
@@ -160,8 +159,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(409).json({
           ok: false,
           error:
-            `Hållplatsen kan inte tas bort eftersom den används av ${usage.lineStopCount} linjekoppling/ar och ${usage.departureStopCount} avgångsstopp. ` +
-            "Ta bort kopplingarna först.",
+            `HÃ¥llplatsen kan inte tas bort eftersom den anvÃ¤nds av ${usage.lineStopCount} linjekoppling/ar och ${usage.departureStopCount} avgÃ¥ngsstopp. ` +
+            "Ta bort kopplingarna fÃ¶rst.",
           usage,
         });
       }
@@ -188,7 +187,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(500).json({
       ok: false,
-      error: e?.message || "Kunde inte hantera hållplatser.",
+      error: e?.message || "Kunde inte hantera hÃ¥llplatser.",
     });
   }
 }
