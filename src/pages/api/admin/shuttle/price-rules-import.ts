@@ -39,38 +39,90 @@ function ticketTypeKey(value: string) {
 }
 
 function parsePrice(value: string) {
-  const numberText = clean(value)
-    .replace("kr", "")
-    .replace("SEK", "")
+  const raw = clean(value);
+
+  if (raw === "") {
+    return null;
+  }
+
+  const numberText = raw
     .replace(",", ".")
-    .trim();
+    .replace(/[^0-9.]/g, "");
+
+  if (numberText === "") {
+    return null;
+  }
 
   const number = Number(numberText);
 
-  return Number.isFinite(number) ? Math.round(number) : 0;
+  return Number.isFinite(number) ? Math.round(number) : null;
+}
+
+function isHeaderRow(columns: string[]) {
+  const firstColumn = normalizeKey(columns[0] || "");
+  const fullLine = normalizeKey(columns.join(" "));
+
+  return (
+    firstColumn === "linje" ||
+    firstColumn === "line" ||
+    fullLine.includes("från hållplats") ||
+    fullLine.includes("fran hallplats") ||
+    fullLine.includes("resenärstyp") ||
+    fullLine.includes("biljettyp")
+  );
+}
+
+function isInfoOrSeparatorRow(line: string) {
+  const value = normalizeKey(line);
+
+  if (!value) return true;
+  if (value.replace(/[-_;|.\s]/g, "") === "") return true;
+
+  return false;
 }
 
 function parseRows(text: string) {
   const lines = String(text || "")
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter(Boolean);
+    .filter((line) => !isInfoOrSeparatorRow(line));
 
   const rows: any[] = [];
   const errors: string[] = [];
 
+  let lastLineCode = "";
+
   lines.forEach((line, index) => {
     const rowNumber = index + 1;
-    const columns = line.split(";").map((column) => column.trim());
+    let columns = line.split(";").map((column) => column.trim());
 
-    const firstColumn = normalizeKey(columns[0] || "");
-
-    if (rowNumber === 1 && (firstColumn === "linje" || firstColumn === "line")) {
+    if (isHeaderRow(columns)) {
       return;
     }
 
+    // Stöd för rader där linjen bara står på första raden och sedan är tom.
+    // Exempel:
+    // 811; Helsingborg C; Ängelholms Flygplats; Vuxen; Ekonomi; 149
+    // ; Helsingborg Stattena; Ängelholms Flygplats; Vuxen; Ekonomi; 139
+    if (columns.length >= 6) {
+      if (clean(columns[0])) {
+        lastLineCode = clean(columns[0]);
+      } else if (lastLineCode) {
+        columns[0] = lastLineCode;
+      }
+    }
+
+    // Stöd för rader där linje-kolumnen saknas helt men tidigare linje finns.
+    // Exempel:
+    // Helsingborg Stattena; Ängelholms Flygplats; Vuxen; Ekonomi; 139
+    if (columns.length === 5 && lastLineCode) {
+      columns = [lastLineCode, ...columns];
+    }
+
     if (columns.length < 6) {
-      errors.push(`Rad ${rowNumber}: För få kolumner. Använd: Linje; Från hållplats; Till hållplats; Resenärstyp; Biljettyp; Pris`);
+      errors.push(
+        `Rad ${rowNumber}: För få kolumner. Använd: Linje; Från hållplats; Till hållplats; Resenärstyp; Biljettyp; Pris`
+      );
       return;
     }
 
@@ -81,10 +133,14 @@ function parseRows(text: string) {
     const ticketKey = ticketTypeKey(columns[4]);
     const price = parsePrice(columns[5]);
 
-    if (!lineCode || !fromStopName || !toStopName || !passengerKey || !ticketKey || price <= 0) {
-      errors.push(`Rad ${rowNumber}: Saknar linje, hållplats, resenärstyp, biljettyp eller pris.`);
+    if (!lineCode || !fromStopName || !toStopName || !passengerKey || !ticketKey || price === null || price < 0) {
+      errors.push(
+        `Rad ${rowNumber}: Saknar linje, hållplats, resenärstyp, biljettyp eller pris.`
+      );
       return;
     }
+
+    lastLineCode = lineCode;
 
     rows.push({
       line_code: lineCode,
@@ -186,3 +242,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     errors: [],
   });
 }
+
