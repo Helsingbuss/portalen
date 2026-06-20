@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === "GET") {
     const { data, error } = await supabase
       .from("shuttle_price_rules")
-      .select("id,line_code,from_stop_name,to_stop_name,passenger_type_key,ticket_type_key,price_sek,is_active,updated_at")
+      .select("id,valid_from,valid_to,line_code,from_stop_name,to_stop_name,passenger_type_key,ticket_type_key,price_sek,is_active,updated_at")
       .order("line_code", { ascending: true })
       .order("from_stop_name", { ascending: true });
 
@@ -24,6 +24,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === "POST") {
     const row = {
+      valid_from: String(req.body?.valid_from || "1900-01-01").trim(),
+      valid_to: String(req.body?.valid_to || "2099-12-31").trim(),
       line_code: String(req.body?.line_code || "").trim(),
       from_stop_name: String(req.body?.from_stop_name || "").trim(),
       to_stop_name: String(req.body?.to_stop_name || "").trim(),
@@ -37,9 +39,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { data, error } = await supabase
       .from("shuttle_price_rules")
       .upsert(row, {
-        onConflict: "line_code,from_stop_name,to_stop_name,passenger_type_key,ticket_type_key",
+        onConflict: "valid_from,valid_to,line_code,from_stop_name,to_stop_name,passenger_type_key,ticket_type_key",
       })
-      .select("id,line_code,from_stop_name,to_stop_name,passenger_type_key,ticket_type_key,price_sek,is_active,updated_at")
+      .select("id,valid_from,valid_to,line_code,from_stop_name,to_stop_name,passenger_type_key,ticket_type_key,price_sek,is_active,updated_at")
       .single();
 
     if (error) return res.status(500).json({ ok: false, message: error.message });
@@ -60,3 +62,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   return res.status(405).json({ ok: false, message: "Metoden stöds inte." });
 }
+
