@@ -18,6 +18,10 @@ function normalizeKey(value: string) {
     .replace(/\s+/g, " ");
 }
 
+function isDate(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(clean(value));
+}
+
 function passengerTypeKey(value: string) {
   const key = normalizeKey(value);
 
@@ -41,17 +45,13 @@ function ticketTypeKey(value: string) {
 function parsePrice(value: string) {
   const raw = clean(value);
 
-  if (raw === "") {
-    return null;
-  }
+  if (raw === "") return null;
 
   const numberText = raw
     .replace(",", ".")
     .replace(/[^0-9.]/g, "");
 
-  if (numberText === "") {
-    return null;
-  }
+  if (numberText === "") return null;
 
   const number = Number(numberText);
 
@@ -59,15 +59,16 @@ function parsePrice(value: string) {
 }
 
 function isHeaderRow(columns: string[]) {
-  const firstColumn = normalizeKey(columns[0] || "");
   const fullLine = normalizeKey(columns.join(" "));
 
   return (
-    firstColumn === "linje" ||
-    firstColumn === "line" ||
+    fullLine.includes("giltig från") ||
+    fullLine.includes("giltig fran") ||
+    fullLine.includes("linje") ||
     fullLine.includes("från hållplats") ||
     fullLine.includes("fran hallplats") ||
     fullLine.includes("resenärstyp") ||
+    fullLine.includes("resenarstyp") ||
     fullLine.includes("biljettyp")
   );
 }
@@ -82,28 +83,32 @@ function isInfoOrSeparatorRow(line: string) {
 }
 
 function parseRows(text: string) {
-  const lines = String(text || "")
+  const rawLines = String(text || "")
     .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => !isInfoOrSeparatorRow(line));
+    .map((line) => line.trim());
 
   const rows: any[] = [];
   const errors: string[] = [];
-
   let lastLineCode = "";
 
-  lines.forEach((line, index) => {
+  rawLines.forEach((line, index) => {
     const rowNumber = index + 1;
+
+    if (isInfoOrSeparatorRow(line)) return;
+
     let columns = line.split(";").map((column) => column.trim());
 
-    if (isHeaderRow(columns)) {
-      return;
+    if (isHeaderRow(columns)) return;
+
+    let validFrom = "1900-01-01";
+    let validTo = "2099-12-31";
+
+    if (columns.length >= 8 && isDate(columns[0]) && isDate(columns[1])) {
+      validFrom = clean(columns[0]);
+      validTo = clean(columns[1]);
+      columns = columns.slice(2);
     }
 
-    // Stöd för rader där linjen bara står på första raden och sedan är tom.
-    // Exempel:
-    // 811; Helsingborg C; Ängelholms Flygplats; Vuxen; Ekonomi; 149
-    // ; Helsingborg Stattena; Ängelholms Flygplats; Vuxen; Ekonomi; 139
     if (columns.length >= 6) {
       if (clean(columns[0])) {
         lastLineCode = clean(columns[0]);
@@ -112,16 +117,13 @@ function parseRows(text: string) {
       }
     }
 
-    // Stöd för rader där linje-kolumnen saknas helt men tidigare linje finns.
-    // Exempel:
-    // Helsingborg Stattena; Ängelholms Flygplats; Vuxen; Ekonomi; 139
     if (columns.length === 5 && lastLineCode) {
       columns = [lastLineCode, ...columns];
     }
 
     if (columns.length < 6) {
       errors.push(
-        `Rad ${rowNumber}: För få kolumner. Använd: Linje; Från hållplats; Till hållplats; Resenärstyp; Biljettyp; Pris`
+        `Rad ${rowNumber}: För få kolumner. Använd: Giltig från; Giltig till; Linje; Från hållplats; Till hållplats; Resenärstyp; Biljettyp; Pris`
       );
       return;
     }
@@ -133,9 +135,19 @@ function parseRows(text: string) {
     const ticketKey = ticketTypeKey(columns[4]);
     const price = parsePrice(columns[5]);
 
-    if (!lineCode || !fromStopName || !toStopName || !passengerKey || !ticketKey || price === null || price < 0) {
+    if (
+      !validFrom ||
+      !validTo ||
+      !lineCode ||
+      !fromStopName ||
+      !toStopName ||
+      !passengerKey ||
+      !ticketKey ||
+      price === null ||
+      price < 0
+    ) {
       errors.push(
-        `Rad ${rowNumber}: Saknar linje, hållplats, resenärstyp, biljettyp eller pris.`
+        `Rad ${rowNumber}: Saknar datum, linje, hållplats, resenärstyp, biljettyp eller pris.`
       );
       return;
     }
@@ -143,6 +155,8 @@ function parseRows(text: string) {
     lastLineCode = lineCode;
 
     rows.push({
+      valid_from: validFrom,
+      valid_to: validTo,
       line_code: lineCode,
       from_stop_name: fromStopName,
       to_stop_name: toStopName,
@@ -180,6 +194,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const previewRows = rows.map((row) => ({
     rowNumber: row.__rowNumber,
+    valid_from: row.valid_from,
+    valid_to: row.valid_to,
     line_code: row.line_code,
     from_stop_name: row.from_stop_name,
     to_stop_name: row.to_stop_name,
@@ -222,9 +238,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .from("shuttle_price_rules")
     .upsert(upsertRows, {
       onConflict:
-        "line_code,from_stop_name,to_stop_name,passenger_type_key,ticket_type_key",
+        "valid_from,valid_to,line_code,from_stop_name,to_stop_name,passenger_type_key,ticket_type_key",
     })
-    .select("id,line_code,from_stop_name,to_stop_name,passenger_type_key,ticket_type_key,price_sek,is_active,updated_at");
+    .select("id,valid_from,valid_to,line_code,from_stop_name,to_stop_name,passenger_type_key,ticket_type_key,price_sek,is_active,updated_at");
 
   if (error) {
     return res.status(500).json({
@@ -242,4 +258,3 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     errors: [],
   });
 }
-
