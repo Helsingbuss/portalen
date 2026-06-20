@@ -196,6 +196,9 @@ export default function AdminMenu({ active }: Props) {
       <div className="text-[10px] text-gray-400 mt-2">Biljetter & kunder</div>
       <Link href="/admin/shuttle/biljetter" className={subLink}>Biljetter</Link>
       <Link href="/admin/shuttle/passagerare" className={subLink}>Passagerare</Link>
+      <Link href="/admin/shuttle/biljettyper" className={subLink}>Biljettyper</Link>
+      <Link href="/admin/shuttle/resenarstyper" className={subLink}>Resenärstyper</Link>
+      <Link href="/admin/shuttle/prislista" className={subLink}>Prislista</Link>
       <Link href="/admin/shuttle/aterbetalningar" className={subLink}>Återbetalningar</Link>
       <Link href="/admin/shuttle/avbokningar" className={subLink}>Avbokningar</Link>
 
@@ -620,6 +623,7 @@ export default function AdminMenu({ active }: Props) {
     </aside>
   );
 }
+
 
 
 
