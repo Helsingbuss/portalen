@@ -189,6 +189,7 @@ export default function AdminMenu({ active }: Props) {
       {/* NÄT & HÅLLPLATSER */}
       <div className="text-[10px] text-gray-400 mt-2">Nät & hållplatser</div>
       <Link href="/admin/shuttle/tidtabeller" className={subLink}>Tidtabeller</Link>
+      <Link href="/admin/shuttle/importera-tider" className={subLink}>Importera tider</Link>
       <Link href="/admin/shuttle/linjer" className={subLink}>Linjer</Link>
       <Link href="/admin/shuttle/hallplatser" className={subLink}>Hållplatser</Link>
 
@@ -623,6 +624,7 @@ export default function AdminMenu({ active }: Props) {
     </aside>
   );
 }
+
 
 
 
