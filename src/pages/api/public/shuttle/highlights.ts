@@ -20,6 +20,7 @@ function toCard(row: any) {
     active: Boolean(row.is_active),
     startDate: row.start_date ?? "",
     endDate: row.end_date ?? "",
+    sortOrder: Number(row.sort_order ?? 100),
   };
 }
 
@@ -60,4 +61,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 }
+
 

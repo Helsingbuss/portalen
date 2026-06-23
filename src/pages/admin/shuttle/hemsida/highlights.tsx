@@ -183,7 +183,7 @@ export default function ShuttleHighlightsAdminPage() {
               </section>
             ) : (
               <section className="grid gap-7 xl:grid-cols-3">
-                {cards.map((card) => (
+                {cards.map((card, index) => (
                   <article
                     key={card.id}
                     className="overflow-hidden rounded-2xl bg-white shadow-sm border border-slate-200"
@@ -199,7 +199,7 @@ export default function ShuttleHighlightsAdminPage() {
                     <div className="space-y-4 p-5">
                       <div className="flex items-center justify-between gap-3">
                         <h2 className="text-lg font-bold text-slate-900">
-                          Kort {card.id}
+                          Kort {index + 1}
                         </h2>
 
                         <label className="flex items-center gap-2 text-sm text-slate-600">
@@ -350,4 +350,5 @@ export default function ShuttleHighlightsAdminPage() {
     </div>
   );
 }
+
 
