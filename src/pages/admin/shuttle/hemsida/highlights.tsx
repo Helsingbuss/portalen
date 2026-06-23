@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import AdminMenu from "@/components/AdminMenu";
 import Header from "@/components/Header";
 
@@ -12,18 +12,20 @@ type HighlightCard = {
   active: boolean;
   startDate: string;
   endDate: string;
+  sortOrder: number;
 };
 
 const emptyCard = (id: number): HighlightCard => ({
   id,
   title: "Nytt bildkort",
-  text: "Skriv en kort och säljande text här.",
+  text: "Skriv en kort och sÃ¤ljande text hÃ¤r.",
   image: "/images/highlights/highlight-booking.png",
-  buttonText: "Läs mer",
+  buttonText: "LÃ¤s mer",
   buttonLink: "/start",
   active: true,
   startDate: new Date().toISOString().slice(0, 10),
   endDate: "",
+  sortOrder: id,
 });
 
 export default function ShuttleHighlightsAdminPage() {
@@ -46,20 +48,27 @@ export default function ShuttleHighlightsAdminPage() {
       const response = await fetch("/api/admin/shuttle/highlights");
 
       if (!response.ok) {
-        throw new Error("Kunde inte hämta bildkorten.");
+        throw new Error("Kunde inte hÃ¤mta bildkorten.");
       }
 
       const data = await response.json();
-      setCards(Array.isArray(data.cards) ? data.cards : []);
+      setCards(
+        Array.isArray(data.cards)
+          ? data.cards.map((card: any, index: number) => ({
+              ...card,
+              sortOrder: Number(card.sortOrder ?? index + 1),
+            }))
+          : []
+      );
     } catch (error) {
       console.error(error);
-      alert("Kunde inte hämta bildkorten från databasen.");
+      alert("Kunde inte hÃ¤mta bildkorten frÃ¥n databasen.");
     } finally {
       setLoading(false);
     }
   }
 
-  function updateCard(id: number | string, field: keyof HighlightCard, value: string | boolean) {
+  function updateCard(id: number | string, field: keyof HighlightCard, value: string | boolean | number) {
     setCards((current) =>
       current.map((card) =>
         card.id === id ? { ...card, [field]: value } : card
@@ -99,11 +108,18 @@ export default function ShuttleHighlightsAdminPage() {
         throw new Error(data?.error || "Kunde inte spara bildkorten.");
       }
 
-      setCards(Array.isArray(data.cards) ? data.cards : []);
-      alert("Ändringarna är sparade.");
+      setCards(
+        Array.isArray(data.cards)
+          ? data.cards.map((card: any, index: number) => ({
+              ...card,
+              sortOrder: Number(card.sortOrder ?? index + 1),
+            }))
+          : []
+      );
+      alert("Ã„ndringarna Ã¤r sparade.");
     } catch (error: any) {
       console.error(error);
-      alert(error?.message || "Kunde inte spara ändringarna.");
+      alert(error?.message || "Kunde inte spara Ã¤ndringarna.");
     } finally {
       setSaving(false);
     }
@@ -130,8 +146,8 @@ export default function ShuttleHighlightsAdminPage() {
                   </h1>
 
                   <p className="mt-2 max-w-3xl text-sm text-slate-600">
-                    Här styr du bildkorten som visas på startsidan för HB Shuttle.
-                    Du kan ändra rubrik, text, bild, knapp, datum och lägga till fler kort.
+                    HÃ¤r styr du bildkorten som visas pÃ¥ startsidan fÃ¶r HB Shuttle.
+                    Du kan Ã¤ndra rubrik, text, bild, knapp, datum och lÃ¤gga till fler kort.
                   </p>
                 </div>
 
@@ -146,7 +162,7 @@ export default function ShuttleHighlightsAdminPage() {
                     disabled={saving || loading}
                     className="rounded-xl bg-[#1A545F] px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#164852] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {saving ? "Sparar..." : "Spara ändringar"}
+                    {saving ? "Sparar..." : "Spara Ã¤ndringar"}
                   </button>
 
                   <button
@@ -155,7 +171,7 @@ export default function ShuttleHighlightsAdminPage() {
                     disabled={loading}
                     className="rounded-xl bg-[#007764] px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#006A59] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    + Lägg till bildkort
+                    + LÃ¤gg till bildkort
                   </button>
                 </div>
               </div>
@@ -163,7 +179,7 @@ export default function ShuttleHighlightsAdminPage() {
 
             {loading ? (
               <section className="rounded-2xl bg-white p-8 text-center text-sm text-slate-600 shadow-sm border border-slate-200">
-                Hämtar bildkorten från databasen...
+                HÃ¤mtar bildkorten frÃ¥n databasen...
               </section>
             ) : (
               <section className="grid gap-7 xl:grid-cols-3">
@@ -200,6 +216,24 @@ export default function ShuttleHighlightsAdminPage() {
 
                       <div>
                         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Ordning
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={card.sortOrder}
+                          onChange={(event) =>
+                            updateCard(card.id, "sortOrder", Number(event.target.value || 100))
+                          }
+                          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#007764] focus:ring-2 focus:ring-[#007764]/15"
+                        />
+                        <p className="mt-1 text-xs text-slate-500">
+                          Lägst nummer visas först. Exempel: 1, 2, 3.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                           Rubrik
                         </label>
                         <input
@@ -227,7 +261,7 @@ export default function ShuttleHighlightsAdminPage() {
 
                       <div>
                         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Bildsökväg
+                          BildsÃ¶kvÃ¤g
                         </label>
                         <input
                           value={card.image}
@@ -241,7 +275,7 @@ export default function ShuttleHighlightsAdminPage() {
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
                           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Visas från
+                            Visas frÃ¥n
                           </label>
                           <input
                             type="date"
@@ -284,7 +318,7 @@ export default function ShuttleHighlightsAdminPage() {
 
                         <div>
                           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Länk
+                            LÃ¤nk
                           </label>
                           <input
                             value={card.buttonLink}
@@ -316,3 +350,4 @@ export default function ShuttleHighlightsAdminPage() {
     </div>
   );
 }
+

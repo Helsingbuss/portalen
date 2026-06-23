@@ -13,6 +13,7 @@ type HighlightCardInput = {
   active?: boolean;
   startDate?: string;
   endDate?: string;
+  sortOrder?: number | string;
 };
 
 function toCard(row: any) {
@@ -26,6 +27,7 @@ function toCard(row: any) {
     active: Boolean(row.is_active),
     startDate: row.start_date ?? "",
     endDate: row.end_date ?? "",
+    sortOrder: Number(row.sort_order ?? 100),
   };
 }
 
@@ -53,7 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         : [];
 
       const rows = cards.map((card, index) => ({
-        sort_order: index + 1,
+        sort_order: Number(card.sortOrder ?? index + 1) || index + 1,
         title: String(card.title ?? ""),
         text: String(card.text ?? ""),
         image_path: String(card.image ?? ""),
@@ -100,3 +102,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 }
+
