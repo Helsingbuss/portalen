@@ -18,9 +18,9 @@ type HighlightCard = {
 const emptyCard = (id: number): HighlightCard => ({
   id,
   title: "Nytt bildkort",
-  text: "Skriv en kort och sÃ¤ljande text hÃ¤r.",
+  text: "Skriv en kort och säljande text här.",
   image: "/images/highlights/highlight-booking.png",
-  buttonText: "LÃ¤s mer",
+  buttonText: "Läs mer",
   buttonLink: "/start",
   active: true,
   startDate: new Date().toISOString().slice(0, 10),
@@ -48,7 +48,7 @@ export default function ShuttleHighlightsAdminPage() {
       const response = await fetch("/api/admin/shuttle/highlights");
 
       if (!response.ok) {
-        throw new Error("Kunde inte hÃ¤mta bildkorten.");
+        throw new Error("Kunde inte hämta bildkorten.");
       }
 
       const data = await response.json();
@@ -62,7 +62,7 @@ export default function ShuttleHighlightsAdminPage() {
       );
     } catch (error) {
       console.error(error);
-      alert("Kunde inte hÃ¤mta bildkorten frÃ¥n databasen.");
+      alert("Kunde inte hämta bildkorten från databasen.");
     } finally {
       setLoading(false);
     }
@@ -116,10 +116,10 @@ export default function ShuttleHighlightsAdminPage() {
             }))
           : []
       );
-      alert("Ã„ndringarna Ã¤r sparade.");
+      alert("Ändringarna är sparade.");
     } catch (error: any) {
       console.error(error);
-      alert(error?.message || "Kunde inte spara Ã¤ndringarna.");
+      alert(error?.message || "Kunde inte spara ändringarna.");
     } finally {
       setSaving(false);
     }
@@ -146,8 +146,8 @@ export default function ShuttleHighlightsAdminPage() {
                   </h1>
 
                   <p className="mt-2 max-w-3xl text-sm text-slate-600">
-                    HÃ¤r styr du bildkorten som visas pÃ¥ startsidan fÃ¶r HB Shuttle.
-                    Du kan Ã¤ndra rubrik, text, bild, knapp, datum och lÃ¤gga till fler kort.
+                    Här styr du bildkorten som visas på startsidan för HB Shuttle.
+                    Du kan ändra rubrik, text, bild, knapp, datum och lägga till fler kort.
                   </p>
                 </div>
 
@@ -162,7 +162,7 @@ export default function ShuttleHighlightsAdminPage() {
                     disabled={saving || loading}
                     className="rounded-xl bg-[#1A545F] px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#164852] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {saving ? "Sparar..." : "Spara Ã¤ndringar"}
+                    {saving ? "Sparar..." : "Spara ändringar"}
                   </button>
 
                   <button
@@ -171,7 +171,7 @@ export default function ShuttleHighlightsAdminPage() {
                     disabled={loading}
                     className="rounded-xl bg-[#007764] px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#006A59] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    + LÃ¤gg till bildkort
+                    + Lägg till bildkort
                   </button>
                 </div>
               </div>
@@ -179,7 +179,7 @@ export default function ShuttleHighlightsAdminPage() {
 
             {loading ? (
               <section className="rounded-2xl bg-white p-8 text-center text-sm text-slate-600 shadow-sm border border-slate-200">
-                HÃ¤mtar bildkorten frÃ¥n databasen...
+                Hämtar bildkorten från databasen...
               </section>
             ) : (
               <section className="grid gap-7 xl:grid-cols-3">
@@ -261,7 +261,7 @@ export default function ShuttleHighlightsAdminPage() {
 
                       <div>
                         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          BildsÃ¶kvÃ¤g
+                          Bildsökväg
                         </label>
                         <input
                           value={card.image}
@@ -275,7 +275,7 @@ export default function ShuttleHighlightsAdminPage() {
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
                           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Visas frÃ¥n
+                            Visas från
                           </label>
                           <input
                             type="date"
@@ -318,7 +318,7 @@ export default function ShuttleHighlightsAdminPage() {
 
                         <div>
                           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            LÃ¤nk
+                            Länk
                           </label>
                           <input
                             value={card.buttonLink}
