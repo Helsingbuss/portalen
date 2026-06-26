@@ -4,7 +4,7 @@
     "slug": "helsingbuss-admin-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./src/assets/notifications/notification-icon_farg.png",
+    "icon": "./src/assets/notifications/app-icon-square.png",
     "scheme": "helsingbussadminmobile",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -16,11 +16,7 @@
       "package": "se.helsingbuss.admin",
       "adaptiveIcon": {
         "backgroundColor": "#003C3A",
-        "foregroundImage": "./src/assets/notifications/notification-icon_farg.png"
-      },
-      "notification": {
-        "icon": "./src/assets/notifications/notification-icon_vit.png",
-        "color": "#003C3A"
+        "foregroundImage": "./src/assets/notifications/adaptive-icon-square.png"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -67,7 +63,7 @@
       "reactCompiler": true
     },
     "notification": {
-      "icon": "./src/assets/notifications/notification-icon_vit.png",
+      "icon": "./src/assets/notifications/notification-icon-square.png",
       "color": "#003C3A"
     },
     "extra": {
