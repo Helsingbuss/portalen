@@ -149,6 +149,77 @@ export default function EditSynergyBusPage() {
     }
   }
 
+  async function quickSetStatus(nextStatus: string, label: string) {
+    if (!id || typeof id !== "string") return;
+
+    const confirmed = window.confirm(`Vill du markera denna förfrågan som "${label}"?`);
+
+    if (!confirmed) return;
+
+    setSaving(true);
+    setError("");
+    setSavedMessage("");
+
+    try {
+      const nextForm = {
+        ...form,
+        status: nextStatus,
+      };
+
+      const response = await fetch(`/api/offers/synergybus/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(nextForm),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Kunde inte uppdatera status.");
+      }
+
+      setForm(nextForm);
+      setSavedMessage(`Status uppdaterad: ${label}`);
+    } catch (err: any) {
+      setError(err?.message || "Något gick fel.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteRequest() {
+    if (!id || typeof id !== "string") return;
+
+    const confirmed = window.confirm(
+      "Vill du verkligen ta bort denna SynergyBus-förfrågan? Detta går inte att ångra."
+    );
+
+    if (!confirmed) return;
+
+    setSaving(true);
+    setError("");
+    setSavedMessage("");
+
+    try {
+      const response = await fetch(`/api/offers/synergybus/${id}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Kunde inte ta bort förfrågan.");
+      }
+
+      router.push("/admin/offers/synergybus");
+    } catch (err: any) {
+      setError(err?.message || "Något gick fel.");
+      setSaving(false);
+    }
+  }
+
   useEffect(() => {
     loadRequest();
   }, [id]);
@@ -172,6 +243,68 @@ export default function EditSynergyBusPage() {
             Öppna, granska och uppdatera förfrågan, priset och statusen.
           </p>
         </div>
+
+        {!loading ? (
+          <section className="mb-5 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">
+                  Snabbåtgärder
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Uppdatera status snabbt utan att behöva ändra i listan manuellt.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => quickSetStatus("quote_sent", "Offert skickad")}
+                  disabled={saving}
+                  className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-60"
+                >
+                  Offert skickad
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => quickSetStatus("won", "Vi vann")}
+                  disabled={saving}
+                  className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm font-semibold text-green-700 hover:bg-green-100 disabled:opacity-60"
+                >
+                  Vi vann
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => quickSetStatus("lost", "Kund avböjde")}
+                  disabled={saving}
+                  className="rounded-xl border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm font-semibold text-yellow-800 hover:bg-yellow-100 disabled:opacity-60"
+                >
+                  Kund avböjde
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => quickSetStatus("declined", "Vi avböjer")}
+                  disabled={saving}
+                  className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-60"
+                >
+                  Vi avböjer
+                </button>
+
+                <button
+                  type="button"
+                  onClick={deleteRequest}
+                  disabled={saving}
+                  className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+                >
+                  Ta bort
+                </button>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         {loading ? (
           <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-500 shadow-sm">

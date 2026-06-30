@@ -14,6 +14,16 @@ function toNumber(value: unknown) {
   return Number.isFinite(numberValue) ? numberValue : null;
 }
 
+function localSqlTimestamp(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const h = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+
+  return `${y}-${m}-${d} ${h}:${min}:00`;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (req.method === "GET") {
@@ -73,6 +83,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       return res.status(201).json({ row: data });
+    }
+
+    if (req.method === "DELETE") {
+      const now = localSqlTimestamp();
+
+      const { data, error } = await supabaseAdmin
+        .from(TABLE)
+        .delete()
+        .lt("quote_deadline_at", now)
+        .in("status", ["new", "calculating"])
+        .select("id");
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      return res.status(200).json({
+        deleted_count: data?.length ?? 0,
+      });
     }
 
     return res.status(405).json({ error: "Metoden stöds inte." });

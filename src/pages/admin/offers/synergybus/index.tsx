@@ -178,6 +178,31 @@ export default function SynergyBusPage() {
     loadRows();
   }, []);
 
+  async function deleteExpiredRequests() {
+    const confirmed = window.confirm(
+      "Vill du ta bort förfallna SynergyBus-förfrågningar? Endast förfrågningar med status Ny eller Beräknas tas bort."
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch("/api/offers/synergybus", {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Kunde inte ta bort förfallna förfrågningar.");
+      }
+
+      alert(`Klart. ${data.deleted_count ?? 0} förfallna förfrågningar togs bort.`);
+      window.location.reload();
+    } catch (err: any) {
+      alert(err?.message || "Något gick fel.");
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -198,12 +223,22 @@ export default function SynergyBusPage() {
             </p>
           </div>
 
-          <Link
-            href="/admin/offers/synergybus/new"
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={deleteExpiredRequests}
+              className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 shadow-sm hover:bg-red-50"
+            >
+              Ta bort förfallna
+            </button>
+
+            <Link
+              href="/admin/offers/synergybus/new"
             className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800"
           >
             + Lägg till förfrågan
-          </Link>
+            </Link>
+          </div>
         </div>
 
         {alertRows.length > 0 ? (

@@ -83,6 +83,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ row: data });
     }
 
+    if (req.method === "DELETE") {
+      const { error } = await supabaseAdmin
+        .from(TABLE)
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      return res.status(200).json({
+        ok: true,
+      });
+    }
+
     return res.status(405).json({ error: "Metoden stöds inte." });
   } catch (error: any) {
     return res.status(500).json({
