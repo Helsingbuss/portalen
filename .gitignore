@@ -62,3 +62,7 @@ fix-*.js
 *.tsbuildinfo
 
 show-*.js
+
+mobile/helsingbuss-admin-mobile/android/local.properties
+
+!mobile/helsingbuss-admin-mobile/scripts/patch-otel-hermes.js
