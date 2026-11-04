@@ -1,10 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import {
-  sendBookingAdminEmail,
-  sendBookingCustomerEmail,
-} from "@/lib/sumup";
-
+import Stripe from "stripe";
 function toNumber(value: any, fallback = 0) {
   if (value === "" || value === null || value === undefined) return fallback;
   const n = Number(value);
@@ -13,8 +9,8 @@ function toNumber(value: any, fallback = 0) {
 
 function makeBookingNumber() {
   const year = new Date().getFullYear().toString().slice(-2);
-  const random = Math.floor(100000 + Math.random() * 900000);
-  return `SU${year}${random}`;
+  const random = Math.floor(10000000 + Math.random() * 90000000);
+  return `HBR${year}${random}`;
 }
 
 function baseUrl() {
@@ -62,70 +58,6 @@ function buildPassengers(
       last_name: lastName,
     });
   });
-}
-
-async function createSumUpCheckout({
-  bookingId,
-  bookingNumber,
-  amount,
-  currency,
-  description,
-}: {
-  bookingId: string;
-  bookingNumber: string;
-  amount: number;
-  currency: string;
-  description: string;
-}) {
-  const apiKey = process.env.SUMUP_API_KEY?.trim();
-  const merchantCode = process.env.SUMUP_MERCHANT_CODE?.trim();
-
-  if (!apiKey) throw new Error("SUMUP_API_KEY saknas i env.");
-  if (!merchantCode) throw new Error("SUMUP_MERCHANT_CODE saknas i env.");
-
-  const successUrl = `${baseUrl()}/boka/bekraftelse/${bookingId}?payment=sumup`;
-  const cancelUrl = `${baseUrl()}/boka/bekraftelse/${bookingId}?payment=cancelled`;
-
-  const response = await fetch("https://api.sumup.com/v0.1/checkouts", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      checkout_reference: bookingNumber,
-      amount: Number(amount.toFixed(2)),
-      currency,
-      merchant_code: merchantCode,
-      description,
-      return_url: successUrl,
-      redirect_url: successUrl,
-      hosted_checkout: {
-        enabled: true,
-      },
-    }),
-  });
-
-  const json = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    console.error("SumUp checkout error:", json);
-    throw new Error(
-      json?.message || json?.error || "Kunde inte skapa SumUp-betalning."
-    );
-  }
-
-  return {
-    id: json.id,
-    checkout_reference: json.checkout_reference,
-    checkout_url:
-      json.hosted_checkout_url ||
-      json.checkout_url ||
-      json.redirect_url ||
-      null,
-    raw: json,
-    cancel_url: cancelUrl,
-  };
 }
 
 async function validateSelectedSeats({
@@ -560,41 +492,90 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (passengerError) throw passengerError;
 
-    const sumup = await createSumUpCheckout({
-      bookingId: booking.id,
-      bookingNumber: booking.booking_number,
-      amount: totalAmount,
-      currency,
-      description: `${trip?.title || "Sundra resa"} - ${booking.booking_number}`,
-    });
+    const stripeKey =
+      process.env.STRIPE_SECRET_KEY?.trim() || "";
 
-    await supabaseAdmin
-      .from("sundra_bookings")
-      .update({
-        payment_reference: sumup.id || sumup.checkout_reference || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", booking.id);
-
-    if (sumup.checkout_url) {
-      await sendBookingCustomerEmail({
-        bookingNumber: booking.booking_number,
-        customerName: body.customer_name,
-        customerEmail: body.customer_email,
-        tripTitle: trip?.title || "Sundra resa",
-        totalAmount,
-        paymentUrl: sumup.checkout_url,
+    if (!stripeKey.startsWith("sk_")) {
+      return res.status(503).json({
+        ok: false,
+        error: "Stripe payment is not configured.",
       });
+    }
 
-      await sendBookingAdminEmail({
-        bookingNumber: booking.booking_number,
-        customerName: body.customer_name,
-        customerEmail: body.customer_email,
-        customerPhone: body.customer_phone,
-        tripTitle: trip?.title || "Sundra resa",
-        passengersCount,
-        totalAmount,
+    const stripe = new Stripe(stripeKey);
+
+    const amountOre =
+      Math.round(Number(totalAmount) * 100);
+
+    if (
+      !Number.isSafeInteger(amountOre) ||
+      amountOre <= 0
+    ) {
+      return res.status(500).json({
+        ok: false,
+        error: "Invalid payment amount.",
+        booking_id: booking.id,
+        booking_number: booking.booking_number,
       });
+    }
+
+    let paymentIntent: Stripe.PaymentIntent;
+
+    try {
+      paymentIntent =
+        await stripe.paymentIntents.create({
+          amount: amountOre,
+          currency: "sek",
+          payment_method_types: ["card"],
+          receipt_email:
+            String(body.customer_email).trim(),
+          description:
+            `${trip?.title || "Helsingbuss resa"} - ${booking.booking_number}`,
+          metadata: {
+            source: "helsingbuss_resor",
+            booking_id: String(booking.id),
+            booking_number:
+              String(booking.booking_number),
+          },
+        });
+    } catch (paymentIntentError) {
+      console.error(
+        "Helsingbuss Stripe PaymentIntent failed:",
+        paymentIntentError
+      );
+
+      return res.status(503).json({
+        ok: false,
+        error: "Kortbetalningen kunde inte startas.",
+        booking_id: booking.id,
+        booking_number: booking.booking_number,
+        payment_pending: true,
+        retry_new_booking: false,
+      });
+    }
+
+    if (!paymentIntent.client_secret) {
+      return res.status(503).json({
+        ok: false,
+        error: "Stripe returned no client secret.",
+        booking_id: booking.id,
+        booking_number: booking.booking_number,
+        payment_pending: true,
+        retry_new_booking: false,
+      });
+    }
+
+    const { error: referenceError } =
+      await supabaseAdmin
+        .from("sundra_bookings")
+        .update({
+          payment_reference: paymentIntent.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", booking.id);
+
+    if (referenceError) {
+      throw referenceError;
     }
 
     return res.status(201).json({
@@ -602,11 +583,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       booking,
       booking_id: booking.id,
       booking_number: booking.booking_number,
-
-      checkout_url: sumup.checkout_url,
-      payment_url: sumup.checkout_url,
-      sumup_checkout_id: sumup.id,
-
+      total_amount: totalAmount,
+      currency: "SEK",
+      client_secret: paymentIntent.client_secret,
+      payment_intent_id: paymentIntent.id,
       redirect_url: `/boka/bekraftelse/${booking.id}`,
     });
   } catch (e: any) {
