@@ -1,9 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import Stripe from "stripe";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import {
-  sendBookingAdminEmail,
-  sendBookingCustomerEmail,
-} from "@/lib/sumup";
 
 function toNumber(value: any, fallback = 0) {
   if (value === "" || value === null || value === undefined) return fallback;
@@ -13,8 +10,8 @@ function toNumber(value: any, fallback = 0) {
 
 function makeBookingNumber() {
   const year = new Date().getFullYear().toString().slice(-2);
-  const random = Math.floor(100000 + Math.random() * 900000);
-  return `SU${year}${random}`;
+  const random = Math.floor(10000000 + Math.random() * 90000000);
+  return `HBR${year}${random}`;
 }
 
 function baseUrl() {
@@ -35,7 +32,7 @@ function cleanPassenger(p: any) {
     date_of_birth: p?.date_of_birth || null,
     special_requests: p?.special_requests || null,
     seat_number: p?.seat_number || null,
-    seat_price: toNumber(p?.seat_price, 0),
+    seat_price: 0,
   };
 }
 
@@ -64,69 +61,6 @@ function buildPassengers(
   });
 }
 
-async function createSumUpCheckout({
-  bookingId,
-  bookingNumber,
-  amount,
-  currency,
-  description,
-}: {
-  bookingId: string;
-  bookingNumber: string;
-  amount: number;
-  currency: string;
-  description: string;
-}) {
-  const apiKey = process.env.SUMUP_API_KEY?.trim();
-  const merchantCode = process.env.SUMUP_MERCHANT_CODE?.trim();
-
-  if (!apiKey) throw new Error("SUMUP_API_KEY saknas i env.");
-  if (!merchantCode) throw new Error("SUMUP_MERCHANT_CODE saknas i env.");
-
-  const successUrl = `${baseUrl()}/boka/bekraftelse/${bookingId}?payment=sumup`;
-  const cancelUrl = `${baseUrl()}/boka/bekraftelse/${bookingId}?payment=cancelled`;
-
-  const response = await fetch("https://api.sumup.com/v0.1/checkouts", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      checkout_reference: bookingNumber,
-      amount: Number(amount.toFixed(2)),
-      currency,
-      merchant_code: merchantCode,
-      description,
-      return_url: successUrl,
-      redirect_url: successUrl,
-      hosted_checkout: {
-        enabled: true,
-      },
-    }),
-  });
-
-  const json = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    console.error("SumUp checkout error:", json);
-    throw new Error(
-      json?.message || json?.error || "Kunde inte skapa SumUp-betalning."
-    );
-  }
-
-  return {
-    id: json.id,
-    checkout_reference: json.checkout_reference,
-    checkout_url:
-      json.hosted_checkout_url ||
-      json.checkout_url ||
-      json.redirect_url ||
-      null,
-    raw: json,
-    cancel_url: cancelUrl,
-  };
-}
 
 async function validateSelectedSeats({
   departureId,
@@ -142,7 +76,7 @@ async function validateSelectedSeats({
   const uniqueSeats = new Set(selectedSeats);
 
   if (uniqueSeats.size !== selectedSeats.length) {
-    throw new Error("Samma säte har valts flera gånger.");
+    throw new Error("Samma sÃ¤te har valts flera gÃ¥nger.");
   }
 
   const { data: occupiedPassengers, error } = await supabaseAdmin
@@ -170,7 +104,7 @@ async function validateSelectedSeats({
 
   if (occupied.length > 0) {
     throw new Error(
-      `Säte ${occupied.map((p: any) => p.seat_number).join(", ")} är redan bokat.`
+      `SÃ¤te ${occupied.map((p: any) => p.seat_number).join(", ")} Ã¤r redan bokat.`
     );
   }
 }
@@ -364,13 +298,13 @@ async function assignAutomaticSeats({
     .sort(seatSort);
 
   if (availableSeats.length < missingSeatIndexes.length) {
-    throw new Error(`Det finns bara ${availableSeats.length} lediga säten kvar på platskartan.`);
+    throw new Error(`Det finns bara ${availableSeats.length} lediga sÃ¤ten kvar pÃ¥ platskartan.`);
   }
 
   const pickedSeats = pickSeatsTogether(availableSeats, missingSeatIndexes.length);
 
   if (pickedSeats.length < missingSeatIndexes.length) {
-    throw new Error("Kunde inte reservera säten automatiskt.");
+    throw new Error("Kunde inte reservera sÃ¤ten automatiskt.");
   }
 
   return passengers.map((passenger, index) => {
@@ -402,7 +336,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!body.trip_id || !body.departure_id) {
       return res.status(400).json({
         ok: false,
-        error: "Resa eller avgång saknas.",
+        error: "Resa eller avgÃ¥ng saknas.",
       });
     }
 
@@ -413,7 +347,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    const passengersCount = Math.max(1, toNumber(body.passengers_count, 1));
+    const passengersCount = Number(body.passengers_count);
+
+    if (
+      !Number.isSafeInteger(passengersCount) ||
+      passengersCount < 1 ||
+      passengersCount > 80
+    ) {
+      return res.status(400).json({
+        ok: false,
+        error: "Antalet resenÃ¤rer mÃ¥ste vara ett heltal mellan 1 och 80.",
+      });
+    }
     const bodyPassengers = Array.isArray(body.passengers) ? body.passengers : [];
     let passengers = buildPassengers(
       bodyPassengers,
@@ -426,6 +371,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .select(`
         id,
         trip_id,
+        line_id,
+        departure_time,
         price,
         capacity,
         booked_count,
@@ -445,21 +392,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!departure) {
       return res.status(404).json({
         ok: false,
-        error: "Avgången hittades inte.",
+        error: "AvgÃ¥ngen hittades inte.",
       });
     }
 
     if (departure.status !== "open") {
       return res.status(400).json({
         ok: false,
-        error: "Avgången är inte bokningsbar.",
+        error: "AvgÃ¥ngen Ã¤r inte bokningsbar.",
       });
     }
 
     if (String(departure.trip_id) !== String(body.trip_id)) {
       return res.status(400).json({
         ok: false,
-        error: "Avgången matchar inte vald resa.",
+        error: "AvgÃ¥ngen matchar inte vald resa.",
       });
     }
 
@@ -472,6 +419,194 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         error: `Det finns bara ${Math.max(0, seatsLeft)} platser kvar.`,
       });
     }
+    // RESOR07F3B2
+    // Kunden skickar endast vilket line-stop som valts.
+    // Pris och tid bestÃ¤ms pÃ¥ servern.
+    const requestedLineStopId =
+      String(
+        body.line_stop_id ||
+        "",
+      ).trim();
+
+    if (!requestedLineStopId) {
+      return res.status(400).json({
+        ok: false,
+        error:
+          "PÃ¥stigningsplats saknas.",
+      });
+    }
+
+    const {
+      data: lineLinks,
+      error: lineLinksError,
+    } =
+      await supabaseAdmin
+        .from(
+          "sundra_departure_lines",
+        )
+        .select(
+          "line_id",
+        )
+        .eq(
+          "departure_id",
+          body.departure_id,
+        );
+
+    if (lineLinksError) {
+      throw lineLinksError;
+    }
+
+    const allowedLineIds =
+      new Set(
+        [
+          ...(
+            lineLinks || []
+          ).map(
+            (row: any) =>
+              String(
+                row.line_id ||
+                "",
+              ),
+          ),
+
+          departure.line_id
+            ? String(
+                departure.line_id,
+              )
+            : "",
+        ].filter(Boolean),
+      );
+
+    const {
+      data: selectedStop,
+      error: selectedStopError,
+    } =
+      await supabaseAdmin
+        .from(
+          "sundra_line_stops",
+        )
+        .select(`
+          id,
+          line_id,
+          stop_name,
+          stop_id,
+          default_departure_time,
+          price,
+          stop_order,
+          active
+        `)
+        .eq(
+          "id",
+          requestedLineStopId,
+        )
+        .limit(1)
+        .maybeSingle();
+
+    if (selectedStopError) {
+      throw selectedStopError;
+    }
+
+    if (!selectedStop) {
+      return res.status(400).json({
+        ok: false,
+        error:
+          "PÃ¥stigningsplatsen hittades inte.",
+      });
+    }
+
+    if (
+      selectedStop.active ===
+      false
+    ) {
+      return res.status(400).json({
+        ok: false,
+        error:
+          "PÃ¥stigningsplatsen Ã¤r inte aktiv.",
+      });
+    }
+
+    if (
+      !allowedLineIds.has(
+        String(
+          selectedStop.line_id,
+        ),
+      )
+    ) {
+      return res.status(400).json({
+        ok: false,
+        error:
+          "PÃ¥stigningsplatsen hÃ¶r inte till denna avgÃ¥ng.",
+      });
+    }
+
+    if (
+      body.line_id &&
+      String(body.line_id) !==
+        String(
+          selectedStop.line_id,
+        )
+    ) {
+      return res.status(400).json({
+        ok: false,
+        error:
+          "Linjen stÃ¤mmer inte med vald pÃ¥stigningsplats.",
+      });
+    }
+
+    const {
+      data: stopOverride,
+      error: stopOverrideError,
+    } =
+      await supabaseAdmin
+        .from(
+          "sundra_departure_stop_overrides",
+        )
+        .select(`
+          departure_time,
+          price
+        `)
+        .eq(
+          "departure_id",
+          body.departure_id,
+        )
+        .eq(
+          "line_stop_id",
+          selectedStop.id,
+        )
+        .limit(1)
+        .maybeSingle();
+
+    if (stopOverrideError) {
+      throw stopOverrideError;
+    }
+
+    const effectivePickupTime =
+      stopOverride
+        ?.departure_time ||
+      selectedStop.default_departure_time ||
+      departure
+        .departure_time ||
+      null;
+
+    const effectivePickupPrice =
+      stopOverride?.price !==
+        null &&
+      stopOverride?.price !==
+        undefined
+        ? Number(
+            stopOverride.price,
+          )
+        : selectedStop.price !==
+              null &&
+            selectedStop.price !==
+              undefined
+          ? Number(
+              selectedStop.price,
+            )
+          : Number(
+              departure.price ||
+              0,
+            );
 
     passengers = await assignAutomaticSeats({
       departureId: body.departure_id,
@@ -483,20 +618,118 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       passengers,
     });
 
+    // RESERVATIONER04BN - serverkontrollerade satespriser
+    const { data: seatDeparture, error: seatDepartureError } =
+      await supabaseAdmin
+        .from("sundra_departures")
+        .select(`
+          bus_map_id,
+          sundra_bus_maps (
+            sundra_bus_map_seats (
+              seat_number,
+              seat_price,
+              is_active,
+              is_blocked,
+              is_selectable
+            )
+          )
+        `)
+        .eq("id", body.departure_id)
+        .single();
+
+    if (seatDepartureError) throw seatDepartureError;
+
+    const rawBusMap = seatDeparture?.sundra_bus_maps;
+    const seatBusMap: any = Array.isArray(rawBusMap)
+      ? rawBusMap[0]
+      : rawBusMap;
+
+    const seatRows: any[] =
+      seatBusMap?.sundra_bus_map_seats || [];
+
+    if (seatRows.length > 0) {
+      const seatPrices = new Map<string, number>();
+
+      for (const seat of seatRows) {
+        const number = String(seat.seat_number || "")
+          .trim()
+          .toUpperCase();
+
+        if (!number) continue;
+        if (seat.is_active === false) continue;
+        if (seat.is_blocked === true) continue;
+        if (seat.is_selectable === false) continue;
+
+        const price = Number(seat.seat_price ?? 0);
+
+        if (!Number.isFinite(price) || price < 0) {
+          return res.status(400).json({
+            ok: false,
+            error: "Ogiltigt satespris i platskartan.",
+          });
+        }
+
+        seatPrices.set(number, price);
+      }
+
+      passengers = passengers.map((passenger: any) => {
+        const number = String(passenger.seat_number || "")
+          .trim()
+          .toUpperCase();
+
+        if (!seatPrices.has(number)) {
+          throw new Error(
+            "Vald plats saknas eller ar inte bokningsbar."
+          );
+        }
+
+        return {
+          ...passenger,
+          seat_number: number,
+          seat_price: 0,
+        };
+      });
+    } else {
+      // Utan platskarta far webblasaren inte ange satestillagg.
+      passengers = passengers.map((passenger: any) => ({
+        ...passenger,
+        seat_price: 0,
+      }));
+    }
     const trip: any = Array.isArray(departure.sundra_trips)
       ? departure.sundra_trips[0]
       : departure.sundra_trips;
 
-    const unitPrice = toNumber(departure.price, 0);
+    const unitPrice = toNumber(effectivePickupPrice, 0);
     const subtotal = unitPrice * passengersCount;
 
-    const optionsTotal = toNumber(body.options_total, 0);
+    const unsafeAmounts = [
+      body.options_total,
+      body.room_total,
+      body.discount_amount,
+    ];
+
+    if (
+      unsafeAmounts.some(
+        (value) =>
+          value !== undefined &&
+          value !== null &&
+          (!Number.isFinite(Number(value)) || Number(value) !== 0)
+      )
+    ) {
+      return res.status(400).json({
+        ok: false,
+        error:
+          "Tillval, hotellkostnad och rabatter mÃ¥ste berÃ¤knas av bokningssystemet.",
+      });
+    }
+
+    const optionsTotal = 0;
     const roomTotal = toNumber(body.room_total, 0);
 
-    const seatExtraTotal = passengers.reduce(
-      (sum: number, p: any) => sum + toNumber(p?.seat_price, 0),
-      0
-    );
+    const seatExtraTotal = 0;
+    // SEAT-PRICING-OFF:
+    // PlatstillÃ¤gg Ã¤r avaktiverat. Platsnummer fÃ¥r fortfarande sparas.
 
     const discountAmount = toNumber(body.discount_amount, 0);
 
@@ -506,109 +739,155 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     );
 
     const currency = body.currency || trip?.currency || "SEK";
-    const bookingNumber = makeBookingNumber();
+    // STRIPE-ONLY
+    // Helsingbuss Resor anvÃ¤nder endast Stripe.
+    {
+      const stripeKey = process.env.STRIPE_SECRET_KEY?.trim() || "";
 
-    const { data: booking, error: bookingError } = await supabaseAdmin
-      .from("sundra_bookings")
-      .insert({
-        booking_number: bookingNumber,
-        trip_id: body.trip_id,
-        departure_id: body.departure_id,
+      if (!stripeKey.startsWith("sk_")) {
+        return res.status(503).json({
+          ok: false,
+          error: "Betalningen Ã¤r tillfÃ¤lligt otillgÃ¤nglig. Kontakta Helsingbuss.",
+        });
+      }
 
-        status: "pending_payment",
+      if (
+        passengers.some(
+          (p: any) =>
+            !String(p.first_name || "").trim() ||
+            !String(p.last_name || "").trim()
+        )
+      ) {
+        return res.status(400).json({
+          ok: false,
+          error: "FÃ¶r- och efternamn krÃ¤vs fÃ¶r varje resenÃ¤r.",
+        });
+      }
 
-        customer_name: body.customer_name,
-        customer_email: body.customer_email,
-        customer_phone: body.customer_phone,
-        customer_address: body.customer_address || null,
+      const { data: result, error: rpcError } =
+        await supabaseAdmin.rpc("helsingbuss_create_booking_v2", {
+          p_departure_id: body.departure_id,
+          p_customer_name: String(body.customer_name).trim(),
+          p_customer_email: String(body.customer_email).trim(),
+          p_customer_phone: String(body.customer_phone).trim(),
+          p_customer_address: body.customer_address || null,
+          p_line_stop_id: selectedStop.id,
+          p_passengers: passengers.map((p: any) => ({
+            first_name: p.first_name,
+            last_name: p.last_name,
+            passenger_type: p.passenger_type,
+            date_of_birth: p.date_of_birth,
+            special_requests: p.special_requests,
+            seat_number: p.seat_number,
+          })),
+        });
 
-        passengers_count: passengersCount,
-        selected_room_id: body.selected_room_id || null,
+      if (rpcError) {
+        console.error("Helsingbuss V2 booking error:", rpcError);
+        return res.status(409).json({
+          ok: false,
+          error: "Bokningen kunde inte genomfÃ¶ras. Kontrollera platser och avgÃ¥ng.",
+        });
+      }
 
-        subtotal,
-        options_total: optionsTotal,
-        room_total: roomTotal,
-        seat_extra_total: seatExtraTotal,
+      if (!result?.ok || !result.booking_id) {
+        throw new Error("Bokningsfunktionen returnerade inget boknings-ID.");
+      }
 
-        discount_code: body.discount_code || null,
-        discount_amount: discountAmount,
+      // STRIPE EMBEDDED CARD PAYMENT
+      // Bokningen skapas först. Stripe PaymentIntent använder serverns belopp.
+      // Kunden fyller kortuppgifterna direkt på Helsingbuss webbplats.
+      const stripe = new Stripe(stripeKey);
 
-        total_amount: totalAmount,
-        currency,
+      const amountOre = Math.round(
+        Number(result.total_amount) * 100
+      );
 
-        payment_status: "unpaid",
-        payment_reference: null,
+      if (!Number.isSafeInteger(amountOre) || amountOre <= 0) {
+        return res.status(500).json({
+          ok: false,
+          error: "Bokningens betalningsbelopp ar ogiltigt.",
+          booking_id: result.booking_id,
+          booking_number: result.booking_number,
+          payment_pending: true,
+          retry_new_booking: false,
+        });
+      }
 
-        notes: body.notes || null,
+      let paymentIntent: Stripe.PaymentIntent;
 
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+      try {
+        paymentIntent = await stripe.paymentIntents.create({
+          amount: amountOre,
+          currency: "sek",
+          payment_method_types: ["card"],
+          receipt_email: String(body.customer_email).trim(),
+          description: `${trip?.title || "Helsingbuss resa"} - ${result.booking_number}`,
+          metadata: {
+            system: "sundra",
+            source: "helsingbuss_resor",
+            booking_id: String(result.booking_id),
+            booking_number: String(result.booking_number),
+          },
+        });
+      } catch (paymentIntentError) {
+        console.error("Helsingbuss Stripe PaymentIntent failed:", {
+          bookingId: result.booking_id,
+          error: paymentIntentError,
+        });
 
-    if (bookingError) throw bookingError;
+        return res.status(503).json({
+          ok: false,
+          error: "Din bokning har registrerats, men kortbetalningen kunde inte startas. Forsok inte skapa en ny bokning.",
+          booking_id: result.booking_id,
+          booking_number: result.booking_number,
+          payment_pending: true,
+          retry_new_booking: false,
+        });
+      }
 
-    const passengerRows = passengers.map((p: any) => ({
-      booking_id: booking.id,
-      ...cleanPassenger(p),
-    }));
+      if (!paymentIntent.client_secret) {
+        return res.status(503).json({
+          ok: false,
+          error: "Stripe returnerade ingen betalningsnyckel.",
+          booking_id: result.booking_id,
+          booking_number: result.booking_number,
+          payment_pending: true,
+          retry_new_booking: false,
+        });
+      }
 
-    const { error: passengerError } = await supabaseAdmin
-      .from("sundra_booking_passengers")
-      .insert(passengerRows);
+      const { data: savedReference, error: referenceError } =
+        await supabaseAdmin
+          .from("sundra_bookings")
+          .update({
+            payment_reference: paymentIntent.id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", result.booking_id)
+          .eq("payment_status", "unpaid")
+          .select("id")
+          .single();
 
-    if (passengerError) throw passengerError;
+      if (referenceError || !savedReference) {
+        console.error("Helsingbuss Stripe reference error:", referenceError);
+        throw new Error(
+          "Bokningen skapades men Stripe-referensen kunde inte sparas."
+        );
+      }
 
-    const sumup = await createSumUpCheckout({
-      bookingId: booking.id,
-      bookingNumber: booking.booking_number,
-      amount: totalAmount,
-      currency,
-      description: `${trip?.title || "Sundra resa"} - ${booking.booking_number}`,
-    });
-
-    await supabaseAdmin
-      .from("sundra_bookings")
-      .update({
-        payment_reference: sumup.id || sumup.checkout_reference || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", booking.id);
-
-    if (sumup.checkout_url) {
-      await sendBookingCustomerEmail({
-        bookingNumber: booking.booking_number,
-        customerName: body.customer_name,
-        customerEmail: body.customer_email,
-        tripTitle: trip?.title || "Sundra resa",
-        totalAmount,
-        paymentUrl: sumup.checkout_url,
-      });
-
-      await sendBookingAdminEmail({
-        bookingNumber: booking.booking_number,
-        customerName: body.customer_name,
-        customerEmail: body.customer_email,
-        customerPhone: body.customer_phone,
-        tripTitle: trip?.title || "Sundra resa",
-        passengersCount,
-        totalAmount,
+      return res.status(201).json({
+        ok: true,
+        booking_id: result.booking_id,
+        booking_number: result.booking_number,
+        total_amount: Number(result.total_amount),
+        currency: "SEK",
+        client_secret: paymentIntent.client_secret,
+        payment_intent_id: paymentIntent.id,
+        redirect_url: `/boka/bekraftelse/${result.booking_id}`,
       });
     }
 
-    return res.status(201).json({
-      ok: true,
-      booking,
-      booking_id: booking.id,
-      booking_number: booking.booking_number,
-
-      checkout_url: sumup.checkout_url,
-      payment_url: sumup.checkout_url,
-      sumup_checkout_id: sumup.id,
-
-      redirect_url: `/boka/bekraftelse/${booking.id}`,
-    });
   } catch (e: any) {
     console.error("/api/public/sundra/bookings/create error:", e?.message || e);
 
