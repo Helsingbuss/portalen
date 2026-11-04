@@ -7,6 +7,8 @@ import {
   generateTicketPdf,
   TicketPdfData,
 } from "@/lib/tickets/generateTicketPdf";
+import { sendSundraReceiptAndTicketAfterPayment } from "@/lib/sundraPostPaymentEmails";
+import { sendSundraBookingConfirmation } from "@/lib/email/sendSundraBookingConfirmation";
 
 export const config = {
   api: {
@@ -128,6 +130,20 @@ export default async function handler(
       await handleCheckoutCompleted(session);
     }
 
+    if (event.type === "payment_intent.succeeded") {
+      const paymentIntent =
+        event.data.object as Stripe.PaymentIntent;
+
+      if (
+        paymentIntent.metadata?.source ===
+        "helsingbuss_resor"
+      ) {
+        await handleHelsingbussResorPaymentIntent(
+          req,
+          paymentIntent
+        );
+      }
+    }
     return res.json({ ok: true });
   } catch (err: any) {
     console.error("Stripe webhook handler error", err);
@@ -135,6 +151,143 @@ export default async function handler(
       .status(500)
       .json({ ok: false, error: err?.message ?? "Okänt fel i webhook." });
   }
+}
+
+async function handleHelsingbussResorPaymentIntent(
+  req: NextApiRequest,
+  paymentIntent: Stripe.PaymentIntent
+) {
+  const bookingId =
+    String(
+      paymentIntent.metadata?.booking_id || ""
+    ).trim();
+
+  if (!bookingId) {
+    throw new Error(
+      "Stripe PaymentIntent missing booking_id."
+    );
+  }
+
+  const { data: booking, error: bookingError } =
+    await supabase
+      .from("sundra_bookings")
+      .select("*")
+      .eq("id", bookingId)
+      .single();
+
+  if (bookingError || !booking) {
+    throw bookingError ||
+      new Error("Booking not found.");
+  }
+
+  // Förhindra dubbla mail/biljetter från webhook retries
+  if (booking.payment_status === "paid") {
+    return;
+  }
+
+  const expectedAmount =
+    Math.round(
+      Number(booking.total_amount || 0) * 100
+    );
+
+  if (
+    paymentIntent.currency !== "sek" ||
+    paymentIntent.amount_received !== expectedAmount
+  ) {
+    throw new Error(
+      "Stripe payment amount does not match booking."
+    );
+  }
+
+  const {
+    data: updatedBooking,
+    error: updateError,
+  } = await supabase
+    .from("sundra_bookings")
+    .update({
+      status: "confirmed",
+      payment_status: "paid",
+      payment_reference: paymentIntent.id,
+      paid_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", bookingId)
+    .neq("payment_status", "paid")
+    .select()
+    .maybeSingle();
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  if (!updatedBooking) {
+    return;
+  }
+
+  const { data: trip } =
+    await supabase
+      .from("sundra_trips")
+      .select("*")
+      .eq("id", updatedBooking.trip_id)
+      .single();
+
+  const { data: departure } =
+    await supabase
+      .from("sundra_departures")
+      .select("*")
+      .eq("id", updatedBooking.departure_id)
+      .single();
+
+  const { data: passengers } =
+    await supabase
+      .from("sundra_booking_passengers")
+      .select("*")
+      .eq("booking_id", updatedBooking.id)
+      .order("created_at", {
+        ascending: true,
+      });
+
+  if (updatedBooking.customer_email) {
+    await sendSundraBookingConfirmation({
+      to: updatedBooking.customer_email,
+      booking: {
+        id: updatedBooking.id,
+        booking_number: updatedBooking.booking_number,
+        customer_name: updatedBooking.customer_name,
+        passengers_count:
+          updatedBooking.passengers_count ||
+          passengers?.length ||
+          0,
+        total_amount: updatedBooking.total_amount,
+        currency: updatedBooking.currency || "SEK",
+        payment_status: "paid",
+      },
+      trip: trip
+        ? {
+            title: trip.title,
+            destination: trip.destination,
+            image_url: trip.image_url,
+          }
+        : null,
+      departure: departure
+        ? {
+            departure_date: departure.departure_date,
+            departure_time: departure.departure_time,
+            return_date: departure.return_date,
+            return_time: departure.return_time,
+          }
+        : null,
+      passengers: passengers || [],
+    });
+  }
+
+  await sendSundraReceiptAndTicketAfterPayment(
+    req,
+    {
+      bookingId: String(updatedBooking.id),
+      paymentReference: paymentIntent.id,
+    }
+  );
 }
 
 async function handleCheckoutCompleted(
